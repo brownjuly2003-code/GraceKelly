@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import unittest
 
-from gracekelly.core.contracts import MergeStrategy
+from gracekelly.core.contracts import EventType, FailureCode, MergeStrategy, StepStatus, TaskStatus
 from gracekelly.storage.postgres import PostgresTaskRepository
 from gracekelly.storage.schema import (
     EXPECTED_SCHEMA_COLUMNS,
@@ -66,14 +66,49 @@ class PostgresSchemaTests(unittest.TestCase):
                 "merge_strategy": "first_success",
                 "adapter_hint": "auto",
                 "cancel_on_quorum": True,
-                "failure_code": None,
+                "failure_code": "timeout",
                 "failure_message": None,
                 "output_text": "ok",
                 "metadata": {},
             }
         )
 
+        self.assertEqual(record.status, TaskStatus.COMPLETED)
         self.assertEqual(record.merge_strategy, MergeStrategy.FIRST_SUCCESS)
+        self.assertEqual(record.failure_code, FailureCode.TIMEOUT)
+
+    def test_step_and_event_rows_are_normalized_back_to_enums(self) -> None:
+        repository = PostgresTaskRepository.__new__(PostgresTaskRepository)
+
+        step = repository._step_from_row(
+            {
+                "task_id": "task-1",
+                "step_index": 1,
+                "model_id": "mistral-small",
+                "model_display_name": "Mistral Small",
+                "backend": "api",
+                "provider": "mistral",
+                "status": "failed",
+                "failure_code": "provider_unavailable",
+                "failure_message": "offline",
+                "output_text": None,
+                "duration_ms": 10,
+            }
+        )
+        event = repository._event_from_row(
+            {
+                "event_id": "event-1",
+                "task_id": "task-1",
+                "sequence_no": 1,
+                "event_type": "task.accepted",
+                "created_at": None,
+                "payload": {},
+            }
+        )
+
+        self.assertEqual(step.status, StepStatus.FAILED)
+        self.assertEqual(step.failure_code, FailureCode.PROVIDER_UNAVAILABLE)
+        self.assertEqual(event.event_type, EventType.TASK_ACCEPTED)
 
 
 if __name__ == "__main__":

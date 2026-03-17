@@ -5,13 +5,13 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
 
-from gracekelly.core.contracts import MergeStrategy
+from gracekelly.core.contracts import EventType, FailureCode, MergeStrategy, StepStatus, TaskStatus
 
 
 @dataclass(slots=True)
 class TaskRecord:
     task_id: str
-    status: str
+    status: TaskStatus
     accepted_at: datetime
     completed_at: datetime | None
     duration_ms: int | None
@@ -24,7 +24,7 @@ class TaskRecord:
     merge_strategy: MergeStrategy
     adapter_hint: str
     cancel_on_quorum: bool
-    failure_code: str | None = None
+    failure_code: FailureCode | None = None
     failure_message: str | None = None
     output_text: str | None = None
     metadata: dict[str, Any] = field(default_factory=dict)
@@ -38,8 +38,8 @@ class TaskStepRecord:
     model_display_name: str
     backend: str
     provider: str
-    status: str
-    failure_code: str | None = None
+    status: StepStatus
+    failure_code: FailureCode | None = None
     failure_message: str | None = None
     output_text: str | None = None
     duration_ms: int | None = None
@@ -50,7 +50,7 @@ class TaskEventRecord:
     event_id: str
     task_id: str
     sequence_no: int
-    event_type: str
+    event_type: EventType
     created_at: datetime
     payload: dict[str, Any] = field(default_factory=dict)
 

@@ -5,7 +5,7 @@ from typing import Any
 
 from pydantic import BaseModel, Field, model_validator
 
-from gracekelly.core.contracts import EventType, MergeStrategy, StepStatus
+from gracekelly.core.contracts import EventType, MergeStrategy, StepStatus, TaskStatus
 from gracekelly.storage.base import TaskEventRecord, TaskRecord, TaskStepRecord
 
 
@@ -186,7 +186,7 @@ def _resolve_adapter_name(task: TaskRecord, steps: list[TaskStepRecord]) -> str:
     if not steps:
         return "unknown"
     completed = [item for item in steps if item.status == StepStatus.COMPLETED.value]
-    candidates = completed or [item for item in steps if item.status == StepStatus.FAILED.value] or steps
+    candidates = completed or [item for item in steps if item.status == StepStatus.FAILED] or steps
     adapter_names = {f"{item.backend}.{item.provider}" for item in candidates}
     if len(adapter_names) == 1:
         return adapter_names.pop()
@@ -202,7 +202,7 @@ def _resolve_requested_models(
             ModelView(id=item.model_id, display_name=item.model_display_name)
             for item in steps
         ]
-    accepted_event = next((item for item in events if item.event_type == EventType.TASK_ACCEPTED.value), None)
+    accepted_event = next((item for item in events if item.event_type == EventType.TASK_ACCEPTED), None)
     if accepted_event is None:
         return []
     plan = accepted_event.payload.get("execution_plan", {})
@@ -217,11 +217,11 @@ def _resolve_requested_models(
 
 
 def _resolve_winning_model(task: TaskRecord, steps: list[TaskStepRecord]) -> ModelView | None:
-    if task.dry_run or task.status != "completed":
+    if task.dry_run or task.status != TaskStatus.COMPLETED:
         return None
     if task.merge_strategy != MergeStrategy.FIRST_SUCCESS and task.model_count > 1:
         return None
     for item in steps:
-        if item.status == StepStatus.COMPLETED.value:
+        if item.status == StepStatus.COMPLETED:
             return ModelView(id=item.model_id, display_name=item.model_display_name)
     return None

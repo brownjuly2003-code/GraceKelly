@@ -112,6 +112,7 @@ This document is the working source of truth for GraceKelly delivery. We update 
 [x] Normalize persisted `merge_strategy` values back to enum form on repository read paths and remove the remaining stringly-typed comparison in event building.
 [x] Tighten browser failure taxonomy so unexpected automation crashes map to `unknown_error` instead of `provider_unavailable`.
 [x] Remove post-write storage readback from `POST /orchestrate` summaries so accepted submissions can return successfully even if immediate read paths are degraded.
+[x] Normalize task/step/event status and failure-code values back to enums on internal storage paths instead of keeping raw strings alive past the DB boundary.
 [ ] Defer retry schema until a concrete retry policy exists; do not add `attempt_no` or `retry_of_task_id` before a reliability phase chooses the retry model.
 [ ] Start browser execution only after the adapter contract and PostgreSQL-backed task/event flow are stable.
 
@@ -141,6 +142,7 @@ This document is the working source of truth for GraceKelly delivery. We update 
 - 2026-03-17: `MergeStrategy` had been introduced at the request/planning layer, but repository read paths and one event-building branch still fell back to raw strings. Decision: normalize storage reads back to `MergeStrategy` and remove the last internal string comparison.
 - 2026-03-17: Browser adapter generic runtime failures were still reported as `provider_unavailable`, conflating internal crashes with upstream availability problems. Decision: map unexpected browser exceptions to `unknown_error` and reserve `provider_unavailable` for actual configuration/provider reachability issues.
 - 2026-03-17: `POST /orchestrate` still performed immediate storage readback after a successful write, so accepted tasks could surface as `503` if read paths were degraded. Decision: return submission summaries from the in-memory snapshot produced during submit and leave storage reads to `GET /tasks/{task_id}`.
+- 2026-03-17: Task, step, and event records were still carrying raw string enums internally after leaving the DB/API boundaries. Decision: normalize repository read paths back to `TaskStatus`, `StepStatus`, `EventType`, and `FailureCode` so internal comparisons stay typed.
 - 2026-03-16: Health can legitimately report `degraded` in development when optional adapters are intentionally unconfigured. Decision: treat degraded readiness as operationally informative, not as a startup failure.
 - 2026-03-16: HTTP smoke tests exposed a missing `requested_models` field in `TaskView`. Decision: keep smoke coverage mandatory for API contract changes; bug fixed immediately.
 - 2026-03-16: answers1.md made it clear that several current choices are transitional only: JSON-heavy execution storage, degraded-on-optional readiness, and `best_effort` merge semantics should not be treated as stable architecture.
@@ -196,3 +198,4 @@ This document is the working source of truth for GraceKelly delivery. We update 
 - 2026-03-17: Removed the last stringly-typed `merge_strategy` branch from orchestration internals and normalized repository read paths back to enum values.
 - 2026-03-17: Corrected browser error taxonomy so unexpected automation crashes now surface as `unknown_error` rather than being mislabeled as provider availability failures.
 - 2026-03-17: Reworked `POST /orchestrate` to return from the submit-time snapshot instead of re-reading storage immediately, improving resilience when event or step read paths are temporarily degraded.
+- 2026-03-17: Extended enum normalization through task, step, and event repository records so typed status/failure comparisons survive persistence round-trips.

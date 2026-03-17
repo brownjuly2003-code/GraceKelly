@@ -10,8 +10,8 @@ except ModuleNotFoundError:  # pragma: no cover
     psycopg = None
     dict_row = None
 
+from gracekelly.core.contracts import EventType, FailureCode, MergeStrategy, StepStatus, TaskStatus
 from gracekelly.storage.base import TaskEventRecord, TaskRecord, TaskRepository, TaskStepRecord
-from gracekelly.core.contracts import MergeStrategy
 from gracekelly.storage.schema import (
     EXPECTED_SCHEMA_COLUMNS,
     INITIAL_MIGRATION_NAME,
@@ -337,7 +337,7 @@ class PostgresTaskRepository(TaskRepository):
             metadata = json.loads(metadata)
         return TaskRecord(
             task_id=row["task_id"],
-            status=row["status"],
+            status=TaskStatus(row["status"]),
             accepted_at=row["accepted_at"],
             completed_at=row["completed_at"],
             duration_ms=row["duration_ms"],
@@ -350,7 +350,7 @@ class PostgresTaskRepository(TaskRepository):
             merge_strategy=MergeStrategy(row["merge_strategy"]),
             adapter_hint=row["adapter_hint"],
             cancel_on_quorum=row["cancel_on_quorum"],
-            failure_code=row["failure_code"],
+            failure_code=FailureCode(row["failure_code"]) if row["failure_code"] is not None else None,
             failure_message=row["failure_message"],
             output_text=row["output_text"],
             metadata=metadata,
@@ -364,8 +364,8 @@ class PostgresTaskRepository(TaskRepository):
             model_display_name=row["model_display_name"],
             backend=row["backend"],
             provider=row["provider"],
-            status=row["status"],
-            failure_code=row["failure_code"],
+            status=StepStatus(row["status"]),
+            failure_code=FailureCode(row["failure_code"]) if row["failure_code"] is not None else None,
             failure_message=row["failure_message"],
             output_text=row["output_text"],
             duration_ms=row["duration_ms"],
@@ -379,7 +379,7 @@ class PostgresTaskRepository(TaskRepository):
             event_id=row["event_id"],
             task_id=row["task_id"],
             sequence_no=row["sequence_no"],
-            event_type=row["event_type"],
+            event_type=EventType(row["event_type"]),
             created_at=row["created_at"],
             payload=payload,
         )

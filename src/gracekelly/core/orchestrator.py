@@ -4,7 +4,14 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from uuid import uuid4
 
-from gracekelly.core.contracts import EventType, ExecutionPlan, ExecutionResult, MergeStrategy, StepStatus, TaskStatus
+from gracekelly.core.contracts import (
+    EventType,
+    ExecutionPlan,
+    ExecutionResult,
+    MergeStrategy,
+    StepStatus,
+    TaskStatus,
+)
 from gracekelly.core.planning import build_execution_plan
 from gracekelly.core.router import ExecutionRouter
 from gracekelly.schemas import OrchestrateRequest
@@ -47,7 +54,7 @@ class OrchestratorService:
 
         task = TaskRecord(
             task_id=task_id,
-            status=batch_result.task_status.value,
+            status=batch_result.task_status,
             accepted_at=accepted_at,
             completed_at=completed_at,
             duration_ms=duration_ms,
@@ -60,7 +67,7 @@ class OrchestratorService:
             merge_strategy=execution_plan.merge_strategy,
             adapter_hint=execution_plan.adapter_hint,
             cancel_on_quorum=execution_plan.cancel_on_quorum,
-            failure_code=batch_result.failure_code.value if batch_result.failure_code else None,
+            failure_code=batch_result.failure_code,
             failure_message=batch_result.failure_message,
             output_text=batch_result.output_text,
             metadata=dict(request.metadata),
@@ -114,8 +121,8 @@ class OrchestratorService:
                     model_display_name=step.model.display_name,
                     backend=step.backend.value,
                     provider=step.provider,
-                    status=result.status.value,
-                    failure_code=result.failure_code.value if result.failure_code else None,
+                    status=result.status,
+                    failure_code=result.failure_code,
                     failure_message=result.failure_message,
                     output_text=result.output_text,
                     duration_ms=result.duration_ms,
@@ -139,7 +146,7 @@ class OrchestratorService:
                 event_id=str(uuid4()),
                 task_id=task.task_id,
                 sequence_no=sequence_no,
-                event_type=event_type.value,
+                event_type=event_type,
                 created_at=created_at,
                 payload=payload,
             )
@@ -224,7 +231,7 @@ class OrchestratorService:
             elif result.status == StepStatus.CANCELLED:
                 cancelled_steps.append(step.step_index)
 
-        if task.status == TaskStatus.COMPLETED.value:
+        if task.status == TaskStatus.COMPLETED:
             winning_step = None
             if task.merge_strategy == MergeStrategy.FIRST_SUCCESS or task.model_count == 1:
                 winning_step = completed_steps[0] if completed_steps else None
@@ -241,19 +248,19 @@ class OrchestratorService:
                     },
                 )
             )
-        elif task.status == TaskStatus.FAILED.value:
+        elif task.status == TaskStatus.FAILED:
             events.append(
                 next_event(
                     EventType.TASK_FAILED,
                     task.completed_at or task.accepted_at,
                     {
-                        "failure_code": task.failure_code,
+                        "failure_code": task.failure_code.value if task.failure_code else None,
                         "failure_message": task.failure_message,
                         "failed_steps": failed_steps,
                     },
                 )
             )
-        elif task.status == TaskStatus.CANCELLED.value:
+        elif task.status == TaskStatus.CANCELLED:
             events.append(
                 next_event(
                     EventType.TASK_CANCELLED,
