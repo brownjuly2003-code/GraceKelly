@@ -121,7 +121,7 @@ class ExecutionRouter:
         )
         cancelled_steps = [
             step.step_index
-            for step, result in zip(plan.steps, results, strict=False)
+            for step, result in zip(plan.steps, results, strict=True)
             if result.status == StepStatus.CANCELLED
         ]
         winning_step = None
@@ -129,7 +129,7 @@ class ExecutionRouter:
             winning_step = next(
                 (
                     (step, result)
-                    for step, result in zip(plan.steps, results, strict=False)
+                    for step, result in zip(plan.steps, results, strict=True)
                     if result.status == StepStatus.COMPLETED
                 ),
                 None,

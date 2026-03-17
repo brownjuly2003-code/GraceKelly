@@ -151,6 +151,7 @@ This document is the working source of truth for GraceKelly delivery. We update 
 [x] Offload blocking orchestration and readiness work from async FastAPI routes via `asyncio.to_thread`, and make the in-memory repository thread-safe enough for that execution model.
 [x] Log best-effort event-persistence failures at warning level so observability drops are visible without changing request success semantics.
 [x] Add an explicit PostgreSQL connect timeout setting and thread it through repository wiring so storage/readiness paths fail fast on unreachable databases.
+[x] Make router and orchestrator fail fast on any step/result cardinality mismatch instead of truncating corrupted execution state silently.
 [ ] Defer retry schema until a concrete retry policy exists; do not add `attempt_no` or `retry_of_task_id` before a reliability phase chooses the retry model.
 [ ] Start browser execution only after the adapter contract and PostgreSQL-backed task/event flow are stable.
 
@@ -206,6 +207,7 @@ This document is the working source of truth for GraceKelly delivery. We update 
 - 2026-03-17: FastAPI routes were still `async`, but orchestration, storage, and readiness work underneath them remained synchronous and could block the event loop once real adapters or PostgreSQL are used. Decision: offload those route bodies with `asyncio.to_thread` and add locking to the in-memory repository so the local backend remains safe under threaded access.
 - 2026-03-17: Best-effort event persistence was intentionally non-blocking, but failures still disappeared without any trace in logs. Decision: keep the request path non-fatal, but emit a warning with task/event context whenever append_event fails.
 - 2026-03-17: PostgreSQL connect paths still relied on driver defaults, so readiness and storage operations could hang too long against an unreachable database. Decision: add an explicit connect-timeout setting and pass it through repository construction.
+- 2026-03-17: Router and orchestrator loops still used lenient `zip()` semantics between planned steps and execution results, so any corrupted cardinality could be truncated silently in summaries, step rows, or events. Decision: enforce strict cardinality and fail fast anywhere step/result pairs are materialized.
 - 2026-03-16: Health can legitimately report `degraded` in development when optional adapters are intentionally unconfigured. Decision: treat degraded readiness as operationally informative, not as a startup failure.
 - 2026-03-16: HTTP smoke tests exposed a missing `requested_models` field in `TaskView`. Decision: keep smoke coverage mandatory for API contract changes; bug fixed immediately.
 - 2026-03-16: answers1.md made it clear that several current choices are transitional only: JSON-heavy execution storage, degraded-on-optional readiness, and `best_effort` merge semantics should not be treated as stable architecture.

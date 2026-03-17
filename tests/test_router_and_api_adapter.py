@@ -5,7 +5,7 @@ import unittest
 
 from gracekelly.adapters.api.mistral import MistralApiAdapter
 from gracekelly.adapters.dry_run import DryRunExecutionAdapter
-from gracekelly.core.contracts import ExecutionRequest, ExecutionResult, FailureCode, StepStatus, TaskStatus
+from gracekelly.core.contracts import ExecutionMode, ExecutionRequest, ExecutionResult, FailureCode, StepStatus, TaskStatus
 from gracekelly.core.planning import build_execution_plan
 from gracekelly.core.router import ExecutionRouter
 from gracekelly.schemas import OrchestrateRequest
@@ -305,6 +305,29 @@ class ExecutionRouterTests(unittest.TestCase):
 
         self.assertEqual(third_result.task_status, TaskStatus.COMPLETED)
         self.assertEqual(adapter.call_count, 2)
+
+    def test_aggregate_raises_on_plan_result_count_mismatch(self) -> None:
+        router = ExecutionRouter(dry_run_adapter=DryRunExecutionAdapter())
+        plan = build_execution_plan(
+            OrchestrateRequest(
+                prompt="mismatch",
+                models=["Kimi K2", "Mistral"],
+                dry_run=False,
+                merge_strategy="concat",
+                cancel_on_quorum=False,
+            )
+        )
+        result = ExecutionResult(
+            adapter_name="browser.perplexity",
+            model_id=plan.steps[0].model.id,
+            model_display_name=plan.steps[0].model.display_name,
+            execution_mode=ExecutionMode.BROWSER,
+            status=StepStatus.COMPLETED,
+            output_text="only one result",
+        )
+
+        with self.assertRaises(ValueError):
+            router._aggregate(plan, (result,))
 
 
 class MistralAdapterTests(unittest.TestCase):

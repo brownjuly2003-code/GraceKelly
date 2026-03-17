@@ -139,7 +139,7 @@ class OrchestratorService:
         if plan.dry_run:
             return []
         records = []
-        for step, result in zip(plan.steps, results, strict=False):
+        for step, result in zip(plan.steps, results, strict=True):
             records.append(
                 TaskStepRecord(
                     task_id=task_id,
@@ -212,7 +212,7 @@ class OrchestratorService:
         failed_steps: list[dict[str, object]] = []
         cancelled_steps: list[int] = []
 
-        for step, result in zip(plan.steps, results, strict=False):
+        for step, result in zip(plan.steps, results, strict=True):
             if result.status == StepStatus.COMPLETED:
                 step_payload = {
                     "step_index": step.step_index,

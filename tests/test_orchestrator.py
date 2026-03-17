@@ -1,12 +1,15 @@
 from __future__ import annotations
 
+from datetime import datetime, timezone
 import unittest
 
 from gracekelly.adapters.dry_run import DryRunExecutionAdapter
-from gracekelly.core.contracts import StepStatus
+from gracekelly.core.contracts import ExecutionBatchResult, ExecutionMode, ExecutionResult, StepStatus, TaskStatus
 from gracekelly.core.orchestrator import OrchestratorService, StorageUnavailableError
+from gracekelly.core.planning import build_execution_plan
 from gracekelly.core.router import ExecutionRouter
 from gracekelly.schemas import OrchestrateRequest
+from gracekelly.storage.base import TaskRecord
 from gracekelly.storage.memory import InMemoryTaskRepository
 
 
@@ -259,6 +262,74 @@ class OrchestratorServiceTests(unittest.TestCase):
         self.assertEqual(events[-1].payload["cancel_reason"], "quorum_reached")
         self.assertEqual(events[-1].payload["details"]["cancelled_step_count"], 1)
         self.assertEqual(events[-1].payload["details"]["adapter_names"], ["api.mistral", "browser.perplexity"])
+
+    def test_build_step_records_raises_on_plan_result_count_mismatch(self) -> None:
+        plan = build_execution_plan(
+            OrchestrateRequest(
+                prompt="mismatch",
+                models=["Kimi K2", "Mistral"],
+                dry_run=False,
+                merge_strategy="concat",
+                cancel_on_quorum=False,
+            )
+        )
+        result = ExecutionResult(
+            adapter_name="browser.perplexity",
+            model_id=plan.steps[0].model.id,
+            model_display_name=plan.steps[0].model.display_name,
+            execution_mode=ExecutionMode.BROWSER,
+            status=StepStatus.COMPLETED,
+            output_text="only one result",
+        )
+
+        with self.assertRaises(ValueError):
+            self.service._build_step_records("task-mismatch", plan, (result,))
+
+    def test_build_events_raises_on_plan_result_count_mismatch(self) -> None:
+        plan = build_execution_plan(
+            OrchestrateRequest(
+                prompt="mismatch",
+                models=["Kimi K2", "Mistral"],
+                dry_run=False,
+                merge_strategy="concat",
+                cancel_on_quorum=False,
+            )
+        )
+        accepted_at = datetime.now(timezone.utc)
+        task = TaskRecord(
+            task_id="task-mismatch",
+            status=TaskStatus.COMPLETED,
+            accepted_at=accepted_at,
+            completed_at=accepted_at,
+            duration_ms=1,
+            prompt="mismatch",
+            reasoning=False,
+            execution_mode=ExecutionMode.BROWSER,
+            dry_run=False,
+            model_count=len(plan.steps),
+            quorum=plan.quorum,
+            merge_strategy=plan.merge_strategy,
+            adapter_hint=plan.adapter_hint,
+            cancel_on_quorum=plan.cancel_on_quorum,
+            output_text="only one result",
+        )
+        result = ExecutionResult(
+            adapter_name="browser.perplexity",
+            model_id=plan.steps[0].model.id,
+            model_display_name=plan.steps[0].model.display_name,
+            execution_mode=ExecutionMode.BROWSER,
+            status=StepStatus.COMPLETED,
+            output_text="only one result",
+        )
+        batch_result = ExecutionBatchResult(
+            execution_mode=ExecutionMode.BROWSER,
+            task_status=TaskStatus.COMPLETED,
+            results=(result,),
+            output_text="only one result",
+        )
+
+        with self.assertRaises(ValueError):
+            self.service._build_events(task, plan, batch_result)
 
 
 if __name__ == "__main__":
