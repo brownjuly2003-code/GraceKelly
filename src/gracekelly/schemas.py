@@ -190,7 +190,7 @@ def _resolve_adapter_name(task: TaskRecord, steps: list[TaskStepRecord]) -> str:
         return "dry-run"
     if not steps:
         return "unknown"
-    completed = [item for item in steps if item.status == StepStatus.COMPLETED.value]
+    completed = [item for item in steps if item.status == StepStatus.COMPLETED]
     candidates = completed or [item for item in steps if item.status == StepStatus.FAILED] or steps
     adapter_names = {f"{item.backend}.{item.provider}" for item in candidates}
     if len(adapter_names) == 1:
