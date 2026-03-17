@@ -112,6 +112,34 @@ class PostgresSchemaTests(unittest.TestCase):
         self.assertEqual(step.failure_code, FailureCode.PROVIDER_UNAVAILABLE)
         self.assertEqual(event.event_type, EventType.TASK_ACCEPTED)
 
+    def test_connect_uses_default_connect_timeout(self) -> None:
+        repository = PostgresTaskRepository.__new__(PostgresTaskRepository)
+        repository._dsn = "postgresql://example"
+        repository._connect_timeout_seconds = 7
+
+        class FakePsycopg:
+            called_with: tuple[object, dict[str, object]] | None = None
+
+            @staticmethod
+            def connect(dsn: str, **kwargs):
+                FakePsycopg.called_with = (dsn, kwargs)
+                return object()
+
+        from gracekelly.storage import postgres as postgres_module
+
+        original = postgres_module.psycopg
+        postgres_module.psycopg = FakePsycopg
+        try:
+            repository._connect(row_factory="dict")
+        finally:
+            postgres_module.psycopg = original
+
+        self.assertIsNotNone(FakePsycopg.called_with)
+        dsn, kwargs = FakePsycopg.called_with
+        self.assertEqual(dsn, "postgresql://example")
+        self.assertEqual(kwargs["connect_timeout"], 7)
+        self.assertEqual(kwargs["row_factory"], "dict")
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -24,10 +24,11 @@ from gracekelly.storage.schema import (
 class PostgresTaskRepository(TaskRepository):
     backend_name = "postgres"
 
-    def __init__(self, dsn: str, *, bootstrap: bool = True) -> None:
+    def __init__(self, dsn: str, *, bootstrap: bool = True, connect_timeout_seconds: int = 5) -> None:
         if psycopg is None:  # pragma: no cover
             raise RuntimeError("psycopg is required for the PostgreSQL backend.")
         self._dsn = dsn
+        self._connect_timeout_seconds = connect_timeout_seconds
         if bootstrap:
             self.bootstrap()
 
@@ -314,6 +315,7 @@ class PostgresTaskRepository(TaskRepository):
             }
 
     def _connect(self, **kwargs):
+        kwargs.setdefault("connect_timeout", self._connect_timeout_seconds)
         return psycopg.connect(self._dsn, **kwargs)
 
     def _load_schema_columns(self) -> dict[str, set[str]]:

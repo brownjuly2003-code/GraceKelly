@@ -85,6 +85,7 @@ This mode is for exercising the browser execution path and operator views withou
 
 ```bash
 set GRACEKELLY_POSTGRES_DSN=postgresql://postgres:postgres@localhost:5432/gracekelly
+set GRACEKELLY_POSTGRES_CONNECT_TIMEOUT_SECONDS=5
 python -m gracekelly.tools.validate_postgres
 ```
 

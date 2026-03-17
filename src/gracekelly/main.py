@@ -33,7 +33,11 @@ def build_task_repository(active_settings: Settings):
             raise ValueError("GRACEKELLY_POSTGRES_DSN is required for the postgres backend.")
         from gracekelly.storage.postgres import PostgresTaskRepository
 
-        return PostgresTaskRepository(active_settings.postgres_dsn, bootstrap=True)
+        return PostgresTaskRepository(
+            active_settings.postgres_dsn,
+            bootstrap=True,
+            connect_timeout_seconds=active_settings.postgres_connect_timeout_seconds,
+        )
     raise ValueError(f"Unsupported storage backend: {storage_backend}")
 
 
