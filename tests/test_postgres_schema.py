@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import fields
 import unittest
 
 from gracekelly.core.contracts import AdapterHint, EventType, ExecutionMode, FailureCode, MergeStrategy, StepStatus, TaskStatus
@@ -11,6 +12,7 @@ from gracekelly.storage.schema import (
     load_migration_sql,
     split_sql_statements,
 )
+from gracekelly.storage.base import TaskRecord, TaskStepRecord
 
 
 class PostgresSchemaTests(unittest.TestCase):
@@ -139,6 +141,24 @@ class PostgresSchemaTests(unittest.TestCase):
         self.assertEqual(dsn, "postgresql://example")
         self.assertEqual(kwargs["connect_timeout"], 7)
         self.assertEqual(kwargs["row_factory"], "dict")
+
+    def test_initial_schema_explicitly_excludes_retry_columns(self) -> None:
+        sql = load_migration_sql(INITIAL_MIGRATION_NAME)
+
+        self.assertNotIn("attempt_no", sql)
+        self.assertNotIn("retry_of_task_id", sql)
+        for columns in EXPECTED_SCHEMA_COLUMNS.values():
+            self.assertNotIn("attempt_no", columns)
+            self.assertNotIn("retry_of_task_id", columns)
+
+    def test_storage_records_do_not_expose_retry_fields(self) -> None:
+        task_fields = {field.name for field in fields(TaskRecord)}
+        step_fields = {field.name for field in fields(TaskStepRecord)}
+
+        self.assertNotIn("retry_of_task_id", task_fields)
+        self.assertNotIn("attempt_no", task_fields)
+        self.assertNotIn("retry_of_task_id", step_fields)
+        self.assertNotIn("attempt_no", step_fields)
 
 
 if __name__ == "__main__":
