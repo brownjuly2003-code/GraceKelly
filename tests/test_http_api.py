@@ -153,9 +153,12 @@ class HttpApiSmokeTests(unittest.TestCase):
         self.assertEqual(len(payload), 1)
         self.assertEqual(payload[0]["task_id"], second.json()["task_id"])
         self.assertEqual(payload[0]["adapter_name"], "dry-run")
+        self.assertIsNone(payload[0]["model"])
         self.assertEqual(payload[0]["dry_run"], True)
         self.assertEqual(payload[0]["model_count"], 1)
         self.assertEqual(payload[0]["requested_models"][0]["id"], "mistral-small")
+        self.assertEqual(payload[0]["cancelled_step_count"], 0)
+        self.assertIsNone(payload[0]["cancel_reason"])
         self.assertNotIn("steps", payload[0])
         self.assertNotIn("events", payload[0])
 
@@ -192,9 +195,61 @@ class HttpApiSmokeTests(unittest.TestCase):
         self.assertEqual(payload[0]["task_id"], failed.json()["task_id"])
         self.assertEqual(payload[0]["adapter_name"], "api.mistral")
         self.assertEqual(payload[0]["status"], "failed")
+        self.assertIsNone(payload[0]["model"])
         self.assertEqual(payload[0]["dry_run"], False)
         self.assertEqual(payload[0]["failure_code"], "provider_unavailable")
         self.assertEqual(payload[0]["requested_models"][0]["id"], "mistral-small")
+        self.assertEqual(payload[0]["cancelled_step_count"], 0)
+        self.assertIsNone(payload[0]["cancel_reason"])
+
+    def test_list_tasks_exposes_winning_model_and_short_circuit_summary(self) -> None:
+        app = create_app(
+            Settings(
+                env="test",
+                host="127.0.0.1",
+                port=8011,
+                log_level="INFO",
+                storage_backend="memory",
+                postgres_dsn=None,
+                execution_profile="hybrid",
+                mistral_api_key=None,
+                mistral_base_url="https://api.mistral.ai/v1",
+                mistral_timeout_seconds=1.0,
+                browser_enabled=True,
+                browser_automation_backend="scripted",
+                browser_profile_dir="D:\\Profiles\\GraceKelly",
+                browser_base_url="https://www.perplexity.ai",
+                browser_scripted_logged_in=True,
+                browser_scripted_model_label="Kimi K2",
+                browser_scripted_output_text="browser wins",
+            )
+        )
+        client = TestClient(app)
+
+        response = client.post(
+            "/api/v1/orchestrate",
+            json={
+                "prompt": "short circuit summary",
+                "models": ["Kimi K2", "Mistral"],
+                "dry_run": False,
+                "quorum": 1,
+                "merge_strategy": "first_success",
+                "cancel_on_quorum": True,
+            },
+        )
+
+        self.assertEqual(response.status_code, 202)
+
+        recent = client.get("/api/v1/tasks", params={"limit": 1})
+
+        self.assertEqual(recent.status_code, 200)
+        payload = recent.json()
+        self.assertEqual(len(payload), 1)
+        self.assertEqual(payload[0]["task_id"], response.json()["task_id"])
+        self.assertEqual(payload[0]["adapter_name"], "browser.perplexity")
+        self.assertEqual(payload[0]["model"]["id"], "kimi-k2-5")
+        self.assertEqual(payload[0]["cancelled_step_count"], 1)
+        self.assertEqual(payload[0]["cancel_reason"], "quorum_reached")
 
     def test_api_execution_without_key_fails_cleanly(self) -> None:
         response = self.client.post(

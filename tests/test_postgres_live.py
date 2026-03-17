@@ -139,8 +139,10 @@ class PostgresLiveIntegrationTests(unittest.TestCase):
         self.assertGreaterEqual(len(filtered_payload), 1)
         self.assertEqual(filtered_payload[0]["task_id"], failed.json()["task_id"])
         self.assertEqual(filtered_payload[0]["adapter_name"], "api.mistral")
+        self.assertIsNone(filtered_payload[0]["model"])
         self.assertEqual(filtered_payload[0]["failure_code"], "provider_unavailable")
         self.assertEqual(filtered_payload[0]["requested_models"][0]["id"], "mistral-small")
+        self.assertEqual(filtered_payload[0]["cancelled_step_count"], 0)
 
 
 if __name__ == "__main__":

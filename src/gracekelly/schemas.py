@@ -159,9 +159,12 @@ class TaskListItem(BaseModel):
     duration_ms: int | None = None
     execution_mode: str
     adapter_name: str
+    model: ModelView | None = None
     dry_run: bool
     model_count: int
     requested_models: list[ModelView]
+    cancelled_step_count: int = 0
+    cancel_reason: str | None = None
     failure_code: str | None = None
     failure_message: str | None = None
 
@@ -174,6 +177,7 @@ class TaskListItem(BaseModel):
     ) -> "TaskListItem":
         step_records = list(steps or [])
         event_records = list(events or [])
+        cancelled_step_count, cancel_reason = _resolve_cancel_summary(task, step_records, event_records)
         return cls(
             task_id=task.task_id,
             status=task.status,
@@ -182,9 +186,12 @@ class TaskListItem(BaseModel):
             duration_ms=task.duration_ms,
             execution_mode=task.execution_mode,
             adapter_name=_resolve_adapter_name(task, step_records),
+            model=_resolve_winning_model(task, step_records),
             dry_run=task.dry_run,
             model_count=task.model_count,
             requested_models=_resolve_requested_models(step_records, event_records),
+            cancelled_step_count=cancelled_step_count,
+            cancel_reason=cancel_reason,
             failure_code=task.failure_code,
             failure_message=task.failure_message,
         )
@@ -272,3 +279,22 @@ def _resolve_winning_model(task: TaskRecord, steps: list[TaskStepRecord]) -> Mod
         if item.status == StepStatus.COMPLETED:
             return ModelView(id=item.model_id, display_name=item.model_display_name)
     return None
+
+
+def _resolve_cancel_summary(
+    task: TaskRecord,
+    steps: list[TaskStepRecord],
+    events: list[TaskEventRecord],
+) -> tuple[int, str | None]:
+    if task.dry_run:
+        return 0, None
+    final_event_type = EventType.TASK_COMPLETED if task.status == TaskStatus.COMPLETED else EventType.TASK_CANCELLED
+    final_event = next((item for item in reversed(events) if item.event_type == final_event_type), None)
+    if final_event is not None:
+        cancelled_steps = final_event.payload.get("cancelled_steps", [])
+        cancel_reason = final_event.payload.get("cancel_reason")
+        if isinstance(cancelled_steps, list):
+            return len(cancelled_steps), cancel_reason if isinstance(cancel_reason, str) else None
+    cancelled_count = sum(1 for item in steps if item.status == StepStatus.CANCELLED)
+    cancel_reason = "quorum_reached" if cancelled_count and task.status == TaskStatus.COMPLETED else None
+    return cancelled_count, cancel_reason
