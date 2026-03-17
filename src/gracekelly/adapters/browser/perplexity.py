@@ -9,6 +9,7 @@ from gracekelly.adapters.browser.automation import (
     BrowserAuthStatus,
     BrowserExecutionOutput,
     BrowserModelSelection,
+    BrowserProfileBusyError,
     NullBrowserAutomation,
 )
 from gracekelly.adapters.browser.policy import (
@@ -143,6 +144,14 @@ class PerplexityBrowserAdapter(ExecutionAdapter):
                 model_display_name=model.display_name,
                 failure_code=FailureCode.AUTH_FAILED,
                 message=str(exc) or "Browser session is not authenticated.",
+            )
+        except BrowserProfileBusyError as exc:
+            return self._failure(
+                task_id=request.task_id,
+                model_id=model.id,
+                model_display_name=model.display_name,
+                failure_code=FailureCode.PROVIDER_UNAVAILABLE,
+                message=str(exc),
             )
         except NotImplementedError as exc:
             return self._failure(

@@ -16,6 +16,11 @@ class PerplexitySelectors:
         "main div.prose",
         'main [class*="prose"]',
     )
+    model_menu_candidates: tuple[str, ...] = (
+        '[data-radix-popper-content-wrapper]',
+        '[role="dialog"]',
+        '[role="listbox"]',
+    )
     ready_markers: tuple[str, ...] = (
         "Type @ for connectors and sources",
         "Type / for search modes",
@@ -55,4 +60,3 @@ class PerplexitySelectors:
         )
     )
     cookie_button_names: tuple[str, ...] = ("Accept All Cookies", "Necessary Cookies")
-

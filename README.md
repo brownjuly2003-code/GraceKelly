@@ -70,6 +70,7 @@ curl -X POST http://127.0.0.1:8011/api/v1/orchestrate \
 - Browser-backed execution now includes both the `scripted` backend and a first headed Playwright backend.
 - PostgreSQL schema bootstrap now lives in a packaged SQL migration: `src/gracekelly/storage/migrations/0001_initial.sql`.
 - Live Perplexity reconnaissance from 2026-03-17 is captured in `docs/perplexity-dom-recon.md`.
+- `memory` stays the zero-config development default; for durable browser runs, set `GRACEKELLY_STORAGE_BACKEND=postgres` explicitly.
 
 ## OpenAI-compatible API mode
 
@@ -135,6 +136,7 @@ pytest -q tests/test_playwright_live.py -rA
 ```
 
 This smoke stays skipped unless `GRACEKELLY_BROWSER_LIVE_TEST=true`. If the supplied profile is not authenticated for Perplexity, the test reports a skip instead of a hard failure.
+Close any Chrome windows using the same `GRACEKELLY_BROWSER_PROFILE_DIR` before running the smoke. If the profile is still open elsewhere, GraceKelly now surfaces that as a provider-availability failure instead of a generic browser crash.
 
 ## PostgreSQL validation
 

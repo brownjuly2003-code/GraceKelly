@@ -10,6 +10,7 @@ from gracekelly.adapters.browser.automation import (
     BrowserAutomationPort,
     BrowserExecutionOutput,
     BrowserModelSelection,
+    BrowserProfileBusyError,
 )
 from gracekelly.adapters.browser.policy import (
     AuthRecoveryPolicy,
@@ -64,17 +65,31 @@ class PlaywrightBrowserAutomation(BrowserAutomationPort):
             state.provider,
             state.profile_dir,
         )
-        manager = self._build_playwright_manager()
-        playwright = manager.start()
-        context = playwright.chromium.launch_persistent_context(
-            state.profile_dir,
-            channel=self._runtime.channel,
-            headless=self._runtime.headless,
-            args=list(self._runtime.launch_args),
-        )
-        page = context.pages[0] if getattr(context, "pages", None) else context.new_page()
-        page.set_default_timeout(self._runtime.action_timeout_ms)
-        page.goto(state.base_url, wait_until="domcontentloaded")
+        manager = None
+        playwright = None
+        context = None
+        try:
+            manager = self._build_playwright_manager()
+            playwright = manager.start()
+            context = playwright.chromium.launch_persistent_context(
+                state.profile_dir,
+                channel=self._runtime.channel,
+                headless=self._runtime.headless,
+                args=list(self._runtime.launch_args),
+            )
+            page = context.pages[0] if getattr(context, "pages", None) else context.new_page()
+            page.set_default_timeout(self._runtime.action_timeout_ms)
+            page.goto(state.base_url, wait_until="domcontentloaded")
+        except Exception as exc:
+            if context is not None:
+                context.close()
+            if playwright is not None:
+                playwright.stop()
+            if self._is_profile_busy_error(exc):
+                raise BrowserProfileBusyError(
+                    f"Browser profile directory '{state.profile_dir}' is already in use by another Chrome process."
+                ) from exc
+            raise
 
         self._playwright_manager = manager
         self._playwright = playwright
@@ -119,6 +134,7 @@ class PlaywrightBrowserAutomation(BrowserAutomationPort):
             raise RuntimeError("Perplexity model selector is not visible.")
         logger.info("Selecting Perplexity model '%s' through Playwright", provider_model_id)
         model_button.click()
+        menu_texts = self._model_menu_texts(page)
 
         option = self._first_visible_locator(
             (
@@ -128,18 +144,21 @@ class PlaywrightBrowserAutomation(BrowserAutomationPort):
             )
         )
         if option is None:
+            actual_label = self._infer_active_model_label(menu_texts)
             logger.warning(
-                "Perplexity model option '%s' was not found; continuing without verified model selection.",
+                "Perplexity model option '%s' was not found; current menu appears to start with '%s'.",
                 provider_model_id,
+                actual_label or "unknown",
             )
             return BrowserModelSelection(
                 requested_label=provider_model_id,
-                actual_label=provider_model_id,
+                actual_label=actual_label or provider_model_id,
                 details={
                     "driver": "playwright",
                     "model_selection_verified": False,
                     "model_selection_attempted": False,
                     "model_verification_wait_attempts": policy.wait_attempts,
+                    "model_menu_snapshot": menu_texts,
                 },
             )
 
@@ -234,6 +253,14 @@ class PlaywrightBrowserAutomation(BrowserAutomationPort):
             raise RuntimeError("Browser session has not been initialized.")
         return self._page
 
+    def _is_profile_busy_error(self, exc: Exception) -> bool:
+        message = str(exc)
+        return (
+            "launch_persistent_context" in message
+            and "Target page, context or browser has been closed" in message
+            and "exitCode=21" in message
+        )
+
     def _wait_for_shell(self) -> None:
         page = self._page_or_raise()
         deadline = time.monotonic() + 10
@@ -322,6 +349,23 @@ class PlaywrightBrowserAutomation(BrowserAutomationPort):
     def _body_has_signed_out_marker(self, page: Any) -> bool:
         body_text = self._body_text(page)
         return any(marker in body_text for marker in self._selectors.signed_out_markers)
+
+    def _model_menu_texts(self, page: Any) -> list[str]:
+        texts: list[str] = []
+        for selector in self._selectors.model_menu_candidates:
+            try:
+                texts.extend(page.locator(selector).all_inner_texts())
+            except Exception:
+                continue
+        return [text for text in texts if text.strip()]
+
+    def _infer_active_model_label(self, menu_texts: list[str]) -> str | None:
+        for block in menu_texts:
+            for line in block.splitlines():
+                normalized = line.strip()
+                if normalized:
+                    return normalized
+        return None
 
     def _wait_for_response_text(self, *, page: Any, prompt: str, timeout_seconds: int) -> str:
         deadline = time.monotonic() + timeout_seconds

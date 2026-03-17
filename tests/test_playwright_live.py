@@ -51,7 +51,7 @@ class PlaywrightBrowserLiveTests(unittest.TestCase):
             close_method()
 
     def build_request(self) -> ExecutionRequest:
-        model = resolve_model(os.getenv("GRACEKELLY_BROWSER_LIVE_MODEL", "Kimi K2"))
+        model = resolve_model(os.getenv("GRACEKELLY_BROWSER_LIVE_MODEL", "GPT-5.4"))
         step = ExecutionStep(
             model=model,
             backend=ExecutionBackend.BROWSER,

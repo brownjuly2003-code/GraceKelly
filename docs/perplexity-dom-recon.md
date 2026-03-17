@@ -48,6 +48,21 @@ The headed app shell exposed these stable phrases before any authenticated flow:
 
 Those markers are useful for "shell is ready" detection even when the page is not logged in.
 
+## Authenticated model menu observed
+
+A dedicated-profile authenticated pass on 2026-03-17 exposed this menu content after clicking `Model`:
+
+- `Best`
+- `Sonar`
+- `GPT-5.4`
+- `Gemini 3.1 Pro`
+- `Claude Sonnet 4.6`
+- `Claude Opus 4.6`
+- `Max`
+- `Nemotron 3 Super`
+
+This matters because the static browser catalog still contains models such as `Kimi K2.5` that were not present in this authenticated menu. The driver now treats a missing requested option as a real model mismatch rather than silently staying on the current default.
+
 ## Anti-automation findings
 
 - Headless mode is not a safe default. On 2026-03-17 it was blocked by Cloudflare before the app shell loaded.
@@ -66,9 +81,9 @@ Those markers are useful for "shell is ready" detection even when the page is no
 
 ## Follow-up capture still needed
 
-- One authenticated prompt -> response smoke with a dedicated unlocked profile
 - Logged-in response container selector(s) from a successful answer render
 - Logged-in model-menu structure after opening the model picker
+- Better model-picker selectors than the current best-effort fallback
 
 ## Dedicated profile bootstrap
 
@@ -76,3 +91,5 @@ The repo now provides `gracekelly-create-perplexity-profile` to create the dedic
 
 - `GRACEKELLY_BROWSER_PROFILE_DIR` in app runtime
 - `pytest -q tests/test_playwright_live.py -rA` for the manual authenticated smoke
+
+Important: close any Chrome windows already using that profile before running the Playwright smoke. If the profile is still busy, the browser adapter now reports an explicit profile-in-use failure instead of a generic crash.

@@ -7,6 +7,7 @@ from gracekelly.adapters.browser.automation import (
     BrowserAutomationPort,
     BrowserExecutionOutput,
     BrowserModelSelection,
+    BrowserProfileBusyError,
 )
 from gracekelly.adapters.browser.perplexity import PerplexityBrowserAdapter
 from gracekelly.adapters.browser.policy import AuthRecoveryPolicy
@@ -195,6 +196,22 @@ class BrowserAdapterTests(unittest.TestCase):
         self.assertEqual(result.status, StepStatus.FAILED)
         self.assertEqual(result.failure_code, FailureCode.AUTH_FAILED)
         self.assertIn("sign-in overlay", result.failure_message)
+
+    def test_browser_adapter_maps_busy_profile_error_to_provider_unavailable(self) -> None:
+        class BusyProfileBrowserAutomation(FakeBrowserAutomation):
+            def ensure_session(self, session_manager: BrowserSessionManager) -> None:
+                raise BrowserProfileBusyError("Browser profile directory is already in use.")
+
+        adapter = PerplexityBrowserAdapter(
+            session_manager=self.build_session_manager(),
+            automation=BusyProfileBrowserAutomation(),
+        )
+
+        result = adapter.execute(self.build_request())
+
+        self.assertEqual(result.status, StepStatus.FAILED)
+        self.assertEqual(result.failure_code, FailureCode.PROVIDER_UNAVAILABLE)
+        self.assertIn("already in use", result.failure_message)
 
     def test_browser_session_manager_state_returns_snapshot(self) -> None:
         session_manager = self.build_session_manager()

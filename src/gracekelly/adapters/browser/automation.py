@@ -27,6 +27,10 @@ class BrowserExecutionOutput:
     details: dict[str, Any] = field(default_factory=dict)
 
 
+class BrowserProfileBusyError(RuntimeError):
+    pass
+
+
 class BrowserAutomationPort(ABC):
     @abstractmethod
     def ensure_session(self, session_manager: BrowserSessionManager) -> None:

@@ -36,7 +36,7 @@ Open review gates (not blocking Phase 1 completion, required before production h
 
 ## Phase 2: Browser worker
 
-Status: partial, first live-driver slice added
+Status: partial, first authenticated live-driver smoke proven
 
 Deliverables:
 - isolated browser adapter package
@@ -50,8 +50,8 @@ Deliverables:
 - external Gate 4 boundary review completed in `audit2.md`
 
 Next:
-- authenticated prompt -> response smoke against a dedicated browser profile
 - response DOM hardening and stronger model verification
+- account-aware browser model availability after the authenticated menu drift was confirmed
 - concrete browser-driver cleanup on top of the new app lifespan hook
 
 Support in place:
