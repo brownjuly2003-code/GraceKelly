@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import unittest
+from unittest.mock import AsyncMock, patch
 
 try:
     from fastapi.testclient import TestClient
@@ -81,6 +82,19 @@ class HttpApiSmokeTests(unittest.TestCase):
         self.assertEqual(execution["details"]["active_model_executions"], 0)
         self.assertEqual(execution["details"]["model_limits"]["mistral-small"], 4)
 
+    def test_health_routes_offload_blocking_work_to_thread(self) -> None:
+        async def run_sync(func, /, *args, **kwargs):
+            return func(*args, **kwargs)
+
+        mocked = AsyncMock(side_effect=run_sync)
+        with patch("gracekelly.api.routes.health.asyncio.to_thread", new=mocked):
+            health = self.client.get("/health")
+            readiness = self.client.get("/api/v1/readiness")
+
+        self.assertEqual(health.status_code, 200)
+        self.assertEqual(readiness.status_code, 200)
+        self.assertEqual(mocked.await_count, 2)
+
     def test_models_endpoint_returns_aliases_and_reasoning_capability(self) -> None:
         response = self.client.get("/api/v1/models")
 
@@ -128,6 +142,29 @@ class HttpApiSmokeTests(unittest.TestCase):
         self.assertEqual(task_payload["adapter_hint"], "auto")
         self.assertTrue(task_payload["cancel_on_quorum"])
         self.assertEqual(task_payload["steps"], [])
+
+    def test_orchestration_routes_offload_blocking_work_to_thread(self) -> None:
+        async def run_sync(func, /, *args, **kwargs):
+            return func(*args, **kwargs)
+
+        mocked = AsyncMock(side_effect=run_sync)
+        with patch("gracekelly.api.routes.orchestrate.asyncio.to_thread", new=mocked):
+            submit = self.client.post(
+                "/api/v1/orchestrate",
+                json={
+                    "prompt": "thread offload",
+                    "model": "Kimi K2",
+                    "dry_run": True,
+                },
+            )
+            task_id = submit.json()["task_id"]
+            recent = self.client.get("/api/v1/tasks", params={"limit": 1})
+            task = self.client.get(f"/api/v1/tasks/{task_id}")
+
+        self.assertEqual(submit.status_code, 202)
+        self.assertEqual(recent.status_code, 200)
+        self.assertEqual(task.status_code, 200)
+        self.assertEqual(mocked.await_count, 3)
 
     def test_list_tasks_returns_recent_summaries_in_desc_order(self) -> None:
         first = self.client.post(
