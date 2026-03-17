@@ -141,6 +141,7 @@ This document is the working source of truth for GraceKelly delivery. We update 
 [x] Add `execution_mode` filtering to `GET /api/v1/tasks` so operator triage can isolate browser, API, mixed, or dry-run executions without client-side filtering.
 [x] Lift terminal execution summary fields onto `GET /api/v1/tasks/{task_id}` so operators do not need to parse the final event for winning-step, cancellation, or aggregate batch context.
 [x] Lift scalar execution-plan policy fields onto `GET /api/v1/tasks/{task_id}` so operators do not need the accepted event for basic plan context.
+[x] Prepare a dedicated Gate 4 audit brief in `audit1.md` and stop before any live browser driver work starts.
 [ ] Defer retry schema until a concrete retry policy exists; do not add `attempt_no` or `retry_of_task_id` before a reliability phase chooses the retry model.
 [ ] Start browser execution only after the adapter contract and PostgreSQL-backed task/event flow are stable.
 
@@ -191,6 +192,7 @@ This document is the working source of truth for GraceKelly delivery. We update 
 - 2026-03-17: Operators can already filter recent tasks by status and failure class, but not by stored execution mode even though that field is normalized and cheap to query. Decision: expose `execution_mode` as another low-cardinality list filter instead of pushing that work to clients.
 - 2026-03-17: Final task context still lived only inside the terminal event payload, forcing clients to parse the event stream just to find winning-step or batch-summary data. Decision: surface terminal summary fields at the top level of `GET /tasks/{id}` while keeping the raw events intact.
 - 2026-03-17: Even after lifting terminal summary data, operators still needed `task.accepted` just to read scalar execution policy like quorum or merge strategy. Decision: expose the persisted execution-plan scalars directly on `TaskView`.
+- 2026-03-17: Gate 4 became the next real implementation boundary once scripted browser execution and operator surfaces were stable. Decision: prepare a dedicated audit brief and stop before any live browser driver code is introduced.
 - 2026-03-16: Health can legitimately report `degraded` in development when optional adapters are intentionally unconfigured. Decision: treat degraded readiness as operationally informative, not as a startup failure.
 - 2026-03-16: HTTP smoke tests exposed a missing `requested_models` field in `TaskView`. Decision: keep smoke coverage mandatory for API contract changes; bug fixed immediately.
 - 2026-03-16: answers1.md made it clear that several current choices are transitional only: JSON-heavy execution storage, degraded-on-optional readiness, and `best_effort` merge semantics should not be treated as stable architecture.
@@ -267,3 +269,4 @@ This document is the working source of truth for GraceKelly delivery. We update 
 - 2026-03-17: Extended `GET /api/v1/tasks` with `execution_mode` filtering so operator triage can isolate browser, API, mixed, or dry-run executions across both backends.
 - 2026-03-17: Lifted terminal execution summary fields onto `GET /api/v1/tasks/{task_id}`, so winning-step, cancellation, and aggregate batch details are available without parsing the final event payload.
 - 2026-03-17: Lifted persisted execution-plan scalars onto `GET /api/v1/tasks/{task_id}`, so quorum and merge-policy context are visible without parsing the accepted event.
+- 2026-03-17: Prepared `audit1.md` as the explicit Gate 4 review brief and paused further browser-runtime work pending independent audit.
