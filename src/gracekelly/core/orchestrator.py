@@ -1,0 +1,273 @@
+from __future__ import annotations
+
+from dataclasses import dataclass
+from datetime import datetime, timezone
+from uuid import uuid4
+
+from gracekelly.core.contracts import EventType, ExecutionPlan, ExecutionResult, MergeStrategy, StepStatus, TaskStatus
+from gracekelly.core.planning import build_execution_plan
+from gracekelly.core.router import ExecutionRouter
+from gracekelly.schemas import OrchestrateRequest
+from gracekelly.storage.base import TaskEventRecord, TaskRecord, TaskRepository, TaskStepRecord
+
+
+class StorageUnavailableError(RuntimeError):
+    def __init__(self, operation: str, message: str) -> None:
+        super().__init__(f"Storage operation '{operation}' failed: {message}")
+        self.operation = operation
+
+
+@dataclass(frozen=True, slots=True)
+class SubmissionSnapshot:
+    task: TaskRecord
+    steps: list[TaskStepRecord]
+
+
+class OrchestratorService:
+    def __init__(self, repository: TaskRepository, execution_router: ExecutionRouter) -> None:
+        self._repository = repository
+        self._execution_router = execution_router
+
+    def submit(self, request: OrchestrateRequest) -> TaskRecord:
+        return self.submit_snapshot(request).task
+
+    def submit_snapshot(self, request: OrchestrateRequest) -> SubmissionSnapshot:
+        execution_plan = build_execution_plan(request)
+        task_id = str(uuid4())
+        accepted_at = datetime.now(timezone.utc)
+        batch_result = self._execution_router.execute(
+            task_id=task_id,
+            prompt=request.prompt,
+            plan=execution_plan,
+            reasoning=request.reasoning,
+            metadata=dict(request.metadata),
+        )
+        completed_at = datetime.now(timezone.utc)
+        duration_ms = max(0, int((completed_at - accepted_at).total_seconds() * 1000))
+
+        task = TaskRecord(
+            task_id=task_id,
+            status=batch_result.task_status.value,
+            accepted_at=accepted_at,
+            completed_at=completed_at,
+            duration_ms=duration_ms,
+            prompt=request.prompt,
+            reasoning=request.reasoning,
+            execution_mode=batch_result.execution_mode,
+            dry_run=execution_plan.dry_run,
+            model_count=len(execution_plan.steps),
+            quorum=execution_plan.quorum,
+            merge_strategy=execution_plan.merge_strategy,
+            adapter_hint=execution_plan.adapter_hint,
+            cancel_on_quorum=execution_plan.cancel_on_quorum,
+            failure_code=batch_result.failure_code.value if batch_result.failure_code else None,
+            failure_message=batch_result.failure_message,
+            output_text=batch_result.output_text,
+            metadata=dict(request.metadata),
+        )
+        steps = self._build_step_records(task_id, execution_plan, batch_result.results)
+        try:
+            self._repository.save_task_with_steps(task, steps)
+        except Exception as exc:
+            raise StorageUnavailableError("save_task_with_steps", str(exc)) from exc
+
+        for event in self._build_events(task, execution_plan, batch_result.results):
+            self._append_event_safe(event)
+        return SubmissionSnapshot(task=task, steps=steps)
+
+    def get_task(self, task_id: str) -> TaskRecord:
+        try:
+            task = self._repository.get(task_id)
+        except Exception as exc:
+            raise StorageUnavailableError("get_task", str(exc)) from exc
+        if task is None:
+            raise KeyError(task_id)
+        return task
+
+    def list_task_steps(self, task_id: str) -> list[TaskStepRecord]:
+        try:
+            return self._repository.list_steps(task_id)
+        except Exception as exc:
+            raise StorageUnavailableError("list_task_steps", str(exc)) from exc
+
+    def list_task_events(self, task_id: str) -> list[TaskEventRecord]:
+        try:
+            return self._repository.list_events(task_id)
+        except Exception as exc:
+            raise StorageUnavailableError("list_task_events", str(exc)) from exc
+
+    def _build_step_records(
+        self,
+        task_id: str,
+        plan: ExecutionPlan,
+        results: tuple[ExecutionResult, ...],
+    ) -> list[TaskStepRecord]:
+        if plan.dry_run:
+            return []
+        records = []
+        for step, result in zip(plan.steps, results, strict=False):
+            records.append(
+                TaskStepRecord(
+                    task_id=task_id,
+                    step_index=step.step_index,
+                    model_id=step.model.id,
+                    model_display_name=step.model.display_name,
+                    backend=step.backend.value,
+                    provider=step.provider,
+                    status=result.status.value,
+                    failure_code=result.failure_code.value if result.failure_code else None,
+                    failure_message=result.failure_message,
+                    output_text=result.output_text,
+                    duration_ms=result.duration_ms,
+                )
+            )
+        return records
+
+    def _build_events(
+        self,
+        task: TaskRecord,
+        plan: ExecutionPlan,
+        results: tuple[ExecutionResult, ...],
+    ) -> list[TaskEventRecord]:
+        events: list[TaskEventRecord] = []
+        sequence_no = 0
+
+        def next_event(event_type: EventType, created_at: datetime, payload: dict[str, object]) -> TaskEventRecord:
+            nonlocal sequence_no
+            sequence_no += 1
+            return TaskEventRecord(
+                event_id=str(uuid4()),
+                task_id=task.task_id,
+                sequence_no=sequence_no,
+                event_type=event_type.value,
+                created_at=created_at,
+                payload=payload,
+            )
+
+        events.append(
+            next_event(
+                EventType.TASK_ACCEPTED,
+                task.accepted_at,
+                {
+                    "dry_run": task.dry_run,
+                    "execution_plan": {
+                        "quorum": plan.quorum,
+                        "merge_strategy": plan.merge_strategy,
+                        "adapter_hint": plan.adapter_hint,
+                        "cancel_on_quorum": plan.cancel_on_quorum,
+                        "steps": [
+                            {
+                                "step_index": step.step_index,
+                                "model_id": step.model.id,
+                                "display_name": step.model.display_name,
+                                "backend": step.backend.value,
+                                "provider": step.provider,
+                            }
+                            for step in plan.steps
+                        ],
+                    },
+                },
+            )
+        )
+
+        if task.dry_run:
+            return events
+
+        completed_steps: list[dict[str, object]] = []
+        failed_steps: list[dict[str, object]] = []
+        cancelled_steps: list[int] = []
+
+        for step, result in zip(plan.steps, results, strict=False):
+            if result.status == StepStatus.COMPLETED:
+                completed_steps.append(
+                    {
+                        "step_index": step.step_index,
+                        "model_id": step.model.id,
+                        "model_display_name": step.model.display_name,
+                        "duration_ms": result.duration_ms,
+                    }
+                )
+                events.append(
+                    next_event(
+                        EventType.STEP_COMPLETED,
+                        task.completed_at or task.accepted_at,
+                        {
+                            "step_index": step.step_index,
+                            "model_id": step.model.id,
+                            "model_display_name": step.model.display_name,
+                            "duration_ms": result.duration_ms,
+                        },
+                    )
+                )
+            elif result.status == StepStatus.FAILED:
+                failed_steps.append(
+                    {
+                        "step_index": step.step_index,
+                        "model_id": step.model.id,
+                        "model_display_name": step.model.display_name,
+                        "failure_code": result.failure_code.value if result.failure_code else None,
+                    }
+                )
+                events.append(
+                    next_event(
+                        EventType.STEP_FAILED,
+                        task.completed_at or task.accepted_at,
+                        {
+                            "step_index": step.step_index,
+                            "model_id": step.model.id,
+                            "model_display_name": step.model.display_name,
+                            "failure_code": result.failure_code.value if result.failure_code else None,
+                            "failure_message": result.failure_message,
+                        },
+                    )
+                )
+            elif result.status == StepStatus.CANCELLED:
+                cancelled_steps.append(step.step_index)
+
+        if task.status == TaskStatus.COMPLETED.value:
+            winning_step = None
+            if task.merge_strategy == MergeStrategy.FIRST_SUCCESS or task.model_count == 1:
+                winning_step = completed_steps[0] if completed_steps else None
+            events.append(
+                next_event(
+                    EventType.TASK_COMPLETED,
+                    task.completed_at or task.accepted_at,
+                    {
+                        "winning_step_index": winning_step["step_index"] if winning_step else None,
+                        "winning_model_id": winning_step["model_id"] if winning_step else None,
+                        "duration_ms": task.duration_ms,
+                        "cancelled_steps": cancelled_steps,
+                        "cancel_reason": "quorum_reached" if cancelled_steps else None,
+                    },
+                )
+            )
+        elif task.status == TaskStatus.FAILED.value:
+            events.append(
+                next_event(
+                    EventType.TASK_FAILED,
+                    task.completed_at or task.accepted_at,
+                    {
+                        "failure_code": task.failure_code,
+                        "failure_message": task.failure_message,
+                        "failed_steps": failed_steps,
+                    },
+                )
+            )
+        elif task.status == TaskStatus.CANCELLED.value:
+            events.append(
+                next_event(
+                    EventType.TASK_CANCELLED,
+                    task.completed_at or task.accepted_at,
+                    {
+                        "reason": "operator",
+                        "cancelled_steps": cancelled_steps,
+                    },
+                )
+            )
+        return events
+
+    def _append_event_safe(self, event: TaskEventRecord) -> None:
+        try:
+            self._repository.append_event(event)
+        except Exception:
+            return
