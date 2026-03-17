@@ -201,6 +201,10 @@ class TaskView(OrchestrateResponse):
     prompt: str
     reasoning: bool
     metadata: dict[str, Any]
+    quorum: int
+    merge_strategy: str
+    adapter_hint: str
+    cancel_on_quorum: bool
     winning_step_index: int | None = None
     cancelled_steps: list[int] = Field(default_factory=list)
     cancel_reason: str | None = None
@@ -234,6 +238,10 @@ class TaskView(OrchestrateResponse):
             prompt=task.prompt,
             reasoning=task.reasoning,
             metadata=task.metadata,
+            quorum=task.quorum,
+            merge_strategy=task.merge_strategy,
+            adapter_hint=task.adapter_hint,
+            cancel_on_quorum=task.cancel_on_quorum,
             winning_step_index=terminal_summary["winning_step_index"],
             cancelled_steps=terminal_summary["cancelled_steps"],
             cancel_reason=terminal_summary["cancel_reason"],

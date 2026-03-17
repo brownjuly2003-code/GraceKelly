@@ -123,6 +123,10 @@ class HttpApiSmokeTests(unittest.TestCase):
         task_payload = task.json()
         self.assertEqual(len(task_payload["events"]), 1)
         self.assertEqual(task_payload["events"][0]["event_type"], "task.accepted")
+        self.assertEqual(task_payload["quorum"], 1)
+        self.assertEqual(task_payload["merge_strategy"], "first_success")
+        self.assertEqual(task_payload["adapter_hint"], "auto")
+        self.assertTrue(task_payload["cancel_on_quorum"])
         self.assertEqual(task_payload["steps"], [])
 
     def test_list_tasks_returns_recent_summaries_in_desc_order(self) -> None:
@@ -468,6 +472,10 @@ class HttpApiSmokeTests(unittest.TestCase):
             [event["event_type"] for event in task_payload["events"]],
             ["task.accepted", "step.completed", "task.completed"],
         )
+        self.assertEqual(task_payload["quorum"], 1)
+        self.assertEqual(task_payload["merge_strategy"], "first_success")
+        self.assertEqual(task_payload["adapter_hint"], "auto")
+        self.assertTrue(task_payload["cancel_on_quorum"])
         self.assertEqual(task_payload["winning_step_index"], 1)
         self.assertEqual(task_payload["cancelled_steps"], [])
         self.assertIsNone(task_payload["cancel_reason"])
@@ -523,6 +531,10 @@ class HttpApiSmokeTests(unittest.TestCase):
             [event["event_type"] for event in task_payload["events"]],
             ["task.accepted", "step.failed", "task.failed"],
         )
+        self.assertEqual(task_payload["quorum"], 1)
+        self.assertEqual(task_payload["merge_strategy"], "first_success")
+        self.assertEqual(task_payload["adapter_hint"], "auto")
+        self.assertTrue(task_payload["cancel_on_quorum"])
         self.assertIsNone(task_payload["winning_step_index"])
         self.assertEqual(task_payload["cancelled_steps"], [])
         self.assertIsNone(task_payload["cancel_reason"])
