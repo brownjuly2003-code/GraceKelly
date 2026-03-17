@@ -5,7 +5,15 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
 
-from gracekelly.core.contracts import AdapterHint, EventType, FailureCode, MergeStrategy, StepStatus, TaskStatus
+from gracekelly.core.contracts import (
+    AdapterHint,
+    EventType,
+    ExecutionMode,
+    FailureCode,
+    MergeStrategy,
+    StepStatus,
+    TaskStatus,
+)
 
 
 @dataclass(slots=True)
@@ -17,7 +25,7 @@ class TaskRecord:
     duration_ms: int | None
     prompt: str
     reasoning: bool
-    execution_mode: str
+    execution_mode: ExecutionMode
     dry_run: bool
     model_count: int
     quorum: int

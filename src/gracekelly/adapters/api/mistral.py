@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from urllib import error, request
 
-from gracekelly.core.contracts import ExecutionAdapter, ExecutionRequest, ExecutionResult, FailureCode, StepStatus
+from gracekelly.core.contracts import ExecutionAdapter, ExecutionMode, ExecutionRequest, ExecutionResult, FailureCode, StepStatus
 
 
 class MistralApiAdapter(ExecutionAdapter):
@@ -47,7 +47,7 @@ class MistralApiAdapter(ExecutionAdapter):
                 adapter_name=self.name,
                 model_id=model.id,
                 model_display_name=model.display_name,
-                execution_mode="api",
+                execution_mode=ExecutionMode.API,
                 status=StepStatus.COMPLETED,
                 output_text=output_text,
                 details={
@@ -122,7 +122,7 @@ class MistralApiAdapter(ExecutionAdapter):
             adapter_name=self.name,
             model_id=model_id,
             model_display_name=model_display_name,
-            execution_mode="api",
+            execution_mode=ExecutionMode.API,
             status=StepStatus.FAILED,
             failure_code=failure_code,
             failure_message=message,

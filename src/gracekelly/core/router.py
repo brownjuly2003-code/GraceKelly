@@ -7,6 +7,7 @@ from gracekelly.core.contracts import (
     CancellationToken,
     ExecutionAdapter,
     ExecutionBatchResult,
+    ExecutionMode,
     ExecutionPlan,
     ExecutionRequest,
     ExecutionResult,
@@ -65,7 +66,7 @@ class ExecutionRouter:
                         step.model.id,
                         step.model.display_name,
                         adapter_name=f"{step.backend.value}.{step.provider}",
-                        execution_mode="api",
+                        execution_mode=ExecutionMode.API,
                         message=f"No API adapter registered for provider '{step.provider}'.",
                     )
                 else:
@@ -76,7 +77,7 @@ class ExecutionRouter:
                         step.model.id,
                         step.model.display_name,
                         adapter_name=f"{step.backend.value}.{step.provider}",
-                        execution_mode="browser",
+                        execution_mode=ExecutionMode.BROWSER,
                         message="Browser adapter is not connected yet.",
                     )
                 else:
@@ -102,7 +103,7 @@ class ExecutionRouter:
         plan: ExecutionPlan,
         results: tuple[ExecutionResult, ...],
     ) -> ExecutionBatchResult:
-        execution_mode = "dry-run" if plan.dry_run else self._resolve_execution_mode(results)
+        execution_mode = ExecutionMode.DRY_RUN if plan.dry_run else self._resolve_execution_mode(results)
         successful = tuple(item for item in results if item.status == StepStatus.COMPLETED)
         failed = tuple(item for item in results if item.status == StepStatus.FAILED)
         cancelled_steps = [
@@ -163,9 +164,9 @@ class ExecutionRouter:
     def _successful_count(self, results: tuple[ExecutionResult, ...]) -> int:
         return sum(1 for item in results if item.status == StepStatus.COMPLETED)
 
-    def _resolve_execution_mode(self, results: tuple[ExecutionResult, ...]) -> str:
+    def _resolve_execution_mode(self, results: tuple[ExecutionResult, ...]) -> ExecutionMode:
         execution_modes = sorted({item.execution_mode for item in results})
-        return execution_modes[0] if len(execution_modes) == 1 else "mixed"
+        return execution_modes[0] if len(execution_modes) == 1 else ExecutionMode.MIXED
 
     def _merge_outputs(
         self,
@@ -204,7 +205,7 @@ class ExecutionRouter:
         model_display_name: str,
         *,
         adapter_name: str,
-        execution_mode: str,
+        execution_mode: ExecutionMode,
         message: str,
     ) -> ExecutionResult:
         return ExecutionResult(
@@ -223,7 +224,7 @@ class ExecutionRouter:
             adapter_name=f"{step.backend.value}.{step.provider}",
             model_id=step.model.id,
             model_display_name=step.model.display_name,
-            execution_mode=step.backend.value,
+            execution_mode=ExecutionMode(step.backend.value),
             status=StepStatus.CANCELLED,
             details={"cancelled": True},
         )

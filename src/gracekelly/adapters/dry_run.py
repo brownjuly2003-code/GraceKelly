@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from gracekelly.core.contracts import ExecutionAdapter, ExecutionRequest, ExecutionResult, StepStatus
+from gracekelly.core.contracts import ExecutionAdapter, ExecutionMode, ExecutionRequest, ExecutionResult, StepStatus
 
 
 class DryRunExecutionAdapter(ExecutionAdapter):
@@ -11,7 +11,7 @@ class DryRunExecutionAdapter(ExecutionAdapter):
             adapter_name=self.name,
             model_id=request.step.model.id,
             model_display_name=request.step.model.display_name,
-            execution_mode="dry-run",
+            execution_mode=ExecutionMode.DRY_RUN,
             status=StepStatus.COMPLETED,
             details={
                 "simulated": True,

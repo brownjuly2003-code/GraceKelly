@@ -117,6 +117,7 @@ This document is the working source of truth for GraceKelly delivery. We update 
 [x] Validate request metadata for JSON-serializability before orchestration so storage backends do not discover bad payloads late.
 [x] Fix adapter-name resolution after enum normalization so completed winning steps remain authoritative over cancelled fallbacks.
 [x] Normalize `adapter_hint` to an enum across request parsing, planning, and storage read paths.
+[x] Normalize `execution_mode` to an enum across adapters, router aggregation, and storage read paths.
 [ ] Defer retry schema until a concrete retry policy exists; do not add `attempt_no` or `retry_of_task_id` before a reliability phase chooses the retry model.
 [ ] Start browser execution only after the adapter contract and PostgreSQL-backed task/event flow are stable.
 
@@ -151,6 +152,7 @@ This document is the working source of truth for GraceKelly delivery. We update 
 - 2026-03-17: `metadata` was still allowed to carry arbitrary Python objects for non-HTTP callers, leaving JSON-serialization failures to appear only during persistence. Decision: validate JSON-serializability at request-model construction time.
 - 2026-03-17: One adapter-name resolver branch was still comparing enum-backed step statuses to string values, which could misclassify completed-plus-cancelled plans as mixed. Decision: finish the enum migration in summary serialization and pin it with a direct response-contract test.
 - 2026-03-17: `adapter_hint` still remained a raw string even after `merge_strategy` and status enums were normalized. Decision: move `adapter_hint` onto an enum as well so request validation, planning, and storage reads all share the same typed contract.
+- 2026-03-17: `execution_mode` was still stringly-typed across adapters, router aggregation, and repository reads, even though it represents a small fixed vocabulary. Decision: normalize it to an enum before more mixed-backend logic accumulates around string comparisons.
 - 2026-03-16: Health can legitimately report `degraded` in development when optional adapters are intentionally unconfigured. Decision: treat degraded readiness as operationally informative, not as a startup failure.
 - 2026-03-16: HTTP smoke tests exposed a missing `requested_models` field in `TaskView`. Decision: keep smoke coverage mandatory for API contract changes; bug fixed immediately.
 - 2026-03-16: answers1.md made it clear that several current choices are transitional only: JSON-heavy execution storage, degraded-on-optional readiness, and `best_effort` merge semantics should not be treated as stable architecture.
@@ -211,3 +213,4 @@ This document is the working source of truth for GraceKelly delivery. We update 
 - 2026-03-17: Added request-level metadata validation so non-serializable Python objects are rejected before orchestration reaches persistence.
 - 2026-03-17: Fixed adapter-name summary resolution after enum normalization and added direct coverage for completed-plus-cancelled short-circuit responses.
 - 2026-03-17: Added enum-backed `adapter_hint` validation and normalization across request parsing, planning, and repository read paths.
+- 2026-03-17: Added enum-backed `execution_mode` normalization across adapters, router aggregation, and repository reads.

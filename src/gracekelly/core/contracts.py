@@ -29,6 +29,13 @@ class AdapterHint(StrEnum):
     API = "api"
 
 
+class ExecutionMode(StrEnum):
+    DRY_RUN = "dry-run"
+    API = "api"
+    BROWSER = "browser"
+    MIXED = "mixed"
+
+
 class TaskStatus(StrEnum):
     ACCEPTED = "accepted"
     COMPLETED = "completed"
@@ -108,7 +115,7 @@ class ExecutionResult:
     adapter_name: str
     model_id: str
     model_display_name: str
-    execution_mode: str
+    execution_mode: ExecutionMode
     status: StepStatus
     output_text: str | None = None
     failure_code: FailureCode | None = None
@@ -123,7 +130,7 @@ class ExecutionResult:
 
 @dataclass(frozen=True, slots=True)
 class ExecutionBatchResult:
-    execution_mode: str
+    execution_mode: ExecutionMode
     task_status: TaskStatus
     results: tuple[ExecutionResult, ...]
     output_text: str | None = None

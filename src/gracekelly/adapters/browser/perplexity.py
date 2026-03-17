@@ -16,7 +16,7 @@ from gracekelly.adapters.browser.policy import (
     SubmitPolicy,
 )
 from gracekelly.adapters.browser.session import BrowserSessionManager
-from gracekelly.core.contracts import ExecutionAdapter, ExecutionRequest, ExecutionResult, FailureCode, StepStatus
+from gracekelly.core.contracts import ExecutionAdapter, ExecutionMode, ExecutionRequest, ExecutionResult, FailureCode, StepStatus
 from gracekelly.core.models import models_equivalent
 
 
@@ -98,7 +98,7 @@ class PerplexityBrowserAdapter(ExecutionAdapter):
                 adapter_name=self.name,
                 model_id=model.id,
                 model_display_name=model.display_name,
-                execution_mode="browser",
+                execution_mode=ExecutionMode.BROWSER,
                 status=StepStatus.COMPLETED,
                 output_text=output.output_text.strip(),
                 details={
@@ -173,7 +173,7 @@ class PerplexityBrowserAdapter(ExecutionAdapter):
             adapter_name=self.name,
             model_id=model_id,
             model_display_name=model_display_name,
-            execution_mode="browser",
+            execution_mode=ExecutionMode.BROWSER,
             status=StepStatus.CANCELLED,
             details={
                 "provider": "perplexity",
@@ -202,7 +202,7 @@ class PerplexityBrowserAdapter(ExecutionAdapter):
             adapter_name=self.name,
             model_id=model_id,
             model_display_name=model_display_name,
-            execution_mode="browser",
+            execution_mode=ExecutionMode.BROWSER,
             status=StepStatus.FAILED,
             failure_code=failure_code,
             failure_message=message,

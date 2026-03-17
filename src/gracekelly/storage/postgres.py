@@ -10,7 +10,7 @@ except ModuleNotFoundError:  # pragma: no cover
     psycopg = None
     dict_row = None
 
-from gracekelly.core.contracts import AdapterHint, EventType, FailureCode, MergeStrategy, StepStatus, TaskStatus
+from gracekelly.core.contracts import AdapterHint, EventType, ExecutionMode, FailureCode, MergeStrategy, StepStatus, TaskStatus
 from gracekelly.storage.base import TaskEventRecord, TaskRecord, TaskRepository, TaskStepRecord
 from gracekelly.storage.schema import (
     EXPECTED_SCHEMA_COLUMNS,
@@ -343,7 +343,7 @@ class PostgresTaskRepository(TaskRepository):
             duration_ms=row["duration_ms"],
             prompt=row["prompt"],
             reasoning=row["reasoning"],
-            execution_mode=row["execution_mode"],
+            execution_mode=ExecutionMode(row["execution_mode"]),
             dry_run=row["dry_run"],
             model_count=row["model_count"],
             quorum=row["quorum"],

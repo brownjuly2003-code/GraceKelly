@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import unittest
 
-from gracekelly.core.contracts import AdapterHint, EventType, FailureCode, MergeStrategy, StepStatus, TaskStatus
+from gracekelly.core.contracts import AdapterHint, EventType, ExecutionMode, FailureCode, MergeStrategy, StepStatus, TaskStatus
 from gracekelly.storage.postgres import PostgresTaskRepository
 from gracekelly.storage.schema import (
     EXPECTED_SCHEMA_COLUMNS,
@@ -74,6 +74,7 @@ class PostgresSchemaTests(unittest.TestCase):
         )
 
         self.assertEqual(record.status, TaskStatus.COMPLETED)
+        self.assertEqual(record.execution_mode, ExecutionMode.API)
         self.assertEqual(record.merge_strategy, MergeStrategy.FIRST_SUCCESS)
         self.assertEqual(record.adapter_hint, AdapterHint.AUTO)
         self.assertEqual(record.failure_code, FailureCode.TIMEOUT)
