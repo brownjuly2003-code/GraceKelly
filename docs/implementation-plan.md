@@ -11,6 +11,7 @@ This document is the working source of truth for GraceKelly delivery. We update 
 - Keep checklist items atomic and ordered.
 - Record blockers briefly in `Issue log`.
 - Record scope changes briefly in `Change log`.
+- In this plan, `audit` always means an external evaluation by a separate reviewer/colleague. Internal self-checks or prep notes do not satisfy an audit gate.
 
 ## Independent review gates
 - Gate 1: request an independent architectural review before freezing the PostgreSQL schema and shipping the first real migration, especially around `gk_task_steps`, `completed_at`, and `duration_ms`.
@@ -20,6 +21,7 @@ This document is the working source of truth for GraceKelly delivery. We update 
 - Gate 5: request an independent deployment review before extracting the browser worker into a separate process or service, so IPC, persistence, and failure ownership do not drift early.
 
 ## Audit timing
+- Audit definition: an audit gate is satisfied only by an external review artifact from a separate reviewer/colleague, not by the implementation agent's own summary or prep brief.
 - Gate 1 timing: before proposing the first non-bootstrap PostgreSQL migration for a real environment, or before any schema-freeze decision that would make `gk_task_steps` and task timing fields hard to change.
 - Gate 2 timing: before treating readiness semantics as stable enough for alerts, runbooks, or production SLO interpretation; not due yet while readiness details and operator surfaces are still moving.
 - Gate 3 timing: before calling the current multi-model defaults production policy; not due yet while `first_success`, per-model timeout, and cancel-on-quorum behaviour are still being exercised mainly through smoke and operator workflows.
@@ -141,7 +143,8 @@ This document is the working source of truth for GraceKelly delivery. We update 
 [x] Add `execution_mode` filtering to `GET /api/v1/tasks` so operator triage can isolate browser, API, mixed, or dry-run executions without client-side filtering.
 [x] Lift terminal execution summary fields onto `GET /api/v1/tasks/{task_id}` so operators do not need to parse the final event for winning-step, cancellation, or aggregate batch context.
 [x] Lift scalar execution-plan policy fields onto `GET /api/v1/tasks/{task_id}` so operators do not need the accepted event for basic plan context.
-[x] Prepare a dedicated Gate 4 audit brief in `audit1.md` and stop before any live browser driver work starts.
+[x] Clarify in the plan that every audit gate requires an external review by a separate reviewer/colleague, not an internal self-check.
+[x] Prepare an internal Gate 4 prep brief in `gate4-audit-brief.md` and keep `audit*.md` reserved for external reviewer artifacts.
 [ ] Defer retry schema until a concrete retry policy exists; do not add `attempt_no` or `retry_of_task_id` before a reliability phase chooses the retry model.
 [ ] Start browser execution only after the adapter contract and PostgreSQL-backed task/event flow are stable.
 
@@ -192,7 +195,8 @@ This document is the working source of truth for GraceKelly delivery. We update 
 - 2026-03-17: Operators can already filter recent tasks by status and failure class, but not by stored execution mode even though that field is normalized and cheap to query. Decision: expose `execution_mode` as another low-cardinality list filter instead of pushing that work to clients.
 - 2026-03-17: Final task context still lived only inside the terminal event payload, forcing clients to parse the event stream just to find winning-step or batch-summary data. Decision: surface terminal summary fields at the top level of `GET /tasks/{id}` while keeping the raw events intact.
 - 2026-03-17: Even after lifting terminal summary data, operators still needed `task.accepted` just to read scalar execution policy like quorum or merge strategy. Decision: expose the persisted execution-plan scalars directly on `TaskView`.
-- 2026-03-17: Gate 4 became the next real implementation boundary once scripted browser execution and operator surfaces were stable. Decision: prepare a dedicated audit brief and stop before any live browser driver code is introduced.
+- 2026-03-17: Gate 4 became the next real implementation boundary once scripted browser execution and operator surfaces were stable. Decision: prepare an internal prep brief, but keep audit artifacts themselves external and stop before any live browser driver code is introduced.
+- 2026-03-17: The term `audit` was still ambiguous between external review and internal preparation. Decision: define audit explicitly as a separate external evaluation and reserve `audit*.md` for reviewer-authored outputs.
 - 2026-03-16: Health can legitimately report `degraded` in development when optional adapters are intentionally unconfigured. Decision: treat degraded readiness as operationally informative, not as a startup failure.
 - 2026-03-16: HTTP smoke tests exposed a missing `requested_models` field in `TaskView`. Decision: keep smoke coverage mandatory for API contract changes; bug fixed immediately.
 - 2026-03-16: answers1.md made it clear that several current choices are transitional only: JSON-heavy execution storage, degraded-on-optional readiness, and `best_effort` merge semantics should not be treated as stable architecture.
@@ -269,4 +273,4 @@ This document is the working source of truth for GraceKelly delivery. We update 
 - 2026-03-17: Extended `GET /api/v1/tasks` with `execution_mode` filtering so operator triage can isolate browser, API, mixed, or dry-run executions across both backends.
 - 2026-03-17: Lifted terminal execution summary fields onto `GET /api/v1/tasks/{task_id}`, so winning-step, cancellation, and aggregate batch details are available without parsing the final event payload.
 - 2026-03-17: Lifted persisted execution-plan scalars onto `GET /api/v1/tasks/{task_id}`, so quorum and merge-policy context are visible without parsing the accepted event.
-- 2026-03-17: Prepared `audit1.md` as the explicit Gate 4 review brief and paused further browser-runtime work pending independent audit.
+- 2026-03-17: Prepared `gate4-audit-brief.md` as the internal Gate 4 prep note, clarified that `audit*.md` is reserved for external reviewer output, and paused further browser-runtime work pending independent audit.
