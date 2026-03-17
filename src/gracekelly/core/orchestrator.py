@@ -2,12 +2,15 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime, timezone
+import json
 from uuid import uuid4
 
 from gracekelly.core.contracts import (
     EventType,
+    ExecutionBatchResult,
     ExecutionPlan,
     ExecutionResult,
+    FailureCode,
     MergeStrategy,
     StepStatus,
     TaskStatus,
@@ -78,7 +81,7 @@ class OrchestratorService:
         except Exception as exc:
             raise StorageUnavailableError("save_task_with_steps", str(exc)) from exc
 
-        for event in self._build_events(task, execution_plan, batch_result.results):
+        for event in self._build_events(task, execution_plan, batch_result):
             self._append_event_safe(event)
         return SubmissionSnapshot(task=task, steps=steps)
 
@@ -96,6 +99,24 @@ class OrchestratorService:
             return self._repository.list_steps(task_id)
         except Exception as exc:
             raise StorageUnavailableError("list_task_steps", str(exc)) from exc
+
+    def list_recent_tasks(
+        self,
+        limit: int = 20,
+        *,
+        status: TaskStatus | None = None,
+        dry_run: bool | None = None,
+        failure_code: FailureCode | None = None,
+    ) -> list[TaskRecord]:
+        try:
+            return self._repository.list_recent(
+                limit,
+                status=status,
+                dry_run=dry_run,
+                failure_code=failure_code,
+            )
+        except Exception as exc:
+            raise StorageUnavailableError("list_recent_tasks", str(exc)) from exc
 
     def list_task_events(self, task_id: str) -> list[TaskEventRecord]:
         try:
@@ -134,8 +155,9 @@ class OrchestratorService:
         self,
         task: TaskRecord,
         plan: ExecutionPlan,
-        results: tuple[ExecutionResult, ...],
+        batch_result: ExecutionBatchResult,
     ) -> list[TaskEventRecord]:
+        results = batch_result.results
         events: list[TaskEventRecord] = []
         sequence_no = 0
 
@@ -186,46 +208,36 @@ class OrchestratorService:
 
         for step, result in zip(plan.steps, results, strict=False):
             if result.status == StepStatus.COMPLETED:
-                completed_steps.append(
-                    {
-                        "step_index": step.step_index,
-                        "model_id": step.model.id,
-                        "model_display_name": step.model.display_name,
-                        "duration_ms": result.duration_ms,
-                    }
-                )
+                step_payload = {
+                    "step_index": step.step_index,
+                    "model_id": step.model.id,
+                    "model_display_name": step.model.display_name,
+                    "duration_ms": result.duration_ms,
+                }
+                step_payload.update(self._event_result_details(result))
+                completed_steps.append(step_payload)
                 events.append(
                     next_event(
                         EventType.STEP_COMPLETED,
                         task.completed_at or task.accepted_at,
-                        {
-                            "step_index": step.step_index,
-                            "model_id": step.model.id,
-                            "model_display_name": step.model.display_name,
-                            "duration_ms": result.duration_ms,
-                        },
+                        step_payload,
                     )
                 )
             elif result.status == StepStatus.FAILED:
-                failed_steps.append(
-                    {
-                        "step_index": step.step_index,
-                        "model_id": step.model.id,
-                        "model_display_name": step.model.display_name,
-                        "failure_code": result.failure_code.value if result.failure_code else None,
-                    }
-                )
+                step_payload = {
+                    "step_index": step.step_index,
+                    "model_id": step.model.id,
+                    "model_display_name": step.model.display_name,
+                    "failure_code": result.failure_code.value if result.failure_code else None,
+                    "failure_message": result.failure_message,
+                }
+                step_payload.update(self._event_result_details(result))
+                failed_steps.append(step_payload)
                 events.append(
                     next_event(
                         EventType.STEP_FAILED,
                         task.completed_at or task.accepted_at,
-                        {
-                            "step_index": step.step_index,
-                            "model_id": step.model.id,
-                            "model_display_name": step.model.display_name,
-                            "failure_code": result.failure_code.value if result.failure_code else None,
-                            "failure_message": result.failure_message,
-                        },
+                        step_payload,
                     )
                 )
             elif result.status == StepStatus.CANCELLED:
@@ -235,40 +247,46 @@ class OrchestratorService:
             winning_step = None
             if task.merge_strategy == MergeStrategy.FIRST_SUCCESS or task.model_count == 1:
                 winning_step = completed_steps[0] if completed_steps else None
+            task_payload = {
+                "winning_step_index": winning_step["step_index"] if winning_step else None,
+                "winning_model_id": winning_step["model_id"] if winning_step else None,
+                "duration_ms": task.duration_ms,
+                "cancelled_steps": cancelled_steps,
+                "cancel_reason": "quorum_reached" if cancelled_steps else None,
+            }
+            task_payload.update(self._event_batch_details(batch_result))
             events.append(
                 next_event(
                     EventType.TASK_COMPLETED,
                     task.completed_at or task.accepted_at,
-                    {
-                        "winning_step_index": winning_step["step_index"] if winning_step else None,
-                        "winning_model_id": winning_step["model_id"] if winning_step else None,
-                        "duration_ms": task.duration_ms,
-                        "cancelled_steps": cancelled_steps,
-                        "cancel_reason": "quorum_reached" if cancelled_steps else None,
-                    },
+                    task_payload,
                 )
             )
         elif task.status == TaskStatus.FAILED:
+            task_payload = {
+                "failure_code": task.failure_code.value if task.failure_code else None,
+                "failure_message": task.failure_message,
+                "failed_steps": failed_steps,
+            }
+            task_payload.update(self._event_batch_details(batch_result))
             events.append(
                 next_event(
                     EventType.TASK_FAILED,
                     task.completed_at or task.accepted_at,
-                    {
-                        "failure_code": task.failure_code.value if task.failure_code else None,
-                        "failure_message": task.failure_message,
-                        "failed_steps": failed_steps,
-                    },
+                    task_payload,
                 )
             )
         elif task.status == TaskStatus.CANCELLED:
+            task_payload = {
+                "reason": "operator",
+                "cancelled_steps": cancelled_steps,
+            }
+            task_payload.update(self._event_batch_details(batch_result))
             events.append(
                 next_event(
                     EventType.TASK_CANCELLED,
                     task.completed_at or task.accepted_at,
-                    {
-                        "reason": "operator",
-                        "cancelled_steps": cancelled_steps,
-                    },
+                    task_payload,
                 )
             )
         return events
@@ -278,3 +296,17 @@ class OrchestratorService:
             self._repository.append_event(event)
         except Exception:
             return
+
+    def _event_result_details(self, result: ExecutionResult) -> dict[str, object]:
+        if not result.details:
+            return {}
+        return {
+            "details": json.loads(json.dumps(result.details, default=str)),
+        }
+
+    def _event_batch_details(self, batch_result: ExecutionBatchResult) -> dict[str, object]:
+        if not batch_result.details:
+            return {}
+        return {
+            "details": json.loads(json.dumps(batch_result.details, default=str)),
+        }

@@ -18,10 +18,11 @@ class MistralApiAdapter(ExecutionAdapter):
     ) -> None:
         self._api_key = api_key
         self._base_url = base_url.rstrip("/")
-        self._timeout_seconds = timeout_seconds
+        self._default_timeout_seconds = timeout_seconds
 
     def execute(self, request_model: ExecutionRequest) -> ExecutionResult:
         model = request_model.step.model
+        timeout_seconds = self._resolve_timeout_seconds(request_model)
         if not self._api_key:
             return self._failure(
                 model.id,
@@ -41,7 +42,11 @@ class MistralApiAdapter(ExecutionAdapter):
         }
 
         try:
-            response_data = self._post_json("/chat/completions", payload)
+            response_data = self._post_json(
+                "/chat/completions",
+                payload,
+                timeout_seconds=timeout_seconds,
+            )
             output_text = self._extract_output_text(response_data)
             return ExecutionResult(
                 adapter_name=self.name,
@@ -53,6 +58,7 @@ class MistralApiAdapter(ExecutionAdapter):
                 details={
                     "provider": "mistral",
                     "provider_model_id": request_model.step.provider_model_id,
+                    "timeout_seconds": timeout_seconds,
                 },
             )
         except TimeoutError:
@@ -81,7 +87,19 @@ class MistralApiAdapter(ExecutionAdapter):
                 f"Mistral adapter error: {exc}",
             )
 
-    def _post_json(self, path: str, payload: dict[str, object]) -> dict[str, object]:
+    def _resolve_timeout_seconds(self, request_model: ExecutionRequest) -> float:
+        model_timeout = request_model.step.model.timeout_seconds
+        if model_timeout and model_timeout > 0:
+            return float(model_timeout)
+        return self._default_timeout_seconds
+
+    def _post_json(
+        self,
+        path: str,
+        payload: dict[str, object],
+        *,
+        timeout_seconds: float,
+    ) -> dict[str, object]:
         body = json.dumps(payload).encode("utf-8")
         http_request = request.Request(
             f"{self._base_url}{path}",
@@ -93,7 +111,7 @@ class MistralApiAdapter(ExecutionAdapter):
             },
             method="POST",
         )
-        with request.urlopen(http_request, timeout=self._timeout_seconds) as response:
+        with request.urlopen(http_request, timeout=timeout_seconds) as response:
             return json.loads(response.read().decode("utf-8"))
 
     def _extract_output_text(self, payload: dict[str, object]) -> str:
@@ -143,4 +161,5 @@ class MistralApiAdapter(ExecutionAdapter):
             "provider": "mistral",
             "configured": True,
             "base_url": self._base_url,
+            "default_timeout_seconds": self._default_timeout_seconds,
         }

@@ -7,6 +7,7 @@ from gracekelly.adapters.browser.session import BrowserSessionConfig, BrowserSes
 from gracekelly.adapters.dry_run import DryRunExecutionAdapter
 from gracekelly.core.execution_profile import resolve_execution_profile
 from gracekelly.core.readiness import build_readiness_report
+from gracekelly.core.router import ExecutionRouter
 from gracekelly.storage.memory import InMemoryTaskRepository
 
 
@@ -86,6 +87,25 @@ class ReadinessTests(unittest.TestCase):
         storage_component = next(item for item in report["components"] if item["kind"] == "storage")
         self.assertEqual(storage_component["status"], "degraded")
         self.assertEqual(storage_component["details"]["schema"]["missing_tables"], ["gk_task_steps"])
+
+    def test_build_readiness_report_includes_execution_component_details(self) -> None:
+        report = build_readiness_report(
+            environment="test",
+            profile=resolve_execution_profile("dry-run"),
+            repository=InMemoryTaskRepository(),
+            adapters={
+                "dry-run": DryRunExecutionAdapter(),
+            },
+            execution_router=ExecutionRouter(dry_run_adapter=DryRunExecutionAdapter()),
+        )
+
+        execution = next(item for item in report["components"] if item["kind"] == "execution")
+
+        self.assertTrue(execution["required"])
+        self.assertEqual(execution["status"], "ok")
+        self.assertEqual(execution["details"]["active_model_executions"], 0)
+        self.assertEqual(execution["details"]["saturated_models"], [])
+        self.assertEqual(execution["details"]["model_limits"]["kimi-k2-5"], 1)
 
 
 if __name__ == "__main__":

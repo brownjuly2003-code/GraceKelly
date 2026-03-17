@@ -19,6 +19,14 @@ This document is the working source of truth for GraceKelly delivery. We update 
 - Gate 4: request an independent boundary review before enabling real browser execution, to confirm that `core/` stays isolated from `adapters/browser/` and that browser-specific complexity is not leaking upward.
 - Gate 5: request an independent deployment review before extracting the browser worker into a separate process or service, so IPC, persistence, and failure ownership do not drift early.
 
+## Audit timing
+- Gate 1 timing: before proposing the first non-bootstrap PostgreSQL migration for a real environment, or before any schema-freeze decision that would make `gk_task_steps` and task timing fields hard to change.
+- Gate 2 timing: before treating readiness semantics as stable enough for alerts, runbooks, or production SLO interpretation; not due yet while readiness details and operator surfaces are still moving.
+- Gate 3 timing: before calling the current multi-model defaults production policy; not due yet while `first_success`, per-model timeout, and cancel-on-quorum behaviour are still being exercised mainly through smoke and operator workflows.
+- Gate 4 timing: immediately before replacing the scripted browser backend with a live browser/site driver. This is the next likely audit trigger if browser execution work resumes.
+- Gate 5 timing: immediately before splitting browser execution into a separate worker, process, or service boundary.
+- Current audit status: no external audit blocks the current operator-surface and task-history work. The nearest mandatory audit boundary remains Gate 4 for live browser execution, with Gates 2 and 3 still required before production alerting or policy hardening.
+
 ## Confirmed decisions
 - PostgreSQL schema must be normalized before the first real migration: introduce `gk_task_steps`, add `completed_at`, `duration_ms`, `quorum`, `merge_strategy`, `adapter_hint`, `cancel_on_quorum`, `dry_run`, and `model_count` to `gk_tasks`, remove task-level `model_id` / `model_display_name`, and stop treating execution structure as JSON-only data.
 - `metadata` is reserved for user-provided or trace-level data only. Step results, execution plans, and resolved requested models must move out of `metadata` into normalized storage.
@@ -48,7 +56,7 @@ This document is the working source of truth for GraceKelly delivery. We update 
 
 ## Current status
 - Phase: Phase 1 in progress
-- Overall state: normalized task/step/event contracts, profile-aware readiness, packaged PostgreSQL migration tooling, and browser-automation adapter boundaries are implemented in code; the in-memory path is green, the live PostgreSQL path has explicit validation and integration hooks, and the browser execution path is now exercisable end-to-end through a scripted backend
+- Overall state: normalized task/step/event contracts, profile-aware readiness, packaged PostgreSQL migration tooling, and browser-automation adapter boundaries are implemented in code; the in-memory path is green, the live PostgreSQL path has explicit validation and integration hooks, the browser execution path is now exercisable end-to-end through a scripted backend, model operational hints are now partially enforced in runtime through per-model timeouts and in-process concurrency limits, readiness now exposes execution-plane saturation details for operators, step events carry adapter diagnostics for task-level forensics, final task events now preserve aggregate routing context, and operators can list and triage recent tasks with adapter, requested-model, and failure-code summaries
 - Last updated: 2026-03-17
 
 ## Action items
@@ -118,6 +126,17 @@ This document is the working source of truth for GraceKelly delivery. We update 
 [x] Fix adapter-name resolution after enum normalization so completed winning steps remain authoritative over cancelled fallbacks.
 [x] Normalize `adapter_hint` to an enum across request parsing, planning, and storage read paths.
 [x] Normalize `execution_mode` to an enum across adapters, router aggregation, and storage read paths.
+[x] Apply per-model timeout hints in the API adapter path and expose model operational hints through `/api/v1/models`.
+[x] Enforce `ModelSpec.concurrency_limit` in-process inside `ExecutionRouter` and fail fast with `rate_limited` when a model is saturated.
+[x] Expose execution-plane concurrency diagnostics through readiness/health so operators can see active and saturated models.
+[x] Carry adapter result details into `step.completed` / `step.failed` event payloads so `GET /tasks/{id}` preserves operator diagnostics without widening the step table.
+[x] Add `GET /api/v1/tasks` as a recent-task summary listing for operators, without widening the existing per-task detail contract.
+[x] Add `status` and `dry_run` filters to `GET /api/v1/tasks` so recent-task inspection supports basic triage workflows.
+[x] Enrich `GET /api/v1/tasks` summaries with `adapter_name` and `requested_models` so the list is useful without drilling into every task.
+[x] Extend optional live PostgreSQL coverage to include recent-task summary listing and filter behavior so operator surfaces stay aligned across backends.
+[x] Add `failure_code` filtering to `GET /api/v1/tasks` so operator triage can target specific failure classes directly.
+[x] Carry aggregate execution-router details into final task events so task history preserves batch-level routing context alongside per-step diagnostics.
+[x] Make audit timing explicit beside the independent review gates so the next external audit point is unambiguous during autonomous implementation.
 [ ] Defer retry schema until a concrete retry policy exists; do not add `attempt_no` or `retry_of_task_id` before a reliability phase chooses the retry model.
 [ ] Start browser execution only after the adapter contract and PostgreSQL-backed task/event flow are stable.
 
@@ -153,6 +172,17 @@ This document is the working source of truth for GraceKelly delivery. We update 
 - 2026-03-17: One adapter-name resolver branch was still comparing enum-backed step statuses to string values, which could misclassify completed-plus-cancelled plans as mixed. Decision: finish the enum migration in summary serialization and pin it with a direct response-contract test.
 - 2026-03-17: `adapter_hint` still remained a raw string even after `merge_strategy` and status enums were normalized. Decision: move `adapter_hint` onto an enum as well so request validation, planning, and storage reads all share the same typed contract.
 - 2026-03-17: `execution_mode` was still stringly-typed across adapters, router aggregation, and repository reads, even though it represents a small fixed vocabulary. Decision: normalize it to an enum before more mixed-backend logic accumulates around string comparisons.
+- 2026-03-17: `ModelSpec.timeout_seconds` existed in the registry, but the Mistral adapter still used only a global transport timeout and `/api/v1/models` hid the operational hints entirely. Decision: treat per-model timeout as the execution default and expose timeout/latency/concurrency hints in the model catalog.
+- 2026-03-17: `ModelSpec.concurrency_limit` still had no runtime effect, so the catalog exposed a limit the router would never actually honor. Decision: add a small in-process per-model concurrency gate in `ExecutionRouter` and fail fast with `rate_limited` instead of inventing queueing in Phase 1.
+- 2026-03-17: After concurrency enforcement, operators still had no visibility into active or saturated models from the standard health surfaces. Decision: expose execution-router concurrency state through readiness and the lightweight health summary instead of waiting for a future metrics system.
+- 2026-03-17: Step events still dropped adapter-specific diagnostics even though operator debugging increasingly depends on timeout, auth, driver, and concurrency context. Decision: keep normalized step storage minimal, but include sanitized adapter `details` in `step.completed` and `step.failed` payloads.
+- 2026-03-17: Operator task inspection still required already knowing a `task_id`, which is weak for a fresh service shell. Decision: add a summary-only recent-tasks endpoint and keep deep inspection on `GET /tasks/{task_id}`.
+- 2026-03-17: A recent-task list without filters still forces manual scanning when operators are looking specifically for failures or real executions. Decision: add low-cardinality `status` and `dry_run` filters now instead of waiting for a full search surface.
+- 2026-03-17: A task list that omits adapter and requested-model context still forces extra drill-down for basic triage. Decision: accept light N+1 reads on the operator list path and include `adapter_name` plus `requested_models` in the summary contract.
+- 2026-03-17: The new recent-task operator surface was covered on the in-memory path only, leaving room for backend drift on PostgreSQL. Decision: extend the existing gated live-Postgres test suite to cover listing and filters as part of the storage contract.
+- 2026-03-17: Operators often care about failure class more than generic `failed` status, and task-level `failure_code` is already normalized and stored. Decision: expose it as a first-class filter on the recent-task list instead of forcing client-side filtering.
+- 2026-03-17: Final task events still omitted aggregate router details, forcing operators to reconstruct batch-level routing context from step events alone. Decision: include sanitized batch execution `details` in `task.completed`, `task.failed`, and `task.cancelled` payloads.
+- 2026-03-17: Independent review gates were documented, but the exact pre-change timing for each audit was still implicit. Decision: add an explicit `Audit timing` section so autonomous work does not drift past the next required external review point.
 - 2026-03-16: Health can legitimately report `degraded` in development when optional adapters are intentionally unconfigured. Decision: treat degraded readiness as operationally informative, not as a startup failure.
 - 2026-03-16: HTTP smoke tests exposed a missing `requested_models` field in `TaskView`. Decision: keep smoke coverage mandatory for API contract changes; bug fixed immediately.
 - 2026-03-16: answers1.md made it clear that several current choices are transitional only: JSON-heavy execution storage, degraded-on-optional readiness, and `best_effort` merge semantics should not be treated as stable architecture.
@@ -214,3 +244,14 @@ This document is the working source of truth for GraceKelly delivery. We update 
 - 2026-03-17: Fixed adapter-name summary resolution after enum normalization and added direct coverage for completed-plus-cancelled short-circuit responses.
 - 2026-03-17: Added enum-backed `adapter_hint` validation and normalization across request parsing, planning, and repository read paths.
 - 2026-03-17: Added enum-backed `execution_mode` normalization across adapters, router aggregation, and repository reads.
+- 2026-03-17: Applied per-model timeout hints on the Mistral execution path and exposed timeout, latency class, and concurrency hints through `/api/v1/models`.
+- 2026-03-17: Enforced per-model in-process concurrency limits in `ExecutionRouter`, returning `rate_limited` when a model is already saturated and covering slot release with concurrent router tests.
+- 2026-03-17: Added execution-plane concurrency diagnostics to readiness and `/health`, including active execution counts, configured model limits, and saturated model IDs.
+- 2026-03-17: Added sanitized adapter diagnostics to step events so task retrieval now shows driver/provider/concurrency context through the existing event stream.
+- 2026-03-17: Added `GET /api/v1/tasks` backed by both memory and PostgreSQL repositories so operators can inspect recent task summaries before drilling into a specific task.
+- 2026-03-17: Extended `GET /api/v1/tasks` with `status` and `dry_run` filters for lightweight operator triage across both memory and PostgreSQL backends.
+- 2026-03-17: Enriched `GET /api/v1/tasks` summaries with adapter and requested-model context derived from step/event data, keeping the operator list useful without changing the task table.
+- 2026-03-17: Extended the gated live PostgreSQL integration suite to cover recent-task summaries and filter behavior on `/api/v1/tasks`.
+- 2026-03-17: Extended `GET /api/v1/tasks` with task-level `failure_code` filtering so operator triage can target specific failure classes across both backends.
+- 2026-03-17: Added aggregate execution details to final task events, so task history now preserves batch-level adapter, quorum, cancellation, and failure-summary context alongside per-step diagnostics.
+- 2026-03-17: Clarified audit timing in the implementation plan, including which review gate is next and when an external audit becomes mandatory.

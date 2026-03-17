@@ -22,6 +22,27 @@ class InMemoryTaskRepository(TaskRepository):
     def get(self, task_id: str) -> TaskRecord | None:
         return self._tasks.get(task_id)
 
+    def list_recent(
+        self,
+        limit: int,
+        *,
+        status: TaskStatus | None = None,
+        dry_run: bool | None = None,
+        failure_code: FailureCode | None = None,
+    ) -> list[TaskRecord]:
+        tasks = self._tasks.values()
+        if status is not None:
+            tasks = [item for item in tasks if item.status == status]
+        if dry_run is not None:
+            tasks = [item for item in tasks if item.dry_run == dry_run]
+        if failure_code is not None:
+            tasks = [item for item in tasks if item.failure_code == failure_code]
+        return sorted(
+            tasks,
+            key=lambda item: item.accepted_at,
+            reverse=True,
+        )[:limit]
+
     def list_steps(self, task_id: str) -> list[TaskStepRecord]:
         return list(self._steps.get(task_id, []))
 

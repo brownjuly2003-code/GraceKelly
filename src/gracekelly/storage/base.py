@@ -79,6 +79,17 @@ class TaskRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    def list_recent(
+        self,
+        limit: int,
+        *,
+        status: TaskStatus | None = None,
+        dry_run: bool | None = None,
+        failure_code: FailureCode | None = None,
+    ) -> list[TaskRecord]:
+        raise NotImplementedError
+
+    @abstractmethod
     def list_steps(self, task_id: str) -> list[TaskStepRecord]:
         raise NotImplementedError
 

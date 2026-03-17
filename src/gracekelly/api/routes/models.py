@@ -16,6 +16,9 @@ async def models() -> list[ModelCatalogItem]:
             display_name=spec.display_name,
             aliases=list(spec.aliases),
             reasoning_capable=spec.reasoning_capable,
+            timeout_seconds=spec.timeout_seconds,
+            expected_latency_class=spec.expected_latency_class,
+            concurrency_limit=spec.concurrency_limit,
         )
         for spec in list_models()
     ]

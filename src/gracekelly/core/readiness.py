@@ -22,8 +22,11 @@ def build_readiness_report(
     profile: ExecutionProfile,
     repository: TaskRepository,
     adapters: dict[str, object],
+    execution_router: object | None = None,
 ) -> dict[str, Any]:
     components = [storage_component_status(repository, required=profile.storage_required)]
+    if execution_router is not None:
+        components.append(execution_component_status(execution_router))
     components.extend(
         adapter_component_status(name, adapter, required=profile.is_required(name))
         for name, adapter in adapters.items()
@@ -62,6 +65,20 @@ def storage_component_status(repository: TaskRepository, *, required: bool) -> d
         "status": status,
         "required": required,
         "details": details,
+    }
+
+
+def execution_component_status(execution_router: object) -> dict[str, Any]:
+    if hasattr(execution_router, "healthcheck"):
+        raw = execution_router.healthcheck()
+    else:
+        raw = {"status": "unknown"}
+    return {
+        "name": "execution-router",
+        "kind": "execution",
+        "status": raw.get("status", "unknown"),
+        "required": True,
+        "details": raw,
     }
 
 

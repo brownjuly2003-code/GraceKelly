@@ -18,13 +18,17 @@ async def health(request: Request) -> dict[str, object]:
         profile=profile,
         repository=repository,
         adapters=request.app.state.adapter_registry,
+        execution_router=request.app.state.execution_router,
     )
+    execution = next(item for item in readiness["components"] if item["kind"] == "execution")
     return {
         "status": readiness["status"],
         "service": "gracekelly",
         "version": __version__,
         "environment": settings.env,
         "storage_backend": repository.backend_name,
+        "active_model_executions": execution["details"]["active_model_executions"],
+        "saturated_models": execution["details"]["saturated_models"],
     }
 
 
@@ -38,4 +42,5 @@ async def readiness(request: Request) -> dict[str, object]:
         profile=profile,
         repository=repository,
         adapters=request.app.state.adapter_registry,
+        execution_router=request.app.state.execution_router,
     )

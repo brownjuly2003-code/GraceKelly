@@ -72,9 +72,14 @@ class HttpApiSmokeTests(unittest.TestCase):
         self.assertEqual(readiness.status_code, 200)
         self.assertEqual(health.json()["service"], "gracekelly")
         self.assertEqual(readiness.json()["environment"], "test")
-        self.assertGreaterEqual(len(readiness.json()["components"]), 3)
+        self.assertEqual(health.json()["active_model_executions"], 0)
+        self.assertEqual(health.json()["saturated_models"], [])
+        self.assertGreaterEqual(len(readiness.json()["components"]), 4)
         storage = next(item for item in readiness.json()["components"] if item["kind"] == "storage")
+        execution = next(item for item in readiness.json()["components"] if item["kind"] == "execution")
         self.assertEqual(storage["details"]["schema"]["schema_version"], "not_applicable")
+        self.assertEqual(execution["details"]["active_model_executions"], 0)
+        self.assertEqual(execution["details"]["model_limits"]["mistral-small"], 4)
 
     def test_models_endpoint_returns_aliases_and_reasoning_capability(self) -> None:
         response = self.client.get("/api/v1/models")
@@ -86,7 +91,13 @@ class HttpApiSmokeTests(unittest.TestCase):
         mistral = next(item for item in payload if item["id"] == "mistral-small")
         self.assertIn("Kimi K2", kimi["aliases"])
         self.assertTrue(kimi["reasoning_capable"])
+        self.assertEqual(kimi["timeout_seconds"], 60)
+        self.assertEqual(kimi["expected_latency_class"], "slow")
+        self.assertEqual(kimi["concurrency_limit"], 1)
         self.assertFalse(mistral["reasoning_capable"])
+        self.assertEqual(mistral["timeout_seconds"], 30)
+        self.assertEqual(mistral["expected_latency_class"], "medium")
+        self.assertEqual(mistral["concurrency_limit"], 4)
 
     def test_orchestrate_and_fetch_task_in_dry_run(self) -> None:
         response = self.client.post(
@@ -113,6 +124,77 @@ class HttpApiSmokeTests(unittest.TestCase):
         self.assertEqual(len(task_payload["events"]), 1)
         self.assertEqual(task_payload["events"][0]["event_type"], "task.accepted")
         self.assertEqual(task_payload["steps"], [])
+
+    def test_list_tasks_returns_recent_summaries_in_desc_order(self) -> None:
+        first = self.client.post(
+            "/api/v1/orchestrate",
+            json={
+                "prompt": "first task",
+                "model": "Kimi K2",
+                "dry_run": True,
+            },
+        )
+        second = self.client.post(
+            "/api/v1/orchestrate",
+            json={
+                "prompt": "second task",
+                "model": "Mistral",
+                "dry_run": True,
+            },
+        )
+
+        self.assertEqual(first.status_code, 202)
+        self.assertEqual(second.status_code, 202)
+
+        response = self.client.get("/api/v1/tasks", params={"limit": 1})
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(len(payload), 1)
+        self.assertEqual(payload[0]["task_id"], second.json()["task_id"])
+        self.assertEqual(payload[0]["adapter_name"], "dry-run")
+        self.assertEqual(payload[0]["dry_run"], True)
+        self.assertEqual(payload[0]["model_count"], 1)
+        self.assertEqual(payload[0]["requested_models"][0]["id"], "mistral-small")
+        self.assertNotIn("steps", payload[0])
+        self.assertNotIn("events", payload[0])
+
+    def test_list_tasks_can_filter_by_status_and_dry_run(self) -> None:
+        self.client.post(
+            "/api/v1/orchestrate",
+            json={
+                "prompt": "dry run completed",
+                "model": "Kimi K2",
+                "dry_run": True,
+            },
+        )
+        failed = self.client.post(
+            "/api/v1/orchestrate",
+            json={
+                "prompt": "real failure",
+                "model": "Mistral",
+                "dry_run": False,
+            },
+        )
+
+        response = self.client.get(
+            "/api/v1/tasks",
+            params={
+                "status": "failed",
+                "dry_run": "false",
+                "failure_code": "provider_unavailable",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(len(payload), 1)
+        self.assertEqual(payload[0]["task_id"], failed.json()["task_id"])
+        self.assertEqual(payload[0]["adapter_name"], "api.mistral")
+        self.assertEqual(payload[0]["status"], "failed")
+        self.assertEqual(payload[0]["dry_run"], False)
+        self.assertEqual(payload[0]["failure_code"], "provider_unavailable")
+        self.assertEqual(payload[0]["requested_models"][0]["id"], "mistral-small")
 
     def test_api_execution_without_key_fails_cleanly(self) -> None:
         response = self.client.post(
@@ -178,6 +260,20 @@ class HttpApiSmokeTests(unittest.TestCase):
         payload = response.json()
         self.assertEqual(payload["detail"]["code"], "storage_failed")
         self.assertIn("get_task", payload["detail"]["message"])
+
+    def test_list_tasks_returns_storage_failed_when_repository_read_breaks(self) -> None:
+        class ListFailingRepository(InMemoryTaskRepository):
+            def list_recent(self, limit: int):
+                raise RuntimeError("database is offline")
+
+        client = self._build_client_with_repository(ListFailingRepository())
+
+        response = client.get("/api/v1/tasks")
+
+        self.assertEqual(response.status_code, 503)
+        payload = response.json()
+        self.assertEqual(payload["detail"]["code"], "storage_failed")
+        self.assertIn("list_recent_tasks", payload["detail"]["message"])
 
     def test_orchestrate_preserves_requested_models_when_event_persistence_fails(self) -> None:
         class EventFailingRepository(InMemoryTaskRepository):
@@ -314,6 +410,9 @@ class HttpApiSmokeTests(unittest.TestCase):
             [event["event_type"] for event in task_payload["events"]],
             ["task.accepted", "step.completed", "task.completed"],
         )
+        self.assertEqual(task_payload["events"][1]["payload"]["details"]["driver"], "scripted")
+        self.assertEqual(task_payload["events"][2]["payload"]["details"]["adapter_names"], ["browser.perplexity"])
+        self.assertEqual(task_payload["events"][2]["payload"]["details"]["completed_step_count"], 1)
 
     def test_browser_execution_reports_auth_failure_through_scripted_backend(self) -> None:
         app = create_app(
@@ -362,6 +461,10 @@ class HttpApiSmokeTests(unittest.TestCase):
             [event["event_type"] for event in task_payload["events"]],
             ["task.accepted", "step.failed", "task.failed"],
         )
+        self.assertEqual(task_payload["events"][1]["payload"]["details"]["provider"], "perplexity")
+        self.assertTrue(task_payload["events"][1]["payload"]["details"]["configured"])
+        self.assertEqual(task_payload["events"][2]["payload"]["details"]["failure_codes"], ["auth_failed"])
+        self.assertEqual(task_payload["events"][2]["payload"]["details"]["failed_step_count"], 1)
 
 
 if __name__ == "__main__":

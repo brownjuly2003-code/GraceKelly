@@ -120,6 +120,30 @@ class OrchestratorServiceTests(unittest.TestCase):
             [item.event_type for item in events],
             ["task.accepted", "step.completed", "task.completed"],
         )
+        self.assertEqual(events[1].payload["details"]["provider"], "mistral")
+        self.assertEqual(events[-1].payload["details"]["adapter_names"], ["api.mistral"])
+        self.assertEqual(events[-1].payload["details"]["completed_step_count"], 1)
+        self.assertEqual(events[-1].payload["details"]["failed_step_count"], 0)
+
+    def test_failed_task_event_carries_batch_execution_details(self) -> None:
+        task = self.service.submit(
+            OrchestrateRequest(
+                prompt="missing adapter",
+                model="Mistral",
+                dry_run=False,
+            )
+        )
+        events = self.service.list_task_events(task.task_id)
+
+        self.assertEqual(task.status, "failed")
+        self.assertEqual(
+            [item.event_type for item in events],
+            ["task.accepted", "step.failed", "task.failed"],
+        )
+        self.assertEqual(events[-1].payload["failure_code"], "provider_unavailable")
+        self.assertEqual(events[-1].payload["details"]["adapter_names"], ["api.mistral"])
+        self.assertEqual(events[-1].payload["details"]["failed_step_count"], 1)
+        self.assertEqual(events[-1].payload["details"]["failure_codes"], ["provider_unavailable"])
 
     def test_submit_raises_storage_unavailable_when_persistence_fails(self) -> None:
         class FailingRepository(InMemoryTaskRepository):
@@ -155,6 +179,7 @@ class OrchestratorServiceTests(unittest.TestCase):
                     execution_mode="browser",
                     status=StepStatus.COMPLETED,
                     output_text="browser first",
+                    details={"provider": "perplexity"},
                 )
 
         class FakeMistralAdapter:
@@ -204,9 +229,12 @@ class OrchestratorServiceTests(unittest.TestCase):
         self.assertEqual([step.status for step in steps], ["completed", "cancelled"])
         self.assertEqual([event.sequence_no for event in events], [1, 2, 3])
         self.assertEqual([event.event_type for event in events], ["task.accepted", "step.completed", "task.completed"])
+        self.assertEqual(events[1].payload["details"]["provider"], "perplexity")
         self.assertEqual(events[-1].payload["winning_step_index"], 1)
         self.assertEqual(events[-1].payload["cancelled_steps"], [2])
         self.assertEqual(events[-1].payload["cancel_reason"], "quorum_reached")
+        self.assertEqual(events[-1].payload["details"]["cancelled_step_count"], 1)
+        self.assertEqual(events[-1].payload["details"]["adapter_names"], ["api.mistral", "browser.perplexity"])
 
 
 if __name__ == "__main__":

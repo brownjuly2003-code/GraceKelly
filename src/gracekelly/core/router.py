@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import replace
 from time import perf_counter
 
+from gracekelly.core.concurrency import ModelConcurrencyGate
 from gracekelly.core.contracts import (
     CancellationToken,
     ExecutionAdapter,
@@ -16,6 +17,7 @@ from gracekelly.core.contracts import (
     StepStatus,
     TaskStatus,
 )
+from gracekelly.core.models import list_models
 
 
 class ExecutionRouter:
@@ -24,10 +26,16 @@ class ExecutionRouter:
         dry_run_adapter: ExecutionAdapter,
         api_adapters: dict[str, ExecutionAdapter] | None = None,
         browser_adapter: ExecutionAdapter | None = None,
+        concurrency_gate: ModelConcurrencyGate | None = None,
     ) -> None:
         self._dry_run_adapter = dry_run_adapter
         self._api_adapters = api_adapters or {}
         self._browser_adapter = browser_adapter
+        self._concurrency_gate = concurrency_gate or ModelConcurrencyGate()
+        self._model_limits = {
+            model.id: model.concurrency_limit
+            for model in list_models()
+        }
 
     def execute(
         self,
@@ -70,7 +78,7 @@ class ExecutionRouter:
                         message=f"No API adapter registered for provider '{step.provider}'.",
                     )
                 else:
-                    result = adapter.execute(request)
+                    result = self._execute_with_concurrency_limit(adapter, request)
             else:
                 if self._browser_adapter is None:
                     result = self._missing_adapter_result(
@@ -81,7 +89,7 @@ class ExecutionRouter:
                         message="Browser adapter is not connected yet.",
                     )
                 else:
-                    result = self._browser_adapter.execute(request)
+                    result = self._execute_with_concurrency_limit(self._browser_adapter, request)
 
             duration_ms = result.duration_ms
             if duration_ms is None:
@@ -106,6 +114,11 @@ class ExecutionRouter:
         execution_mode = ExecutionMode.DRY_RUN if plan.dry_run else self._resolve_execution_mode(results)
         successful = tuple(item for item in results if item.status == StepStatus.COMPLETED)
         failed = tuple(item for item in results if item.status == StepStatus.FAILED)
+        failure_codes = sorted(
+            item.failure_code.value
+            for item in failed
+            if item.failure_code is not None
+        )
         cancelled_steps = [
             step.step_index
             for step, result in zip(plan.steps, results, strict=False)
@@ -146,6 +159,10 @@ class ExecutionRouter:
             "quorum": plan.quorum,
             "merge_strategy": plan.merge_strategy,
             "adapter_names": sorted({item.adapter_name for item in results}),
+            "completed_step_count": len(successful),
+            "failed_step_count": len(failed),
+            "cancelled_step_count": len(cancelled_steps),
+            "failure_codes": failure_codes,
             "winning_step_index": winning_step[0].step_index if winning_step else None,
             "winning_model_id": winning_step[1].model_id if winning_step else None,
             "cancelled_steps": cancelled_steps,
@@ -160,6 +177,21 @@ class ExecutionRouter:
             failure_message=failure_message,
             details=details,
         )
+
+    def healthcheck(self) -> dict[str, object]:
+        active_by_model = self._concurrency_gate.snapshot()
+        saturated_models = sorted(
+            model_id
+            for model_id, active in active_by_model.items()
+            if active >= self._model_limits.get(model_id, 1)
+        )
+        return {
+            "status": "ok",
+            "active_model_executions": sum(active_by_model.values()),
+            "active_by_model": active_by_model,
+            "model_limits": dict(self._model_limits),
+            "saturated_models": saturated_models,
+        }
 
     def _successful_count(self, results: tuple[ExecutionResult, ...]) -> int:
         return sum(1 for item in results if item.status == StepStatus.COMPLETED)
@@ -217,6 +249,41 @@ class ExecutionRouter:
             failure_code=FailureCode.PROVIDER_UNAVAILABLE,
             failure_message=message,
             details={"configured": False},
+        )
+
+    def _execute_with_concurrency_limit(
+        self,
+        adapter: ExecutionAdapter,
+        request: ExecutionRequest,
+    ) -> ExecutionResult:
+        step = request.step
+        acquired = self._concurrency_gate.try_acquire(
+            step.model.id,
+            limit=step.model.concurrency_limit,
+        )
+        if not acquired:
+            return self._concurrency_limited_result(step)
+        try:
+            return adapter.execute(request)
+        finally:
+            self._concurrency_gate.release(step.model.id)
+
+    def _concurrency_limited_result(self, step) -> ExecutionResult:
+        return ExecutionResult(
+            adapter_name=f"{step.backend.value}.{step.provider}",
+            model_id=step.model.id,
+            model_display_name=step.model.display_name,
+            execution_mode=ExecutionMode(step.backend.value),
+            status=StepStatus.FAILED,
+            failure_code=FailureCode.RATE_LIMITED,
+            failure_message=(
+                f"Concurrency limit reached for model '{step.model.display_name}' "
+                f"(limit={step.model.concurrency_limit})."
+            ),
+            details={
+                "provider": step.provider,
+                "concurrency_limit": step.model.concurrency_limit,
+            },
         )
 
     def _cancelled_result(self, step) -> ExecutionResult:

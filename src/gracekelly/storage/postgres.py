@@ -158,6 +158,44 @@ class PostgresTaskRepository(TaskRepository):
             return None
         return self._task_from_row(row)
 
+    def list_recent(
+        self,
+        limit: int,
+        *,
+        status: TaskStatus | None = None,
+        dry_run: bool | None = None,
+        failure_code: FailureCode | None = None,
+    ) -> list[TaskRecord]:
+        where_clauses: list[str] = []
+        params: list[object] = []
+        if status is not None:
+            where_clauses.append("status = %s")
+            params.append(status)
+        if dry_run is not None:
+            where_clauses.append("dry_run = %s")
+            params.append(dry_run)
+        if failure_code is not None:
+            where_clauses.append("failure_code = %s")
+            params.append(failure_code)
+
+        where_sql = ""
+        if where_clauses:
+            where_sql = "WHERE " + " AND ".join(where_clauses)
+
+        query = f"""
+        SELECT *
+        FROM gk_tasks
+        {where_sql}
+        ORDER BY accepted_at DESC, task_id DESC
+        LIMIT %s
+        """
+        params.append(limit)
+        with self._connect(row_factory=dict_row) as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(query, tuple(params))
+                rows = cursor.fetchall()
+        return [self._task_from_row(row) for row in rows]
+
     def list_steps(self, task_id: str) -> list[TaskStepRecord]:
         query = """
         SELECT

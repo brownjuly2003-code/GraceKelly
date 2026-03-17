@@ -48,6 +48,9 @@ class ModelView(BaseModel):
 class ModelCatalogItem(ModelView):
     aliases: list[str]
     reasoning_capable: bool
+    timeout_seconds: int
+    expected_latency_class: str
+    concurrency_limit: int
 
 
 class TaskEventView(BaseModel):
@@ -145,6 +148,45 @@ class OrchestrateResponse(BaseModel):
             model=_resolve_winning_model(task, step_records),
             requested_models=requested_models_override or _resolve_requested_models(step_records, event_records),
             output_text=task.output_text,
+        )
+
+
+class TaskListItem(BaseModel):
+    task_id: str
+    status: str
+    accepted_at: datetime
+    completed_at: datetime | None = None
+    duration_ms: int | None = None
+    execution_mode: str
+    adapter_name: str
+    dry_run: bool
+    model_count: int
+    requested_models: list[ModelView]
+    failure_code: str | None = None
+    failure_message: str | None = None
+
+    @classmethod
+    def from_task(
+        cls,
+        task: TaskRecord,
+        steps: list[TaskStepRecord] | None = None,
+        events: list[TaskEventRecord] | None = None,
+    ) -> "TaskListItem":
+        step_records = list(steps or [])
+        event_records = list(events or [])
+        return cls(
+            task_id=task.task_id,
+            status=task.status,
+            accepted_at=task.accepted_at,
+            completed_at=task.completed_at,
+            duration_ms=task.duration_ms,
+            execution_mode=task.execution_mode,
+            adapter_name=_resolve_adapter_name(task, step_records),
+            dry_run=task.dry_run,
+            model_count=task.model_count,
+            requested_models=_resolve_requested_models(step_records, event_records),
+            failure_code=task.failure_code,
+            failure_message=task.failure_message,
         )
 
 
