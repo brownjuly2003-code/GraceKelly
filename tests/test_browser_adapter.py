@@ -36,7 +36,7 @@ class FakeBrowserAutomation(BrowserAutomationPort):
         self._output_text = output_text
 
     def ensure_session(self, session_manager: BrowserSessionManager) -> None:
-        session_manager.mark_active()
+        return None
 
     def dismiss_popups(self, policy) -> None:
         return None
@@ -179,6 +179,58 @@ class BrowserAdapterTests(unittest.TestCase):
         self.assertEqual(result.status, StepStatus.FAILED)
         self.assertEqual(result.failure_code, FailureCode.UNKNOWN_ERROR)
         self.assertIn("unexpected browser crash", result.failure_message)
+
+    def test_browser_session_manager_state_returns_snapshot(self) -> None:
+        session_manager = self.build_session_manager()
+        session_manager.mark_active()
+
+        snapshot = session_manager.state
+        snapshot.active = False
+        snapshot.last_error = "tampered"
+
+        current = session_manager.state
+        self.assertTrue(current.active)
+        self.assertIsNone(current.last_error)
+
+    def test_browser_session_manager_logs_state_changes(self) -> None:
+        session_manager = self.build_session_manager()
+
+        with self.assertLogs("gracekelly.adapters.browser.session", level="INFO") as captured:
+            session_manager.mark_active()
+            session_manager.mark_error("browser offline")
+
+        self.assertEqual(len(captured.output), 2)
+        self.assertIn("marked active", captured.output[0])
+        self.assertIn("browser offline", captured.output[1])
+
+    def test_browser_adapter_logs_successful_execution(self) -> None:
+        adapter = PerplexityBrowserAdapter(
+            session_manager=self.build_session_manager(),
+            automation=FakeBrowserAutomation(output_text="browser success"),
+        )
+
+        with self.assertLogs("gracekelly.adapters.browser.perplexity", level="INFO") as captured:
+            result = adapter.execute(self.build_request())
+
+        self.assertEqual(result.status, StepStatus.COMPLETED)
+        self.assertEqual(len(captured.output), 2)
+        self.assertIn("Browser execution started", captured.output[0])
+        self.assertIn("Browser execution completed", captured.output[1])
+
+    def test_browser_adapter_logs_failed_execution(self) -> None:
+        adapter = PerplexityBrowserAdapter(
+            session_manager=self.build_session_manager(),
+            automation=FakeBrowserAutomation(logged_in=False),
+            auth_recovery_policy=AuthRecoveryPolicy(allow_relogin=False),
+        )
+
+        with self.assertLogs("gracekelly.adapters.browser.perplexity", level="WARNING") as captured:
+            result = adapter.execute(self.build_request())
+
+        self.assertEqual(result.status, StepStatus.FAILED)
+        self.assertEqual(result.failure_code, FailureCode.AUTH_FAILED)
+        self.assertEqual(len(captured.output), 1)
+        self.assertIn("auth_failed", captured.output[0])
 
 
 if __name__ == "__main__":

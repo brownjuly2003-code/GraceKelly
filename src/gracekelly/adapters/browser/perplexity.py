@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import asdict
+import logging
 
 from gracekelly.adapters.browser.automation import (
     BrowserAutomationPort,
@@ -18,6 +19,8 @@ from gracekelly.adapters.browser.policy import (
 from gracekelly.adapters.browser.session import BrowserSessionManager
 from gracekelly.core.contracts import ExecutionAdapter, ExecutionMode, ExecutionRequest, ExecutionResult, FailureCode, StepStatus
 from gracekelly.core.models import models_equivalent
+
+logger = logging.getLogger(__name__)
 
 
 class PerplexityBrowserAdapter(ExecutionAdapter):
@@ -42,14 +45,21 @@ class PerplexityBrowserAdapter(ExecutionAdapter):
 
     def execute(self, request: ExecutionRequest) -> ExecutionResult:
         model = request.step.model
+        logger.info(
+            "Browser execution started for task %s model %s provider %s",
+            request.task_id,
+            model.id,
+            model.provider,
+        )
         if request.cancellation and request.cancellation.is_cancelled:
             return self._cancelled(model.id, model.display_name)
         if not self._session_manager.state.configured:
             return self._failure(
-                model.id,
-                model.display_name,
-                FailureCode.PROVIDER_UNAVAILABLE,
-                "Browser session is not configured yet.",
+                task_id=request.task_id,
+                model_id=model.id,
+                model_display_name=model.display_name,
+                failure_code=FailureCode.PROVIDER_UNAVAILABLE,
+                message="Browser session is not configured yet.",
             )
 
         try:
@@ -59,10 +69,11 @@ class PerplexityBrowserAdapter(ExecutionAdapter):
             auth = self._ensure_auth()
             if not auth.logged_in:
                 return self._failure(
-                    model.id,
-                    model.display_name,
-                    FailureCode.AUTH_FAILED,
-                    auth.reason or "Browser session is not authenticated.",
+                    task_id=request.task_id,
+                    model_id=model.id,
+                    model_display_name=model.display_name,
+                    failure_code=FailureCode.AUTH_FAILED,
+                    message=auth.reason or "Browser session is not authenticated.",
                 )
 
             selection = self._automation.select_model(
@@ -71,10 +82,11 @@ class PerplexityBrowserAdapter(ExecutionAdapter):
             )
             if not self._model_matches_expected(model.provider_model_id, selection.actual_label):
                 return self._failure(
-                    model.id,
-                    model.display_name,
-                    FailureCode.MODEL_MISMATCH,
-                    (
+                    task_id=request.task_id,
+                    model_id=model.id,
+                    model_display_name=model.display_name,
+                    failure_code=FailureCode.MODEL_MISMATCH,
+                    message=(
                         f"Requested browser model '{model.provider_model_id}' "
                         f"but UI shows '{selection.actual_label}'."
                     ),
@@ -94,6 +106,12 @@ class PerplexityBrowserAdapter(ExecutionAdapter):
             )
             if request.cancellation and request.cancellation.is_cancelled and not output.output_text.strip():
                 return self._cancelled(model.id, model.display_name)
+            logger.info(
+                "Browser execution completed for task %s model %s provider %s",
+                request.task_id,
+                model.id,
+                model.provider,
+            )
             return ExecutionResult(
                 adapter_name=self.name,
                 model_id=model.id,
@@ -111,24 +129,27 @@ class PerplexityBrowserAdapter(ExecutionAdapter):
             )
         except TimeoutError:
             return self._failure(
-                model.id,
-                model.display_name,
-                FailureCode.TIMEOUT,
-                f"Browser execution timed out after {model.timeout_seconds}s.",
+                task_id=request.task_id,
+                model_id=model.id,
+                model_display_name=model.display_name,
+                failure_code=FailureCode.TIMEOUT,
+                message=f"Browser execution timed out after {model.timeout_seconds}s.",
             )
         except NotImplementedError as exc:
             return self._failure(
-                model.id,
-                model.display_name,
-                FailureCode.PROVIDER_UNAVAILABLE,
-                str(exc),
+                task_id=request.task_id,
+                model_id=model.id,
+                model_display_name=model.display_name,
+                failure_code=FailureCode.PROVIDER_UNAVAILABLE,
+                message=str(exc),
             )
         except Exception as exc:
             return self._failure(
-                model.id,
-                model.display_name,
-                FailureCode.UNKNOWN_ERROR,
-                f"Browser execution failed: {exc}",
+                task_id=request.task_id,
+                model_id=model.id,
+                model_display_name=model.display_name,
+                failure_code=FailureCode.UNKNOWN_ERROR,
+                message=f"Browser execution failed: {exc}",
             )
 
     def healthcheck(self) -> dict[str, object]:
@@ -183,6 +204,7 @@ class PerplexityBrowserAdapter(ExecutionAdapter):
 
     def _failure(
         self,
+        task_id: str,
         model_id: str,
         model_display_name: str,
         failure_code: FailureCode,
@@ -191,10 +213,18 @@ class PerplexityBrowserAdapter(ExecutionAdapter):
         extra_details: dict[str, object] | None = None,
     ) -> ExecutionResult:
         self._session_manager.mark_error(message)
+        session_state = self._session_manager.state
+        logger.warning(
+            "Browser execution failed for task %s model %s code %s: %s",
+            task_id,
+            model_id,
+            failure_code.value,
+            message,
+        )
         details = {
             "provider": "perplexity",
-            "configured": self._session_manager.state.configured,
-            "active": self._session_manager.state.active,
+            "configured": session_state.configured,
+            "active": session_state.active,
         }
         if extra_details:
             details.update(extra_details)

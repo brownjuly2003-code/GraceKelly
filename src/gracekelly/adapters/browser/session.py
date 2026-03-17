@@ -1,6 +1,10 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
+import logging
+from threading import Lock
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True, slots=True)
@@ -24,6 +28,7 @@ class BrowserSessionState:
 class BrowserSessionManager:
     def __init__(self, config: BrowserSessionConfig) -> None:
         self._config = config
+        self._lock = Lock()
         self._state = BrowserSessionState(
             configured=bool(config.enabled and config.profile_dir),
             active=False,
@@ -35,27 +40,36 @@ class BrowserSessionManager:
 
     @property
     def state(self) -> BrowserSessionState:
-        return self._state
+        with self._lock:
+            return replace(self._state)
 
     def is_ready(self) -> bool:
-        return self._state.configured and self._state.active
+        with self._lock:
+            return self._state.configured and self._state.active
 
     def mark_active(self) -> None:
-        self._state.active = True
-        self._state.last_error = None
+        with self._lock:
+            self._state.active = True
+            self._state.last_error = None
+            provider = self._state.provider
+        logger.info("Browser session marked active for provider %s", provider)
 
     def mark_error(self, message: str) -> None:
-        self._state.active = False
-        self._state.last_error = message
+        with self._lock:
+            self._state.active = False
+            self._state.last_error = message
+            provider = self._state.provider
+        logger.warning("Browser session marked degraded for provider %s: %s", provider, message)
 
     def healthcheck(self) -> dict[str, object]:
-        status = "ok" if self.is_ready() else "degraded"
+        state = self.state
+        status = "ok" if state.configured and state.active else "degraded"
         return {
             "status": status,
-            "provider": self._state.provider,
-            "configured": self._state.configured,
-            "active": self._state.active,
-            "base_url": self._state.base_url,
-            "profile_dir": self._state.profile_dir,
-            "last_error": self._state.last_error,
+            "provider": state.provider,
+            "configured": state.configured,
+            "active": state.active,
+            "base_url": state.base_url,
+            "profile_dir": state.profile_dir,
+            "last_error": state.last_error,
         }
