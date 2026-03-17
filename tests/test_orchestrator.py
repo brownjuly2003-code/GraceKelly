@@ -165,6 +165,30 @@ class OrchestratorServiceTests(unittest.TestCase):
 
         self.assertIn("save_task_with_steps", str(ctx.exception))
 
+    def test_submit_logs_warning_when_event_persistence_fails(self) -> None:
+        class EventFailingRepository(InMemoryTaskRepository):
+            def append_event(self, event) -> None:
+                raise RuntimeError("event sink offline")
+
+        service = OrchestratorService(
+            EventFailingRepository(),
+            execution_router=ExecutionRouter(dry_run_adapter=DryRunExecutionAdapter()),
+        )
+
+        with self.assertLogs("gracekelly.core.orchestrator", level="WARNING") as captured:
+            task = service.submit(
+                OrchestrateRequest(
+                    prompt="event failure logging",
+                    model="Kimi K2",
+                    dry_run=True,
+                )
+            )
+
+        self.assertEqual(task.status, "completed")
+        self.assertEqual(len(captured.output), 1)
+        self.assertIn("Event persistence failed for task", captured.output[0])
+        self.assertIn("task.accepted", captured.output[0])
+
     def test_submit_records_quorum_short_circuit_in_steps_and_events(self) -> None:
         class FakeBrowserAdapter:
             name = "browser.perplexity"

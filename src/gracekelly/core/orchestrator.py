@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime, timezone
 import json
+import logging
 from uuid import uuid4
 
 from gracekelly.core.contracts import (
@@ -20,6 +21,8 @@ from gracekelly.core.planning import build_execution_plan
 from gracekelly.core.router import ExecutionRouter
 from gracekelly.schemas import OrchestrateRequest
 from gracekelly.storage.base import TaskEventRecord, TaskRecord, TaskRepository, TaskStepRecord
+
+logger = logging.getLogger(__name__)
 
 
 class StorageUnavailableError(RuntimeError):
@@ -297,7 +300,14 @@ class OrchestratorService:
     def _append_event_safe(self, event: TaskEventRecord) -> None:
         try:
             self._repository.append_event(event)
-        except Exception:
+        except Exception as exc:
+            logger.warning(
+                "Event persistence failed for task %s event %s sequence %s: %s",
+                event.task_id,
+                event.event_type,
+                event.sequence_no,
+                exc,
+            )
             return
 
     def _event_result_details(self, result: ExecutionResult) -> dict[str, object]:
