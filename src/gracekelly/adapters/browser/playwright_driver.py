@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from datetime import UTC, datetime
 import logging
 import time
 from typing import Any, Callable
@@ -50,6 +51,8 @@ class PlaywrightBrowserAutomation(BrowserAutomationPort):
         self._playwright: Any | None = None
         self._context: Any | None = None
         self._page: Any | None = None
+        self._observed_model_menu: tuple[str, ...] = ()
+        self._observed_model_menu_at: datetime | None = None
 
     def ensure_session(self, session_manager: BrowserSessionManager) -> None:
         state = session_manager.state
@@ -135,6 +138,7 @@ class PlaywrightBrowserAutomation(BrowserAutomationPort):
         logger.info("Selecting Perplexity model '%s' through Playwright", provider_model_id)
         model_button.click()
         menu_texts = self._model_menu_texts(page)
+        self._record_model_menu_snapshot(menu_texts)
 
         option = self._first_visible_locator(
             (
@@ -214,6 +218,9 @@ class PlaywrightBrowserAutomation(BrowserAutomationPort):
             "channel": self._runtime.channel,
             "headless": self._runtime.headless,
             "launched": self._page is not None,
+            "observed_model_menu": list(self._observed_model_menu),
+            "observed_model_menu_at": self._observed_model_menu_at,
+            "observed_model_menu_source": "perplexity-model-menu" if self._observed_model_menu else None,
             "reason": dependency_error,
         }
 
@@ -358,6 +365,18 @@ class PlaywrightBrowserAutomation(BrowserAutomationPort):
             except Exception:
                 continue
         return [text for text in texts if text.strip()]
+
+    def _record_model_menu_snapshot(self, menu_texts: list[str]) -> None:
+        observed_lines: list[str] = []
+        for block in menu_texts:
+            for line in block.splitlines():
+                normalized = line.strip()
+                if normalized and normalized not in observed_lines:
+                    observed_lines.append(normalized)
+        if not observed_lines:
+            return
+        self._observed_model_menu = tuple(observed_lines)
+        self._observed_model_menu_at = datetime.now(UTC)
 
     def _infer_active_model_label(self, menu_texts: list[str]) -> str | None:
         for block in menu_texts:

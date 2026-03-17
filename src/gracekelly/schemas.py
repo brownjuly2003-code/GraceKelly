@@ -47,10 +47,16 @@ class ModelView(BaseModel):
 
 class ModelCatalogItem(ModelView):
     aliases: list[str]
+    adapter_kind: str
+    provider: str
     reasoning_capable: bool
     timeout_seconds: int
     expected_latency_class: str
     concurrency_limit: int
+    available: bool | None = None
+    availability_status: str
+    availability_checked_at: datetime | None = None
+    availability_source: str | None = None
 
 
 class TaskEventView(BaseModel):

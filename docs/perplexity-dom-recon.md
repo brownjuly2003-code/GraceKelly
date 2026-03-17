@@ -62,6 +62,7 @@ A dedicated-profile authenticated pass on 2026-03-17 exposed this menu content a
 - `Nemotron 3 Super`
 
 This matters because the static browser catalog still contains models such as `Kimi K2.5` that were not present in this authenticated menu. The driver now treats a missing requested option as a real model mismatch rather than silently staying on the current default.
+The public catalog route also now annotates browser entries against the last observed authenticated menu, so `/api/v1/models` can mark a browser model as `observed_unavailable` instead of advertising it as generically available.
 
 ## Anti-automation findings
 

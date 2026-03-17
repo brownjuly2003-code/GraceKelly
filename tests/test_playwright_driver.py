@@ -142,6 +142,11 @@ class PlaywrightDriverTests(unittest.TestCase):
         self.assertFalse(selection.details["model_selection_attempted"])
         self.assertIn("Best", selection.details["model_menu_snapshot"][0])
         self.assertTrue(driver._page.model_button.clicked)
+        health = driver.healthcheck()
+        self.assertIn("Best", health["observed_model_menu"])
+        self.assertIn("GPT-5.4", health["observed_model_menu"])
+        self.assertEqual(health["observed_model_menu_source"], "perplexity-model-menu")
+        self.assertIsNotNone(health["observed_model_menu_at"])
 
     def test_close_stops_playwright_and_context(self) -> None:
         driver = PlaywrightBrowserAutomation(sync_playwright_factory=lambda: object())

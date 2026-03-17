@@ -46,6 +46,7 @@ uvicorn gracekelly.main:app --app-dir src --host 127.0.0.1 --port 8011
 
 `GET /api/v1/tasks` supports `limit`, `status`, `execution_mode`, `dry_run`, and `failure_code` query params and returns summary metadata including `adapter_name`, winning `model`, `requested_models`, and short-circuit fields such as `cancelled_step_count` / `cancel_reason`.
 `GET /api/v1/tasks/{task_id}` also lifts both execution policy and terminal execution context to top-level fields such as `quorum`, `merge_strategy`, `adapter_hint`, `cancel_on_quorum`, `winning_step_index`, `cancelled_steps`, `cancel_reason`, and `execution_details`, while still returning the raw event stream.
+`GET /api/v1/models` now includes `adapter_kind`, `provider`, and browser-specific availability hints (`available`, `availability_status`, `availability_checked_at`, `availability_source`) so the catalog can distinguish static registry entries from the last authenticated Perplexity menu actually observed by the Playwright runtime.
 
 ## Tests
 

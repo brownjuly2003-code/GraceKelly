@@ -51,8 +51,8 @@ Deliverables:
 
 Next:
 - response DOM hardening and stronger model verification
-- account-aware browser model availability after the authenticated menu drift was confirmed
 - concrete browser-driver cleanup on top of the new app lifespan hook
+- broader browser catalog refresh if Perplexity account tiers continue to drift beyond the canonical registry
 
 Support in place:
 - manual-gated live Playwright smoke test in `tests/test_playwright_live.py`

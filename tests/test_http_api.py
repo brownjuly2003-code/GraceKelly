@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import UTC, datetime
 import unittest
 from unittest.mock import AsyncMock, patch
 
@@ -111,18 +112,76 @@ class HttpApiSmokeTests(unittest.TestCase):
         mistral = next(item for item in payload if item["id"] == "mistral-small")
         gpt_api = next(item for item in payload if item["id"] == "gpt-5-4-api")
         self.assertIn("Kimi K2", kimi["aliases"])
+        self.assertEqual(kimi["adapter_kind"], "browser")
+        self.assertEqual(kimi["provider"], "perplexity")
         self.assertTrue(kimi["reasoning_capable"])
         self.assertEqual(kimi["timeout_seconds"], 60)
         self.assertEqual(kimi["expected_latency_class"], "slow")
         self.assertEqual(kimi["concurrency_limit"], 1)
+        self.assertIsNone(kimi["available"])
+        self.assertEqual(kimi["availability_status"], "unknown")
+        self.assertIsNone(kimi["availability_checked_at"])
+        self.assertIsNone(kimi["availability_source"])
+        self.assertEqual(mistral["adapter_kind"], "api")
+        self.assertEqual(mistral["provider"], "mistral")
         self.assertFalse(mistral["reasoning_capable"])
         self.assertEqual(mistral["timeout_seconds"], 30)
         self.assertEqual(mistral["expected_latency_class"], "medium")
         self.assertEqual(mistral["concurrency_limit"], 4)
+        self.assertIsNone(mistral["available"])
+        self.assertEqual(mistral["availability_status"], "static")
         self.assertTrue(gpt_api["reasoning_capable"])
         self.assertEqual(gpt_api["timeout_seconds"], 60)
         self.assertEqual(gpt_api["expected_latency_class"], "slow")
         self.assertEqual(gpt_api["concurrency_limit"], 4)
+        self.assertEqual(gpt_api["provider"], "openai")
+        self.assertEqual(gpt_api["availability_status"], "static")
+
+    def test_models_endpoint_annotates_browser_availability_from_observed_menu(self) -> None:
+        app = create_app(
+            Settings(
+                env="test",
+                host="127.0.0.1",
+                port=8011,
+                log_level="INFO",
+                storage_backend="memory",
+                browser_enabled=True,
+                browser_profile_dir=r"D:\GraceKelly\tmp\browser-recon\perplexity-profile",
+                browser_base_url="https://www.perplexity.ai",
+            )
+        )
+
+        class ObservedMenuAutomation:
+            def healthcheck(self) -> dict[str, object]:
+                return {
+                    "status": "ok",
+                    "implemented": True,
+                    "driver": "observed-menu-test",
+                    "observed_model_menu": ["Kimi K2", "GPT-5.4", "Best"],
+                    "observed_model_menu_at": datetime(2026, 3, 17, 18, 45, tzinfo=UTC),
+                    "observed_model_menu_source": "perplexity-model-menu",
+                }
+
+        app.state.browser_adapter._automation = ObservedMenuAutomation()
+        with TestClient(app) as client:
+            response = client.get("/api/v1/models")
+
+            self.assertEqual(response.status_code, 200)
+            payload = response.json()
+            kimi = next(item for item in payload if item["id"] == "kimi-k2-5")
+            gpt = next(item for item in payload if item["id"] == "gpt-5-4")
+            claude = next(item for item in payload if item["id"] == "claude-sonnet-4-6")
+            mistral = next(item for item in payload if item["id"] == "mistral-small")
+            self.assertEqual(kimi["availability_status"], "observed_available")
+            self.assertEqual(kimi["available"], True)
+            self.assertEqual(kimi["availability_source"], "perplexity-model-menu")
+            self.assertEqual(kimi["availability_checked_at"], "2026-03-17T18:45:00Z")
+            self.assertEqual(gpt["availability_status"], "observed_available")
+            self.assertEqual(gpt["available"], True)
+            self.assertEqual(claude["availability_status"], "observed_unavailable")
+            self.assertEqual(claude["available"], False)
+            self.assertEqual(mistral["availability_status"], "static")
+            self.assertIsNone(mistral["available"])
 
     def test_orchestrate_and_fetch_task_in_dry_run(self) -> None:
         response = self.client.post(
