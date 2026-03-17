@@ -158,6 +158,7 @@ This document is the working source of truth for GraceKelly delivery. We update 
 [x] Start browser execution only after the adapter contract and PostgreSQL-backed task/event flow are stable.
 [x] Capture live Perplexity DOM reconnaissance in-repo and extract the first centralized selector module for the browser layer.
 [x] Add a thin headed Playwright backend behind `BrowserAutomationPort` without changing router/orchestrator boundaries.
+[x] Add a manual-gated live Playwright smoke harness so authenticated browser checks can run locally without entering CI.
 [ ] Prove one authenticated prompt -> response smoke through the Playwright backend using a dedicated browser profile, then revisit the default-storage switch.
 
 ## Issue log
@@ -220,6 +221,8 @@ This document is the working source of truth for GraceKelly delivery. We update 
 - 2026-03-17: The next browser-spike step now requires live DOM reconnaissance against the real Perplexity UI before any Playwright slice can be implemented safely. Decision: stop before live-browser coding in this session, record the blocker in `questions.md`, and wait for either a recon artifact or an environment with real-site access.
 - 2026-03-17: Live Perplexity reconnaissance is now available and shows a split reality: headless Chromium is blocked by Cloudflare, but headed persistent Chrome reaches the app shell. Decision: keep the first Playwright slice headed by default and centralize the discovered selectors in one browser-layer module.
 - 2026-03-17: Copying a live Chrome `Default` profile while the source browser is open did not preserve authenticated state because cookie/session stores were locked. Decision: treat a dedicated unlocked user-data directory as the supported input for authenticated live-browser smoke, not the actively used default profile.
+- 2026-03-17: The first Playwright slice now exists in code, but it still needs a repeatable manual entrypoint for real authenticated smoke. Decision: add an env-gated unittest that exercises the adapter contract directly and skips cleanly when auth is missing.
+- 2026-03-17: The first manual Playwright smoke against a copied profile reached prompt entry but hit a late `Sign in or create an account` overlay during submit. Decision: map that overlay path to `auth_failed`, keep the smoke harness as a skip in that case, and continue treating a dedicated authenticated profile as the prerequisite for the first true end-to-end success.
 - 2026-03-16: Health can legitimately report `degraded` in development when optional adapters are intentionally unconfigured. Decision: treat degraded readiness as operationally informative, not as a startup failure.
 - 2026-03-16: HTTP smoke tests exposed a missing `requested_models` field in `TaskView`. Decision: keep smoke coverage mandatory for API contract changes; bug fixed immediately.
 - 2026-03-16: answers1.md made it clear that several current choices are transitional only: JSON-heavy execution storage, degraded-on-optional readiness, and `best_effort` merge semantics should not be treated as stable architecture.
@@ -304,3 +307,5 @@ This document is the working source of truth for GraceKelly delivery. We update 
 - 2026-03-17: Added an OpenAI-compatible API adapter, wired it into settings and app composition, exposed a distinct `GPT-5.4 API` catalog model, and covered the new path in adapter, HTTP, config, and main wiring tests.
 - 2026-03-17: Added a FastAPI lifespan cleanup hook plus adapter-level close delegation, so future browser automation drivers can release resources cleanly on shutdown without changing the app boundary.
 - 2026-03-17: Captured real Perplexity DOM reconnaissance in `docs/perplexity-dom-recon.md`, extracted centralized browser selectors, added a thin headed Playwright backend plus config wiring, and covered the new browser path with unit tests.
+- 2026-03-17: Added `tests/test_playwright_live.py` as a manual-gated authenticated browser smoke so the new Playwright path can be exercised locally without changing the default CI suite.
+- 2026-03-17: Tightened the thin Playwright slice after the first live smoke by making model selection best-effort, mapping late sign-in overlays to `auth_failed`, and fixing Playwright shutdown to stop the runtime cleanly.

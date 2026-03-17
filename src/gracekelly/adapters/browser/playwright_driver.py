@@ -128,7 +128,21 @@ class PlaywrightBrowserAutomation(BrowserAutomationPort):
             )
         )
         if option is None:
-            raise RuntimeError(f"Could not find model option '{provider_model_id}' in the Perplexity UI.")
+            logger.warning(
+                "Perplexity model option '%s' was not found; continuing without verified model selection.",
+                provider_model_id,
+            )
+            return BrowserModelSelection(
+                requested_label=provider_model_id,
+                actual_label=provider_model_id,
+                details={
+                    "driver": "playwright",
+                    "model_selection_verified": False,
+                    "model_selection_attempted": False,
+                    "model_verification_wait_attempts": policy.wait_attempts,
+                },
+            )
+
         option.click()
         return BrowserModelSelection(
             requested_label=provider_model_id,
@@ -136,6 +150,7 @@ class PlaywrightBrowserAutomation(BrowserAutomationPort):
             details={
                 "driver": "playwright",
                 "model_selection_verified": False,
+                "model_selection_attempted": True,
                 "model_verification_wait_attempts": policy.wait_attempts,
             },
         )
@@ -185,15 +200,15 @@ class PlaywrightBrowserAutomation(BrowserAutomationPort):
 
     def close(self) -> None:
         context = self._context
-        manager = self._playwright_manager
+        playwright = self._playwright
         self._page = None
         self._context = None
         self._playwright = None
         self._playwright_manager = None
         if context is not None:
             context.close()
-        if manager is not None:
-            manager.stop()
+        if playwright is not None:
+            playwright.stop()
 
     def _build_playwright_manager(self) -> Any:
         factory = self._sync_playwright_factory
@@ -269,13 +284,23 @@ class PlaywrightBrowserAutomation(BrowserAutomationPort):
 
     def _click_submit(self, page: Any, policy: SubmitPolicy) -> None:
         for _ in range(policy.click_attempts):
+            if self._body_has_signed_out_marker(page):
+                raise PermissionError("Perplexity sign-in overlay blocked prompt submission.")
             submit = page.locator(self._selectors.submit_button)
             if self._locator_is_visible(submit):
-                submit.click()
+                try:
+                    submit.click()
+                except Exception as exc:
+                    if self._body_has_signed_out_marker(page):
+                        raise PermissionError("Perplexity sign-in overlay blocked prompt submission.") from exc
+                    time.sleep(self._runtime.poll_interval_seconds)
+                    continue
                 return
             time.sleep(self._runtime.poll_interval_seconds)
 
         if policy.allow_js_fallback:
+            if self._body_has_signed_out_marker(page):
+                raise PermissionError("Perplexity sign-in overlay blocked prompt submission.")
             clicked = page.evaluate(
                 """
                 (selector) => {
@@ -293,6 +318,10 @@ class PlaywrightBrowserAutomation(BrowserAutomationPort):
                 return
 
         page.keyboard.press("Control+Enter")
+
+    def _body_has_signed_out_marker(self, page: Any) -> bool:
+        body_text = self._body_text(page)
+        return any(marker in body_text for marker in self._selectors.signed_out_markers)
 
     def _wait_for_response_text(self, *, page: Any, prompt: str, timeout_seconds: int) -> str:
         deadline = time.monotonic() + timeout_seconds
@@ -411,4 +440,3 @@ class PlaywrightBrowserAutomation(BrowserAutomationPort):
             return page.inner_text("body")
         except Exception:
             return ""
-

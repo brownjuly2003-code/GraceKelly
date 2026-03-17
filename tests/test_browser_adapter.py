@@ -180,6 +180,22 @@ class BrowserAdapterTests(unittest.TestCase):
         self.assertEqual(result.failure_code, FailureCode.UNKNOWN_ERROR)
         self.assertIn("unexpected browser crash", result.failure_message)
 
+    def test_browser_adapter_maps_permission_error_to_auth_failed(self) -> None:
+        class PromptBlockedBrowserAutomation(FakeBrowserAutomation):
+            def submit_prompt(self, *, prompt: str, policy, timeout_seconds: int) -> BrowserExecutionOutput:
+                raise PermissionError("Perplexity sign-in overlay blocked prompt submission.")
+
+        adapter = PerplexityBrowserAdapter(
+            session_manager=self.build_session_manager(),
+            automation=PromptBlockedBrowserAutomation(),
+        )
+
+        result = adapter.execute(self.build_request())
+
+        self.assertEqual(result.status, StepStatus.FAILED)
+        self.assertEqual(result.failure_code, FailureCode.AUTH_FAILED)
+        self.assertIn("sign-in overlay", result.failure_message)
+
     def test_browser_session_manager_state_returns_snapshot(self) -> None:
         session_manager = self.build_session_manager()
         session_manager.mark_active()

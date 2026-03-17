@@ -19,6 +19,7 @@ This note captures the first live reconnaissance pass against `https://www.perpl
 - Headed persistent Chrome reached the real app shell and returned HTTP `200`.
 - A copied Chrome profile was enough to render the shell, but it did not preserve authenticated state because locked cookie/session stores could not be copied cleanly while the source browser was active.
 - Guest mode still exposed the core composer controls, so the first live slice can anchor itself on real DOM selectors even before a fully authenticated smoke passes.
+- A manual Playwright smoke against the copied profile reached prompt entry, but submit was blocked by a `Sign in or create an account` overlay, which is now mapped to `auth_failed` rather than a generic browser crash.
 
 ## Stable anchors observed on 2026-03-17
 
@@ -53,6 +54,7 @@ Those markers are useful for "shell is ready" detection even when the page is no
 - Headed persistent Chrome is a better default for the first live slice.
 - Reusing a live `Default` Chrome profile is fragile because the browser keeps cookies and session stores locked.
 - The safer operating model is a dedicated browser user-data directory reserved for GraceKelly or an exported state created while Chrome is not running.
+- A copied profile may look "ready" enough for prompt entry but still fail at submit time behind a late sign-in overlay.
 
 ## Implications for Slice 1
 

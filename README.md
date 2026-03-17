@@ -106,6 +106,16 @@ uvicorn gracekelly.main:app --app-dir src --host 127.0.0.1 --port 8011
 
 Use a dedicated user-data directory for this mode. On 2026-03-17, headless mode hit Cloudflare `403`, and copying a live Chrome `Default` profile did not reliably preserve authenticated state.
 
+## Optional live Playwright smoke
+
+```bash
+set GRACEKELLY_BROWSER_LIVE_TEST=true
+set GRACEKELLY_BROWSER_PROFILE_DIR=D:\Profiles\GraceKellyPlaywright
+python -m unittest D:\GraceKelly\tests\test_playwright_live.py
+```
+
+This smoke stays skipped unless `GRACEKELLY_BROWSER_LIVE_TEST=true`. If the supplied profile is not authenticated for Perplexity, the test reports a skip instead of a hard failure.
+
 ## PostgreSQL validation
 
 ```bash

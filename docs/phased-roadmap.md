@@ -54,6 +54,9 @@ Next:
 - response DOM hardening and stronger model verification
 - concrete browser-driver cleanup on top of the new app lifespan hook
 
+Support in place:
+- manual-gated live Playwright smoke test in `tests/test_playwright_live.py`
+
 ## Phase 3: Durable state
 
 Status: complete for current scope

@@ -136,6 +136,14 @@ class PerplexityBrowserAdapter(ExecutionAdapter):
                 failure_code=FailureCode.TIMEOUT,
                 message=f"Browser execution timed out after {model.timeout_seconds}s.",
             )
+        except PermissionError as exc:
+            return self._failure(
+                task_id=request.task_id,
+                model_id=model.id,
+                model_display_name=model.display_name,
+                failure_code=FailureCode.AUTH_FAILED,
+                message=str(exc) or "Browser session is not authenticated.",
+            )
         except NotImplementedError as exc:
             return self._failure(
                 task_id=request.task_id,
