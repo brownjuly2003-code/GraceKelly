@@ -468,6 +468,10 @@ class HttpApiSmokeTests(unittest.TestCase):
             [event["event_type"] for event in task_payload["events"]],
             ["task.accepted", "step.completed", "task.completed"],
         )
+        self.assertEqual(task_payload["winning_step_index"], 1)
+        self.assertEqual(task_payload["cancelled_steps"], [])
+        self.assertIsNone(task_payload["cancel_reason"])
+        self.assertEqual(task_payload["execution_details"]["adapter_names"], ["browser.perplexity"])
         self.assertEqual(task_payload["events"][1]["payload"]["details"]["driver"], "scripted")
         self.assertEqual(task_payload["events"][2]["payload"]["details"]["adapter_names"], ["browser.perplexity"])
         self.assertEqual(task_payload["events"][2]["payload"]["details"]["completed_step_count"], 1)
@@ -519,6 +523,10 @@ class HttpApiSmokeTests(unittest.TestCase):
             [event["event_type"] for event in task_payload["events"]],
             ["task.accepted", "step.failed", "task.failed"],
         )
+        self.assertIsNone(task_payload["winning_step_index"])
+        self.assertEqual(task_payload["cancelled_steps"], [])
+        self.assertIsNone(task_payload["cancel_reason"])
+        self.assertEqual(task_payload["execution_details"]["failure_codes"], ["auth_failed"])
         self.assertEqual(task_payload["events"][1]["payload"]["details"]["provider"], "perplexity")
         self.assertTrue(task_payload["events"][1]["payload"]["details"]["configured"])
         self.assertEqual(task_payload["events"][2]["payload"]["details"]["failure_codes"], ["auth_failed"])

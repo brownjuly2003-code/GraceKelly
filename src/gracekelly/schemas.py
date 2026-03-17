@@ -201,6 +201,10 @@ class TaskView(OrchestrateResponse):
     prompt: str
     reasoning: bool
     metadata: dict[str, Any]
+    winning_step_index: int | None = None
+    cancelled_steps: list[int] = Field(default_factory=list)
+    cancel_reason: str | None = None
+    execution_details: dict[str, Any] = Field(default_factory=dict)
     steps: list[TaskStepView] = Field(default_factory=list)
     events: list[TaskEventView] = Field(default_factory=list)
 
@@ -213,6 +217,7 @@ class TaskView(OrchestrateResponse):
     ) -> "TaskView":
         step_records = list(steps or [])
         event_records = list(events or [])
+        terminal_summary = _resolve_terminal_summary(event_records)
         return cls(
             task_id=task.task_id,
             status=task.status,
@@ -229,6 +234,10 @@ class TaskView(OrchestrateResponse):
             prompt=task.prompt,
             reasoning=task.reasoning,
             metadata=task.metadata,
+            winning_step_index=terminal_summary["winning_step_index"],
+            cancelled_steps=terminal_summary["cancelled_steps"],
+            cancel_reason=terminal_summary["cancel_reason"],
+            execution_details=terminal_summary["execution_details"],
             steps=[TaskStepView.from_record(item) for item in step_records],
             events=[TaskEventView.from_record(item) for item in event_records],
         )
@@ -298,3 +307,29 @@ def _resolve_cancel_summary(
     cancelled_count = sum(1 for item in steps if item.status == StepStatus.CANCELLED)
     cancel_reason = "quorum_reached" if cancelled_count and task.status == TaskStatus.COMPLETED else None
     return cancelled_count, cancel_reason
+
+
+def _resolve_terminal_summary(events: list[TaskEventRecord]) -> dict[str, Any]:
+    terminal_types = {
+        EventType.TASK_COMPLETED,
+        EventType.TASK_FAILED,
+        EventType.TASK_CANCELLED,
+    }
+    terminal_event = next((item for item in reversed(events) if item.event_type in terminal_types), None)
+    if terminal_event is None:
+        return {
+            "winning_step_index": None,
+            "cancelled_steps": [],
+            "cancel_reason": None,
+            "execution_details": {},
+        }
+
+    payload = terminal_event.payload
+    cancelled_steps = payload.get("cancelled_steps", [])
+    details = payload.get("details", {})
+    return {
+        "winning_step_index": payload.get("winning_step_index"),
+        "cancelled_steps": cancelled_steps if isinstance(cancelled_steps, list) else [],
+        "cancel_reason": payload.get("cancel_reason") if isinstance(payload.get("cancel_reason"), str) else None,
+        "execution_details": details if isinstance(details, dict) else {},
+    }
