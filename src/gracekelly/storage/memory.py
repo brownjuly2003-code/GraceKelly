@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from gracekelly.core.contracts import ExecutionMode, FailureCode, TaskStatus
 from gracekelly.storage.base import TaskEventRecord, TaskRecord, TaskRepository, TaskStepRecord
 
 
@@ -27,12 +28,15 @@ class InMemoryTaskRepository(TaskRepository):
         limit: int,
         *,
         status: TaskStatus | None = None,
+        execution_mode: ExecutionMode | None = None,
         dry_run: bool | None = None,
         failure_code: FailureCode | None = None,
     ) -> list[TaskRecord]:
         tasks = self._tasks.values()
         if status is not None:
             tasks = [item for item in tasks if item.status == status]
+        if execution_mode is not None:
+            tasks = [item for item in tasks if item.execution_mode == execution_mode]
         if dry_run is not None:
             tasks = [item for item in tasks if item.dry_run == dry_run]
         if failure_code is not None:

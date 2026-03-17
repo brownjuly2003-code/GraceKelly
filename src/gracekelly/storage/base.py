@@ -84,6 +84,7 @@ class TaskRepository(ABC):
         limit: int,
         *,
         status: TaskStatus | None = None,
+        execution_mode: ExecutionMode | None = None,
         dry_run: bool | None = None,
         failure_code: FailureCode | None = None,
     ) -> list[TaskRecord]:

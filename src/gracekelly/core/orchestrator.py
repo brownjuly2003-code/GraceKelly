@@ -8,6 +8,7 @@ from uuid import uuid4
 from gracekelly.core.contracts import (
     EventType,
     ExecutionBatchResult,
+    ExecutionMode,
     ExecutionPlan,
     ExecutionResult,
     FailureCode,
@@ -105,6 +106,7 @@ class OrchestratorService:
         limit: int = 20,
         *,
         status: TaskStatus | None = None,
+        execution_mode: ExecutionMode | None = None,
         dry_run: bool | None = None,
         failure_code: FailureCode | None = None,
     ) -> list[TaskRecord]:
@@ -112,6 +114,7 @@ class OrchestratorService:
             return self._repository.list_recent(
                 limit,
                 status=status,
+                execution_mode=execution_mode,
                 dry_run=dry_run,
                 failure_code=failure_code,
             )

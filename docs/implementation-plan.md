@@ -138,6 +138,7 @@ This document is the working source of truth for GraceKelly delivery. We update 
 [x] Carry aggregate execution-router details into final task events so task history preserves batch-level routing context alongside per-step diagnostics.
 [x] Make audit timing explicit beside the independent review gates so the next external audit point is unambiguous during autonomous implementation.
 [x] Extend `GET /api/v1/tasks` summaries with winning-model and short-circuit context so quorum outcomes are visible without fetching full task detail.
+[x] Add `execution_mode` filtering to `GET /api/v1/tasks` so operator triage can isolate browser, API, mixed, or dry-run executions without client-side filtering.
 [ ] Defer retry schema until a concrete retry policy exists; do not add `attempt_no` or `retry_of_task_id` before a reliability phase chooses the retry model.
 [ ] Start browser execution only after the adapter contract and PostgreSQL-backed task/event flow are stable.
 
@@ -185,6 +186,7 @@ This document is the working source of truth for GraceKelly delivery. We update 
 - 2026-03-17: Final task events still omitted aggregate router details, forcing operators to reconstruct batch-level routing context from step events alone. Decision: include sanitized batch execution `details` in `task.completed`, `task.failed`, and `task.cancelled` payloads.
 - 2026-03-17: Independent review gates were documented, but the exact pre-change timing for each audit was still implicit. Decision: add an explicit `Audit timing` section so autonomous work does not drift past the next required external review point.
 - 2026-03-17: A recent-task list that still hides the winning model and quorum short-circuit outcome forces extra `GET /tasks/{id}` calls during basic triage. Decision: add winning-model and cancel-summary fields to the list contract while keeping full event detail on the task view.
+- 2026-03-17: Operators can already filter recent tasks by status and failure class, but not by stored execution mode even though that field is normalized and cheap to query. Decision: expose `execution_mode` as another low-cardinality list filter instead of pushing that work to clients.
 - 2026-03-16: Health can legitimately report `degraded` in development when optional adapters are intentionally unconfigured. Decision: treat degraded readiness as operationally informative, not as a startup failure.
 - 2026-03-16: HTTP smoke tests exposed a missing `requested_models` field in `TaskView`. Decision: keep smoke coverage mandatory for API contract changes; bug fixed immediately.
 - 2026-03-16: answers1.md made it clear that several current choices are transitional only: JSON-heavy execution storage, degraded-on-optional readiness, and `best_effort` merge semantics should not be treated as stable architecture.
@@ -258,3 +260,4 @@ This document is the working source of truth for GraceKelly delivery. We update 
 - 2026-03-17: Added aggregate execution details to final task events, so task history now preserves batch-level adapter, quorum, cancellation, and failure-summary context alongside per-step diagnostics.
 - 2026-03-17: Clarified audit timing in the implementation plan, including which review gate is next and when an external audit becomes mandatory.
 - 2026-03-17: Extended `GET /api/v1/tasks` summaries with winning-model and short-circuit context so operators can spot quorum outcomes from the list view on both memory and PostgreSQL backends.
+- 2026-03-17: Extended `GET /api/v1/tasks` with `execution_mode` filtering so operator triage can isolate browser, API, mixed, or dry-run executions across both backends.

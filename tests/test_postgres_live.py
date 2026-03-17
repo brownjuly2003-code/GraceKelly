@@ -130,6 +130,7 @@ class PostgresLiveIntegrationTests(unittest.TestCase):
             "/api/v1/tasks",
             params={
                 "status": "failed",
+                "execution_mode": "api",
                 "dry_run": "false",
                 "failure_code": "provider_unavailable",
             },
@@ -143,6 +144,7 @@ class PostgresLiveIntegrationTests(unittest.TestCase):
         self.assertEqual(filtered_payload[0]["failure_code"], "provider_unavailable")
         self.assertEqual(filtered_payload[0]["requested_models"][0]["id"], "mistral-small")
         self.assertEqual(filtered_payload[0]["cancelled_step_count"], 0)
+        self.assertEqual(filtered_payload[0]["execution_mode"], "api")
 
 
 if __name__ == "__main__":

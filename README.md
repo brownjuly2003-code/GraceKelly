@@ -44,7 +44,7 @@ uvicorn gracekelly.main:app --app-dir src --host 127.0.0.1 --port 8011
 - `GET /api/v1/tasks`
 - `GET /api/v1/tasks/{task_id}`
 
-`GET /api/v1/tasks` supports `limit`, `status`, `dry_run`, and `failure_code` query params and returns summary metadata including `adapter_name`, winning `model`, `requested_models`, and short-circuit fields such as `cancelled_step_count` / `cancel_reason`.
+`GET /api/v1/tasks` supports `limit`, `status`, `execution_mode`, `dry_run`, and `failure_code` query params and returns summary metadata including `adapter_name`, winning `model`, `requested_models`, and short-circuit fields such as `cancelled_step_count` / `cancel_reason`.
 
 ## Tests
 

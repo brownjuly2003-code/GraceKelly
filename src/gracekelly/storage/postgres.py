@@ -163,6 +163,7 @@ class PostgresTaskRepository(TaskRepository):
         limit: int,
         *,
         status: TaskStatus | None = None,
+        execution_mode: ExecutionMode | None = None,
         dry_run: bool | None = None,
         failure_code: FailureCode | None = None,
     ) -> list[TaskRecord]:
@@ -171,6 +172,9 @@ class PostgresTaskRepository(TaskRepository):
         if status is not None:
             where_clauses.append("status = %s")
             params.append(status)
+        if execution_mode is not None:
+            where_clauses.append("execution_mode = %s")
+            params.append(execution_mode)
         if dry_run is not None:
             where_clauses.append("dry_run = %s")
             params.append(dry_run)

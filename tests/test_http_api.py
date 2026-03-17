@@ -184,6 +184,7 @@ class HttpApiSmokeTests(unittest.TestCase):
             "/api/v1/tasks",
             params={
                 "status": "failed",
+                "execution_mode": "api",
                 "dry_run": "false",
                 "failure_code": "provider_unavailable",
             },
@@ -201,6 +202,7 @@ class HttpApiSmokeTests(unittest.TestCase):
         self.assertEqual(payload[0]["requested_models"][0]["id"], "mistral-small")
         self.assertEqual(payload[0]["cancelled_step_count"], 0)
         self.assertIsNone(payload[0]["cancel_reason"])
+        self.assertEqual(payload[0]["execution_mode"], "api")
 
     def test_list_tasks_exposes_winning_model_and_short_circuit_summary(self) -> None:
         app = create_app(
@@ -250,6 +252,7 @@ class HttpApiSmokeTests(unittest.TestCase):
         self.assertEqual(payload[0]["model"]["id"], "kimi-k2-5")
         self.assertEqual(payload[0]["cancelled_step_count"], 1)
         self.assertEqual(payload[0]["cancel_reason"], "quorum_reached")
+        self.assertEqual(payload[0]["execution_mode"], "mixed")
 
     def test_api_execution_without_key_fails_cleanly(self) -> None:
         response = self.client.post(
@@ -318,7 +321,7 @@ class HttpApiSmokeTests(unittest.TestCase):
 
     def test_list_tasks_returns_storage_failed_when_repository_read_breaks(self) -> None:
         class ListFailingRepository(InMemoryTaskRepository):
-            def list_recent(self, limit: int):
+            def list_recent(self, limit: int, **kwargs):
                 raise RuntimeError("database is offline")
 
         client = self._build_client_with_repository(ListFailingRepository())

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException, Query, Request
 
-from gracekelly.core.contracts import FailureCode, TaskStatus
+from gracekelly.core.contracts import ExecutionMode, FailureCode, TaskStatus
 from gracekelly.core.models import resolve_model
 from gracekelly.core.orchestrator import StorageUnavailableError
 from gracekelly.schemas import ModelView, OrchestrateRequest, OrchestrateResponse, TaskListItem, TaskView
@@ -48,6 +48,7 @@ async def list_tasks(
     request: Request,
     limit: int = Query(default=20, ge=1, le=100),
     status: TaskStatus | None = Query(default=None),
+    execution_mode: ExecutionMode | None = Query(default=None),
     dry_run: bool | None = Query(default=None),
     failure_code: FailureCode | None = Query(default=None),
 ) -> list[TaskListItem]:
@@ -56,6 +57,7 @@ async def list_tasks(
         tasks = service.list_recent_tasks(
             limit,
             status=status,
+            execution_mode=execution_mode,
             dry_run=dry_run,
             failure_code=failure_code,
         )

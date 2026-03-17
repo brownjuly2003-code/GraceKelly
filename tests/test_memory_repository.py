@@ -102,6 +102,7 @@ class InMemoryRepositoryTests(unittest.TestCase):
         tasks = repository.list_recent(
             10,
             status="failed",
+            execution_mode="api",
             dry_run=False,
             failure_code="provider_unavailable",
         )
