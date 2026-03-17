@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+import json
 from typing import Any
 
 from pydantic import BaseModel, Field, model_validator
@@ -27,6 +28,10 @@ class OrchestrateRequest(BaseModel):
             raise ValueError("Either 'model' or 'models' must be provided.")
         if self.model is not None and self.models:
             raise ValueError("Use either 'model' or 'models', not both.")
+        try:
+            json.dumps(self.metadata)
+        except (TypeError, ValueError) as exc:
+            raise ValueError("metadata must be JSON-serializable.") from exc
         return self
 
     def requested_model_names(self) -> list[str]:

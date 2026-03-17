@@ -74,6 +74,14 @@ class ExecutionPlanningTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             build_execution_plan(request)
 
+    def test_rejects_non_json_serializable_metadata(self) -> None:
+        with self.assertRaises(ValueError):
+            OrchestrateRequest(
+                prompt="bad metadata",
+                model="Mistral",
+                metadata={"bad": object()},
+            )
+
 
 if __name__ == "__main__":
     unittest.main()
