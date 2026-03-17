@@ -116,6 +116,7 @@ This document is the working source of truth for GraceKelly delivery. We update 
 [x] Add `.gitattributes` to enforce repository line-ending policy explicitly instead of relying on host Git defaults.
 [x] Validate request metadata for JSON-serializability before orchestration so storage backends do not discover bad payloads late.
 [x] Fix adapter-name resolution after enum normalization so completed winning steps remain authoritative over cancelled fallbacks.
+[x] Normalize `adapter_hint` to an enum across request parsing, planning, and storage read paths.
 [ ] Defer retry schema until a concrete retry policy exists; do not add `attempt_no` or `retry_of_task_id` before a reliability phase chooses the retry model.
 [ ] Start browser execution only after the adapter contract and PostgreSQL-backed task/event flow are stable.
 
@@ -149,6 +150,7 @@ This document is the working source of truth for GraceKelly delivery. We update 
 - 2026-03-17: Git on this Windows host still emitted LF/CRLF warnings because repository line-ending policy was implicit. Decision: add `.gitattributes` so line endings are controlled by the repo, not by per-machine Git defaults.
 - 2026-03-17: `metadata` was still allowed to carry arbitrary Python objects for non-HTTP callers, leaving JSON-serialization failures to appear only during persistence. Decision: validate JSON-serializability at request-model construction time.
 - 2026-03-17: One adapter-name resolver branch was still comparing enum-backed step statuses to string values, which could misclassify completed-plus-cancelled plans as mixed. Decision: finish the enum migration in summary serialization and pin it with a direct response-contract test.
+- 2026-03-17: `adapter_hint` still remained a raw string even after `merge_strategy` and status enums were normalized. Decision: move `adapter_hint` onto an enum as well so request validation, planning, and storage reads all share the same typed contract.
 - 2026-03-16: Health can legitimately report `degraded` in development when optional adapters are intentionally unconfigured. Decision: treat degraded readiness as operationally informative, not as a startup failure.
 - 2026-03-16: HTTP smoke tests exposed a missing `requested_models` field in `TaskView`. Decision: keep smoke coverage mandatory for API contract changes; bug fixed immediately.
 - 2026-03-16: answers1.md made it clear that several current choices are transitional only: JSON-heavy execution storage, degraded-on-optional readiness, and `best_effort` merge semantics should not be treated as stable architecture.
@@ -208,3 +210,4 @@ This document is the working source of truth for GraceKelly delivery. We update 
 - 2026-03-17: Added repository-level line-ending policy via `.gitattributes` to stabilize Git behavior across Windows environments.
 - 2026-03-17: Added request-level metadata validation so non-serializable Python objects are rejected before orchestration reaches persistence.
 - 2026-03-17: Fixed adapter-name summary resolution after enum normalization and added direct coverage for completed-plus-cancelled short-circuit responses.
+- 2026-03-17: Added enum-backed `adapter_hint` validation and normalization across request parsing, planning, and repository read paths.

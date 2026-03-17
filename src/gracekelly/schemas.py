@@ -6,7 +6,7 @@ from typing import Any
 
 from pydantic import BaseModel, Field, model_validator
 
-from gracekelly.core.contracts import EventType, MergeStrategy, StepStatus, TaskStatus
+from gracekelly.core.contracts import AdapterHint, EventType, MergeStrategy, StepStatus, TaskStatus
 from gracekelly.storage.base import TaskEventRecord, TaskRecord, TaskStepRecord
 
 
@@ -14,7 +14,7 @@ class OrchestrateRequest(BaseModel):
     prompt: str = Field(min_length=1, max_length=40000)
     model: str | None = Field(default=None, min_length=1, max_length=120)
     models: list[str] = Field(default_factory=list, max_length=8)
-    adapter_hint: str = Field(default="auto", pattern="^(auto|browser|api)$")
+    adapter_hint: AdapterHint = AdapterHint.AUTO
     quorum: int = Field(default=1, ge=1, le=8)
     merge_strategy: MergeStrategy = MergeStrategy.FIRST_SUCCESS
     cancel_on_quorum: bool = True

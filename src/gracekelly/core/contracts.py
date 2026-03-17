@@ -23,6 +23,12 @@ class ExecutionBackend(StrEnum):
     API = "api"
 
 
+class AdapterHint(StrEnum):
+    AUTO = "auto"
+    BROWSER = "browser"
+    API = "api"
+
+
 class TaskStatus(StrEnum):
     ACCEPTED = "accepted"
     COMPLETED = "completed"
@@ -78,7 +84,7 @@ class ExecutionPlan:
     quorum: int
     merge_strategy: MergeStrategy
     dry_run: bool
-    adapter_hint: str
+    adapter_hint: AdapterHint
     cancel_on_quorum: bool
 
 

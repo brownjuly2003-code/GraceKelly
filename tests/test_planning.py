@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import unittest
 
-from gracekelly.core.contracts import MergeStrategy
+from gracekelly.core.contracts import AdapterHint, MergeStrategy
 from gracekelly.core.planning import build_execution_plan
 from gracekelly.schemas import OrchestrateRequest
 
@@ -29,11 +29,19 @@ class ExecutionPlanningTests(unittest.TestCase):
         request = OrchestrateRequest(
             prompt="api only request",
             model="Kimi K2",
-            adapter_hint="api",
+            adapter_hint=AdapterHint.API,
         )
 
         with self.assertRaises(ValueError):
             build_execution_plan(request)
+
+    def test_rejects_unknown_adapter_hint(self) -> None:
+        with self.assertRaises(ValueError):
+            OrchestrateRequest(
+                prompt="bad adapter hint",
+                model="Mistral",
+                adapter_hint="desktop",
+            )
 
     def test_rejects_unknown_merge_strategy(self) -> None:
         with self.assertRaises(ValueError):

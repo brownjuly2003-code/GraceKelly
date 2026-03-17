@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from gracekelly.core.contracts import ExecutionBackend, ExecutionPlan, ExecutionStep, MergeStrategy
+from gracekelly.core.contracts import AdapterHint, ExecutionBackend, ExecutionPlan, ExecutionStep, MergeStrategy
 from gracekelly.core.models import resolve_model
 from gracekelly.schemas import OrchestrateRequest
 
@@ -33,7 +33,7 @@ def build_execution_plan(request: OrchestrateRequest) -> ExecutionPlan:
 
     for step_index, model in enumerate(requested_models, start=1):
         backend = ExecutionBackend(model.adapter_kind)
-        if request.adapter_hint != "auto" and request.adapter_hint != backend.value:
+        if request.adapter_hint != AdapterHint.AUTO and request.adapter_hint != backend:
             raise ValueError(
                 f"Model '{model.display_name}' requires backend '{backend.value}', "
                 f"but adapter_hint is '{request.adapter_hint}'."

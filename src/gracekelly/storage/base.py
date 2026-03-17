@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
 
-from gracekelly.core.contracts import EventType, FailureCode, MergeStrategy, StepStatus, TaskStatus
+from gracekelly.core.contracts import AdapterHint, EventType, FailureCode, MergeStrategy, StepStatus, TaskStatus
 
 
 @dataclass(slots=True)
@@ -22,7 +22,7 @@ class TaskRecord:
     model_count: int
     quorum: int
     merge_strategy: MergeStrategy
-    adapter_hint: str
+    adapter_hint: AdapterHint
     cancel_on_quorum: bool
     failure_code: FailureCode | None = None
     failure_message: str | None = None
