@@ -4,6 +4,7 @@ import threading
 import unittest
 
 from gracekelly.adapters.api.mistral import MistralApiAdapter
+from gracekelly.adapters.api.openai_compat import OpenAICompatibleApiAdapter
 from gracekelly.adapters.dry_run import DryRunExecutionAdapter
 from gracekelly.core.contracts import ExecutionMode, ExecutionRequest, ExecutionResult, FailureCode, StepStatus, TaskStatus
 from gracekelly.core.planning import build_execution_plan
@@ -29,6 +30,32 @@ class FakeMistralAdapter(MistralApiAdapter):
                 {
                     "message": {
                         "content": "stubbed mistral response"
+                    }
+                }
+            ]
+        }
+
+
+class FakeOpenAICompatibleAdapter(OpenAICompatibleApiAdapter):
+    def __init__(self) -> None:
+        super().__init__(api_key="test-key", base_url="https://example.test/v1", timeout_seconds=1.0)
+        self.last_timeout_seconds: float | None = None
+
+    def _post_json(
+        self,
+        path: str,
+        payload: dict[str, object],
+        *,
+        timeout_seconds: float,
+    ) -> dict[str, object]:
+        self.last_timeout_seconds = timeout_seconds
+        return {
+            "choices": [
+                {
+                    "message": {
+                        "content": [
+                            {"type": "text", "text": "stubbed openai response"},
+                        ]
                     }
                 }
             ]
@@ -113,6 +140,50 @@ class ExecutionRouterTests(unittest.TestCase):
         self.assertEqual(result.status, StepStatus.COMPLETED)
         self.assertEqual(adapter.last_timeout_seconds, 30.0)
         self.assertEqual(result.details["timeout_seconds"], 30.0)
+
+    def test_openai_compat_adapter_completes_when_registered(self) -> None:
+        adapter = FakeOpenAICompatibleAdapter()
+        router = ExecutionRouter(
+            dry_run_adapter=DryRunExecutionAdapter(),
+            api_adapters={"openai": adapter},
+        )
+        plan = build_execution_plan(
+            OrchestrateRequest(
+                prompt="call api",
+                model="GPT-5.4 API",
+                dry_run=False,
+            )
+        )
+
+        result = router.execute(
+            task_id="task-2c",
+            prompt="call api",
+            plan=plan,
+            reasoning=True,
+            metadata={},
+        )
+
+        self.assertEqual(result.task_status, TaskStatus.COMPLETED)
+        self.assertEqual(result.details["adapter_names"], ["api.openai"])
+        self.assertEqual(result.output_text, "stubbed openai response")
+        self.assertEqual(adapter.last_timeout_seconds, 60.0)
+
+    def test_openai_compat_adapter_uses_per_model_timeout_hint(self) -> None:
+        adapter = FakeOpenAICompatibleAdapter()
+        plan = build_execution_plan(
+            OrchestrateRequest(
+                prompt="call api",
+                model="GPT-5.4 API",
+                dry_run=False,
+                reasoning=True,
+            )
+        )
+
+        result = adapter.execute(build_request("task-2d", "call api", plan))
+
+        self.assertEqual(result.status, StepStatus.COMPLETED)
+        self.assertEqual(adapter.last_timeout_seconds, 60.0)
+        self.assertEqual(result.details["timeout_seconds"], 60.0)
 
     def test_concat_runs_all_steps_when_short_circuit_is_disabled(self) -> None:
         class FakeBrowserAdapter:
@@ -342,6 +413,24 @@ class MistralAdapterTests(unittest.TestCase):
         )
 
         result = adapter.execute(build_request("task-3", "missing key", plan))
+
+        self.assertEqual(result.failure_code.value, "provider_unavailable")
+        self.assertEqual(result.status, StepStatus.FAILED)
+
+
+class OpenAICompatibleAdapterTests(unittest.TestCase):
+    def test_missing_api_key_returns_provider_unavailable(self) -> None:
+        adapter = OpenAICompatibleApiAdapter(api_key=None, base_url="https://example.test/v1", timeout_seconds=1.0)
+        plan = build_execution_plan(
+            OrchestrateRequest(
+                prompt="missing key",
+                model="GPT-5.4 API",
+                dry_run=False,
+                reasoning=True,
+            )
+        )
+
+        result = adapter.execute(build_request("task-3b", "missing key", plan))
 
         self.assertEqual(result.failure_code.value, "provider_unavailable")
         self.assertEqual(result.status, StepStatus.FAILED)

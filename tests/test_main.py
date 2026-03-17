@@ -4,7 +4,7 @@ import unittest
 from unittest.mock import patch
 
 from gracekelly.config import Settings
-from gracekelly.main import build_task_repository
+from gracekelly.main import build_task_repository, create_app
 
 
 class MainWiringTests(unittest.TestCase):
@@ -30,3 +30,17 @@ class MainWiringTests(unittest.TestCase):
         self.assertEqual(captured["dsn"], "postgresql://example")
         self.assertEqual(captured["bootstrap"], True)
         self.assertEqual(captured["connect_timeout_seconds"], 9)
+
+    def test_create_app_registers_openai_adapter(self) -> None:
+        app = create_app(
+            Settings(
+                storage_backend="memory",
+                openai_api_key="test-key",
+                openai_base_url="https://example.test/v1",
+                openai_timeout_seconds=45.0,
+            )
+        )
+
+        self.assertIn("openai", app.state.api_adapters)
+        self.assertEqual(app.state.api_adapters["openai"].name, "api.openai")
+        self.assertIn("api.openai", app.state.adapter_registry)

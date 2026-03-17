@@ -66,9 +66,20 @@ curl -X POST http://127.0.0.1:8011/api/v1/orchestrate \
 ## Runtime notes
 
 - `dry_run=true` exercises the orchestration path without calling providers.
-- API-backed execution currently starts with a minimal Mistral adapter boundary.
+- API-backed execution now includes both a minimal Mistral adapter boundary and an OpenAI-compatible boundary.
 - Browser-backed execution can now be exercised end-to-end through a `scripted` automation backend; live site automation is still not implemented yet.
 - PostgreSQL schema bootstrap now lives in a packaged SQL migration: `src/gracekelly/storage/migrations/0001_initial.sql`.
+
+## OpenAI-compatible API mode
+
+```bash
+set GRACEKELLY_OPENAI_API_KEY=sk-example
+set GRACEKELLY_OPENAI_BASE_URL=https://api.openai.com/v1
+set GRACEKELLY_OPENAI_TIMEOUT_SECONDS=60
+uvicorn gracekelly.main:app --app-dir src --host 127.0.0.1 --port 8011
+```
+
+Use the catalog model name `GPT-5.4 API` to route a request through the OpenAI-compatible adapter path.
 
 ## Scripted browser mode
 

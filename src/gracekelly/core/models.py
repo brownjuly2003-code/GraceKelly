@@ -92,6 +92,18 @@ MODEL_SPECS: tuple[ModelSpec, ...] = (
         concurrency_limit=4,
         reasoning_capable=False,
     ),
+    ModelSpec(
+        id="gpt-5-4-api",
+        display_name="GPT-5.4 API",
+        aliases=("GPT-5.4 API", "GPT 5.4 API", "OpenAI GPT-5.4"),
+        adapter_kind="api",
+        provider="openai",
+        provider_model_id="gpt-5.4",
+        timeout_seconds=60,
+        expected_latency_class="slow",
+        concurrency_limit=4,
+        reasoning_capable=True,
+    ),
 )
 
 

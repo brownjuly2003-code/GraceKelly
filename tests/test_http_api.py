@@ -34,6 +34,9 @@ class HttpApiSmokeTests(unittest.TestCase):
                 mistral_api_key=None,
                 mistral_base_url="https://api.mistral.ai/v1",
                 mistral_timeout_seconds=1.0,
+                openai_api_key=None,
+                openai_base_url="https://api.openai.com/v1",
+                openai_timeout_seconds=1.0,
                 browser_enabled=False,
                 browser_profile_dir=None,
                 browser_base_url="https://www.perplexity.ai",
@@ -53,6 +56,9 @@ class HttpApiSmokeTests(unittest.TestCase):
                 mistral_api_key=None,
                 mistral_base_url="https://api.mistral.ai/v1",
                 mistral_timeout_seconds=1.0,
+                openai_api_key=None,
+                openai_base_url="https://api.openai.com/v1",
+                openai_timeout_seconds=1.0,
                 browser_enabled=False,
                 browser_profile_dir=None,
                 browser_base_url="https://www.perplexity.ai",
@@ -100,9 +106,10 @@ class HttpApiSmokeTests(unittest.TestCase):
 
         self.assertEqual(response.status_code, 200)
         payload = response.json()
-        self.assertGreaterEqual(len(payload), 2)
+        self.assertGreaterEqual(len(payload), 3)
         kimi = next(item for item in payload if item["id"] == "kimi-k2-5")
         mistral = next(item for item in payload if item["id"] == "mistral-small")
+        gpt_api = next(item for item in payload if item["id"] == "gpt-5-4-api")
         self.assertIn("Kimi K2", kimi["aliases"])
         self.assertTrue(kimi["reasoning_capable"])
         self.assertEqual(kimi["timeout_seconds"], 60)
@@ -112,6 +119,10 @@ class HttpApiSmokeTests(unittest.TestCase):
         self.assertEqual(mistral["timeout_seconds"], 30)
         self.assertEqual(mistral["expected_latency_class"], "medium")
         self.assertEqual(mistral["concurrency_limit"], 4)
+        self.assertTrue(gpt_api["reasoning_capable"])
+        self.assertEqual(gpt_api["timeout_seconds"], 60)
+        self.assertEqual(gpt_api["expected_latency_class"], "slow")
+        self.assertEqual(gpt_api["concurrency_limit"], 4)
 
     def test_orchestrate_and_fetch_task_in_dry_run(self) -> None:
         response = self.client.post(

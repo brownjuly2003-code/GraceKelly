@@ -109,6 +109,7 @@ Deliverables:
 
 Already delivered:
 - Mistral-compatible adapter
+- OpenAI-compatible adapter
 
 Next:
-- OpenAI-compatible adapter as a hedge against browser fragility
+- expand the API hedge beyond a single OpenAI-compatible model if browser fragility proves material

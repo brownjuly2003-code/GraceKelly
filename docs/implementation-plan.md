@@ -155,6 +155,7 @@ This document is the working source of truth for GraceKelly delivery. We update 
 [x] Make router and orchestrator fail fast on any step/result cardinality mismatch instead of truncating corrupted execution state silently.
 [x] Defer retry schema until a concrete retry policy exists; do not add `attempt_no` or `retry_of_task_id` before a reliability phase chooses the retry model.
 [x] Add browser-layer session locking and adapter logging before the first live browser spike so state transitions and failures are observable.
+[x] Add an OpenAI-compatible API adapter boundary and distinct API model as a hedge against browser fragility.
 [ ] Start browser execution only after the adapter contract and PostgreSQL-backed task/event flow are stable.
 
 ## Issue log
@@ -212,6 +213,7 @@ This document is the working source of truth for GraceKelly delivery. We update 
 - 2026-03-17: Router and orchestrator loops still used lenient `zip()` semantics between planned steps and execution results, so any corrupted cardinality could be truncated silently in summaries, step rows, or events. Decision: enforce strict cardinality and fail fast anywhere step/result pairs are materialized.
 - 2026-03-17: Retry shape remains intentionally unchosen, but the deferral still lived mostly as prose. Decision: pin the absence of `attempt_no` and `retry_of_task_id` with schema and contract tests so Phase 1 cannot drift into an implicit retry model.
 - 2026-03-17: External Gate 4 review is now available in `audit2.md`, and the follow-up notes highlight two low-risk browser-layer gaps before the live spike: session-state locking and minimal adapter logging. Decision: treat the boundary review as satisfied and close the low-risk hardening immediately before any Playwright work begins.
+- 2026-03-17: Gate 4 recommendations also called for an API hedge against browser fragility. Decision: add one OpenAI-compatible adapter plus a distinct API-only model entry now, without changing the live-browser boundary or reusing browser-model names.
 - 2026-03-16: Health can legitimately report `degraded` in development when optional adapters are intentionally unconfigured. Decision: treat degraded readiness as operationally informative, not as a startup failure.
 - 2026-03-16: HTTP smoke tests exposed a missing `requested_models` field in `TaskView`. Decision: keep smoke coverage mandatory for API contract changes; bug fixed immediately.
 - 2026-03-16: answers1.md made it clear that several current choices are transitional only: JSON-heavy execution storage, degraded-on-optional readiness, and `best_effort` merge semantics should not be treated as stable architecture.
@@ -293,3 +295,4 @@ This document is the working source of truth for GraceKelly delivery. We update 
 - 2026-03-17: Added warning logging for best-effort event persistence failures and covered the behavior directly in orchestrator tests.
 - 2026-03-17: Added an explicit PostgreSQL connect-timeout setting, wired it through app configuration and repository construction, documented it in `.env.example` / README, and covered env parsing plus repository wiring in tests.
 - 2026-03-17: Ingested the external Gate 4 review from `audit2.md`, updated the phased roadmap to match actual progress, and added browser-layer logging plus session-state locking ahead of the first live driver slice.
+- 2026-03-17: Added an OpenAI-compatible API adapter, wired it into settings and app composition, exposed a distinct `GPT-5.4 API` catalog model, and covered the new path in adapter, HTTP, config, and main wiring tests.
