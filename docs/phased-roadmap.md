@@ -15,7 +15,7 @@ Deliverables:
 
 ## Phase 1: Execution contract
 
-Status: substantially complete
+Status: complete
 
 Deliverables:
 - adapter interface for prompt execution
@@ -25,10 +25,14 @@ Deliverables:
 - cooperative cancel-on-quorum execution flow
 - typed task, step, and event contracts
 - model timeout and concurrency hints enforced in runtime
+- async route offloading via `asyncio.to_thread`
+- thread-safe in-memory repository
+- strict step/result cardinality enforcement
+- event persistence failure logging
 
-Remaining before this phase is production-stable:
-- Gate 2 operational review for readiness semantics
-- Gate 3 execution-policy review for defaults and failure handling
+Open review gates (not blocking Phase 1 completion, required before production hardening):
+- Gate 2: operational review for readiness semantics
+- Gate 3: execution-policy review for defaults and failure handling
 
 ## Phase 2: Browser worker
 
@@ -46,7 +50,7 @@ Next:
 - DOM reconnaissance against the live provider UI
 - selector extraction into a dedicated browser-layer module
 - thin Playwright-backed `BrowserAutomationPort` implementation
-- lifecycle cleanup once a real browser process exists
+- concrete browser-driver cleanup on top of the new app lifespan hook
 
 ## Phase 3: Durable state
 
@@ -58,6 +62,11 @@ Deliverables:
 - health and integrity checks
 - packaged SQL migration and schema-diff tooling
 - validation CLI and optional live-PostgreSQL tests
+
+Not yet addressed:
+- backup and restore strategy
+- production migration tooling (Alembic or version-tracked raw SQL beyond bootstrap)
+- connection pooling (`psycopg_pool`)
 
 ## Phase 4: Reliability controls
 
@@ -97,6 +106,12 @@ Already delivered:
 - recent-task list with operator filters
 - rich `GET /api/v1/tasks/{task_id}` task, step, and event views
 - execution saturation and terminal-summary diagnostics
+
+Not yet addressed:
+- metrics endpoint (Prometheus/OpenMetrics)
+- operator runbook
+- structured logging across all layers beyond the current orchestrator and browser coverage
+- admin UI (evaluate whether still justified after browser spike)
 
 ## Parallel track: API adapters
 

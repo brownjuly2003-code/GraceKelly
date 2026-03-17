@@ -5,31 +5,50 @@
 GraceKelly is being rebuilt as a small and explicit orchestration core.
 The foundation must stay understandable under failure.
 
-## Phase 0 boundaries
+## Current scope
 
-Included now:
-- API shell
-- model registry and alias resolution
-- task submission contract
-- in-memory task repository
+Implemented:
+- full API surface: orchestration, task inspection, health, readiness, model catalog
+- canonical model registry with alias normalization
+- typed task/step/event contracts with multi-model execution planning
+- dual-backend storage: in-memory (development) and PostgreSQL (durable)
+- execution adapters: dry-run, Mistral API, OpenAI-compatible API, Perplexity browser (scripted backend)
+- cooperative cancel-on-quorum with per-model timeout and concurrency enforcement
+- operator surfaces: recent-task listing with multi-axis filtering, rich task detail with diagnostics
 
-Explicitly excluded now:
-- browser automation
+Not yet implemented:
+- live browser driver (Playwright/Selenium)
 - account pools
-- SQLite
+- circuit breakers and retry policies
 - analytics dashboards
 - admin UI
 - cross-project integration glue
 
+Excluded by design:
+- SQLite
+
 ## Module boundaries
 
-- `api.routes`: HTTP contract only
+- `api.routes`: HTTP contract only - no domain logic, no adapter imports
 - `core.models`: canonical model catalog and alias resolution
-- `core.orchestrator`: use-case orchestration and validation
-- `core.contracts`: execution adapter contracts and result envelopes
-- `storage.base`: storage contract
-- `storage.memory`: phase 0 backend
-- `storage.postgres`: durable backend for later phases
+- `core.orchestrator`: use-case orchestration, event building, storage coordination
+- `core.contracts`: execution adapter interface, result envelopes, failure taxonomy
+- `core.planning`: execution plan construction and request validation
+- `core.router`: adapter dispatch, concurrency gate, quorum aggregation
+- `core.readiness`: component health aggregation across profiles
+- `core.concurrency`: thread-safe per-model concurrency gate
+- `core.execution_profile`: profile-aware adapter requirement sets
+- `adapters.dry_run`: simulated execution for testing and dry-run mode
+- `adapters.api.mistral`: Mistral API adapter
+- `adapters.api.openai_compat`: OpenAI-compatible API adapter
+- `adapters.browser.perplexity`: Perplexity browser adapter (delegates to automation port)
+- `adapters.browser.automation`: browser automation port ABC and null implementation
+- `adapters.browser.scripted`: scripted browser backend for testing
+- `adapters.browser.session`: browser session state management
+- `adapters.browser.policy`: popup, auth, model verification, and submit policies
+- `storage.base`: storage contract (TaskRepository ABC)
+- `storage.memory`: thread-safe in-memory backend
+- `storage.postgres`: PostgreSQL backend with migration tooling
 
 ## Architectural decisions
 
@@ -50,12 +69,12 @@ Explicitly excluded now:
 5. API execution is also a plugin, using the same orchestration contract.
 6. Observability must be append-only and isolated from request execution.
 
-## Near-term next steps
+## Next steps
 
-1. Add execution adapter contracts.
-2. Add a dry-run adapter and a minimal API adapter behind the same interface.
-3. Add a multi-model execution plan and result envelope.
-4. Add PostgreSQL-backed task and event storage.
-5. Add browser worker package behind the adapter interface.
-6. Add health probes for adapters and storage.
-7. Add retry and policy layers after the contract stabilizes.
+1. Live browser driver (Playwright) behind the existing `BrowserAutomationPort` interface.
+2. DOM reconnaissance plus selector extraction for the first live browser slice.
+3. Minimal circuit breaker around browser adapter (fail-fast on repeated failures).
+4. Broaden structured logging beyond the current orchestrator and browser-layer coverage.
+5. Backup and restore strategy for PostgreSQL.
+6. Metrics endpoint for operational monitoring.
+7. Production migration tooling (version-tracked SQL or Alembic).
