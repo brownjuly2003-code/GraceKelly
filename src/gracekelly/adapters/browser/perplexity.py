@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import asdict
+import inspect
 import logging
 
 from gracekelly.adapters.browser.automation import (
@@ -173,6 +174,14 @@ class PerplexityBrowserAdapter(ExecutionAdapter):
                 "submit": asdict(self._submit_policy),
             },
         }
+
+    async def close(self) -> None:
+        close_method = getattr(self._automation, "close", None)
+        if not callable(close_method):
+            return
+        result = close_method()
+        if inspect.isawaitable(result):
+            await result
 
     def _ensure_auth(self) -> BrowserAuthStatus:
         auth = self._automation.auth_status(self._auth_policy)

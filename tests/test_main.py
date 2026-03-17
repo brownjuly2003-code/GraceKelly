@@ -3,6 +3,8 @@ from __future__ import annotations
 import unittest
 from unittest.mock import patch
 
+from fastapi.testclient import TestClient
+
 from gracekelly.config import Settings
 from gracekelly.main import build_task_repository, create_app
 
@@ -44,3 +46,17 @@ class MainWiringTests(unittest.TestCase):
         self.assertIn("openai", app.state.api_adapters)
         self.assertEqual(app.state.api_adapters["openai"].name, "api.openai")
         self.assertIn("api.openai", app.state.adapter_registry)
+
+    def test_app_lifespan_closes_browser_automation(self) -> None:
+        closed = {"value": False}
+
+        class ClosableAutomation:
+            def close(self) -> None:
+                closed["value"] = True
+
+        with patch("gracekelly.main.build_browser_automation", return_value=ClosableAutomation()):
+            app = create_app(Settings(storage_backend="memory"))
+            with TestClient(app):
+                self.assertFalse(closed["value"])
+
+        self.assertTrue(closed["value"])

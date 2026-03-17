@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+from contextlib import asynccontextmanager
+import inspect
+
 from fastapi import FastAPI
 
 from gracekelly.adapters.api.mistral import MistralApiAdapter
@@ -57,6 +60,20 @@ def build_browser_automation(active_settings: Settings):
     raise ValueError(f"Unsupported browser automation backend: {backend}")
 
 
+@asynccontextmanager
+async def app_lifespan(app: FastAPI):
+    yield
+    browser_adapter = getattr(app.state, "browser_adapter", None)
+    if browser_adapter is None:
+        return
+    close_method = getattr(browser_adapter, "close", None)
+    if not callable(close_method):
+        return
+    result = close_method()
+    if inspect.isawaitable(result):
+        await result
+
+
 def create_app(app_settings: Settings | None = None) -> FastAPI:
     active_settings = app_settings or settings
 
@@ -64,6 +81,7 @@ def create_app(app_settings: Settings | None = None) -> FastAPI:
         title="GraceKelly",
         description="Independent orchestrator rebuilt from a clean slate.",
         version="0.1.0",
+        lifespan=app_lifespan,
     )
     app.state.settings = active_settings
     app.state.execution_profile = resolve_execution_profile(active_settings.execution_profile)
