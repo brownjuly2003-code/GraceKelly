@@ -9,6 +9,7 @@ from gracekelly.adapters.api.mistral import MistralApiAdapter
 from gracekelly.adapters.api.openai_compat import OpenAICompatibleApiAdapter
 from gracekelly.adapters.browser.automation import NullBrowserAutomation
 from gracekelly.adapters.browser.perplexity import PerplexityBrowserAdapter
+from gracekelly.adapters.browser.playwright_driver import PlaywrightBrowserAutomation, PlaywrightBrowserRuntimeConfig
 from gracekelly.adapters.browser.policy import (
     AuthRecoveryPolicy,
     ModelVerificationPolicy,
@@ -49,6 +50,13 @@ def build_browser_automation(active_settings: Settings):
     backend = active_settings.browser_automation_backend
     if backend == "null":
         return NullBrowserAutomation()
+    if backend == "playwright":
+        return PlaywrightBrowserAutomation(
+            runtime=PlaywrightBrowserRuntimeConfig(
+                channel=active_settings.browser_playwright_channel,
+                headless=active_settings.browser_playwright_headless,
+            )
+        )
     if backend == "scripted":
         return ScriptedBrowserAutomation(
             ScriptedBrowserScenario(

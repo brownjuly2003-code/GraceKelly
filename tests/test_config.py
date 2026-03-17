@@ -15,6 +15,8 @@ class SettingsTests(unittest.TestCase):
         self.assertEqual(settings.postgres_connect_timeout_seconds, 5)
         self.assertEqual(settings.openai_base_url, "https://api.openai.com/v1")
         self.assertEqual(settings.openai_timeout_seconds, 60.0)
+        self.assertEqual(settings.browser_playwright_channel, "chrome")
+        self.assertFalse(settings.browser_playwright_headless)
 
     def test_from_env_reads_postgres_connect_timeout(self) -> None:
         with patch.dict(
@@ -47,3 +49,19 @@ class SettingsTests(unittest.TestCase):
         self.assertEqual(settings.openai_api_key, "test-key")
         self.assertEqual(settings.openai_base_url, "https://example.test/v1")
         self.assertEqual(settings.openai_timeout_seconds, 45.0)
+
+    def test_from_env_reads_playwright_browser_settings(self) -> None:
+        with patch.dict(
+            os.environ,
+            {
+                "GRACEKELLY_BROWSER_AUTOMATION_BACKEND": "playwright",
+                "GRACEKELLY_BROWSER_PLAYWRIGHT_CHANNEL": "msedge",
+                "GRACEKELLY_BROWSER_PLAYWRIGHT_HEADLESS": "true",
+            },
+            clear=True,
+        ):
+            settings = Settings.from_env()
+
+        self.assertEqual(settings.browser_automation_backend, "playwright")
+        self.assertEqual(settings.browser_playwright_channel, "msedge")
+        self.assertTrue(settings.browser_playwright_headless)

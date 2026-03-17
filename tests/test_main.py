@@ -6,7 +6,7 @@ from unittest.mock import patch
 from fastapi.testclient import TestClient
 
 from gracekelly.config import Settings
-from gracekelly.main import build_task_repository, create_app
+from gracekelly.main import build_browser_automation, build_task_repository, create_app
 
 
 class MainWiringTests(unittest.TestCase):
@@ -46,6 +46,20 @@ class MainWiringTests(unittest.TestCase):
         self.assertIn("openai", app.state.api_adapters)
         self.assertEqual(app.state.api_adapters["openai"].name, "api.openai")
         self.assertIn("api.openai", app.state.adapter_registry)
+
+    def test_build_browser_automation_supports_playwright_backend(self) -> None:
+        automation = build_browser_automation(
+            Settings(
+                storage_backend="memory",
+                browser_automation_backend="playwright",
+                browser_playwright_channel="msedge",
+                browser_playwright_headless=True,
+            )
+        )
+
+        self.assertEqual(type(automation).__name__, "PlaywrightBrowserAutomation")
+        self.assertEqual(automation.healthcheck()["channel"], "msedge")
+        self.assertTrue(automation.healthcheck()["headless"])
 
     def test_app_lifespan_closes_browser_automation(self) -> None:
         closed = {"value": False}

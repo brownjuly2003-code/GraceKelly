@@ -24,6 +24,8 @@ class Settings:
     browser_automation_backend: str = "null"
     browser_profile_dir: str | None = None
     browser_base_url: str = "https://www.perplexity.ai"
+    browser_playwright_channel: str = "chrome"
+    browser_playwright_headless: bool = False
     browser_scripted_logged_in: bool = True
     browser_scripted_model_label: str | None = None
     browser_scripted_output_text: str = "scripted browser result"
@@ -49,6 +51,9 @@ class Settings:
             browser_automation_backend=os.getenv("GRACEKELLY_BROWSER_AUTOMATION_BACKEND", "null"),
             browser_profile_dir=os.getenv("GRACEKELLY_BROWSER_PROFILE_DIR"),
             browser_base_url=os.getenv("GRACEKELLY_BROWSER_BASE_URL", "https://www.perplexity.ai"),
+            browser_playwright_channel=os.getenv("GRACEKELLY_BROWSER_PLAYWRIGHT_CHANNEL", "chrome"),
+            browser_playwright_headless=os.getenv("GRACEKELLY_BROWSER_PLAYWRIGHT_HEADLESS", "false").lower()
+            == "true",
             browser_scripted_logged_in=os.getenv(
                 "GRACEKELLY_BROWSER_SCRIPTED_LOGGED_IN",
                 "true",

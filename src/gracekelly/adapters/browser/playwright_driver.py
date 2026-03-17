@@ -1,0 +1,414 @@
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+import logging
+import time
+from typing import Any, Callable
+
+from gracekelly.adapters.browser.automation import (
+    BrowserAuthStatus,
+    BrowserAutomationPort,
+    BrowserExecutionOutput,
+    BrowserModelSelection,
+)
+from gracekelly.adapters.browser.policy import (
+    AuthRecoveryPolicy,
+    ModelVerificationPolicy,
+    PopupPolicy,
+    SubmitPolicy,
+)
+from gracekelly.adapters.browser.selectors import PerplexitySelectors
+from gracekelly.adapters.browser.session import BrowserSessionManager
+
+logger = logging.getLogger(__name__)
+
+
+@dataclass(frozen=True, slots=True)
+class PlaywrightBrowserRuntimeConfig:
+    channel: str = "chrome"
+    headless: bool = False
+    action_timeout_ms: int = 5_000
+    poll_interval_seconds: float = 0.5
+    launch_args: tuple[str, ...] = field(
+        default_factory=lambda: ("--disable-blink-features=AutomationControlled",)
+    )
+
+
+class PlaywrightBrowserAutomation(BrowserAutomationPort):
+    def __init__(
+        self,
+        *,
+        selectors: PerplexitySelectors | None = None,
+        runtime: PlaywrightBrowserRuntimeConfig | None = None,
+        sync_playwright_factory: Callable[[], Any] | None = None,
+    ) -> None:
+        self._selectors = selectors or PerplexitySelectors()
+        self._runtime = runtime or PlaywrightBrowserRuntimeConfig()
+        self._sync_playwright_factory = sync_playwright_factory
+        self._playwright_manager: Any | None = None
+        self._playwright: Any | None = None
+        self._context: Any | None = None
+        self._page: Any | None = None
+
+    def ensure_session(self, session_manager: BrowserSessionManager) -> None:
+        state = session_manager.state
+        if not state.configured:
+            raise NotImplementedError("Browser session is not configured yet.")
+        if self._page is not None:
+            is_closed = getattr(self._page, "is_closed", None)
+            if callable(is_closed) and not is_closed():
+                return
+
+        logger.info(
+            "Launching Playwright browser session for provider %s using profile %s",
+            state.provider,
+            state.profile_dir,
+        )
+        manager = self._build_playwright_manager()
+        playwright = manager.start()
+        context = playwright.chromium.launch_persistent_context(
+            state.profile_dir,
+            channel=self._runtime.channel,
+            headless=self._runtime.headless,
+            args=list(self._runtime.launch_args),
+        )
+        page = context.pages[0] if getattr(context, "pages", None) else context.new_page()
+        page.set_default_timeout(self._runtime.action_timeout_ms)
+        page.goto(state.base_url, wait_until="domcontentloaded")
+
+        self._playwright_manager = manager
+        self._playwright = playwright
+        self._context = context
+        self._page = page
+        self._wait_for_shell()
+
+    def dismiss_popups(self, policy: PopupPolicy) -> None:
+        page = self._page_or_raise()
+        for button_name in self._selectors.cookie_button_names:
+            locator = page.get_by_role("button", name=button_name)
+            if self._locator_is_visible(locator):
+                logger.info("Dismissing browser popup via button '%s'", button_name)
+                locator.click()
+                return
+
+        for _ in range(policy.escape_key_retries):
+            page.keyboard.press("Escape")
+
+    def auth_status(self, policy: AuthRecoveryPolicy) -> BrowserAuthStatus:
+        page = self._page_or_raise()
+        body_text = self._body_text(page)
+        prompt_input_visible = self._locator_is_visible(page.locator(self._selectors.prompt_input))
+        return self._infer_auth_status(
+            body_text=body_text,
+            prompt_input_visible=prompt_input_visible,
+            policy=policy,
+        )
+
+    def recover_auth(self, policy: AuthRecoveryPolicy) -> BrowserAuthStatus:
+        return self.auth_status(policy)
+
+    def select_model(
+        self,
+        *,
+        provider_model_id: str,
+        policy: ModelVerificationPolicy,
+    ) -> BrowserModelSelection:
+        page = self._page_or_raise()
+        model_button = page.locator(self._selectors.model_button)
+        if not self._locator_is_visible(model_button):
+            raise RuntimeError("Perplexity model selector is not visible.")
+        logger.info("Selecting Perplexity model '%s' through Playwright", provider_model_id)
+        model_button.click()
+
+        option = self._first_visible_locator(
+            (
+                page.get_by_role("button", name=provider_model_id),
+                page.get_by_role("option", name=provider_model_id),
+                page.get_by_text(provider_model_id, exact=True),
+            )
+        )
+        if option is None:
+            raise RuntimeError(f"Could not find model option '{provider_model_id}' in the Perplexity UI.")
+        option.click()
+        return BrowserModelSelection(
+            requested_label=provider_model_id,
+            actual_label=provider_model_id,
+            details={
+                "driver": "playwright",
+                "model_selection_verified": False,
+                "model_verification_wait_attempts": policy.wait_attempts,
+            },
+        )
+
+    def submit_prompt(
+        self,
+        *,
+        prompt: str,
+        policy: SubmitPolicy,
+        timeout_seconds: int,
+    ) -> BrowserExecutionOutput:
+        page = self._page_or_raise()
+        prompt_input = page.locator(self._selectors.prompt_input)
+        if not self._locator_is_visible(prompt_input):
+            raise RuntimeError("Perplexity prompt input is not visible.")
+
+        logger.info("Submitting prompt through Playwright (timeout=%ss)", timeout_seconds)
+        prompt_input.click(force=True)
+        self._clear_prompt_input(page)
+        self._fill_prompt_input(page, prompt)
+        self._click_submit(page, policy)
+        output_text = self._wait_for_response_text(
+            page=page,
+            prompt=prompt,
+            timeout_seconds=timeout_seconds,
+        )
+        return BrowserExecutionOutput(
+            output_text=output_text,
+            details={
+                "driver": "playwright",
+                "submitted_prompt": prompt,
+                "timeout_seconds": timeout_seconds,
+            },
+        )
+
+    def healthcheck(self) -> dict[str, object]:
+        dependency_error = self._playwright_dependency_error()
+        return {
+            "status": "ok" if dependency_error is None else "degraded",
+            "implemented": dependency_error is None,
+            "driver": "playwright",
+            "channel": self._runtime.channel,
+            "headless": self._runtime.headless,
+            "launched": self._page is not None,
+            "reason": dependency_error,
+        }
+
+    def close(self) -> None:
+        context = self._context
+        manager = self._playwright_manager
+        self._page = None
+        self._context = None
+        self._playwright = None
+        self._playwright_manager = None
+        if context is not None:
+            context.close()
+        if manager is not None:
+            manager.stop()
+
+    def _build_playwright_manager(self) -> Any:
+        factory = self._sync_playwright_factory
+        if factory is not None:
+            return factory()
+        try:
+            from playwright.sync_api import sync_playwright
+        except ModuleNotFoundError as exc:  # pragma: no cover
+            raise NotImplementedError("playwright is required for the 'playwright' browser backend.") from exc
+        return sync_playwright()
+
+    def _playwright_dependency_error(self) -> str | None:
+        if self._sync_playwright_factory is not None:
+            return None
+        try:
+            from playwright.sync_api import sync_playwright  # noqa: F401
+        except ModuleNotFoundError:
+            return "playwright is not installed."
+        return None
+
+    def _page_or_raise(self) -> Any:
+        if self._page is None:
+            raise RuntimeError("Browser session has not been initialized.")
+        return self._page
+
+    def _wait_for_shell(self) -> None:
+        page = self._page_or_raise()
+        deadline = time.monotonic() + 10
+        while time.monotonic() < deadline:
+            body_text = self._body_text(page)
+            if self._locator_is_visible(page.locator(self._selectors.prompt_input)):
+                return
+            if any(marker in body_text for marker in self._selectors.signed_out_markers):
+                return
+            if all(marker in body_text for marker in self._selectors.ready_markers[:2]):
+                return
+            time.sleep(self._runtime.poll_interval_seconds)
+        raise TimeoutError("Perplexity shell did not become ready.")
+
+    def _clear_prompt_input(self, page: Any) -> None:
+        page.keyboard.press("ControlOrMeta+A")
+        page.keyboard.press("Backspace")
+
+    def _fill_prompt_input(self, page: Any, prompt: str) -> None:
+        prompt_input = page.locator(self._selectors.prompt_input)
+        try:
+            prompt_input.fill(prompt)
+            return
+        except Exception:
+            pass
+
+        try:
+            prompt_input.press_sequentially(prompt)
+            return
+        except Exception:
+            pass
+
+        page.evaluate(
+            """
+            ([selector, value]) => {
+              const input = document.querySelector(selector);
+              if (!input) {
+                return false;
+              }
+              input.focus();
+              input.innerText = value;
+              input.dispatchEvent(new InputEvent("input", { bubbles: true, data: value }));
+              return true;
+            }
+            """,
+            [self._selectors.prompt_input, prompt],
+        )
+
+    def _click_submit(self, page: Any, policy: SubmitPolicy) -> None:
+        for _ in range(policy.click_attempts):
+            submit = page.locator(self._selectors.submit_button)
+            if self._locator_is_visible(submit):
+                submit.click()
+                return
+            time.sleep(self._runtime.poll_interval_seconds)
+
+        if policy.allow_js_fallback:
+            clicked = page.evaluate(
+                """
+                (selector) => {
+                  const button = document.querySelector(selector);
+                  if (!button) {
+                    return false;
+                  }
+                  button.click();
+                  return true;
+                }
+                """,
+                self._selectors.submit_button,
+            )
+            if clicked:
+                return
+
+        page.keyboard.press("Control+Enter")
+
+    def _wait_for_response_text(self, *, page: Any, prompt: str, timeout_seconds: int) -> str:
+        deadline = time.monotonic() + timeout_seconds
+        while time.monotonic() < deadline:
+            candidate_texts = self._collect_response_candidates(page=page, prompt=prompt)
+            response_text = self._pick_response_text(prompt=prompt, candidate_texts=candidate_texts)
+            if response_text is not None:
+                return response_text
+            time.sleep(self._runtime.poll_interval_seconds)
+        raise TimeoutError(f"Perplexity did not return a response within {timeout_seconds}s.")
+
+    def _collect_response_candidates(self, *, page: Any, prompt: str) -> list[str]:
+        candidates: list[str] = []
+        for selector in self._selectors.response_candidates:
+            locator = page.locator(selector)
+            candidates.extend(self._locator_texts(locator))
+
+        body_text = self._body_text(page)
+        if prompt in body_text:
+            candidates.append(body_text.split(prompt, 1)[1])
+        else:
+            candidates.append(body_text)
+        return candidates
+
+    def _infer_auth_status(
+        self,
+        *,
+        body_text: str,
+        prompt_input_visible: bool,
+        policy: AuthRecoveryPolicy,
+    ) -> BrowserAuthStatus:
+        for marker in self._selectors.signed_out_markers:
+            if marker in body_text:
+                return BrowserAuthStatus(
+                    logged_in=False,
+                    reason="Sign-in prompt is visible in the Perplexity UI.",
+                )
+        if prompt_input_visible:
+            return BrowserAuthStatus(logged_in=True)
+        if policy.treat_unknown_login_state_as_logged_out:
+            return BrowserAuthStatus(
+                logged_in=False,
+                reason="Unable to determine browser login state from the current page.",
+            )
+        return BrowserAuthStatus(logged_in=True)
+
+    def _pick_response_text(self, *, prompt: str, candidate_texts: list[str]) -> str | None:
+        cleaned_candidates: list[str] = []
+        for candidate in candidate_texts:
+            cleaned = self._clean_candidate_text(prompt=prompt, candidate=candidate)
+            if cleaned:
+                cleaned_candidates.append(cleaned)
+        if not cleaned_candidates:
+            return None
+        return max(cleaned_candidates, key=len)
+
+    def _clean_candidate_text(self, *, prompt: str, candidate: str) -> str | None:
+        normalized = " ".join(candidate.split())
+        if not normalized:
+            return None
+        if prompt in normalized:
+            normalized = normalized.split(prompt, 1)[1].strip()
+        if not normalized:
+            return None
+        stripped_lines = self._strip_shell_noise(normalized)
+        if not stripped_lines:
+            return None
+        return stripped_lines
+
+    def _strip_shell_noise(self, value: str) -> str:
+        lines = [line.strip() for line in value.splitlines() if line.strip()]
+        if not lines:
+            lines = [part.strip() for part in value.split("  ") if part.strip()]
+        filtered = [line for line in lines if line not in self._selectors.shell_noise_lines]
+        if not filtered:
+            return ""
+        return "\n".join(filtered).strip()
+
+    def _first_visible_locator(self, locators: tuple[Any, ...]) -> Any | None:
+        for locator in locators:
+            if self._locator_is_visible(locator):
+                return getattr(locator, "first", locator)
+        return None
+
+    def _locator_is_visible(self, locator: Any) -> bool:
+        candidate = getattr(locator, "first", locator)
+        try:
+            return bool(candidate.is_visible())
+        except Exception:
+            try:
+                return bool(candidate.count())
+            except Exception:
+                return False
+
+    def _locator_texts(self, locator: Any) -> list[str]:
+        candidate = getattr(locator, "first", locator)
+        try:
+            if candidate.count() == 0:
+                return []
+        except Exception:
+            pass
+
+        try:
+            return [text for text in candidate.all_inner_texts() if text.strip()]
+        except Exception:
+            pass
+
+        try:
+            text = candidate.inner_text()
+        except Exception:
+            return []
+        return [text] if text.strip() else []
+
+    def _body_text(self, page: Any) -> str:
+        try:
+            return page.inner_text("body")
+        except Exception:
+            return ""
+

@@ -12,12 +12,12 @@ Implemented:
 - canonical model registry with alias normalization
 - typed task/step/event contracts with multi-model execution planning
 - dual-backend storage: in-memory (development) and PostgreSQL (durable)
-- execution adapters: dry-run, Mistral API, OpenAI-compatible API, Perplexity browser (scripted backend)
+- execution adapters: dry-run, Mistral API, OpenAI-compatible API, Perplexity browser (scripted and thin Playwright backends)
 - cooperative cancel-on-quorum with per-model timeout and concurrency enforcement
 - operator surfaces: recent-task listing with multi-axis filtering, rich task detail with diagnostics
 
 Not yet implemented:
-- live browser driver (Playwright/Selenium)
+- authenticated live-browser proof and hardening beyond the first Playwright slice
 - account pools
 - circuit breakers and retry policies
 - analytics dashboards
@@ -43,7 +43,9 @@ Excluded by design:
 - `adapters.api.openai_compat`: OpenAI-compatible API adapter
 - `adapters.browser.perplexity`: Perplexity browser adapter (delegates to automation port)
 - `adapters.browser.automation`: browser automation port ABC and null implementation
+- `adapters.browser.playwright_driver`: thin Playwright browser backend
 - `adapters.browser.scripted`: scripted browser backend for testing
+- `adapters.browser.selectors`: centralized Perplexity DOM anchors from live recon
 - `adapters.browser.session`: browser session state management
 - `adapters.browser.policy`: popup, auth, model verification, and submit policies
 - `storage.base`: storage contract (TaskRepository ABC)
@@ -71,8 +73,8 @@ Excluded by design:
 
 ## Next steps
 
-1. Live browser driver (Playwright) behind the existing `BrowserAutomationPort` interface.
-2. DOM reconnaissance plus selector extraction for the first live browser slice.
+1. Prove one authenticated prompt -> response path through the Playwright backend with a dedicated browser profile.
+2. Harden response extraction and model-menu verification on top of the captured DOM recon.
 3. Minimal circuit breaker around browser adapter (fail-fast on repeated failures).
 4. Broaden structured logging beyond the current orchestrator and browser-layer coverage.
 5. Backup and restore strategy for PostgreSQL.

@@ -31,7 +31,7 @@ The current phase builds the core contract first:
 ```bash
 python -m venv .venv
 .venv\Scripts\activate
-pip install -e .[dev,postgres]
+pip install -e .[dev,postgres,browser]
 uvicorn gracekelly.main:app --app-dir src --host 127.0.0.1 --port 8011
 ```
 
@@ -67,8 +67,9 @@ curl -X POST http://127.0.0.1:8011/api/v1/orchestrate \
 
 - `dry_run=true` exercises the orchestration path without calling providers.
 - API-backed execution now includes both a minimal Mistral adapter boundary and an OpenAI-compatible boundary.
-- Browser-backed execution can now be exercised end-to-end through a `scripted` automation backend; live site automation is still not implemented yet.
+- Browser-backed execution now includes both the `scripted` backend and a first headed Playwright backend.
 - PostgreSQL schema bootstrap now lives in a packaged SQL migration: `src/gracekelly/storage/migrations/0001_initial.sql`.
+- Live Perplexity reconnaissance from 2026-03-17 is captured in `docs/perplexity-dom-recon.md`.
 
 ## OpenAI-compatible API mode
 
@@ -91,6 +92,19 @@ uvicorn gracekelly.main:app --app-dir src --host 127.0.0.1 --port 8011
 ```
 
 This mode is for exercising the browser execution path and operator views without a live browser driver.
+
+## Playwright browser mode
+
+```bash
+set GRACEKELLY_BROWSER_ENABLED=true
+set GRACEKELLY_BROWSER_AUTOMATION_BACKEND=playwright
+set GRACEKELLY_BROWSER_PROFILE_DIR=D:\Profiles\GraceKellyPlaywright
+set GRACEKELLY_BROWSER_PLAYWRIGHT_CHANNEL=chrome
+set GRACEKELLY_BROWSER_PLAYWRIGHT_HEADLESS=false
+uvicorn gracekelly.main:app --app-dir src --host 127.0.0.1 --port 8011
+```
+
+Use a dedicated user-data directory for this mode. On 2026-03-17, headless mode hit Cloudflare `403`, and copying a live Chrome `Default` profile did not reliably preserve authenticated state.
 
 ## PostgreSQL validation
 

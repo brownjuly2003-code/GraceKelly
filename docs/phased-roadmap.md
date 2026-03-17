@@ -36,7 +36,7 @@ Open review gates (not blocking Phase 1 completion, required before production h
 
 ## Phase 2: Browser worker
 
-Status: partial, ready for live-driver spike
+Status: partial, first live-driver slice added
 
 Deliverables:
 - isolated browser adapter package
@@ -44,12 +44,14 @@ Deliverables:
 - model selection verification rules
 - popup and auth recovery hooks
 - scripted browser automation backend
+- live Perplexity DOM recon note
+- centralized selector module
+- thin Playwright-backed `BrowserAutomationPort` implementation
 - external Gate 4 boundary review completed in `audit2.md`
 
 Next:
-- DOM reconnaissance against the live provider UI
-- selector extraction into a dedicated browser-layer module
-- thin Playwright-backed `BrowserAutomationPort` implementation
+- authenticated prompt -> response smoke against a dedicated browser profile
+- response DOM hardening and stronger model verification
 - concrete browser-driver cleanup on top of the new app lifespan hook
 
 ## Phase 3: Durable state

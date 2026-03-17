@@ -5,6 +5,7 @@ from gracekelly.adapters.browser.policy import (
     PopupPolicy,
     SubmitPolicy,
 )
+from gracekelly.adapters.browser.selectors import PerplexitySelectors
 from gracekelly.adapters.browser.session import BrowserSessionConfig, BrowserSessionManager, BrowserSessionState
 
 __all__ = [
@@ -14,6 +15,7 @@ __all__ = [
     "BrowserSessionState",
     "ModelVerificationPolicy",
     "PerplexityBrowserAdapter",
+    "PerplexitySelectors",
     "PopupPolicy",
     "SubmitPolicy",
 ]
