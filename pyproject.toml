@@ -14,6 +14,7 @@ dependencies = [
 ]
 
 [project.scripts]
+gracekelly-create-perplexity-profile = "gracekelly.tools.create_perplexity_profile:main"
 gracekelly-validate-postgres = "gracekelly.tools.validate_postgres:main"
 
 [project.optional-dependencies]

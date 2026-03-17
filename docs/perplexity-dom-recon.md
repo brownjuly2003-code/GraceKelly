@@ -69,3 +69,10 @@ Those markers are useful for "shell is ready" detection even when the page is no
 - One authenticated prompt -> response smoke with a dedicated unlocked profile
 - Logged-in response container selector(s) from a successful answer render
 - Logged-in model-menu structure after opening the model picker
+
+## Dedicated profile bootstrap
+
+The repo now provides `gracekelly-create-perplexity-profile` to create the dedicated Playwright profile described above. The default output path is `tmp/browser-recon/perplexity-profile`, and the resulting directory can be reused for:
+
+- `GRACEKELLY_BROWSER_PROFILE_DIR` in app runtime
+- `pytest -q tests/test_playwright_live.py -rA` for the manual authenticated smoke

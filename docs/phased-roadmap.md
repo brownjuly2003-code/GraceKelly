@@ -56,6 +56,7 @@ Next:
 
 Support in place:
 - manual-gated live Playwright smoke test in `tests/test_playwright_live.py`
+- dedicated profile bootstrap helper via `gracekelly-create-perplexity-profile`
 
 ## Phase 3: Durable state
 
