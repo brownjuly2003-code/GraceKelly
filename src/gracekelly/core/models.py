@@ -119,7 +119,7 @@ MODEL_SPECS: tuple[ModelSpec, ...] = (
     ModelSpec(
         id="thinking",
         display_name="Thinking",
-        aliases=("Thinking", "Deep Thinking"),
+        aliases=("Thinking",),
         adapter_kind="browser",
         provider="perplexity",
         provider_model_id="Thinking",
