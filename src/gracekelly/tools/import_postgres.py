@@ -13,7 +13,14 @@ from gracekelly.core.contracts import AdapterHint, EventType, ExecutionMode, Fai
 from gracekelly.storage.base import TaskEventRecord, TaskRecord, TaskStepRecord
 from gracekelly.storage.postgres import PostgresTaskRepository
 from gracekelly.storage.schema import INITIAL_MIGRATION_NAME
-from gracekelly.tools.snapshot_artifact import artifact_metadata, checksum_status
+from gracekelly.tools.snapshot_artifact import (
+    artifact_metadata,
+    checksum_status,
+    exported_task_ids,
+    manifest_count,
+    manifest_status,
+    validate_manifest,
+)
 from gracekelly.tools.snapshot_digest import SNAPSHOT_FORMAT_VERSION, compute_snapshot_sha256
 from gracekelly.tools.snapshot_io import read_snapshot_text
 
@@ -146,6 +153,7 @@ def _validate_snapshot(snapshot: dict[str, Any]) -> None:
     )
     if duplicate_task_ids:
         raise ValueError(f"Snapshot contains duplicate task_id values: {duplicate_task_ids}.")
+    validate_manifest(snapshot)
     expected_digest = snapshot.get("snapshot_sha256")
     if expected_digest is not None:
         actual_digest = compute_snapshot_sha256(snapshot)
@@ -265,35 +273,6 @@ def select_snapshot_tasks(
     selected_snapshot["tasks"] = selected_tasks
     return selected_snapshot, missing_task_ids
 
-
-def _snapshot_exported_task_ids(snapshot: dict[str, Any]) -> list[str]:
-    explicit_ids = snapshot.get("exported_task_ids")
-    if isinstance(explicit_ids, list):
-        return [str(task_id) for task_id in explicit_ids]
-
-    derived_ids: list[str] = []
-    tasks = snapshot.get("tasks")
-    if not isinstance(tasks, list):
-        return derived_ids
-    for item in tasks:
-        if not isinstance(item, dict):
-            continue
-        task_payload = item.get("task")
-        if not isinstance(task_payload, dict):
-            continue
-        task_id = task_payload.get("task_id")
-        if task_id is not None:
-            derived_ids.append(str(task_id))
-    return derived_ids
-
-
-def _snapshot_nested_count(snapshot: dict[str, Any], key: str) -> int | None:
-    explicit_count = snapshot.get(key)
-    if isinstance(explicit_count, int):
-        return explicit_count
-    return None
-
-
 def main() -> int:
     args = parse_args()
     dsn = resolve_dsn(args.dsn)
@@ -378,11 +357,12 @@ def main() -> int:
         "requested_task_ids": requested_task_ids,
         "missing_task_ids": missing_task_ids,
         "source_status": snapshot.get("status", "unknown"),
+        "source_manifest_status": manifest_status(snapshot),
         "source_selection": snapshot.get("selection"),
-        "source_task_count": snapshot.get("task_count"),
-        "source_step_count": _snapshot_nested_count(snapshot, "step_count"),
-        "source_event_count": _snapshot_nested_count(snapshot, "event_count"),
-        "source_exported_task_ids": _snapshot_exported_task_ids(snapshot),
+        "source_task_count": manifest_count(snapshot, "task_count"),
+        "source_step_count": manifest_count(snapshot, "step_count"),
+        "source_event_count": manifest_count(snapshot, "event_count"),
+        "source_exported_task_ids": exported_task_ids(snapshot),
         "source_missing_task_ids": list(snapshot.get("missing_task_ids", [])),
         "source_checksum_status": source_checksum_status,
         "source_snapshot_sha256": source_snapshot_sha256,

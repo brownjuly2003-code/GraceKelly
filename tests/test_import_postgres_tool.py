@@ -201,6 +201,7 @@ class ImportPostgresToolTests(unittest.TestCase):
             self.assertEqual(payload["requested_task_ids"], [])
             self.assertEqual(payload["missing_task_ids"], [])
             self.assertEqual(payload["source_status"], "ok")
+            self.assertEqual(payload["source_manifest_status"], "verified")
             self.assertEqual(payload["source_selection"], {"task_ids": ["task-1"], "limit": None})
             self.assertEqual(payload["source_task_count"], 1)
             self.assertEqual(payload["source_step_count"], 1)
@@ -216,6 +217,48 @@ class ImportPostgresToolTests(unittest.TestCase):
             self.assertEqual(payload["imported_step_count"], 1)
             self.assertEqual(payload["imported_event_count"], 2)
             self.assertEqual(payload["replaced_task_ids"], ["task-1"])
+        finally:
+            if snapshot_path.exists():
+                snapshot_path.unlink()
+
+    def test_main_rejects_manifest_count_mismatch(self) -> None:
+        snapshot_path = self.write_snapshot(
+            self.build_snapshot_payload(
+                {
+                    "migration": "0001_initial",
+                    "task_count": 2,
+                    "tasks": [
+                        {
+                            "task": {"task_id": "task-1"},
+                            "steps": [],
+                            "events": [],
+                        }
+                    ],
+                }
+            )
+        )
+        try:
+            with (
+                patch.object(
+                    import_postgres,
+                    "parse_args",
+                    return_value=argparse.Namespace(
+                        dsn="postgresql://example",
+                        input=str(snapshot_path),
+                        allow_degraded_schema=False,
+                        dry_run=False,
+                    ),
+                ),
+                patch.object(import_postgres, "resolve_dsn", return_value="postgresql://example"),
+                patch("builtins.print") as print_mock,
+            ):
+                code = import_postgres.main()
+
+            self.assertEqual(code, 2)
+            payload = json.loads(print_mock.call_args.args[0])
+            self.assertEqual(payload["status"], "error")
+            self.assertIn("task_count", payload["error"])
+            self.assertIn("does not match derived", payload["error"])
         finally:
             if snapshot_path.exists():
                 snapshot_path.unlink()

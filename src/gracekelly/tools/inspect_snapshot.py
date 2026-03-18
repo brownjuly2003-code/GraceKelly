@@ -6,7 +6,15 @@ from pathlib import Path
 from typing import Any
 
 from gracekelly.storage.schema import INITIAL_MIGRATION_NAME
-from gracekelly.tools.snapshot_artifact import artifact_metadata, checksum_status
+from gracekelly.tools.snapshot_artifact import (
+    artifact_metadata,
+    checksum_status,
+    exported_task_ids,
+    exported_task_ids_status,
+    manifest_count,
+    manifest_count_status,
+    manifest_status,
+)
 from gracekelly.tools.snapshot_digest import SNAPSHOT_FORMAT_VERSION
 from gracekelly.tools.snapshot_io import read_snapshot_text
 
@@ -25,46 +33,6 @@ def parse_args() -> argparse.Namespace:
 
 def load_snapshot(path: Path) -> dict[str, Any]:
     return json.loads(read_snapshot_text(path))
-
-
-def exported_task_ids(snapshot: dict[str, Any]) -> list[str]:
-    explicit_ids = snapshot.get("exported_task_ids")
-    if isinstance(explicit_ids, list):
-        return [str(task_id) for task_id in explicit_ids]
-
-    derived_ids: list[str] = []
-    tasks = snapshot.get("tasks")
-    if not isinstance(tasks, list):
-        return derived_ids
-    for item in tasks:
-        if not isinstance(item, dict):
-            continue
-        task_payload = item.get("task")
-        if not isinstance(task_payload, dict):
-            continue
-        task_id = task_payload.get("task_id")
-        if task_id is not None:
-            derived_ids.append(str(task_id))
-    return derived_ids
-
-
-def nested_record_count(snapshot: dict[str, Any], key: str) -> int:
-    explicit_count = snapshot.get(key)
-    if isinstance(explicit_count, int):
-        return explicit_count
-
-    total = 0
-    tasks = snapshot.get("tasks")
-    if not isinstance(tasks, list):
-        return total
-    nested_key = key.removesuffix("_count") + "s"
-    for item in tasks:
-        if not isinstance(item, dict):
-            continue
-        nested_records = item.get(nested_key)
-        if isinstance(nested_records, list):
-            total += len(nested_records)
-    return total
 
 
 def inspect_snapshot(snapshot: dict[str, Any]) -> dict[str, Any]:
@@ -87,10 +55,12 @@ def inspect_snapshot(snapshot: dict[str, Any]) -> dict[str, Any]:
         migration_status = "mismatch"
 
     exported_ids = exported_task_ids(snapshot)
+    snapshot_manifest_status = manifest_status(snapshot)
     import_ready = (
         checksum_state != "mismatch"
         and format_status != "mismatch"
         and migration_status != "mismatch"
+        and snapshot_manifest_status != "mismatch"
     )
     result = {
         "status": "ok" if import_ready else "error",
@@ -105,9 +75,14 @@ def inspect_snapshot(snapshot: dict[str, Any]) -> dict[str, Any]:
         "generated_at": snapshot.get("generated_at"),
         "backend": snapshot.get("backend"),
         "selection": snapshot.get("selection"),
-        "task_count": snapshot.get("task_count", len(exported_ids)),
-        "step_count": nested_record_count(snapshot, "step_count"),
-        "event_count": nested_record_count(snapshot, "event_count"),
+        "manifest_status": snapshot_manifest_status,
+        "task_count_status": manifest_count_status(snapshot, "task_count"),
+        "step_count_status": manifest_count_status(snapshot, "step_count"),
+        "event_count_status": manifest_count_status(snapshot, "event_count"),
+        "exported_task_ids_status": exported_task_ids_status(snapshot),
+        "task_count": manifest_count(snapshot, "task_count"),
+        "step_count": manifest_count(snapshot, "step_count"),
+        "event_count": manifest_count(snapshot, "event_count"),
         "exported_task_ids": exported_ids,
         "missing_task_ids": list(snapshot.get("missing_task_ids", [])),
         "checksum_status": checksum_state,
