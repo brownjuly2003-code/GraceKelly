@@ -15,10 +15,33 @@ router = APIRouter(prefix="/api/v1", tags=["orchestration"])
 logger = logging.getLogger(__name__)
 
 
+_SAFE_VALIDATION_PREFIXES = (
+    "Unsupported model:",
+    "Unsupported merge strategy:",
+    "Unknown execution profile:",
+    "Duplicate model request",
+    "Duplicate requested model",
+    "Quorum",
+    "Cannot use",
+    "Model",
+    "Metadata",
+    "merge_strategy=",
+    "reasoning=",
+)
+
+
+def _sanitize_validation_error(exc: Exception) -> str:
+    message = str(exc)
+    for prefix in _SAFE_VALIDATION_PREFIXES:
+        if message.startswith(prefix):
+            return message
+    return "Invalid request parameters."
+
+
 def _storage_error_detail(exc: StorageUnavailableError) -> dict[str, str]:
     return {
         "code": FailureCode.STORAGE_FAILED.value,
-        "message": str(exc),
+        "message": f"Storage is temporarily unavailable (operation: {exc.operation}).",
     }
 
 
@@ -104,7 +127,7 @@ async def orchestrate(payload: OrchestrateRequest, request: Request) -> Orchestr
                 trace_id=trace_id,
             )
         )
-        raise HTTPException(status_code=422, detail=str(exc)) from exc
+        raise HTTPException(status_code=422, detail=_sanitize_validation_error(exc)) from exc
     except NotImplementedError as exc:
         logger.warning(
             log_message(
@@ -115,7 +138,7 @@ async def orchestrate(payload: OrchestrateRequest, request: Request) -> Orchestr
                 trace_id=trace_id,
             )
         )
-        raise HTTPException(status_code=501, detail=str(exc)) from exc
+        raise HTTPException(status_code=501, detail="Requested capability is not available.") from exc
     logger.info(
         log_message(
             "orchestrate.accepted",

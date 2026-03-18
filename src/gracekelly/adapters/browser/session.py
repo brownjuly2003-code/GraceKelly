@@ -2,9 +2,24 @@ from __future__ import annotations
 
 from dataclasses import dataclass, replace
 import logging
+from pathlib import Path
 from threading import Lock
 
 logger = logging.getLogger(__name__)
+
+_PROFILE_DIR_BLOCKED_SEGMENTS = ("..", "~")
+
+
+def _validate_profile_dir(profile_dir: str | None) -> str | None:
+    if profile_dir is None:
+        return None
+    for segment in _PROFILE_DIR_BLOCKED_SEGMENTS:
+        if segment in Path(profile_dir).parts:
+            raise ValueError(
+                f"Browser profile directory contains disallowed path segment '{segment}': "
+                "use an absolute path without traversal components."
+            )
+    return profile_dir
 
 
 @dataclass(frozen=True, slots=True)
@@ -27,14 +42,15 @@ class BrowserSessionState:
 
 class BrowserSessionManager:
     def __init__(self, config: BrowserSessionConfig) -> None:
+        validated_profile_dir = _validate_profile_dir(config.profile_dir)
         self._config = config
         self._lock = Lock()
         self._state = BrowserSessionState(
-            configured=bool(config.enabled and config.profile_dir),
+            configured=bool(config.enabled and validated_profile_dir),
             active=False,
             provider=config.provider,
             base_url=config.base_url,
-            profile_dir=config.profile_dir,
+            profile_dir=validated_profile_dir,
             last_error=None if config.enabled else "Browser adapter is disabled.",
         )
 
