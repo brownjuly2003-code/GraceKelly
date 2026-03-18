@@ -72,9 +72,12 @@ Deliverables:
 - validation CLI and optional live-PostgreSQL tests
 
 Not yet addressed:
-- backup and restore strategy
+- restore tooling beyond the new export snapshot path
 - production migration tooling (Alembic or version-tracked raw SQL beyond bootstrap)
 - connection pooling (`psycopg_pool`)
+
+Delivered after validation tooling:
+- JSON snapshot export CLI for PostgreSQL task, step, and event data
 
 ## Phase 4: Reliability controls
 

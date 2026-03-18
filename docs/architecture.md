@@ -12,6 +12,7 @@ Implemented:
 - canonical model registry with alias normalization
 - typed task/step/event contracts with multi-model execution planning
 - dual-backend storage: in-memory (development) and PostgreSQL (durable)
+- PostgreSQL operational tooling: schema validation plus JSON export snapshots
 - execution adapters: dry-run, Mistral API, OpenAI-compatible API, Perplexity browser (scripted and thin Playwright backends)
 - cooperative cancel-on-quorum with per-model timeout, concurrency enforcement, and a minimal browser circuit breaker
 - browser adapter lifecycle cleanup that resets idle session state on shutdown and detects stale runtime/session mismatches
@@ -76,6 +77,6 @@ Excluded by design:
 ## Next steps
 
 1. Refresh browser catalog strategy if Perplexity account-tier drift keeps diverging from the canonical registry.
-2. Backup and restore strategy for PostgreSQL.
+2. Restore tooling and broader backup strategy for PostgreSQL.
 3. Production migration tooling (version-tracked SQL or Alembic).
 4. Account pools and any real retry model beyond the current deferral.

@@ -194,6 +194,24 @@ python -m gracekelly.tools.validate_postgres
 
 Use `--no-bootstrap` to validate an existing schema without applying the packaged migration first.
 
+## PostgreSQL export
+
+```bash
+set GRACEKELLY_POSTGRES_DSN=postgresql://postgres:postgres@localhost:5432/gracekelly
+gracekelly-export-postgres --limit 100
+```
+
+This writes a JSON snapshot under `tmp/postgres-export/` by default, including:
+- export timestamp and schema version
+- repository health and schema report
+- serialized task records with nested steps and events
+
+Export specific tasks when needed:
+
+```bash
+gracekelly-export-postgres --task-id task-1 --task-id task-2 --output D:\GraceKelly\tmp\postgres-export\selected.json
+```
+
 ## Optional live PostgreSQL test
 
 ```bash

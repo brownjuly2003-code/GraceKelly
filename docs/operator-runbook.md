@@ -162,6 +162,19 @@ python -m gracekelly.tools.validate_postgres
 
 Use `--no-bootstrap` if the target database should not be modified during validation.
 
+Export a JSON snapshot of recent durable-state records:
+
+```bash
+set GRACEKELLY_POSTGRES_DSN=postgresql://postgres:postgres@localhost:5432/gracekelly
+gracekelly-export-postgres --limit 100
+```
+
+Export specific tasks only:
+
+```bash
+gracekelly-export-postgres --task-id task-1 --task-id task-2
+```
+
 ## Task inspection workflow
 
 1. Find the recent failures:
