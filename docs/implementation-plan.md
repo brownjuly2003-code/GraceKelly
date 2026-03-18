@@ -211,6 +211,10 @@ This document is the working source of truth for GraceKelly delivery. We update 
 [x] Add unit tests for API adapter error paths: timeout, 429 rate limit, 500, network error, malformed responses, missing API key, and successful execution.
 [x] Add unit tests for `ScriptedBrowserAutomation` and `NullBrowserAutomation` covering all `BrowserAutomationPort` methods.
 [x] Add unit tests for PostgreSQL row-to-record mapping without a live database: task, step, and event deserialization plus metadata string/dict handling.
+[x] Simplify `_build_events` in orchestrator by extracting `_EventSequence`, `_StepSummary`, `_build_step_events`, and `_build_terminal_event`.
+[x] Add optional PostgreSQL connection pooling via `psycopg_pool` with `GRACEKELLY_POSTGRES_POOL_ENABLED`, `_MIN_SIZE`, and `_MAX_SIZE` configuration.
+[x] Add opt-in API key authentication middleware with `GRACEKELLY_API_KEY` supporting Bearer token and X-API-Key headers, with `/health` and `/docs` exempt.
+[x] Add opt-in per-IP rate limiting middleware with `GRACEKELLY_RATE_LIMIT_PER_MINUTE` returning 429 on excess.
 
 ## Issue log
 - 2026-03-16: Legacy reference project has corrupted SQLite databases. Decision: no storage design or migration path in GraceKelly may depend on SQLite integrity.
@@ -453,3 +457,6 @@ This document is the working source of truth for GraceKelly delivery. We update 
 - 2026-03-19: Sanitized API error responses: storage errors no longer leak DSN details, validation errors pass through an allowlist, and `NotImplementedError` returns a generic message.
 - 2026-03-19: Added browser `profile_dir` path-traversal validation at `BrowserSessionManager` construction, rejecting `..` and `~` path segments.
 - 2026-03-19: Expanded test suite from 203 to 333 tests (+130), closing coverage gaps for concurrency, execution profiles, schemas, logging, browser session/policies, model catalog, API adapter error paths, scripted/null browser automation, and PostgreSQL row mapping.
+- 2026-03-19: Simplified `_build_events` in orchestrator by extracting `_EventSequence` and `_StepSummary` helpers, splitting the 138-line method into three focused methods.
+- 2026-03-19: Added optional PostgreSQL connection pooling via `psycopg_pool`, configurable through `GRACEKELLY_POSTGRES_POOL_ENABLED/MIN_SIZE/MAX_SIZE`.
+- 2026-03-19: Added opt-in API key authentication and per-IP rate limiting middleware, closing the critical and medium security audit findings. Both disabled by default for development.

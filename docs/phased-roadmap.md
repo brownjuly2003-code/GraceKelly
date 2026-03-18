@@ -73,7 +73,9 @@ Deliverables:
 
 Not yet addressed:
 - production migration tooling (Alembic or version-tracked raw SQL beyond bootstrap)
-- connection pooling (`psycopg_pool`)
+
+Delivered after pooling:
+- optional `psycopg_pool` connection pooling via `GRACEKELLY_POSTGRES_POOL_ENABLED`
 
 Delivered after validation tooling:
 - JSON snapshot export/import CLIs for PostgreSQL task, step, and event data
@@ -98,6 +100,8 @@ Already delivered:
 - explicit retry-schema deferral tests
 - API error response sanitization (no internal detail leakage)
 - browser profile-dir path-traversal validation
+- opt-in API key authentication (`GRACEKELLY_API_KEY`)
+- opt-in per-IP rate limiting (`GRACEKELLY_RATE_LIMIT_PER_MINUTE`)
 
 Remaining:
 - account-pool abstractions

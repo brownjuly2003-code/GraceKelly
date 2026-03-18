@@ -1,14 +1,33 @@
 # Operator Runbook
 
-Last updated: 2026-03-18
+Last updated: 2026-03-19
 
 This runbook covers the current operating surface for GraceKelly:
+- API authentication and rate limiting
 - service liveness and readiness
 - metrics scraping
 - browser-adapter recovery
 - storage validation and task-scoped snapshot restore
 
 It is intentionally limited to the current in-process deployment model.
+
+## API security
+
+### Authentication
+
+Set `GRACEKELLY_API_KEY` to require API key on all protected endpoints. Clients must include one of:
+- `Authorization: Bearer <key>` header
+- `X-API-Key: <key>` header
+
+Public endpoints (no key required): `/health`, `/docs`, `/openapi.json`, `/redoc`.
+
+When `GRACEKELLY_API_KEY` is not set, all endpoints are open (development default).
+
+### Rate limiting
+
+Set `GRACEKELLY_RATE_LIMIT_PER_MINUTE` to limit requests per client IP. Returns HTTP 429 when exceeded. Public endpoints are exempt.
+
+When not set or `0`, rate limiting is disabled (development default).
 
 ## Primary endpoints
 
