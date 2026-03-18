@@ -90,6 +90,7 @@ class InspectSnapshotToolTests(unittest.TestCase):
             self.assertEqual(payload["step_count_status"], "verified")
             self.assertEqual(payload["event_count_status"], "verified")
             self.assertEqual(payload["exported_task_ids_status"], "verified")
+            self.assertEqual(payload["missing_task_ids_status"], "verified")
             self.assertTrue(payload["import_ready"])
             self.assertEqual(payload["exported_task_ids"], ["task-1"])
             self.assertEqual(payload["task_count"], 1)
@@ -129,6 +130,7 @@ class InspectSnapshotToolTests(unittest.TestCase):
             self.assertEqual(payload["step_count_status"], "derived")
             self.assertEqual(payload["event_count_status"], "derived")
             self.assertEqual(payload["exported_task_ids_status"], "derived")
+            self.assertEqual(payload["missing_task_ids_status"], "derived")
             self.assertEqual(payload["task_count"], 2)
             self.assertEqual(payload["step_count"], 0)
             self.assertEqual(payload["event_count"], 0)
@@ -272,6 +274,34 @@ class InspectSnapshotToolTests(unittest.TestCase):
             self.assertEqual(payload["status"], "error")
             self.assertEqual(payload["manifest_status"], "mismatch")
             self.assertEqual(payload["selection_status"], "mismatch")
+            self.assertFalse(payload["import_ready"])
+        finally:
+            if snapshot_path.exists():
+                snapshot_path.unlink()
+
+    def test_main_reports_missing_task_ids_manifest_mismatch(self) -> None:
+        snapshot_path = self.write_snapshot(
+            self.build_snapshot_payload(
+                {
+                    "migration": "0001_initial",
+                    "selection": {"task_ids": ["task-1", "task-2"], "limit": None},
+                    "missing_task_ids": ["task-3"],
+                    "tasks": [{"task": {"task_id": "task-1"}, "steps": [], "events": []}],
+                }
+            )
+        )
+        try:
+            with (
+                patch.object(inspect_snapshot, "parse_args", return_value=argparse.Namespace(input=str(snapshot_path))),
+                patch("builtins.print") as print_mock,
+            ):
+                code = inspect_snapshot.main()
+
+            self.assertEqual(code, 1)
+            payload = json.loads(print_mock.call_args.args[0])
+            self.assertEqual(payload["status"], "error")
+            self.assertEqual(payload["manifest_status"], "mismatch")
+            self.assertEqual(payload["missing_task_ids_status"], "mismatch")
             self.assertFalse(payload["import_ready"])
         finally:
             if snapshot_path.exists():

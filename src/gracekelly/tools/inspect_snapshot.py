@@ -14,6 +14,8 @@ from gracekelly.tools.snapshot_artifact import (
     manifest_count,
     manifest_count_status,
     manifest_status,
+    missing_task_ids,
+    missing_task_ids_status,
     selection_status,
 )
 from gracekelly.tools.snapshot_digest import SNAPSHOT_FORMAT_VERSION
@@ -82,11 +84,12 @@ def inspect_snapshot(snapshot: dict[str, Any]) -> dict[str, Any]:
         "step_count_status": manifest_count_status(snapshot, "step_count"),
         "event_count_status": manifest_count_status(snapshot, "event_count"),
         "exported_task_ids_status": exported_task_ids_status(snapshot),
+        "missing_task_ids_status": missing_task_ids_status(snapshot),
         "task_count": manifest_count(snapshot, "task_count"),
         "step_count": manifest_count(snapshot, "step_count"),
         "event_count": manifest_count(snapshot, "event_count"),
         "exported_task_ids": exported_ids,
-        "missing_task_ids": list(snapshot.get("missing_task_ids", [])),
+        "missing_task_ids": missing_task_ids(snapshot),
         "checksum_status": checksum_state,
         "snapshot_sha256": expected_digest,
         "computed_snapshot_sha256": computed_digest,
