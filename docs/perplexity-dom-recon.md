@@ -91,6 +91,11 @@ Latest runtime fallback on 2026-03-18:
   - `model_selection_verified=false`
 - the winning response source in that degraded state was still `body_after_prompt`
 
+Repeatable capture path from 2026-03-18:
+
+- use `gracekelly-capture-perplexity-recon` to save the current authenticated shell into `tmp/browser-recon/YYYY-MM-DD/`
+- use `--interactive-pause` only if the automatic pass still cannot expose the model-picker path
+
 ## Anti-automation findings
 
 - Headless mode is not a safe default. On 2026-03-17 it was blocked by Cloudflare before the app shell loaded.

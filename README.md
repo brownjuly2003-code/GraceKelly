@@ -128,6 +128,28 @@ Then point runtime and smoke checks at the same directory:
 set GRACEKELLY_BROWSER_PROFILE_DIR=D:\GraceKelly\tmp\browser-recon\perplexity-profile
 ```
 
+## Capture authenticated DOM recon
+
+```bash
+gracekelly-capture-perplexity-recon
+```
+
+By default this writes a dated artifact bundle under `tmp/browser-recon/YYYY-MM-DD/`:
+- authenticated home screenshot
+- toolbar button inventory
+- composer HTML fragment
+- `More` screenshot and button inventory if overflow is present
+- model-picker screenshot and menu snapshot if the picker becomes visible
+- a manifest JSON tying the capture together
+
+If the current UI needs manual help after the automatic pass, run:
+
+```bash
+gracekelly-capture-perplexity-recon --interactive-pause
+```
+
+This opens the same dedicated profile, performs the automatic capture first, then pauses so the live UI can be clicked manually before a final screenshot is saved.
+
 ## Optional live Playwright smoke
 
 ```bash

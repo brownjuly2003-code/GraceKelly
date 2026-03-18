@@ -15,6 +15,7 @@ dependencies = [
 
 [project.scripts]
 gracekelly-create-perplexity-profile = "gracekelly.tools.create_perplexity_profile:main"
+gracekelly-capture-perplexity-recon = "gracekelly.tools.capture_perplexity_recon:main"
 gracekelly-validate-postgres = "gracekelly.tools.validate_postgres:main"
 
 [project.optional-dependencies]
@@ -40,3 +41,4 @@ gracekelly = ["storage/migrations/*.sql"]
 [tool.pytest.ini_options]
 pythonpath = ["src"]
 addopts = "-p no:cacheprovider"
+norecursedirs = ["tmp", ".pytest_cache"]

@@ -7,6 +7,7 @@ from dataclasses import dataclass, field
 class PerplexitySelectors:
     prompt_input: str = 'div#ask-input[role="textbox"][contenteditable="true"]'
     model_button: str = 'button[aria-label="Model"]'
+    more_button: str = 'button[aria-label="More"]'
     submit_button: str = 'button[aria-label="Submit"]'
     add_files_button: str = 'button[aria-label="Add files or tools"]'
     dictation_button: str = 'button[aria-label="Dictation"]'
