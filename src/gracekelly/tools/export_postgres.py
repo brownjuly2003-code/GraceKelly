@@ -188,6 +188,7 @@ def main() -> int:
         return 2
 
     output_path = Path(args.output) if args.output else default_output_path()
+    snapshot: dict[str, Any] | None = None
 
     try:
         repository = PostgresTaskRepository(dsn, bootstrap=False)
@@ -205,6 +206,29 @@ def main() -> int:
                     "migration": INITIAL_MIGRATION_NAME,
                     "error": str(exc),
                     "output": str(output_path),
+                    "compressed_output": artifact_metadata(output_path, allow_missing=True)["compressed"],
+                    "output_exists": artifact_metadata(output_path, allow_missing=True)["exists"],
+                    "output_size_bytes": artifact_metadata(output_path, allow_missing=True)["size_bytes"],
+                    **(
+                        {}
+                        if snapshot is None
+                        else {
+                            "generated_at": snapshot["generated_at"],
+                            "manifest_status": manifest_status(snapshot),
+                            "snapshot_status_consistency_status": snapshot_status_consistency_status(snapshot),
+                            "selection_status": selection_status(snapshot),
+                            "task_count_status": manifest_count_status(snapshot, "task_count"),
+                            "step_count_status": manifest_count_status(snapshot, "step_count"),
+                            "event_count_status": manifest_count_status(snapshot, "event_count"),
+                            "exported_task_ids_status": exported_task_ids_status(snapshot),
+                            "missing_task_ids_status": missing_task_ids_status(snapshot),
+                            "task_count": snapshot["task_count"],
+                            "step_count": snapshot["step_count"],
+                            "event_count": snapshot["event_count"],
+                            "exported_task_ids": snapshot["exported_task_ids"],
+                            "missing_task_ids": snapshot["missing_task_ids"],
+                        }
+                    ),
                 },
                 indent=2,
             )
@@ -220,6 +244,7 @@ def main() -> int:
         "generated_at": snapshot["generated_at"],
         "output": str(output_path),
         "compressed_output": output_metadata["compressed"],
+        "output_exists": output_metadata["exists"],
         "output_size_bytes": output_metadata["size_bytes"],
         "manifest_status": manifest_status(snapshot),
         "snapshot_status_consistency_status": snapshot_status_consistency_status(snapshot),

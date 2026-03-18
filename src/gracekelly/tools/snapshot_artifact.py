@@ -6,9 +6,18 @@ from typing import Any
 from gracekelly.tools.snapshot_digest import compute_snapshot_sha256
 
 
-def artifact_metadata(path: Path) -> dict[str, object]:
+def artifact_metadata(path: Path, *, allow_missing: bool = False) -> dict[str, object]:
+    if not path.exists():
+        if not allow_missing:
+            raise FileNotFoundError(path)
+        return {
+            "compressed": path.suffix == ".gz",
+            "exists": False,
+            "size_bytes": None,
+        }
     return {
         "compressed": path.suffix == ".gz",
+        "exists": True,
         "size_bytes": path.stat().st_size,
     }
 
