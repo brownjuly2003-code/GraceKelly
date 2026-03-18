@@ -275,6 +275,223 @@ class ImportPostgresToolTests(unittest.TestCase):
             if snapshot_path.exists():
                 snapshot_path.unlink()
 
+    def test_main_rejects_duplicate_task_ids(self) -> None:
+        snapshot_payload = {
+            "status": "ok",
+            "migration": "0001_initial",
+            "tasks": [
+                {"task": {"task_id": "task-1"}, "steps": [], "events": []},
+                {"task": {"task_id": "task-1"}, "steps": [], "events": []},
+            ],
+        }
+        snapshot_payload["snapshot_sha256"] = compute_snapshot_sha256(snapshot_payload)
+        snapshot_path = self.write_snapshot(snapshot_payload)
+        try:
+            with (
+                patch.object(
+                    import_postgres,
+                    "parse_args",
+                    return_value=argparse.Namespace(
+                        dsn="postgresql://example",
+                        input=str(snapshot_path),
+                        allow_degraded_schema=False,
+                    ),
+                ),
+                patch.object(import_postgres, "resolve_dsn", return_value="postgresql://example"),
+                patch("builtins.print") as print_mock,
+            ):
+                code = import_postgres.main()
+
+            self.assertEqual(code, 2)
+            payload = json.loads(print_mock.call_args.args[0])
+            self.assertEqual(payload["status"], "error")
+            self.assertIn("duplicate task_id", payload["error"])
+        finally:
+            if snapshot_path.exists():
+                snapshot_path.unlink()
+
+    def test_main_rejects_duplicate_step_indexes_for_task(self) -> None:
+        accepted_at = datetime(2026, 3, 18, 18, 0, tzinfo=UTC).isoformat().replace("+00:00", "Z")
+        snapshot_payload = {
+            "status": "ok",
+            "migration": "0001_initial",
+            "tasks": [
+                {
+                    "task": {
+                        "task_id": "task-1",
+                        "status": "completed",
+                        "accepted_at": accepted_at,
+                        "completed_at": accepted_at,
+                        "duration_ms": 11,
+                        "prompt": "import me",
+                        "reasoning": False,
+                        "execution_mode": "dry-run",
+                        "dry_run": True,
+                        "model_count": 1,
+                        "quorum": 1,
+                        "merge_strategy": "first_success",
+                        "adapter_hint": "auto",
+                        "cancel_on_quorum": True,
+                        "failure_code": None,
+                        "failure_message": None,
+                        "output_text": None,
+                        "metadata": {},
+                    },
+                    "steps": [
+                        {
+                            "task_id": "task-1",
+                            "step_index": 1,
+                            "model_id": "kimi-k2-5",
+                            "model_display_name": "Kimi K2.5",
+                            "backend": "browser",
+                            "provider": "perplexity",
+                            "status": "completed",
+                        },
+                        {
+                            "task_id": "task-1",
+                            "step_index": 1,
+                            "model_id": "mistral-small",
+                            "model_display_name": "Mistral Small",
+                            "backend": "api",
+                            "provider": "mistral",
+                            "status": "failed",
+                        },
+                    ],
+                    "events": [],
+                }
+            ],
+        }
+        snapshot_payload["snapshot_sha256"] = compute_snapshot_sha256(snapshot_payload)
+        snapshot_path = self.write_snapshot(snapshot_payload)
+
+        class FakeRepository:
+            def __init__(self, dsn: str, *, bootstrap: bool) -> None:
+                pass
+
+            def healthcheck(self) -> dict[str, object]:
+                return {"status": "ok", "backend": "postgres"}
+
+            def schema_report(self) -> dict[str, object]:
+                return {"status": "ok", "backend": "postgres", "schema_version": "0001_initial"}
+
+            def replace_task_snapshot(self, task, steps, events) -> None:
+                raise AssertionError("replace_task_snapshot should not run on invalid input")
+
+        try:
+            with (
+                patch.object(
+                    import_postgres,
+                    "parse_args",
+                    return_value=argparse.Namespace(
+                        dsn="postgresql://example",
+                        input=str(snapshot_path),
+                        allow_degraded_schema=False,
+                    ),
+                ),
+                patch.object(import_postgres, "resolve_dsn", return_value="postgresql://example"),
+                patch.object(import_postgres, "PostgresTaskRepository", FakeRepository),
+                patch("builtins.print") as print_mock,
+            ):
+                code = import_postgres.main()
+
+            self.assertEqual(code, 2)
+            payload = json.loads(print_mock.call_args.args[0])
+            self.assertEqual(payload["status"], "error")
+            self.assertIn("duplicate step_index", payload["error"])
+        finally:
+            if snapshot_path.exists():
+                snapshot_path.unlink()
+
+    def test_main_rejects_duplicate_event_sequence_numbers_for_task(self) -> None:
+        accepted_at = datetime(2026, 3, 18, 18, 0, tzinfo=UTC).isoformat().replace("+00:00", "Z")
+        snapshot_payload = {
+            "status": "ok",
+            "migration": "0001_initial",
+            "tasks": [
+                {
+                    "task": {
+                        "task_id": "task-1",
+                        "status": "completed",
+                        "accepted_at": accepted_at,
+                        "completed_at": accepted_at,
+                        "duration_ms": 11,
+                        "prompt": "import me",
+                        "reasoning": False,
+                        "execution_mode": "dry-run",
+                        "dry_run": True,
+                        "model_count": 1,
+                        "quorum": 1,
+                        "merge_strategy": "first_success",
+                        "adapter_hint": "auto",
+                        "cancel_on_quorum": True,
+                        "failure_code": None,
+                        "failure_message": None,
+                        "output_text": None,
+                        "metadata": {},
+                    },
+                    "steps": [],
+                    "events": [
+                        {
+                            "event_id": "event-1",
+                            "task_id": "task-1",
+                            "sequence_no": 1,
+                            "event_type": "task.accepted",
+                            "created_at": accepted_at,
+                            "payload": {},
+                        },
+                        {
+                            "event_id": "event-2",
+                            "task_id": "task-1",
+                            "sequence_no": 1,
+                            "event_type": "task.completed",
+                            "created_at": accepted_at,
+                            "payload": {},
+                        },
+                    ],
+                }
+            ],
+        }
+        snapshot_payload["snapshot_sha256"] = compute_snapshot_sha256(snapshot_payload)
+        snapshot_path = self.write_snapshot(snapshot_payload)
+
+        class FakeRepository:
+            def __init__(self, dsn: str, *, bootstrap: bool) -> None:
+                pass
+
+            def healthcheck(self) -> dict[str, object]:
+                return {"status": "ok", "backend": "postgres"}
+
+            def schema_report(self) -> dict[str, object]:
+                return {"status": "ok", "backend": "postgres", "schema_version": "0001_initial"}
+
+            def replace_task_snapshot(self, task, steps, events) -> None:
+                raise AssertionError("replace_task_snapshot should not run on invalid input")
+
+        try:
+            with (
+                patch.object(
+                    import_postgres,
+                    "parse_args",
+                    return_value=argparse.Namespace(
+                        dsn="postgresql://example",
+                        input=str(snapshot_path),
+                        allow_degraded_schema=False,
+                    ),
+                ),
+                patch.object(import_postgres, "resolve_dsn", return_value="postgresql://example"),
+                patch.object(import_postgres, "PostgresTaskRepository", FakeRepository),
+                patch("builtins.print") as print_mock,
+            ):
+                code = import_postgres.main()
+
+            self.assertEqual(code, 2)
+            payload = json.loads(print_mock.call_args.args[0])
+            self.assertEqual(payload["status"], "error")
+            self.assertIn("duplicate event sequence_no", payload["error"])
+        finally:
+            if snapshot_path.exists():
+                snapshot_path.unlink()
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+from collections import Counter
 from datetime import datetime
 import json
 import os
@@ -117,6 +118,14 @@ def _validate_snapshot(snapshot: dict[str, Any]) -> None:
     tasks = snapshot.get("tasks")
     if not isinstance(tasks, list):
         raise ValueError("Snapshot must contain a top-level 'tasks' list.")
+    task_ids = [item.get("task", {}).get("task_id") for item in tasks]
+    duplicate_task_ids = sorted(
+        task_id
+        for task_id, count in Counter(task_ids).items()
+        if task_id is not None and count > 1
+    )
+    if duplicate_task_ids:
+        raise ValueError(f"Snapshot contains duplicate task_id values: {duplicate_task_ids}.")
     expected_digest = snapshot.get("snapshot_sha256")
     if expected_digest is not None:
         actual_digest = compute_snapshot_sha256(snapshot)
@@ -140,6 +149,26 @@ def _validate_task_bundle(
     if invalid_event_sequences:
         raise ValueError(
             f"Snapshot contains events for task_id values that do not match '{task.task_id}': {invalid_event_sequences}."
+        )
+    step_indexes = [step.step_index for step in steps]
+    duplicate_step_indexes = sorted(
+        step_index
+        for step_index, count in Counter(step_indexes).items()
+        if count > 1
+    )
+    if duplicate_step_indexes:
+        raise ValueError(
+            f"Snapshot contains duplicate step_index values for task '{task.task_id}': {duplicate_step_indexes}."
+        )
+    sequence_nos = [event.sequence_no for event in events]
+    duplicate_sequence_nos = sorted(
+        sequence_no
+        for sequence_no, count in Counter(sequence_nos).items()
+        if count > 1
+    )
+    if duplicate_sequence_nos:
+        raise ValueError(
+            f"Snapshot contains duplicate event sequence_no values for task '{task.task_id}': {duplicate_sequence_nos}."
         )
 
 
