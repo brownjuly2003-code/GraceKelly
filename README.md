@@ -208,6 +208,8 @@ This writes a JSON snapshot under `tmp/postgres-export/` by default, including:
 - repository health and schema report
 - serialized task records with nested steps and events
 
+The command summary also includes `repository_health` and `repository_schema`, so the export result itself is usable as a lightweight storage preflight.
+
 Export specific tasks when needed:
 
 ```bash

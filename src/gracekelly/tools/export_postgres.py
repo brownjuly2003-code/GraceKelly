@@ -189,6 +189,8 @@ def main() -> int:
         "gracekelly_version": snapshot["gracekelly_version"],
         "migration": INITIAL_MIGRATION_NAME,
         "output": str(output_path),
+        "repository_health": snapshot["health"],
+        "repository_schema": snapshot["schema"],
         "task_count": snapshot["task_count"],
         "missing_task_ids": snapshot["missing_task_ids"],
         "snapshot_sha256": snapshot["snapshot_sha256"],

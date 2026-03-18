@@ -195,6 +195,8 @@ class ExportPostgresToolTests(unittest.TestCase):
             self.assertEqual(result["status"], "partial")
             self.assertEqual(result["snapshot_format_version"], SNAPSHOT_FORMAT_VERSION)
             self.assertEqual(result["gracekelly_version"], __version__)
+            self.assertEqual(result["repository_health"]["status"], "ok")
+            self.assertEqual(result["repository_schema"]["schema_version"], "0001_initial")
             self.assertEqual(result["task_count"], 1)
             self.assertEqual(result["missing_task_ids"], ["task-missing"])
             self.assertIn("snapshot_sha256", result)
