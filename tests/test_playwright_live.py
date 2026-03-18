@@ -91,6 +91,7 @@ class PlaywrightBrowserLiveTests(unittest.TestCase):
 
         self.assertEqual(result.status, StepStatus.COMPLETED)
         self.assertTrue(result.output_text.strip())
+        self.assertIn("model_selection_verified", result.details)
         self.assertIn("response_source", result.details)
 
 

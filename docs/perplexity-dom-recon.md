@@ -82,6 +82,15 @@ What stayed true:
 
 Current implication: browser execution can still prove prompt -> response transport, but explicit model selection should be treated as unstable again until the new authenticated model-picker path is captured.
 
+Latest runtime fallback on 2026-03-18:
+
+- authenticated live smoke passed again after changing the browser adapter to degrade gracefully when the picker is unavailable
+- the browser step now keeps running with:
+  - `model_picker_unavailable=true`
+  - `model_selection_attempted=false`
+  - `model_selection_verified=false`
+- the winning response source in that degraded state was still `body_after_prompt`
+
 ## Anti-automation findings
 
 - Headless mode is not a safe default. On 2026-03-17 it was blocked by Cloudflare before the app shell loaded.

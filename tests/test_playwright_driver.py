@@ -63,6 +63,7 @@ class _FakePage:
         )
         self.default_timeout_ms: int | None = None
         self.goto_url: str | None = None
+        self.keyboard = _FakeKeyboard()
 
     def locator(self, selector: str) -> _FakeLocator:
         if "radix-popper" in selector or "role=\"dialog\"" in selector or "role=\"listbox\"" in selector:
@@ -91,6 +92,12 @@ class _FakePage:
     def goto(self, url: str, wait_until: str) -> None:
         self.goto_url = url
 
+    def evaluate(self, script: str):
+        return [
+            "New Thread" if self.new_thread_button.is_visible() else "",
+            "Model" if self.model_button.is_visible() else "",
+        ]
+
 
 class _TransientLocator(_FakeLocator):
     def __init__(self, visible_sequence: list[bool], **kwargs) -> None:
@@ -106,6 +113,14 @@ class _TransientLocator(_FakeLocator):
 
     def count(self) -> int:
         return 1 if self.is_visible() else 0
+
+
+class _FakeKeyboard:
+    def __init__(self) -> None:
+        self.pressed: list[str] = []
+
+    def press(self, value: str) -> None:
+        self.pressed.append(value)
 
 
 class _FakeContext:
@@ -265,6 +280,8 @@ class PlaywrightDriverTests(unittest.TestCase):
         self.assertEqual(selection.details["model_button_text_after"], "Current model GPT-5.4")
         self.assertEqual(selection.details["selection_indicator"], "aria-selected")
         self.assertEqual(selection.details["selection_indicator_value"], "true")
+        health = driver.healthcheck()
+        self.assertIn("GPT-5.4", health["verified_model_labels_at"])
 
     def test_select_model_waits_for_model_button_visibility(self) -> None:
         driver = PlaywrightBrowserAutomation(sync_playwright_factory=lambda: object())
@@ -329,6 +346,36 @@ class PlaywrightDriverTests(unittest.TestCase):
 
         self.assertTrue(selection.details["model_selection_attempted"])
         self.assertTrue(selection.details["model_selection_verified"])
+
+    def test_select_model_degrades_when_picker_stays_unavailable(self) -> None:
+        driver = PlaywrightBrowserAutomation(sync_playwright_factory=lambda: object())
+
+        class _UnavailablePickerPage(_FakePage):
+            def __init__(self) -> None:
+                super().__init__()
+                self.prompt_input = _FakeLocator(visible=True)
+                self.model_button = _FakeLocator(visible=False, inner_text="Model")
+                self.new_thread_button = _FakeLocator(visible=True, inner_text="New Thread")
+
+            def locator(self, selector: str) -> _FakeLocator:
+                if selector == 'div#ask-input[role="textbox"][contenteditable="true"]':
+                    return self.prompt_input
+                return super().locator(selector)
+
+        driver._page = _UnavailablePickerPage()
+
+        selection = driver.select_model(
+            provider_model_id="GPT-5.4",
+            policy=ModelVerificationPolicy(wait_attempts=2),
+        )
+
+        self.assertEqual(selection.actual_label, "GPT-5.4")
+        self.assertFalse(selection.details["model_selection_verified"])
+        self.assertFalse(selection.details["model_selection_attempted"])
+        self.assertTrue(selection.details["model_picker_unavailable"])
+        self.assertIn("New Thread", selection.details["button_debug_snapshot"][0])
+        health = driver.healthcheck()
+        self.assertIsNotNone(health["last_model_picker_unavailable_at"])
 
     def test_close_stops_playwright_and_context(self) -> None:
         driver = PlaywrightBrowserAutomation(sync_playwright_factory=lambda: object())

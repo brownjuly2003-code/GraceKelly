@@ -57,6 +57,7 @@ class ModelCatalogItem(ModelView):
     availability_status: str
     availability_checked_at: datetime | None = None
     availability_source: str | None = None
+    last_verified_at: datetime | None = None
 
 
 class TaskEventView(BaseModel):

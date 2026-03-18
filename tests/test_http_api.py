@@ -122,6 +122,7 @@ class HttpApiSmokeTests(unittest.TestCase):
         self.assertEqual(kimi["availability_status"], "unknown")
         self.assertIsNone(kimi["availability_checked_at"])
         self.assertIsNone(kimi["availability_source"])
+        self.assertIsNone(kimi["last_verified_at"])
         self.assertEqual(mistral["adapter_kind"], "api")
         self.assertEqual(mistral["provider"], "mistral")
         self.assertFalse(mistral["reasoning_capable"])
@@ -130,12 +131,14 @@ class HttpApiSmokeTests(unittest.TestCase):
         self.assertEqual(mistral["concurrency_limit"], 4)
         self.assertIsNone(mistral["available"])
         self.assertEqual(mistral["availability_status"], "static")
+        self.assertIsNone(mistral["last_verified_at"])
         self.assertTrue(gpt_api["reasoning_capable"])
         self.assertEqual(gpt_api["timeout_seconds"], 60)
         self.assertEqual(gpt_api["expected_latency_class"], "slow")
         self.assertEqual(gpt_api["concurrency_limit"], 4)
         self.assertEqual(gpt_api["provider"], "openai")
         self.assertEqual(gpt_api["availability_status"], "static")
+        self.assertIsNone(gpt_api["last_verified_at"])
 
     def test_models_endpoint_annotates_browser_availability_from_observed_menu(self) -> None:
         app = create_app(
@@ -160,6 +163,10 @@ class HttpApiSmokeTests(unittest.TestCase):
                     "observed_model_menu": ["Kimi K2", "GPT-5.4", "Best"],
                     "observed_model_menu_at": datetime(2026, 3, 17, 18, 45, tzinfo=UTC),
                     "observed_model_menu_source": "perplexity-model-menu",
+                    "verified_model_labels_at": {
+                        "GPT-5.4": datetime(2026, 3, 17, 18, 46, tzinfo=UTC),
+                    },
+                    "last_model_picker_unavailable_at": None,
                 }
 
         app.state.browser_adapter._automation = ObservedMenuAutomation()
@@ -172,14 +179,17 @@ class HttpApiSmokeTests(unittest.TestCase):
             gpt = next(item for item in payload if item["id"] == "gpt-5-4")
             claude = next(item for item in payload if item["id"] == "claude-sonnet-4-6")
             mistral = next(item for item in payload if item["id"] == "mistral-small")
-            self.assertEqual(kimi["availability_status"], "observed_available")
+            self.assertEqual(kimi["availability_status"], "observed_unverified")
             self.assertEqual(kimi["available"], True)
             self.assertEqual(kimi["availability_source"], "perplexity-model-menu")
             self.assertEqual(kimi["availability_checked_at"], "2026-03-17T18:45:00Z")
+            self.assertIsNone(kimi["last_verified_at"])
             self.assertEqual(gpt["availability_status"], "observed_available")
             self.assertEqual(gpt["available"], True)
+            self.assertEqual(gpt["last_verified_at"], "2026-03-17T18:46:00Z")
             self.assertEqual(claude["availability_status"], "observed_unavailable")
             self.assertEqual(claude["available"], False)
+            self.assertIsNone(claude["last_verified_at"])
             self.assertEqual(mistral["availability_status"], "static")
             self.assertIsNone(mistral["available"])
 

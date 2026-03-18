@@ -53,6 +53,8 @@ class PlaywrightBrowserAutomation(BrowserAutomationPort):
         self._page: Any | None = None
         self._observed_model_menu: tuple[str, ...] = ()
         self._observed_model_menu_at: datetime | None = None
+        self._verified_model_labels_at: dict[str, datetime] = {}
+        self._last_model_picker_unavailable_at: datetime | None = None
 
     def ensure_session(self, session_manager: BrowserSessionManager) -> None:
         state = session_manager.state
@@ -141,10 +143,28 @@ class PlaywrightBrowserAutomation(BrowserAutomationPort):
         if model_button is None and reset_attempted:
             model_button = self._resolve_model_button(page, attempts=policy.wait_attempts)
         if model_button is None:
-            raise RuntimeError(
-                "Perplexity model selector did not become visible after shell readiness. "
-                f"fresh_thread_reset_attempted={reset_attempted}. "
-                f"Visible buttons: {visible_buttons}"
+            self._last_model_picker_unavailable_at = datetime.now(UTC)
+            logger.warning(
+                "Perplexity model selector is unavailable; continuing without verified model selection. "
+                "fresh_thread_reset_attempted=%s visible_buttons=%s",
+                reset_attempted,
+                visible_buttons,
+            )
+            return BrowserModelSelection(
+                requested_label=provider_model_id,
+                actual_label=provider_model_id,
+                details={
+                    "driver": "playwright",
+                    "model_selection_verified": False,
+                    "model_selection_attempted": False,
+                    "model_picker_unavailable": True,
+                    "fresh_thread_reset_attempted": reset_attempted,
+                    "model_verification_wait_attempts": policy.wait_attempts,
+                    "model_button_text_before": None,
+                    "model_button_text_after": None,
+                    "button_debug_snapshot": visible_buttons,
+                    "model_menu_snapshot": [],
+                },
             )
         model_button_text_before = self._locator_inner_text(model_button)
         logger.info("Selecting Perplexity model '%s' through Playwright", provider_model_id)
@@ -190,6 +210,8 @@ class PlaywrightBrowserAutomation(BrowserAutomationPort):
             model_selection_verified = self._button_text_matches_requested(provider_model_id, model_button_text_after)
         if not model_selection_verified and selection_evidence["verified"]:
             model_selection_verified = True
+        if model_selection_verified:
+            self._verified_model_labels_at[provider_model_id] = datetime.now(UTC)
         return BrowserModelSelection(
             requested_label=provider_model_id,
             actual_label=provider_model_id,
@@ -252,6 +274,8 @@ class PlaywrightBrowserAutomation(BrowserAutomationPort):
             "observed_model_menu": list(self._observed_model_menu),
             "observed_model_menu_at": self._observed_model_menu_at,
             "observed_model_menu_source": "perplexity-model-menu" if self._observed_model_menu else None,
+            "verified_model_labels_at": dict(self._verified_model_labels_at),
+            "last_model_picker_unavailable_at": self._last_model_picker_unavailable_at,
             "reason": dependency_error,
         }
 
