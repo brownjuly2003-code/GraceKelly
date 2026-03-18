@@ -70,7 +70,7 @@ Key metric groups:
 - `gracekelly_browser_circuit_breaker_open_count`
 - `gracekelly_browser_circuit_breaker_fail_fast_rejections`
 
-Current storage-count gauges are present on the in-memory backend. PostgreSQL currently exposes connectivity and schema state, not live row counts.
+Storage-count gauges are present on both the in-memory backend and PostgreSQL when the repository healthcheck can read the durable tables successfully.
 
 ## Browser triage
 

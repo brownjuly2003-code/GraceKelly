@@ -290,15 +290,14 @@ class PostgresTaskRepository(TaskRepository):
 
     def healthcheck(self) -> dict[str, Any]:
         try:
-            with self._connect(row_factory=dict_row) as conn:
-                with conn.cursor() as cursor:
-                    cursor.execute("SELECT 1 AS ok")
-                    row = cursor.fetchone()
+            row = self._load_health_ping()
+            counts = self._load_storage_counts()
             return {
                 "status": "ok",
                 "backend": self.backend_name,
                 "schema_version": INITIAL_MIGRATION_NAME,
                 "details": row or {"ok": 1},
+                **counts,
             }
         except Exception as exc:
             logger.warning(
@@ -371,6 +370,32 @@ class PostgresTaskRepository(TaskRepository):
                 continue
             columns.setdefault(table_name, set()).add(row["column_name"])
         return columns
+
+    def _load_health_ping(self) -> dict[str, Any]:
+        with self._connect(row_factory=dict_row) as conn:
+            with conn.cursor() as cursor:
+                cursor.execute("SELECT 1 AS ok")
+                row = cursor.fetchone()
+        return row or {"ok": 1}
+
+    def _load_storage_counts(self) -> dict[str, int]:
+        query = """
+        SELECT
+            (SELECT COUNT(*) FROM gk_tasks) AS task_count,
+            (SELECT COUNT(*) FROM gk_task_steps) AS step_count,
+            (SELECT COUNT(*) FROM gk_task_events) AS event_count
+        """
+        with self._connect(row_factory=dict_row) as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(query)
+                row = cursor.fetchone()
+        if row is None:
+            return {"task_count": 0, "step_count": 0, "event_count": 0}
+        return {
+            "task_count": int(row["task_count"]),
+            "step_count": int(row["step_count"]),
+            "event_count": int(row["event_count"]),
+        }
 
     def _task_params(self, task: TaskRecord) -> dict[str, Any]:
         return {

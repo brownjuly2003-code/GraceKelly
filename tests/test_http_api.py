@@ -215,6 +215,36 @@ class HttpApiSmokeTests(unittest.TestCase):
             metrics.text,
         )
 
+    def test_metrics_can_expose_postgres_storage_counts(self) -> None:
+        class FakePostgresRepository(InMemoryTaskRepository):
+            backend_name = "postgres"
+
+            def healthcheck(self) -> dict[str, object]:
+                return {
+                    "status": "ok",
+                    "backend": self.backend_name,
+                    "schema_version": "0001_initial",
+                    "task_count": 7,
+                    "step_count": 9,
+                    "event_count": 11,
+                }
+
+            def schema_report(self) -> dict[str, object]:
+                return {
+                    "status": "ok",
+                    "backend": self.backend_name,
+                    "schema_version": "0001_initial",
+                }
+
+        client = self._build_client_with_repository(FakePostgresRepository())
+
+        response = client.get("/metrics")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("gracekelly_storage_task_count 7", response.text)
+        self.assertIn("gracekelly_storage_step_count 9", response.text)
+        self.assertIn("gracekelly_storage_event_count 11", response.text)
+
     def test_readiness_logs_when_overall_status_is_degraded(self) -> None:
         app = create_app(
             Settings(

@@ -160,6 +160,23 @@ class PostgresSchemaTests(unittest.TestCase):
         self.assertNotIn("retry_of_task_id", step_fields)
         self.assertNotIn("attempt_no", step_fields)
 
+    def test_healthcheck_includes_storage_row_counts(self) -> None:
+        repository = PostgresTaskRepository.__new__(PostgresTaskRepository)
+        repository._load_health_ping = lambda: {"ok": 1}
+        repository._load_storage_counts = lambda: {
+            "task_count": 2,
+            "step_count": 3,
+            "event_count": 5,
+        }
+
+        report = repository.healthcheck()
+
+        self.assertEqual(report["status"], "ok")
+        self.assertEqual(report["details"], {"ok": 1})
+        self.assertEqual(report["task_count"], 2)
+        self.assertEqual(report["step_count"], 3)
+        self.assertEqual(report["event_count"], 5)
+
     def test_healthcheck_logs_warning_when_connectivity_is_degraded(self) -> None:
         repository = PostgresTaskRepository.__new__(PostgresTaskRepository)
         repository._connect_timeout_seconds = 5

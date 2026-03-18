@@ -173,6 +173,7 @@ This document is the working source of truth for GraceKelly delivery. We update 
 [x] Tighten browser runtime cleanup so adapter `close()` leaves the session idle and healthcheck can detect stale session-vs-driver mismatches.
 [x] Add a PostgreSQL export CLI that writes JSON task/step/event snapshots so durable-state backup work starts with a simple operator-friendly path.
 [x] Add a PostgreSQL import CLI that restores exported task/step/event snapshots by replacing matching task IDs in place.
+[x] Expose PostgreSQL task/step/event row counts through storage health so `/metrics` reports durable storage volume alongside in-memory counts.
 
 ## Issue log
 - 2026-03-16: Legacy reference project has corrupted SQLite databases. Decision: no storage design or migration path in GraceKelly may depend on SQLite integrity.
@@ -254,6 +255,7 @@ This document is the working source of truth for GraceKelly delivery. We update 
 - 2026-03-18: Route and storage logs improved operator visibility, but correlating one API request with later task persistence still depended on manually jumping to `task_id`. Decision: propagate `metadata.trace_id` through route and orchestrator lifecycle logs whenever present, so external callers can stitch request, task creation, and event-persistence failures together without a tracing backend.
 - 2026-03-18: The browser lifespan hook could release Playwright resources, but the session manager could still remain `active=true`, making stale runtime state look healthier than it was. Decision: make browser `close()` explicitly mark the session idle and degrade adapter health when session and automation launched-state disagree.
 - 2026-03-18: PostgreSQL durability had validation tooling and an export path, but still no built-in restore flow that could replay a task snapshot cleanly. Decision: add a task-scoped import CLI that replaces matching `task_id` bundles in place via PostgreSQL cascade semantics instead of pretending an upsert-only merge is a real restore.
+- 2026-03-18: `/metrics` exposed storage counts only for the in-memory backend even though operators now have a durable PostgreSQL restore path. Decision: include PostgreSQL row counts in storage health so the same metrics surface can reflect durable-state volume without a separate stats endpoint.
 - 2026-03-16: Health can legitimately report `degraded` in development when optional adapters are intentionally unconfigured. Decision: treat degraded readiness as operationally informative, not as a startup failure.
 - 2026-03-16: HTTP smoke tests exposed a missing `requested_models` field in `TaskView`. Decision: keep smoke coverage mandatory for API contract changes; bug fixed immediately.
 - 2026-03-16: answers1.md made it clear that several current choices are transitional only: JSON-heavy execution storage, degraded-on-optional readiness, and `best_effort` merge semantics should not be treated as stable architecture.
@@ -356,3 +358,4 @@ This document is the working source of truth for GraceKelly delivery. We update 
 - 2026-03-18: Tightened browser cleanup semantics so adapter shutdown now marks the session idle and adapter health degrades on session/runtime mismatch, closing the stale-state gap left after the first lifespan hook; local suite now passes `136` tests with `4` optional skips.
 - 2026-03-18: Added `gracekelly-export-postgres`, a JSON snapshot CLI for PostgreSQL task, step, and event data with health/schema manifest metadata, and covered it with unit tests.
 - 2026-03-18: Added `gracekelly-import-postgres`, a PostgreSQL restore CLI that replays exported task/step/event bundles by replacing matching task IDs in place, and documented the task-scoped restore semantics in the runbook and README.
+- 2026-03-18: Extended PostgreSQL storage health with task/step/event row counts so `/metrics` now exposes durable-state volume through the same gauges previously limited to the in-memory backend.
