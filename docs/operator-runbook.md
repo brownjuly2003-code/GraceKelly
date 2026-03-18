@@ -199,6 +199,8 @@ Validate restore inputs without writing:
 gracekelly-import-postgres --input D:\GraceKelly\tmp\postgres-export\selected.json --dry-run
 ```
 
+That success payload includes `repository_health` and `repository_schema`, so operators can confirm the target backend state in the same preflight call.
+
 ## Task inspection workflow
 
 1. Find the recent failures:

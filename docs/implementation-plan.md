@@ -179,6 +179,7 @@ This document is the working source of truth for GraceKelly delivery. We update 
 [x] Harden snapshot import validation so duplicate `task_id`, `step_index`, and event `sequence_no` values are rejected before any restore writes begin.
 [x] Add explicit `snapshot_format_version` metadata to PostgreSQL snapshot artifacts so future import compatibility is not inferred only from migration names.
 [x] Add `--dry-run` to PostgreSQL snapshot import so operators can validate artifacts and repository health without writing.
+[x] Include repository health/schema details in successful import and import `--dry-run` output so the preflight result is self-contained.
 
 ## Issue log
 - 2026-03-16: Legacy reference project has corrupted SQLite databases. Decision: no storage design or migration path in GraceKelly may depend on SQLite integrity.
@@ -266,6 +267,7 @@ This document is the working source of truth for GraceKelly delivery. We update 
 - 2026-03-18: Snapshot restore still relied on database or repository write failures to catch duplicate task bundles, step indexes, or event sequence numbers. Decision: reject those duplicate shapes in the import validator before any write path starts.
 - 2026-03-18: Snapshot compatibility was still inferred indirectly through migration naming, which is too weak once export/import artifacts become longer-lived. Decision: stamp each snapshot with an explicit `snapshot_format_version` and reject unknown versions on import.
 - 2026-03-18: Operators could validate snapshot structure and repository health separately, but the import path still had no built-in no-write rehearsal. Decision: add `gracekelly-import-postgres --dry-run` so the exact restore validator path can run without touching task data.
+- 2026-03-18: Even after `--dry-run`, operators still had to infer repository state from separate commands instead of the import result itself. Decision: echo `repository_health` and `repository_schema` on successful import/dry-run so the preflight payload is sufficient on its own.
 - 2026-03-16: Health can legitimately report `degraded` in development when optional adapters are intentionally unconfigured. Decision: treat degraded readiness as operationally informative, not as a startup failure.
 - 2026-03-16: HTTP smoke tests exposed a missing `requested_models` field in `TaskView`. Decision: keep smoke coverage mandatory for API contract changes; bug fixed immediately.
 - 2026-03-16: answers1.md made it clear that several current choices are transitional only: JSON-heavy execution storage, degraded-on-optional readiness, and `best_effort` merge semantics should not be treated as stable architecture.
@@ -374,3 +376,4 @@ This document is the working source of truth for GraceKelly delivery. We update 
 - 2026-03-18: Hardened snapshot import validation to reject duplicate task bundles, duplicate step indexes, and duplicate event sequence numbers before restore writes begin.
 - 2026-03-18: Added `snapshot_format_version` and `gracekelly_version` to PostgreSQL snapshot artifacts and made import reject mismatched format versions before restore begins.
 - 2026-03-18: Added `--dry-run` to `gracekelly-import-postgres`, so restore validation and target-repository checks can be rehearsed without writing any task, step, or event rows.
+- 2026-03-18: Extended successful import output with `repository_health` and `repository_schema`, making the import dry-run result a self-contained preflight report.

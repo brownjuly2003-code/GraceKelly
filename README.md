@@ -234,6 +234,8 @@ Validate a snapshot and the target repository without writing any task data:
 gracekelly-import-postgres --input D:\GraceKelly\tmp\postgres-export\selected.json --dry-run
 ```
 
+The success payload now includes `repository_health` and `repository_schema`, so a dry run can double as a pre-restore validation report.
+
 If connectivity or schema state is intentionally degraded but you still need a manual restore, override the guard explicitly:
 
 ```bash

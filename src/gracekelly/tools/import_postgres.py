@@ -308,6 +308,8 @@ def main() -> int:
         "source_gracekelly_version": snapshot.get("gracekelly_version"),
         "source_migration": snapshot.get("migration"),
         "dry_run": args.dry_run,
+        "repository_health": health,
+        "repository_schema": schema,
         **summary,
     }
     print(json.dumps(result, indent=2, default=_json_default, sort_keys=True))
