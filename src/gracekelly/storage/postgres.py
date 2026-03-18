@@ -49,7 +49,8 @@ INSERT INTO gk_tasks (
     failure_code,
     failure_message,
     output_text,
-    metadata
+    metadata,
+    retry_of_task_id
 )
 VALUES (
     %(task_id)s,
@@ -69,7 +70,8 @@ VALUES (
     %(failure_code)s,
     %(failure_message)s,
     %(output_text)s,
-    %(metadata)s::jsonb
+    %(metadata)s::jsonb,
+    %(retry_of_task_id)s
 )
 ON CONFLICT (task_id) DO UPDATE SET
     status = EXCLUDED.status,
@@ -88,7 +90,8 @@ ON CONFLICT (task_id) DO UPDATE SET
     failure_code = EXCLUDED.failure_code,
     failure_message = EXCLUDED.failure_message,
     output_text = EXCLUDED.output_text,
-    metadata = EXCLUDED.metadata;
+    metadata = EXCLUDED.metadata,
+    retry_of_task_id = EXCLUDED.retry_of_task_id;
 """
 
 _STEP_UPSERT_QUERY = """
@@ -502,6 +505,7 @@ class PostgresTaskRepository(TaskRepository):
             "failure_message": task.failure_message,
             "output_text": task.output_text,
             "metadata": json.dumps(task.metadata),
+            "retry_of_task_id": task.retry_of_task_id,
         }
 
     def _save_task_with_steps_in_cursor(
@@ -565,6 +569,7 @@ class PostgresTaskRepository(TaskRepository):
             failure_message=row["failure_message"],
             output_text=row["output_text"],
             metadata=metadata,
+            retry_of_task_id=row.get("retry_of_task_id"),
         )
 
     def _step_from_row(self, row: dict[str, Any]) -> TaskStepRecord:

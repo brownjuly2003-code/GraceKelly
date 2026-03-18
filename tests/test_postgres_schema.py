@@ -143,23 +143,17 @@ class PostgresSchemaTests(unittest.TestCase):
         self.assertEqual(kwargs["connect_timeout"], 7)
         self.assertEqual(kwargs["row_factory"], "dict")
 
-    def test_initial_schema_explicitly_excludes_retry_columns(self) -> None:
-        sql = load_migration_sql(INITIAL_MIGRATION_NAME)
-
-        self.assertNotIn("attempt_no", sql)
-        self.assertNotIn("retry_of_task_id", sql)
-        for columns in EXPECTED_SCHEMA_COLUMNS.values():
-            self.assertNotIn("attempt_no", columns)
-            self.assertNotIn("retry_of_task_id", columns)
-
-    def test_storage_records_do_not_expose_retry_fields(self) -> None:
+    def test_retry_model_uses_task_level_linkage_not_step_attempts(self) -> None:
         task_fields = {field.name for field in fields(TaskRecord)}
         step_fields = {field.name for field in fields(TaskStepRecord)}
 
-        self.assertNotIn("retry_of_task_id", task_fields)
+        self.assertIn("retry_of_task_id", task_fields)
         self.assertNotIn("attempt_no", task_fields)
         self.assertNotIn("retry_of_task_id", step_fields)
         self.assertNotIn("attempt_no", step_fields)
+
+    def test_retry_of_task_id_in_expected_schema(self) -> None:
+        self.assertIn("retry_of_task_id", EXPECTED_SCHEMA_COLUMNS["gk_tasks"])
 
     def test_healthcheck_includes_storage_row_counts(self) -> None:
         repository = PostgresTaskRepository.__new__(PostgresTaskRepository)

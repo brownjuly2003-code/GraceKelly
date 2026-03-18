@@ -212,6 +212,7 @@ class TaskView(OrchestrateResponse):
     merge_strategy: str
     adapter_hint: str
     cancel_on_quorum: bool
+    retry_of_task_id: str | None = None
     winning_step_index: int | None = None
     cancelled_steps: list[int] = Field(default_factory=list)
     cancel_reason: str | None = None
@@ -249,6 +250,7 @@ class TaskView(OrchestrateResponse):
             merge_strategy=task.merge_strategy,
             adapter_hint=task.adapter_hint,
             cancel_on_quorum=task.cancel_on_quorum,
+            retry_of_task_id=task.retry_of_task_id,
             winning_step_index=terminal_summary["winning_step_index"],
             cancelled_steps=terminal_summary["cancelled_steps"],
             cancel_reason=terminal_summary["cancel_reason"],

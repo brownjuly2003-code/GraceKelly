@@ -34,6 +34,7 @@ EXPECTED_SCHEMA_COLUMNS: dict[str, tuple[str, ...]] = {
         "failure_message",
         "output_text",
         "metadata",
+        "retry_of_task_id",
     ),
     "gk_task_steps": (
         "task_id",

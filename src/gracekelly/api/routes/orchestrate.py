@@ -10,6 +10,7 @@ from gracekelly.core.models import resolve_model
 from gracekelly.core.orchestrator import StorageUnavailableError
 from gracekelly.logging_utils import log_message, trace_id_from_metadata
 from gracekelly.schemas import ModelView, OrchestrateRequest, OrchestrateResponse, TaskListItem, TaskView
+from gracekelly.storage.base import TaskRecord
 
 router = APIRouter(prefix="/api/v1", tags=["orchestration"])
 logger = logging.getLogger(__name__)
@@ -236,3 +237,87 @@ async def get_task(task_id: str, request: Request) -> TaskView:
     except KeyError as exc:
         logger.warning(log_message("task.get.not_found", task_id=task_id))
         raise HTTPException(status_code=404, detail="Task not found") from exc
+
+
+@router.post("/tasks/{task_id}/retry", response_model=OrchestrateResponse, status_code=202)
+async def retry_task(task_id: str, request: Request) -> OrchestrateResponse:
+    service = request.app.state.orchestrator_service
+    try:
+        original = await asyncio.to_thread(service.get_task, task_id)
+        original_steps = await asyncio.to_thread(service.list_task_steps, task_id)
+        original_events = await asyncio.to_thread(service.list_task_events, task_id)
+    except StorageUnavailableError as exc:
+        raise HTTPException(status_code=503, detail=_storage_error_detail(exc)) from exc
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail="Task not found") from exc
+
+    if original.status not in (TaskStatus.FAILED, TaskStatus.CANCELLED):
+        raise HTTPException(
+            status_code=409,
+            detail=f"Only failed or cancelled tasks can be retried. Current status: {original.status.value}",
+        )
+
+    retry_request = _build_retry_request(original, original_steps, original_events)
+    logger.info(
+        log_message(
+            "task.retry.requested",
+            original_task_id=task_id,
+            model_count=len(retry_request.requested_model_names()),
+        )
+    )
+    try:
+        snapshot = await asyncio.to_thread(
+            service.submit_snapshot, retry_request, retry_of_task_id=task_id
+        )
+    except StorageUnavailableError as exc:
+        raise HTTPException(status_code=503, detail=_storage_error_detail(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=_sanitize_validation_error(exc)) from exc
+
+    logger.info(
+        log_message(
+            "task.retry.accepted",
+            original_task_id=task_id,
+            retry_task_id=snapshot.task.task_id,
+        )
+    )
+    return OrchestrateResponse.from_task(
+        snapshot.task,
+        snapshot.steps,
+        [],
+        requested_models_override=_requested_models_from_request(retry_request),
+    )
+
+
+def _build_retry_request(
+    task: TaskRecord,
+    steps: list,
+    events: list,
+) -> OrchestrateRequest:
+    model_ids = sorted({step.model_id for step in steps}) if steps else []
+    if not model_ids:
+        model_ids = _models_from_accepted_event(events)
+    return OrchestrateRequest(
+        prompt=task.prompt,
+        models=model_ids if len(model_ids) != 1 else [],
+        model=model_ids[0] if len(model_ids) == 1 else None,
+        adapter_hint=task.adapter_hint,
+        quorum=task.quorum,
+        merge_strategy=task.merge_strategy,
+        cancel_on_quorum=task.cancel_on_quorum,
+        reasoning=task.reasoning,
+        metadata=task.metadata,
+        dry_run=task.dry_run,
+    )
+
+
+def _models_from_accepted_event(events: list) -> list[str]:
+    for event in events:
+        if getattr(event, "event_type", None) == "task.accepted" or (
+            hasattr(event, "event_type") and str(event.event_type) == "task.accepted"
+        ):
+            payload = getattr(event, "payload", {})
+            plan = payload.get("execution_plan", {})
+            steps = plan.get("steps", [])
+            return sorted({step.get("model_id", "") for step in steps if step.get("model_id")})
+    return []

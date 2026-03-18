@@ -111,9 +111,10 @@ Already delivered:
 - opt-in API key authentication (`GRACEKELLY_API_KEY`)
 - opt-in per-IP rate limiting (`GRACEKELLY_RATE_LIMIT_PER_MINUTE`)
 
-Remaining:
-- account-pool abstractions
-- any real retry model beyond the current deferral
+Delivered after account-pool and retry:
+- thread-safe `AccountPool` with LRU selection and configurable cooldown
+- task-level retry via `retry_of_task_id` linkage and `POST /api/v1/tasks/{id}/retry`
+- migration `0002_add_retry_of_task_id.sql`
 
 ## Phase 5: Operations surface
 

@@ -81,7 +81,12 @@ class OrchestratorService:
     def submit(self, request: OrchestrateRequest) -> TaskRecord:
         return self.submit_snapshot(request).task
 
-    def submit_snapshot(self, request: OrchestrateRequest) -> SubmissionSnapshot:
+    def submit_snapshot(
+        self,
+        request: OrchestrateRequest,
+        *,
+        retry_of_task_id: str | None = None,
+    ) -> SubmissionSnapshot:
         execution_plan = build_execution_plan(request)
         task_id = str(uuid4())
         trace_id = trace_id_from_metadata(request.metadata)
@@ -126,6 +131,7 @@ class OrchestratorService:
             failure_message=batch_result.failure_message,
             output_text=batch_result.output_text,
             metadata=dict(request.metadata),
+            retry_of_task_id=retry_of_task_id,
         )
         steps = self._build_step_records(task_id, execution_plan, batch_result.results)
         try:

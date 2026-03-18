@@ -36,6 +36,7 @@ class TaskRecord:
     failure_message: str | None = None
     output_text: str | None = None
     metadata: dict[str, Any] = field(default_factory=dict)
+    retry_of_task_id: str | None = None
 
 
 @dataclass(slots=True)

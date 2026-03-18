@@ -959,5 +959,54 @@ class HttpApiSmokeTests(unittest.TestCase):
         self.assertEqual(task_payload["events"][2]["payload"]["details"]["failed_step_count"], 1)
 
 
+    def test_retry_failed_task_creates_new_task_with_linkage(self) -> None:
+        submit = self.client.post(
+            "/api/v1/orchestrate",
+            json={
+                "prompt": "retry me",
+                "model": "Mistral",
+                "dry_run": True,
+            },
+        )
+        self.assertEqual(submit.status_code, 202)
+        original_id = submit.json()["task_id"]
+
+        # Patch the original task to "failed" for retry
+        repo = self.client.app.state.orchestrator_service._repository
+        task = repo.get(original_id)
+        from gracekelly.core.contracts import TaskStatus, FailureCode
+        task.status = TaskStatus.FAILED
+        task.failure_code = FailureCode.TIMEOUT
+        task.failure_message = "timed out"
+
+        retry = self.client.post(f"/api/v1/tasks/{original_id}/retry")
+        self.assertEqual(retry.status_code, 202)
+        retry_payload = retry.json()
+        self.assertNotEqual(retry_payload["task_id"], original_id)
+
+        retry_detail = self.client.get(f"/api/v1/tasks/{retry_payload['task_id']}")
+        self.assertEqual(retry_detail.status_code, 200)
+        self.assertEqual(retry_detail.json()["retry_of_task_id"], original_id)
+
+    def test_retry_completed_task_returns_409(self) -> None:
+        submit = self.client.post(
+            "/api/v1/orchestrate",
+            json={
+                "prompt": "completed task",
+                "model": "Mistral",
+                "dry_run": True,
+            },
+        )
+        self.assertEqual(submit.status_code, 202)
+        task_id = submit.json()["task_id"]
+
+        retry = self.client.post(f"/api/v1/tasks/{task_id}/retry")
+        self.assertEqual(retry.status_code, 409)
+
+    def test_retry_nonexistent_task_returns_404(self) -> None:
+        retry = self.client.post("/api/v1/tasks/nonexistent/retry")
+        self.assertEqual(retry.status_code, 404)
+
+
 if __name__ == "__main__":
     unittest.main()
