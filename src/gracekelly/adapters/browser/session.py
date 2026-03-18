@@ -61,6 +61,13 @@ class BrowserSessionManager:
             provider = self._state.provider
         logger.warning("Browser session marked degraded for provider %s: %s", provider, message)
 
+    def mark_idle(self) -> None:
+        with self._lock:
+            self._state.active = False
+            self._state.last_error = None
+            provider = self._state.provider
+        logger.info("Browser session marked idle for provider %s", provider)
+
     def healthcheck(self) -> dict[str, object]:
         state = self.state
         status = "ok" if state.configured and state.active else "degraded"

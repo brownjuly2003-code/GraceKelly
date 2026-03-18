@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import unittest
 
 from gracekelly.adapters.browser.automation import (
@@ -230,11 +231,13 @@ class BrowserAdapterTests(unittest.TestCase):
 
         with self.assertLogs("gracekelly.adapters.browser.session", level="INFO") as captured:
             session_manager.mark_active()
+            session_manager.mark_idle()
             session_manager.mark_error("browser offline")
 
-        self.assertEqual(len(captured.output), 2)
+        self.assertEqual(len(captured.output), 3)
         self.assertIn("marked active", captured.output[0])
-        self.assertIn("browser offline", captured.output[1])
+        self.assertIn("marked idle", captured.output[1])
+        self.assertIn("browser offline", captured.output[2])
 
     def test_browser_adapter_logs_successful_execution(self) -> None:
         adapter = PerplexityBrowserAdapter(
@@ -264,6 +267,51 @@ class BrowserAdapterTests(unittest.TestCase):
         self.assertEqual(result.failure_code, FailureCode.AUTH_FAILED)
         self.assertEqual(len(captured.output), 1)
         self.assertIn("auth_failed", captured.output[0])
+
+    def test_browser_adapter_close_marks_session_idle(self) -> None:
+        class ClosableAutomation(FakeBrowserAutomation):
+            def __init__(self) -> None:
+                super().__init__()
+                self.closed = False
+
+            def close(self) -> None:
+                self.closed = True
+
+        session_manager = self.build_session_manager()
+        session_manager.mark_active()
+        automation = ClosableAutomation()
+        adapter = PerplexityBrowserAdapter(
+            session_manager=session_manager,
+            automation=automation,
+        )
+
+        asyncio.run(adapter.close())
+
+        self.assertTrue(automation.closed)
+        self.assertFalse(session_manager.state.active)
+        self.assertIsNone(session_manager.state.last_error)
+
+    def test_browser_healthcheck_degrades_when_session_and_automation_runtime_disagree(self) -> None:
+        class NotLaunchedAutomation(FakeBrowserAutomation):
+            def healthcheck(self) -> dict[str, object]:
+                return {
+                    "status": "ok",
+                    "implemented": True,
+                    "driver": "playwright",
+                    "launched": False,
+                }
+
+        session_manager = self.build_session_manager()
+        session_manager.mark_active()
+        adapter = PerplexityBrowserAdapter(
+            session_manager=session_manager,
+            automation=NotLaunchedAutomation(),
+        )
+
+        health = adapter.healthcheck()
+
+        self.assertEqual(health["status"], "degraded")
+        self.assertFalse(health["runtime_consistent"])
 
 
 if __name__ == "__main__":

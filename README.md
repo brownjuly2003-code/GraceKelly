@@ -73,6 +73,7 @@ curl -X POST http://127.0.0.1:8011/api/v1/orchestrate \
 - API-backed execution now includes both a minimal Mistral adapter boundary and an OpenAI-compatible boundary.
 - Browser-backed execution now includes both the `scripted` backend and a first headed Playwright backend.
 - Browser execution is wrapped in a small in-process circuit breaker that trips on repeated `provider_unavailable`, `timeout`, or `unknown_error` failures and reports its state through health/readiness.
+- Browser shutdown now resets session state to idle, and browser adapter health explicitly degrades if session state and live driver state drift apart.
 - Route and degraded-storage diagnostics now emit structured `key=value` logs, so task submission, task lookup, readiness degradation, and PostgreSQL health/schema failures are easier to trace in plain logs.
 - If callers send `metadata.trace_id`, that value is propagated into route and orchestrator lifecycle logs for lightweight correlation.
 - PostgreSQL schema bootstrap now lives in a packaged SQL migration: `src/gracekelly/storage/migrations/0001_initial.sql`.

@@ -14,6 +14,7 @@ Implemented:
 - dual-backend storage: in-memory (development) and PostgreSQL (durable)
 - execution adapters: dry-run, Mistral API, OpenAI-compatible API, Perplexity browser (scripted and thin Playwright backends)
 - cooperative cancel-on-quorum with per-model timeout, concurrency enforcement, and a minimal browser circuit breaker
+- browser adapter lifecycle cleanup that resets idle session state on shutdown and detects stale runtime/session mismatches
 - structured key-value logging across orchestrator, browser adapters, API routes, and PostgreSQL degradation paths
 - operator surfaces: recent-task listing with multi-axis filtering, rich task detail with diagnostics
 

@@ -174,6 +174,11 @@ class PerplexityBrowserAdapter(ExecutionAdapter):
         session_health = self._session_manager.healthcheck()
         automation_health = self._automation.healthcheck()
         status = session_health["status"]
+        runtime_consistent = True
+        automation_launched = automation_health.get("launched")
+        if isinstance(automation_launched, bool) and session_health.get("active") != automation_launched:
+            runtime_consistent = False
+            status = "degraded"
         if automation_health.get("status") == "failed":
             status = "failed"
         elif automation_health.get("status") == "degraded" and status == "ok":
@@ -182,6 +187,7 @@ class PerplexityBrowserAdapter(ExecutionAdapter):
             "status": status,
             "adapter_name": self.name,
             "provider": "perplexity",
+            "runtime_consistent": runtime_consistent,
             "session": session_health,
             "automation": automation_health,
             "policies": {
@@ -194,11 +200,11 @@ class PerplexityBrowserAdapter(ExecutionAdapter):
 
     async def close(self) -> None:
         close_method = getattr(self._automation, "close", None)
-        if not callable(close_method):
-            return
-        result = close_method()
-        if inspect.isawaitable(result):
-            await result
+        if callable(close_method):
+            result = close_method()
+            if inspect.isawaitable(result):
+                await result
+        self._session_manager.mark_idle()
 
     def _ensure_auth(self) -> BrowserAuthStatus:
         auth = self._automation.auth_status(self._auth_policy)

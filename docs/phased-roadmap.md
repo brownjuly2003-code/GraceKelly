@@ -50,9 +50,11 @@ Deliverables:
 - external Gate 4 boundary review completed in `audit2.md`
 
 Next:
-- concrete browser-driver cleanup on top of the new app lifespan hook
 - broader browser catalog refresh if Perplexity account tiers continue to drift beyond the canonical registry
 - broader browser-layer logging if the live Playwright path grows more stateful than the current adapter/runtime entries
+
+Delivered after the first live-driver smoke:
+- concrete browser-driver cleanup on top of the app lifespan hook, including idle-session reset and stale runtime detection
 
 Support in place:
 - manual-gated live Playwright smoke test in `tests/test_playwright_live.py`
