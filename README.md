@@ -206,9 +206,10 @@ This writes a JSON snapshot under `tmp/postgres-export/` by default, including:
 - `snapshot_format_version` and `gracekelly_version`
 - `snapshot_sha256` integrity digest
 - repository health and schema report
+- `exported_task_ids` for quick manifest inspection
 - serialized task records with nested steps and events
 
-The command summary also includes `repository_health` and `repository_schema`, so the export result itself is usable as a lightweight storage preflight.
+The command summary also includes `requested_task_ids`, `exported_task_ids`, `missing_task_ids`, `repository_health`, and `repository_schema`, so the export result itself is usable as a lightweight storage preflight.
 
 If the output path ends with `.gz`, GraceKelly writes a gzip-compressed snapshot:
 

@@ -183,6 +183,7 @@ This document is the working source of truth for GraceKelly delivery. We update 
 [x] Include repository health/schema details in successful export output so snapshot creation and storage preflight share the same operator surface.
 [x] Support gzip-compressed PostgreSQL snapshots via `.json.gz` export/import paths so larger backups do not require manual compression steps.
 [x] Allow PostgreSQL snapshot import to target specific `task_id` values from a larger artifact and surface missing IDs as a partial restore outcome.
+[x] Expose `requested_task_ids` and `exported_task_ids` in PostgreSQL export summaries so partial or deduplicated selection is visible without opening the artifact.
 
 ## Issue log
 - 2026-03-16: Legacy reference project has corrupted SQLite databases. Decision: no storage design or migration path in GraceKelly may depend on SQLite integrity.
@@ -207,6 +208,7 @@ This document is the working source of truth for GraceKelly delivery. We update 
 - 2026-03-17: The PostgreSQL validation CLI was part of the documented operator workflow, but it had no automated coverage at all. Decision: add unit tests around DSN resolution, degraded reporting, and successful bootstrapped runs.
 - 2026-03-17: Best-effort event persistence could strip `requested_models` out of dry-run submission responses even when task acceptance succeeded. Decision: build the `POST /orchestrate` summary from the validated request model list rather than depending on accepted-event persistence.
 - 2026-03-18: Snapshot export already supported task selection, but import still forced whole-artifact replay even when the operator only needed one bundle back. Decision: add repeatable `--task-id` filters on import and surface missing IDs via an explicit `partial` result instead of silently restoring everything.
+- 2026-03-18: Export selection still required opening the snapshot file to confirm which task bundles actually landed after deduplication or missing-ID filtering. Decision: expose both requested and exported task IDs in the export summary and manifest.
 - 2026-03-17: The project was still being managed without local git history. Decision: initialize a repository on `main` and ignore generated Python packaging/test artifacts before further iteration.
 - 2026-03-17: `MergeStrategy` had been introduced at the request/planning layer, but repository read paths and one event-building branch still fell back to raw strings. Decision: normalize storage reads back to `MergeStrategy` and remove the last internal string comparison.
 - 2026-03-17: Browser adapter generic runtime failures were still reported as `provider_unavailable`, conflating internal crashes with upstream availability problems. Decision: map unexpected browser exceptions to `unknown_error` and reserve `provider_unavailable` for actual configuration/provider reachability issues.
@@ -386,3 +388,4 @@ This document is the working source of truth for GraceKelly delivery. We update 
 - 2026-03-18: Extended successful export output with `repository_health` and `repository_schema`, so snapshot creation and storage preflight now expose the same operator-facing repository summary.
 - 2026-03-18: Added transparent `.json.gz` support to PostgreSQL snapshot export/import paths, with regression coverage for compressed output and compressed input.
 - 2026-03-18: Added selective `--task-id` filtering to `gracekelly-import-postgres`, including partial-result reporting when only some requested task bundles are present in the snapshot artifact.
+- 2026-03-18: Extended PostgreSQL export artifacts and summaries with explicit requested/exported task ID lists, so partial or deduplicated selection is visible without inspecting nested task payloads.

@@ -80,6 +80,7 @@ def collect_export_snapshot(
 ) -> dict[str, Any]:
     selected_task_ids = list(task_ids or [])
     exported_tasks: list[dict[str, Any]] = []
+    exported_task_ids: list[str] = []
     missing_task_ids: list[str] = []
 
     if selected_task_ids:
@@ -95,6 +96,7 @@ def collect_export_snapshot(
                     "events": [serialize_record(item) for item in repository.list_events(task_id)],
                 }
             )
+            exported_task_ids.append(task_id)
     else:
         for task in repository.list_recent(limit):
             exported_tasks.append(
@@ -104,6 +106,7 @@ def collect_export_snapshot(
                     "events": [serialize_record(item) for item in repository.list_events(task.task_id)],
                 }
             )
+            exported_task_ids.append(task.task_id)
 
     health = repository.healthcheck()
     schema = repository.schema_report()
@@ -122,6 +125,7 @@ def collect_export_snapshot(
         "health": _normalize(health),
         "schema": _normalize(schema),
         "task_count": len(exported_tasks),
+        "exported_task_ids": exported_task_ids,
         "missing_task_ids": missing_task_ids,
         "tasks": exported_tasks,
     }
@@ -136,6 +140,7 @@ def write_snapshot(path: Path, snapshot: dict[str, Any]) -> None:
 def main() -> int:
     args = parse_args()
     dsn = resolve_dsn(args.dsn)
+    requested_task_ids = list(dict.fromkeys(getattr(args, "task_ids", [])))
     if not dsn:
         print(
             json.dumps(
@@ -165,7 +170,7 @@ def main() -> int:
         repository = PostgresTaskRepository(dsn, bootstrap=False)
         snapshot = collect_export_snapshot(
             repository,
-            task_ids=args.task_ids,
+            task_ids=requested_task_ids,
             limit=args.limit,
         )
         write_snapshot(output_path, snapshot)
@@ -189,6 +194,8 @@ def main() -> int:
         "gracekelly_version": snapshot["gracekelly_version"],
         "migration": INITIAL_MIGRATION_NAME,
         "output": str(output_path),
+        "requested_task_ids": requested_task_ids,
+        "exported_task_ids": snapshot["exported_task_ids"],
         "repository_health": snapshot["health"],
         "repository_schema": snapshot["schema"],
         "task_count": snapshot["task_count"],

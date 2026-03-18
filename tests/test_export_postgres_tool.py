@@ -110,6 +110,7 @@ class ExportPostgresToolTests(unittest.TestCase):
         self.assertEqual(snapshot["snapshot_format_version"], SNAPSHOT_FORMAT_VERSION)
         self.assertEqual(snapshot["gracekelly_version"], __version__)
         self.assertEqual(snapshot["task_count"], 1)
+        self.assertEqual(snapshot["exported_task_ids"], ["task-1"])
         self.assertEqual(snapshot["generated_at"], "2026-03-18T17:05:00Z")
         self.assertEqual(snapshot["tasks"][0]["task"]["task_id"], "task-1")
         self.assertEqual(snapshot["tasks"][0]["steps"][0]["model_id"], "kimi-k2-5")
@@ -180,7 +181,7 @@ class ExportPostgresToolTests(unittest.TestCase):
                     return_value=argparse.Namespace(
                         dsn="postgresql://example",
                         output=str(output_path),
-                        task_ids=["task-1", "task-missing"],
+                        task_ids=["task-1", "task-1", "task-missing"],
                         limit=100,
                     ),
                 ),
@@ -196,6 +197,8 @@ class ExportPostgresToolTests(unittest.TestCase):
             self.assertEqual(result["status"], "partial")
             self.assertEqual(result["snapshot_format_version"], SNAPSHOT_FORMAT_VERSION)
             self.assertEqual(result["gracekelly_version"], __version__)
+            self.assertEqual(result["requested_task_ids"], ["task-1", "task-missing"])
+            self.assertEqual(result["exported_task_ids"], ["task-1"])
             self.assertEqual(result["repository_health"]["status"], "ok")
             self.assertEqual(result["repository_schema"]["schema_version"], "0001_initial")
             self.assertEqual(result["task_count"], 1)
@@ -204,6 +207,8 @@ class ExportPostgresToolTests(unittest.TestCase):
             snapshot = json.loads(output_path.read_text(encoding="utf-8"))
             self.assertEqual(snapshot["snapshot_format_version"], SNAPSHOT_FORMAT_VERSION)
             self.assertEqual(snapshot["gracekelly_version"], __version__)
+            self.assertEqual(snapshot["selection"]["task_ids"], ["task-1", "task-missing"])
+            self.assertEqual(snapshot["exported_task_ids"], ["task-1"])
             self.assertEqual(snapshot["tasks"][0]["task"]["task_id"], "task-1")
             self.assertEqual(snapshot["missing_task_ids"], ["task-missing"])
             self.assertEqual(snapshot["snapshot_sha256"], compute_snapshot_sha256(snapshot))
