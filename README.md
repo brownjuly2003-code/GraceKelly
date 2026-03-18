@@ -57,6 +57,8 @@ uvicorn gracekelly.main:app --app-dir src --host 127.0.0.1 --port 8011
 pytest -q
 ```
 
+Current suite: 359 tests (4 optional skips for live PostgreSQL/Playwright).
+
 The project config adds `src` to the pytest import path, so local test runs do not require an editable install just to resolve `gracekelly.*` imports.
 
 ## Example request
@@ -66,6 +68,48 @@ curl -X POST http://127.0.0.1:8011/api/v1/orchestrate \
   -H "content-type: application/json" \
   -d "{\"prompt\":\"Health check prompt\",\"models\":[\"Kimi K2\",\"Mistral\"],\"dry_run\":true,\"quorum\":1}"
 ```
+
+## API security
+
+### Authentication
+
+```bash
+set GRACEKELLY_API_KEY=your-secret-key
+uvicorn gracekelly.main:app --app-dir src --host 127.0.0.1 --port 8011
+```
+
+When `GRACEKELLY_API_KEY` is set, all endpoints except `/health`, `/docs`, `/openapi.json`, and `/redoc` require one of:
+- `Authorization: Bearer <key>` header
+- `X-API-Key: <key>` header
+
+When not set, all endpoints are open (development default).
+
+### Rate limiting
+
+```bash
+set GRACEKELLY_RATE_LIMIT_PER_MINUTE=60
+```
+
+When set, each client IP is limited to this many requests per minute on protected endpoints. Returns HTTP 429 when exceeded. Disabled by default.
+
+### Authenticated request example
+
+```bash
+curl -X POST http://127.0.0.1:8011/api/v1/orchestrate \
+  -H "content-type: application/json" \
+  -H "Authorization: Bearer your-secret-key" \
+  -d "{\"prompt\":\"Health check\",\"models\":[\"Mistral\"],\"dry_run\":true}"
+```
+
+## PostgreSQL connection pooling
+
+```bash
+set GRACEKELLY_POSTGRES_POOL_ENABLED=true
+set GRACEKELLY_POSTGRES_POOL_MIN_SIZE=1
+set GRACEKELLY_POSTGRES_POOL_MAX_SIZE=5
+```
+
+When enabled, connections are served from a `psycopg_pool.ConnectionPool` instead of opening per-request. Requires `pip install -e .[postgres]` (includes `psycopg_pool`). Falls back to direct connections if `psycopg_pool` is not installed.
 
 ## Runtime notes
 
