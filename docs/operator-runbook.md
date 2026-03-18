@@ -193,6 +193,12 @@ Restore semantics:
 
 Use `--allow-degraded-schema` only for deliberate manual recovery when the guardrail would otherwise block a needed restore.
 
+Validate restore inputs without writing:
+
+```bash
+gracekelly-import-postgres --input D:\GraceKelly\tmp\postgres-export\selected.json --dry-run
+```
+
 ## Task inspection workflow
 
 1. Find the recent failures:

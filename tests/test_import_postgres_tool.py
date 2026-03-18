@@ -35,7 +35,7 @@ class ImportPostgresToolTests(unittest.TestCase):
             patch.object(
                 import_postgres,
                 "parse_args",
-                return_value=argparse.Namespace(dsn=None, input="snapshot.json", allow_degraded_schema=False),
+                return_value=argparse.Namespace(dsn=None, input="snapshot.json", allow_degraded_schema=False, dry_run=False),
             ),
             patch.object(import_postgres, "resolve_dsn", return_value=None),
             patch("builtins.print") as print_mock,
@@ -56,6 +56,7 @@ class ImportPostgresToolTests(unittest.TestCase):
                     dsn="postgresql://example",
                     input="tmp/test-import-tool/missing.json",
                     allow_degraded_schema=False,
+                    dry_run=False,
                 ),
             ),
             patch.object(import_postgres, "resolve_dsn", return_value="postgresql://example"),
@@ -161,6 +162,7 @@ class ImportPostgresToolTests(unittest.TestCase):
                         dsn="postgresql://example",
                         input=str(snapshot_path),
                         allow_degraded_schema=False,
+                        dry_run=False,
                     ),
                 ),
                 patch.object(import_postgres, "resolve_dsn", return_value="postgresql://example"),
@@ -185,6 +187,99 @@ class ImportPostgresToolTests(unittest.TestCase):
             self.assertEqual(payload["imported_task_count"], 1)
             self.assertEqual(payload["imported_step_count"], 1)
             self.assertEqual(payload["imported_event_count"], 2)
+            self.assertEqual(payload["replaced_task_ids"], ["task-1"])
+        finally:
+            if snapshot_path.exists():
+                snapshot_path.unlink()
+
+    def test_main_supports_dry_run_without_writing(self) -> None:
+        accepted_at = datetime(2026, 3, 18, 18, 0, tzinfo=UTC).isoformat().replace("+00:00", "Z")
+        snapshot_payload = self.build_snapshot_payload({
+            "migration": "0001_initial",
+            "tasks": [
+                {
+                    "task": {
+                        "task_id": "task-1",
+                        "status": "completed",
+                        "accepted_at": accepted_at,
+                        "completed_at": accepted_at,
+                        "duration_ms": 11,
+                        "prompt": "import me",
+                        "reasoning": False,
+                        "execution_mode": "dry-run",
+                        "dry_run": True,
+                        "model_count": 1,
+                        "quorum": 1,
+                        "merge_strategy": "first_success",
+                        "adapter_hint": "auto",
+                        "cancel_on_quorum": True,
+                        "failure_code": None,
+                        "failure_message": None,
+                        "output_text": None,
+                        "metadata": {},
+                    },
+                    "steps": [],
+                    "events": [
+                        {
+                            "event_id": "event-1",
+                            "task_id": "task-1",
+                            "sequence_no": 1,
+                            "event_type": "task.accepted",
+                            "created_at": accepted_at,
+                            "payload": {},
+                        }
+                    ],
+                }
+            ],
+        })
+        snapshot_path = self.write_snapshot(snapshot_payload)
+
+        class FakeRepository:
+            def __init__(self, dsn: str, *, bootstrap: bool) -> None:
+                self.replace_called = False
+
+            def healthcheck(self) -> dict[str, object]:
+                return {"status": "ok", "backend": "postgres"}
+
+            def schema_report(self) -> dict[str, object]:
+                return {"status": "ok", "backend": "postgres", "schema_version": "0001_initial"}
+
+            def replace_task_snapshot(self, task, steps, events) -> None:
+                self.replace_called = True
+
+        fake_instances: list[FakeRepository] = []
+
+        def build_fake_repository(dsn: str, *, bootstrap: bool):
+            repo = FakeRepository(dsn, bootstrap=bootstrap)
+            fake_instances.append(repo)
+            return repo
+
+        try:
+            with (
+                patch.object(
+                    import_postgres,
+                    "parse_args",
+                    return_value=argparse.Namespace(
+                        dsn="postgresql://example",
+                        input=str(snapshot_path),
+                        allow_degraded_schema=False,
+                        dry_run=True,
+                    ),
+                ),
+                patch.object(import_postgres, "resolve_dsn", return_value="postgresql://example"),
+                patch.object(import_postgres, "PostgresTaskRepository", side_effect=build_fake_repository),
+                patch("builtins.print") as print_mock,
+            ):
+                code = import_postgres.main()
+
+            self.assertEqual(code, 0)
+            self.assertEqual(len(fake_instances), 1)
+            self.assertFalse(fake_instances[0].replace_called)
+            payload = json.loads(print_mock.call_args.args[0])
+            self.assertEqual(payload["status"], "ok")
+            self.assertTrue(payload["dry_run"])
+            self.assertEqual(payload["imported_task_count"], 1)
+            self.assertEqual(payload["imported_event_count"], 1)
             self.assertEqual(payload["replaced_task_ids"], ["task-1"])
         finally:
             if snapshot_path.exists():
@@ -219,6 +314,7 @@ class ImportPostgresToolTests(unittest.TestCase):
                         dsn="postgresql://example",
                         input=str(snapshot_path),
                         allow_degraded_schema=False,
+                        dry_run=False,
                     ),
                 ),
                 patch.object(import_postgres, "resolve_dsn", return_value="postgresql://example"),
@@ -253,6 +349,7 @@ class ImportPostgresToolTests(unittest.TestCase):
                         dsn="postgresql://example",
                         input=str(snapshot_path),
                         allow_degraded_schema=False,
+                        dry_run=False,
                     ),
                 ),
                 patch.object(import_postgres, "resolve_dsn", return_value="postgresql://example"),
@@ -288,6 +385,7 @@ class ImportPostgresToolTests(unittest.TestCase):
                         dsn="postgresql://example",
                         input=str(snapshot_path),
                         allow_degraded_schema=False,
+                        dry_run=False,
                     ),
                 ),
                 patch.object(import_postgres, "resolve_dsn", return_value="postgresql://example"),
@@ -321,6 +419,7 @@ class ImportPostgresToolTests(unittest.TestCase):
                         dsn="postgresql://example",
                         input=str(snapshot_path),
                         allow_degraded_schema=False,
+                        dry_run=False,
                     ),
                 ),
                 patch.object(import_postgres, "resolve_dsn", return_value="postgresql://example"),
@@ -410,6 +509,7 @@ class ImportPostgresToolTests(unittest.TestCase):
                         dsn="postgresql://example",
                         input=str(snapshot_path),
                         allow_degraded_schema=False,
+                        dry_run=False,
                     ),
                 ),
                 patch.object(import_postgres, "resolve_dsn", return_value="postgresql://example"),
@@ -498,6 +598,7 @@ class ImportPostgresToolTests(unittest.TestCase):
                         dsn="postgresql://example",
                         input=str(snapshot_path),
                         allow_degraded_schema=False,
+                        dry_run=False,
                     ),
                 ),
                 patch.object(import_postgres, "resolve_dsn", return_value="postgresql://example"),
@@ -533,6 +634,7 @@ class ImportPostgresToolTests(unittest.TestCase):
                         dsn="postgresql://example",
                         input=str(snapshot_path),
                         allow_degraded_schema=False,
+                        dry_run=False,
                     ),
                 ),
                 patch.object(import_postgres, "resolve_dsn", return_value="postgresql://example"),

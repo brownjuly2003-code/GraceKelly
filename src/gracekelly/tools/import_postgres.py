@@ -34,6 +34,11 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Allow import to continue even if repository health or schema report is degraded.",
     )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Validate the snapshot and target repository without writing any task data.",
+    )
     return parser.parse_args()
 
 
@@ -203,6 +208,28 @@ def import_snapshot(repository, snapshot: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def summarize_snapshot(snapshot: dict[str, Any]) -> dict[str, Any]:
+    task_ids: list[str] = []
+    step_count = 0
+    event_count = 0
+    for item in snapshot.get("tasks", []):
+        task_payload = item["task"]
+        task = _task_from_snapshot(task_payload)
+        steps = [_step_from_snapshot(step) for step in item.get("steps", [])]
+        events = [_event_from_snapshot(event) for event in item.get("events", [])]
+        _validate_task_bundle(task, steps, events)
+        task_ids.append(task.task_id)
+        step_count += len(steps)
+        event_count += len(events)
+
+    return {
+        "imported_task_count": len(task_ids),
+        "imported_step_count": step_count,
+        "imported_event_count": event_count,
+        "replaced_task_ids": task_ids,
+    }
+
+
 def main() -> int:
     args = parse_args()
     dsn = resolve_dsn(args.dsn)
@@ -253,7 +280,10 @@ def main() -> int:
                 )
             )
             return 2
-        summary = import_snapshot(repository, snapshot)
+        if args.dry_run:
+            summary = summarize_snapshot(snapshot)
+        else:
+            summary = import_snapshot(repository, snapshot)
     except Exception as exc:
         print(
             json.dumps(
@@ -277,6 +307,7 @@ def main() -> int:
         "source_status": snapshot.get("status", "unknown"),
         "source_gracekelly_version": snapshot.get("gracekelly_version"),
         "source_migration": snapshot.get("migration"),
+        "dry_run": args.dry_run,
         **summary,
     }
     print(json.dumps(result, indent=2, default=_json_default, sort_keys=True))

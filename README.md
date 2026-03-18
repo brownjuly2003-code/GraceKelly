@@ -228,6 +228,12 @@ This restores the snapshot task-by-task into PostgreSQL:
 - `snapshot_format_version` is checked when present
 - `snapshot_sha256` is verified when present, so corrupted snapshots are rejected before restore
 
+Validate a snapshot and the target repository without writing any task data:
+
+```bash
+gracekelly-import-postgres --input D:\GraceKelly\tmp\postgres-export\selected.json --dry-run
+```
+
 If connectivity or schema state is intentionally degraded but you still need a manual restore, override the guard explicitly:
 
 ```bash
