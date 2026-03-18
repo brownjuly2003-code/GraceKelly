@@ -131,11 +131,15 @@ def create_app(app_settings: Settings | None = None) -> FastAPI:
             api_key=active_settings.mistral_api_key,
             base_url=active_settings.mistral_base_url,
             timeout_seconds=active_settings.mistral_timeout_seconds,
+            max_retries=active_settings.mistral_max_retries,
+            retry_backoff_seconds=active_settings.mistral_retry_backoff_seconds,
         ),
         "openai": OpenAICompatibleApiAdapter(
             api_key=active_settings.openai_api_key,
             base_url=active_settings.openai_base_url,
             timeout_seconds=active_settings.openai_timeout_seconds,
+            max_retries=active_settings.openai_max_retries,
+            retry_backoff_seconds=active_settings.openai_retry_backoff_seconds,
         ),
     }
     app.state.browser_adapter = build_browser_adapter(active_settings)

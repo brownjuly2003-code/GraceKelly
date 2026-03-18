@@ -192,6 +192,96 @@ class OpenAIErrorPathTests(unittest.TestCase):
         self.assertEqual(result.failure_code, FailureCode.PROVIDER_UNAVAILABLE)
 
 
+class RetryTests(unittest.TestCase):
+    def _adapter(self, max_retries: int = 2) -> MistralApiAdapter:
+        return MistralApiAdapter(
+            api_key="test-key",
+            base_url="https://api.mistral.ai/v1",
+            max_retries=max_retries,
+            retry_backoff_seconds=0.0,
+        )
+
+    @patch("gracekelly.adapters.api.base.request.urlopen")
+    def test_retry_on_429_then_success(self, mock_urlopen: MagicMock) -> None:
+        mock_urlopen.side_effect = [
+            _make_http_error(429),
+            _mock_response(_api_response("OK")),
+        ]
+        result = self._adapter(max_retries=1).execute(_execution_request(_mistral_spec()))
+        self.assertEqual(result.status, StepStatus.COMPLETED)
+        self.assertEqual(result.output_text, "OK")
+        self.assertEqual(result.details["attempts"], 2)
+
+    @patch("gracekelly.adapters.api.base.request.urlopen")
+    def test_retry_on_500_then_success(self, mock_urlopen: MagicMock) -> None:
+        mock_urlopen.side_effect = [
+            _make_http_error(500),
+            _make_http_error(502),
+            _mock_response(_api_response("recovered")),
+        ]
+        result = self._adapter(max_retries=2).execute(_execution_request(_mistral_spec()))
+        self.assertEqual(result.status, StepStatus.COMPLETED)
+        self.assertEqual(result.output_text, "recovered")
+
+    @patch("gracekelly.adapters.api.base.request.urlopen")
+    def test_retry_exhausted_returns_last_error(self, mock_urlopen: MagicMock) -> None:
+        mock_urlopen.side_effect = [
+            _make_http_error(503),
+            _make_http_error(503),
+            _make_http_error(503),
+        ]
+        result = self._adapter(max_retries=2).execute(_execution_request(_mistral_spec()))
+        self.assertEqual(result.status, StepStatus.FAILED)
+        self.assertEqual(result.failure_code, FailureCode.PROVIDER_UNAVAILABLE)
+
+    @patch("gracekelly.adapters.api.base.request.urlopen")
+    def test_retry_on_timeout_then_success(self, mock_urlopen: MagicMock) -> None:
+        mock_urlopen.side_effect = [
+            TimeoutError(),
+            _mock_response(_api_response("OK")),
+        ]
+        result = self._adapter(max_retries=1).execute(_execution_request(_mistral_spec()))
+        self.assertEqual(result.status, StepStatus.COMPLETED)
+
+    @patch("gracekelly.adapters.api.base.request.urlopen")
+    def test_retry_on_network_error_then_success(self, mock_urlopen: MagicMock) -> None:
+        mock_urlopen.side_effect = [
+            error.URLError("Connection refused"),
+            _mock_response(_api_response("OK")),
+        ]
+        result = self._adapter(max_retries=1).execute(_execution_request(_mistral_spec()))
+        self.assertEqual(result.status, StepStatus.COMPLETED)
+
+    @patch("gracekelly.adapters.api.base.request.urlopen")
+    def test_no_retry_on_400(self, mock_urlopen: MagicMock) -> None:
+        mock_urlopen.side_effect = _make_http_error(400)
+        result = self._adapter(max_retries=2).execute(_execution_request(_mistral_spec()))
+        self.assertEqual(result.status, StepStatus.FAILED)
+        self.assertEqual(mock_urlopen.call_count, 1)
+
+    @patch("gracekelly.adapters.api.base.request.urlopen")
+    def test_no_retry_on_non_retryable_exception(self, mock_urlopen: MagicMock) -> None:
+        mock_urlopen.side_effect = ValueError("bad")
+        result = self._adapter(max_retries=2).execute(_execution_request(_mistral_spec()))
+        self.assertEqual(result.status, StepStatus.FAILED)
+        self.assertEqual(result.failure_code, FailureCode.UNKNOWN_ERROR)
+        self.assertEqual(mock_urlopen.call_count, 1)
+
+    def test_zero_retries_is_single_attempt(self) -> None:
+        adapter = MistralApiAdapter(
+            api_key="test-key",
+            base_url="https://api.mistral.ai/v1",
+            max_retries=0,
+        )
+        self.assertEqual(adapter._max_retries, 0)
+
+    def test_healthcheck_shows_retry_config(self) -> None:
+        adapter = self._adapter(max_retries=3)
+        health = adapter.healthcheck()
+        self.assertEqual(health["max_retries"], 3)
+        self.assertEqual(health["retry_backoff_seconds"], 0.0)
+
+
 def _mock_response(data: dict) -> MagicMock:
     body = json.dumps(data).encode("utf-8")
     mock = MagicMock()

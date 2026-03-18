@@ -43,9 +43,13 @@ class Settings:
     mistral_api_key: str | None = None
     mistral_base_url: str = "https://api.mistral.ai/v1"
     mistral_timeout_seconds: float = 30.0
+    mistral_max_retries: int = 0
+    mistral_retry_backoff_seconds: float = 1.0
     openai_api_key: str | None = None
     openai_base_url: str = "https://api.openai.com/v1"
     openai_timeout_seconds: float = 60.0
+    openai_max_retries: int = 0
+    openai_retry_backoff_seconds: float = 1.0
     browser_enabled: bool = False
     browser_automation_backend: str = "null"
     browser_profile_dir: str | None = None
@@ -78,9 +82,13 @@ class Settings:
             mistral_api_key=os.getenv("GRACEKELLY_MISTRAL_API_KEY"),
             mistral_base_url=os.getenv("GRACEKELLY_MISTRAL_BASE_URL", "https://api.mistral.ai/v1"),
             mistral_timeout_seconds=_env_float("GRACEKELLY_MISTRAL_TIMEOUT_SECONDS", "30"),
+            mistral_max_retries=_env_int("GRACEKELLY_MISTRAL_MAX_RETRIES", "0"),
+            mistral_retry_backoff_seconds=_env_float("GRACEKELLY_MISTRAL_RETRY_BACKOFF_SECONDS", "1.0"),
             openai_api_key=os.getenv("GRACEKELLY_OPENAI_API_KEY"),
             openai_base_url=os.getenv("GRACEKELLY_OPENAI_BASE_URL", "https://api.openai.com/v1"),
             openai_timeout_seconds=_env_float("GRACEKELLY_OPENAI_TIMEOUT_SECONDS", "60"),
+            openai_max_retries=_env_int("GRACEKELLY_OPENAI_MAX_RETRIES", "0"),
+            openai_retry_backoff_seconds=_env_float("GRACEKELLY_OPENAI_RETRY_BACKOFF_SECONDS", "1.0"),
             browser_enabled=os.getenv("GRACEKELLY_BROWSER_ENABLED", "false").lower() == "true",
             browser_automation_backend=os.getenv("GRACEKELLY_BROWSER_AUTOMATION_BACKEND", "null"),
             browser_profile_dir=os.getenv("GRACEKELLY_BROWSER_PROFILE_DIR"),
