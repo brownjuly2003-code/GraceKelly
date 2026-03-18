@@ -446,6 +446,49 @@ class PlaywrightDriverTests(unittest.TestCase):
         self.assertTrue(selection.details["model_selection_attempted"])
         self.assertTrue(selection.details["model_selection_verified"])
 
+    def test_select_model_can_navigate_home_before_reset_when_picker_is_missing(self) -> None:
+        driver = PlaywrightBrowserAutomation(sync_playwright_factory=lambda: object())
+
+        class _HomeNavigationPage(_FakePage):
+            def __init__(self) -> None:
+                super().__init__()
+                self.prompt_input = _FakeLocator(visible=True)
+                self.model_button = _FakeLocator(visible=False, inner_text="Model")
+                self.option = _FakeLocator(
+                    visible=True,
+                    inner_text="GPT-5.4",
+                    attributes={"aria-selected": "true"},
+                )
+                self.new_thread_button = _FakeLocator(visible=False, inner_text="New Thread")
+
+            def goto(self, url: str, wait_until: str) -> None:
+                super().goto(url, wait_until)
+                self.model_button = _FakeLocator(visible=True, inner_text="Current model GPT-5.4")
+
+            def locator(self, selector: str) -> _FakeLocator:
+                if selector == 'div#ask-input[role="textbox"][contenteditable="true"]':
+                    return self.prompt_input
+                return super().locator(selector)
+
+            def inner_text(self, selector: str) -> str:
+                if selector == "body":
+                    return "Type @ for connectors and sources\nType / for search modes"
+                return ""
+
+        page = _HomeNavigationPage()
+        driver._page = page
+        driver._base_url = "https://www.perplexity.ai"
+
+        selection = driver.select_model(
+            provider_model_id="GPT-5.4",
+            policy=ModelVerificationPolicy(wait_attempts=1),
+        )
+
+        self.assertTrue(selection.details["model_selection_attempted"])
+        self.assertTrue(selection.details["model_selection_verified"])
+        self.assertTrue(selection.details["home_navigation_attempted"])
+        self.assertEqual(page.goto_url, "https://www.perplexity.ai")
+
     def test_select_model_degrades_when_picker_stays_unavailable(self) -> None:
         driver = PlaywrightBrowserAutomation(sync_playwright_factory=lambda: object())
 
@@ -471,6 +514,7 @@ class PlaywrightDriverTests(unittest.TestCase):
         self.assertEqual(selection.actual_label, "GPT-5.4")
         self.assertFalse(selection.details["model_selection_verified"])
         self.assertFalse(selection.details["model_selection_attempted"])
+        self.assertFalse(selection.details["home_navigation_attempted"])
         self.assertTrue(selection.details["model_picker_unavailable"])
         self.assertIn("New Thread", selection.details["button_debug_snapshot"][0])
         health = driver.healthcheck()
@@ -520,6 +564,7 @@ class PlaywrightDriverTests(unittest.TestCase):
 
         self.assertTrue(context.new_page_called)
         self.assertIs(driver._page, context.created_page)
+        self.assertEqual(driver._base_url, "https://www.perplexity.ai")
         self.assertEqual(context.created_page.goto_url, "https://www.perplexity.ai")
 
 

@@ -51,6 +51,7 @@ class PlaywrightBrowserAutomation(BrowserAutomationPort):
         self._playwright: Any | None = None
         self._context: Any | None = None
         self._page: Any | None = None
+        self._base_url: str | None = None
         self._observed_model_menu: tuple[str, ...] = ()
         self._observed_model_menu_at: datetime | None = None
         self._verified_model_labels_at: dict[str, datetime] = {}
@@ -60,6 +61,7 @@ class PlaywrightBrowserAutomation(BrowserAutomationPort):
         state = session_manager.state
         if not state.configured:
             raise NotImplementedError("Browser session is not configured yet.")
+        self._base_url = state.base_url
         if self._page is not None:
             is_closed = getattr(self._page, "is_closed", None)
             if callable(is_closed) and not is_closed():
@@ -135,8 +137,14 @@ class PlaywrightBrowserAutomation(BrowserAutomationPort):
     ) -> BrowserModelSelection:
         page = self._page_or_raise()
         model_button = self._resolve_model_button(page, attempts=policy.wait_attempts)
+        home_navigation_attempted = False
         reset_attempted = False
         visible_buttons = self._button_debug_snapshot(page)
+        if model_button is None:
+            home_navigation_attempted = self._navigate_home_for_model_selection(page)
+            if home_navigation_attempted:
+                visible_buttons = self._button_debug_snapshot(page)
+                model_button = self._resolve_model_button(page, attempts=policy.wait_attempts)
         if model_button is None:
             reset_attempted = self._reset_to_new_thread(page)
             visible_buttons = self._button_debug_snapshot(page)
@@ -158,6 +166,7 @@ class PlaywrightBrowserAutomation(BrowserAutomationPort):
                     "model_selection_verified": False,
                     "model_selection_attempted": False,
                     "model_picker_unavailable": True,
+                    "home_navigation_attempted": home_navigation_attempted,
                     "fresh_thread_reset_attempted": reset_attempted,
                     "model_verification_wait_attempts": policy.wait_attempts,
                     "model_button_text_before": None,
@@ -193,6 +202,7 @@ class PlaywrightBrowserAutomation(BrowserAutomationPort):
                     "driver": "playwright",
                     "model_selection_verified": False,
                     "model_selection_attempted": False,
+                    "home_navigation_attempted": home_navigation_attempted,
                     "model_verification_wait_attempts": policy.wait_attempts,
                     "model_button_text_before": model_button_text_before,
                     "model_button_text_after": model_button_text_before,
@@ -219,6 +229,7 @@ class PlaywrightBrowserAutomation(BrowserAutomationPort):
                 "driver": "playwright",
                 "model_selection_verified": model_selection_verified,
                 "model_selection_attempted": True,
+                "home_navigation_attempted": home_navigation_attempted,
                 "model_verification_wait_attempts": policy.wait_attempts,
                 "model_button_text_before": model_button_text_before,
                 "model_button_text_after": model_button_text_after,
@@ -582,6 +593,20 @@ class PlaywrightBrowserAutomation(BrowserAutomationPort):
                 return button
             time.sleep(self._runtime.poll_interval_seconds)
         return None
+
+    def _navigate_home_for_model_selection(self, page: Any) -> bool:
+        if not self._base_url:
+            return False
+        goto = getattr(page, "goto", None)
+        if not callable(goto):
+            return False
+        try:
+            logger.info("Navigating Perplexity UI back to %s before model selection.", self._base_url)
+            goto(self._base_url, wait_until="domcontentloaded")
+            self._wait_for_shell()
+        except Exception:
+            return False
+        return True
 
     def _reset_to_new_thread(self, page: Any) -> bool:
         button = self._first_visible_locator(

@@ -57,6 +57,10 @@ def _last_verified_at(provider_model_id: str, verified_labels_at: dict[str, date
     return None
 
 
+def _is_newer(left: datetime | None, right: datetime | None) -> bool:
+    return left is not None and (right is None or left > right)
+
+
 def _model_catalog_item(
     spec,
     *,
@@ -74,11 +78,18 @@ def _model_catalog_item(
     if spec.adapter_kind == "browser":
         availability_checked_at = observed_browser_checked_at
         availability_source = observed_browser_source
+        picker_newer_than_observation = _is_newer(last_model_picker_unavailable_at, observed_browser_checked_at)
         if observed_browser_labels:
             available = _is_observed_browser_model_available(spec.provider_model_id, observed_browser_labels)
             last_verified_at = _last_verified_at(spec.provider_model_id, verified_browser_labels_at)
             if available:
-                availability_status = "observed_available" if last_verified_at is not None else "observed_unverified"
+                picker_newer_than_verification = _is_newer(last_model_picker_unavailable_at, last_verified_at)
+                if last_verified_at is not None and not picker_newer_than_verification:
+                    availability_status = "observed_available"
+                else:
+                    availability_status = "observed_unverified"
+                if picker_newer_than_observation:
+                    availability_checked_at = last_model_picker_unavailable_at
             else:
                 availability_status = "observed_unavailable"
         else:

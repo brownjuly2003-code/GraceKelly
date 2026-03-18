@@ -12,6 +12,13 @@ class ModelRegistryTests(unittest.TestCase):
     def test_mistral_alias_maps_to_api_model(self) -> None:
         self.assertEqual(resolve_model("Mistral").id, "mistral-small")
 
+    def test_recon_observed_browser_models_resolve_from_registry(self) -> None:
+        self.assertEqual(resolve_model("Best").id, "best")
+        self.assertEqual(resolve_model("Sonar").id, "sonar")
+        self.assertEqual(resolve_model("Claude Opus").id, "claude-opus-4-6")
+        self.assertEqual(resolve_model("Max").id, "max")
+        self.assertEqual(resolve_model("Nemotron 3").id, "nemotron-3-super")
+
     def test_unknown_model_raises(self) -> None:
         with self.assertRaises(ValueError):
             resolve_model("Unknown Model")

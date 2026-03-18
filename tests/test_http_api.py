@@ -293,9 +293,21 @@ class HttpApiSmokeTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         payload = response.json()
         self.assertGreaterEqual(len(payload), 3)
+        best = next(item for item in payload if item["id"] == "best")
+        sonar = next(item for item in payload if item["id"] == "sonar")
+        opus = next(item for item in payload if item["id"] == "claude-opus-4-6")
+        max_model = next(item for item in payload if item["id"] == "max")
+        nemotron = next(item for item in payload if item["id"] == "nemotron-3-super")
         kimi = next(item for item in payload if item["id"] == "kimi-k2-5")
         mistral = next(item for item in payload if item["id"] == "mistral-small")
         gpt_api = next(item for item in payload if item["id"] == "gpt-5-4-api")
+        self.assertEqual(best["adapter_kind"], "browser")
+        self.assertEqual(best["availability_status"], "unknown")
+        self.assertTrue(best["reasoning_capable"])
+        self.assertEqual(sonar["provider"], "perplexity")
+        self.assertEqual(opus["display_name"], "Claude Opus 4.6")
+        self.assertEqual(max_model["timeout_seconds"], 60)
+        self.assertEqual(nemotron["concurrency_limit"], 1)
         self.assertIn("Kimi K2", kimi["aliases"])
         self.assertEqual(kimi["adapter_kind"], "browser")
         self.assertEqual(kimi["provider"], "perplexity")
@@ -377,6 +389,59 @@ class HttpApiSmokeTests(unittest.TestCase):
             self.assertIsNone(claude["last_verified_at"])
             self.assertEqual(mistral["availability_status"], "static")
             self.assertIsNone(mistral["available"])
+
+    def test_models_endpoint_downgrades_verified_browser_availability_after_newer_picker_failure(self) -> None:
+        app = create_app(
+            Settings(
+                env="test",
+                host="127.0.0.1",
+                port=8011,
+                log_level="INFO",
+                storage_backend="memory",
+                browser_enabled=True,
+                browser_profile_dir=r"D:\GraceKelly\tmp\browser-recon\perplexity-profile",
+                browser_base_url="https://www.perplexity.ai",
+            )
+        )
+
+        class DriftedObservedMenuAutomation:
+            def healthcheck(self) -> dict[str, object]:
+                return {
+                    "status": "ok",
+                    "implemented": True,
+                    "driver": "observed-menu-test",
+                    "observed_model_menu": ["Kimi K2", "GPT-5.4", "Best"],
+                    "observed_model_menu_at": datetime(2026, 3, 17, 18, 45, tzinfo=UTC),
+                    "observed_model_menu_source": "perplexity-model-menu",
+                    "verified_model_labels_at": {
+                        "GPT-5.4": datetime(2026, 3, 17, 18, 46, tzinfo=UTC),
+                    },
+                    "last_model_picker_unavailable_at": datetime(2026, 3, 17, 18, 50, tzinfo=UTC),
+                }
+
+        app.state.browser_adapter._automation = DriftedObservedMenuAutomation()
+        with TestClient(app) as client:
+            response = client.get("/api/v1/models")
+
+            self.assertEqual(response.status_code, 200)
+            payload = response.json()
+            kimi = next(item for item in payload if item["id"] == "kimi-k2-5")
+            gpt = next(item for item in payload if item["id"] == "gpt-5-4")
+            claude = next(item for item in payload if item["id"] == "claude-sonnet-4-6")
+
+            self.assertEqual(kimi["availability_status"], "observed_unverified")
+            self.assertEqual(kimi["available"], True)
+            self.assertEqual(kimi["availability_checked_at"], "2026-03-17T18:50:00Z")
+            self.assertIsNone(kimi["last_verified_at"])
+
+            self.assertEqual(gpt["availability_status"], "observed_unverified")
+            self.assertEqual(gpt["available"], True)
+            self.assertEqual(gpt["availability_checked_at"], "2026-03-17T18:50:00Z")
+            self.assertEqual(gpt["last_verified_at"], "2026-03-17T18:46:00Z")
+
+            self.assertEqual(claude["availability_status"], "observed_unavailable")
+            self.assertEqual(claude["available"], False)
+            self.assertEqual(claude["availability_checked_at"], "2026-03-17T18:45:00Z")
 
     def test_orchestrate_and_fetch_task_in_dry_run(self) -> None:
         response = self.client.post(
