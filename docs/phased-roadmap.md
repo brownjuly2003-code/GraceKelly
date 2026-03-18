@@ -50,7 +50,7 @@ Deliverables:
 - external Gate 4 boundary review completed in `audit2.md`
 
 Next:
-- response DOM hardening and stronger model verification
+- response DOM hardening and rediscovery of the authenticated model-picker path
 - concrete browser-driver cleanup on top of the new app lifespan hook
 - broader browser catalog refresh if Perplexity account tiers continue to drift beyond the canonical registry
 

@@ -64,6 +64,24 @@ A dedicated-profile authenticated pass on 2026-03-17 exposed this menu content a
 This matters because the static browser catalog still contains models such as `Kimi K2.5` that were not present in this authenticated menu. The driver now treats a missing requested option as a real model mismatch rather than silently staying on the current default.
 The public catalog route also now annotates browser entries against the last observed authenticated menu, so `/api/v1/models` can mark a browser model as `observed_unavailable` instead of advertising it as generically available.
 
+## New authenticated drift observed later on 2026-03-17
+
+Subsequent authenticated Playwright runs against the same dedicated profile still completed prompt submission, but they no longer exposed the previously observed `button[aria-label="Model"]` picker in a stable way.
+
+Observed controls during this drifted state:
+
+- `New Thread`
+- `More`
+- repeated `More options` buttons in the conversation list
+
+What stayed true:
+
+- prompt submission still worked
+- the best response source was still `body_after_prompt`
+- model-selection evidence stayed unverified (`model_menu_snapshot=[]`, no selection indicator, no stable post-click model label)
+
+Current implication: browser execution can still prove prompt -> response transport, but explicit model selection should be treated as unstable again until the new authenticated model-picker path is captured.
+
 ## Anti-automation findings
 
 - Headless mode is not a safe default. On 2026-03-17 it was blocked by Cloudflare before the app shell loaded.

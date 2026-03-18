@@ -60,3 +60,4 @@ class PerplexitySelectors:
         )
     )
     cookie_button_names: tuple[str, ...] = ("Accept All Cookies", "Necessary Cookies")
+    new_thread_button_names: tuple[str, ...] = ("New Thread",)

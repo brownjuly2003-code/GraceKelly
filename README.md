@@ -138,6 +138,7 @@ pytest -q tests/test_playwright_live.py -rA
 
 This smoke stays skipped unless `GRACEKELLY_BROWSER_LIVE_TEST=true`. If the supplied profile is not authenticated for Perplexity, the test reports a skip instead of a hard failure.
 Close any Chrome windows using the same `GRACEKELLY_BROWSER_PROFILE_DIR` before running the smoke. If the profile is still open elsewhere, GraceKelly now surfaces that as a provider-availability failure instead of a generic browser crash.
+Set `GRACEKELLY_BROWSER_LIVE_DEBUG=true` to write the last live execution details to `tmp/browser-recon/live-smoke-result.json` for manual DOM drift inspection.
 
 ## PostgreSQL validation
 

@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import json
 import os
+from pathlib import Path
 import unittest
 
 from gracekelly.adapters.browser.perplexity import PerplexityBrowserAdapter
@@ -82,8 +84,14 @@ class PlaywrightBrowserLiveTests(unittest.TestCase):
         if result.failure_code == FailureCode.AUTH_FAILED:
             self.skipTest(result.failure_message or "Profile is not authenticated for Perplexity.")
 
+        if os.getenv("GRACEKELLY_BROWSER_LIVE_DEBUG", "false").lower() == "true":
+            debug_path = Path(r"D:\GraceKelly\tmp\browser-recon\live-smoke-result.json")
+            debug_path.parent.mkdir(parents=True, exist_ok=True)
+            debug_path.write_text(json.dumps(result.details, indent=2, sort_keys=True), encoding="utf-8")
+
         self.assertEqual(result.status, StepStatus.COMPLETED)
         self.assertTrue(result.output_text.strip())
+        self.assertIn("response_source", result.details)
 
 
 if __name__ == "__main__":
