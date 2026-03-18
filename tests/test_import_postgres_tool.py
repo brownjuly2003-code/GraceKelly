@@ -1086,6 +1086,45 @@ class ImportPostgresToolTests(unittest.TestCase):
             self.assertEqual(code, 2)
             payload = json.loads(print_mock.call_args.args[0])
             self.assertEqual(payload["status"], "error")
+            self.assertFalse(payload["compressed_input"])
+            self.assertGreater(payload["input_size_bytes"], 0)
+            self.assertIn("format version", payload["error"])
+        finally:
+            if snapshot_path.exists():
+                snapshot_path.unlink()
+
+    def test_main_error_payload_includes_input_metadata_for_gzip_snapshot(self) -> None:
+        snapshot_path = self.write_gzip_snapshot(
+            {
+                "status": "ok",
+                "snapshot_format_version": SNAPSHOT_FORMAT_VERSION + 1,
+                "gracekelly_version": __version__,
+                "migration": "0001_initial",
+                "tasks": [],
+            }
+        )
+        try:
+            with (
+                patch.object(
+                    import_postgres,
+                    "parse_args",
+                    return_value=argparse.Namespace(
+                        dsn="postgresql://example",
+                        input=str(snapshot_path),
+                        allow_degraded_schema=False,
+                        dry_run=False,
+                    ),
+                ),
+                patch.object(import_postgres, "resolve_dsn", return_value="postgresql://example"),
+                patch("builtins.print") as print_mock,
+            ):
+                code = import_postgres.main()
+
+            self.assertEqual(code, 2)
+            payload = json.loads(print_mock.call_args.args[0])
+            self.assertEqual(payload["status"], "error")
+            self.assertTrue(payload["compressed_input"])
+            self.assertGreater(payload["input_size_bytes"], 0)
             self.assertIn("format version", payload["error"])
         finally:
             if snapshot_path.exists():

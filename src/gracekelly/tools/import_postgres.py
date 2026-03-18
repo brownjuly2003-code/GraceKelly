@@ -305,6 +305,7 @@ def main() -> int:
             )
         )
         return 2
+    input_metadata = artifact_metadata(input_path)
 
     try:
         snapshot = _load_snapshot(input_path)
@@ -340,6 +341,8 @@ def main() -> int:
                     "status": "error",
                     "migration": INITIAL_MIGRATION_NAME,
                     "input": str(input_path),
+                    "compressed_input": input_metadata["compressed"],
+                    "input_size_bytes": input_metadata["size_bytes"],
                     "error": str(exc),
                 },
                 indent=2,
@@ -349,7 +352,6 @@ def main() -> int:
 
     result_status = "partial" if missing_task_ids else "ok"
     source_checksum_status, source_snapshot_sha256, _ = checksum_status(snapshot)
-    input_metadata = artifact_metadata(input_path)
     result = {
         "status": result_status,
         "snapshot_format_version": snapshot.get("snapshot_format_version", SNAPSHOT_FORMAT_VERSION),
