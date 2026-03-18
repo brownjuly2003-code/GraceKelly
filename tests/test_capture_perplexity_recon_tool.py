@@ -63,7 +63,7 @@ class _FakePage:
             return _FakeLocator(visible=True)
         if selector == "form":
             return _FakeLocator(visible=True, inner_html=self.composer_html)
-        if selector == 'button[aria-label="Model"]':
+        if 'aria-label="Model"' in selector:
             return _FakeLocator(visible=self.more_open, click=self._open_model_menu)
         if selector == 'button[aria-label="More"]':
             return _FakeLocator(visible=True, click=self._open_more)

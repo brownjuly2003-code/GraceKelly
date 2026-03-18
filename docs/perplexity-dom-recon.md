@@ -96,6 +96,20 @@ Repeatable capture path from 2026-03-18:
 - use `gracekelly-capture-perplexity-recon` to save the current authenticated shell into `tmp/browser-recon/YYYY-MM-DD/`
 - use `--interactive-pause` only if the automatic pass still cannot expose the model-picker path
 
+Authenticated recon update on 2026-03-18:
+
+- the current picker path is visible again on the clean composer, but not under the old `aria-label="Model"` shape
+- the active-model control is now a composer-scoped menu button labeled with the current model itself, for example `aria-label="GPT-5.4"` with visible text `GPT-5.4`
+- an automatic recon pass captured the menu snapshot:
+  - `Best`
+  - `Sonar`
+  - `GPT-5.4`
+  - `Gemini 3.1 Pro`
+  - `Claude Sonnet 4.6`
+  - `Claude Opus 4.6`
+  - `Nemotron 3 Super`
+- after scoping Playwright to that composer control, a live smoke switched from `GPT-5.4` to `Claude Sonnet 4.6` and returned `model_selection_verified=true`
+
 ## Anti-automation findings
 
 - Headless mode is not a safe default. On 2026-03-17 it was blocked by Cloudflare before the app shell loaded.

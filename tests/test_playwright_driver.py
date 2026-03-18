@@ -309,6 +309,41 @@ class PlaywrightDriverTests(unittest.TestCase):
         self.assertTrue(selection.details["model_selection_attempted"])
         self.assertTrue(selection.details["model_selection_verified"])
 
+    def test_select_model_can_resolve_current_model_button_in_composer_shell(self) -> None:
+        driver = PlaywrightBrowserAutomation(sync_playwright_factory=lambda: object())
+
+        class _ComposerModelButtonPage(_FakePage):
+            def __init__(self) -> None:
+                super().__init__()
+                self.model_button = _FakeLocator(visible=False, inner_text="Model")
+                self.composer_model_button = _FakeLocator(visible=True, inner_text="GPT-5.4")
+                self.option = _FakeLocator(
+                    visible=True,
+                    inner_text="Claude Sonnet 4.6",
+                    attributes={"aria-selected": "true"},
+                )
+
+            def locator(self, selector: str) -> _FakeLocator:
+                if (
+                    selector
+                    == 'div[data-ask-input-container="true"] button[aria-haspopup="menu"]:not([aria-label="Add files or tools"]):not([aria-label="More"])'
+                ):
+                    return self.composer_model_button
+                return super().locator(selector)
+
+        page = _ComposerModelButtonPage()
+        driver._page = page
+
+        selection = driver.select_model(
+            provider_model_id="Claude Sonnet 4.6",
+            policy=ModelVerificationPolicy(),
+        )
+
+        self.assertTrue(selection.details["model_selection_attempted"])
+        self.assertTrue(selection.details["model_selection_verified"])
+        self.assertEqual(selection.details["model_button_text_before"], "GPT-5.4")
+        self.assertTrue(page.composer_model_button.clicked)
+
     def test_select_model_can_reset_to_new_thread_before_resolving_model_button(self) -> None:
         driver = PlaywrightBrowserAutomation(sync_playwright_factory=lambda: object())
 

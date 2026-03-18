@@ -533,7 +533,10 @@ class PlaywrightBrowserAutomation(BrowserAutomationPort):
         return None
 
     def _resolve_model_button(self, page: Any, *, attempts: int) -> Any | None:
-        locators = (page.locator(self._selectors.model_button),)
+        locators = (
+            page.locator(self._selectors.composer_model_button),
+            page.locator(self._selectors.model_button),
+        )
         for _ in range(max(attempts, 1)):
             button = self._first_visible_locator(locators)
             if button is not None:
@@ -644,11 +647,21 @@ class PlaywrightBrowserAutomation(BrowserAutomationPort):
         try:
             entries = page.evaluate(
                 """
-                () => Array.from(document.querySelectorAll('button')).slice(0, 16).map((button) => {
-                  const ariaLabel = button.getAttribute('aria-label');
-                  const text = (button.innerText || '').trim();
-                  return ariaLabel ? `${ariaLabel}::${text}` : text;
-                })
+                () => {
+                  const format = (button) => {
+                    const ariaLabel = button.getAttribute('aria-label');
+                    const text = (button.innerText || '').trim();
+                    return ariaLabel ? `${ariaLabel}::${text}` : text;
+                  };
+                  const composer = document.querySelector('[data-ask-input-container="true"]');
+                  const composerButtons = composer
+                    ? Array.from(composer.querySelectorAll('button')).map(format).filter(Boolean)
+                    : [];
+                  if (composerButtons.length) {
+                    return composerButtons.slice(0, 16);
+                  }
+                  return Array.from(document.querySelectorAll('button')).slice(0, 16).map(format).filter(Boolean);
+                }
                 """
             )
         except Exception:

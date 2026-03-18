@@ -6,7 +6,12 @@ from dataclasses import dataclass, field
 @dataclass(frozen=True, slots=True)
 class PerplexitySelectors:
     prompt_input: str = 'div#ask-input[role="textbox"][contenteditable="true"]'
-    model_button: str = 'button[aria-label="Model"]'
+    model_button: str = 'div[data-ask-input-container="true"] button[aria-label="Model"]'
+    composer_model_button: str = (
+        'div[data-ask-input-container="true"] button[aria-haspopup="menu"]'
+        ':not([aria-label="Add files or tools"])'
+        ':not([aria-label="More"])'
+    )
     more_button: str = 'button[aria-label="More"]'
     submit_button: str = 'button[aria-label="Submit"]'
     add_files_button: str = 'button[aria-label="Add files or tools"]'

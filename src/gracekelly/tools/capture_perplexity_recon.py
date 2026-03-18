@@ -115,8 +115,8 @@ def capture_recon(
                 "composer_html": composer_html_path.name,
             }
 
-            direct_model_visible = _click_if_visible(page, selector_config.model_button)
-            more_visible = _is_visible(page, selector_config.more_button)
+            direct_model_visible = _click_model_button(page, selector_config)
+            more_visible = _is_any_visible(page, (selector_config.more_button, 'button:has-text("More")'))
             manifest["direct_model_button_visible"] = direct_model_visible
             manifest["more_button_visible"] = more_visible
 
@@ -137,7 +137,7 @@ def capture_recon(
                 manifest["files"]["more_screenshot"] = more_shot.name
                 manifest["files"]["more_buttons"] = more_buttons_path.name
 
-                model_button_after_more = _click_if_visible(page, selector_config.model_button)
+                model_button_after_more = _click_model_button(page, selector_config)
                 manifest["model_button_visible_after_more"] = model_button_after_more
                 if model_button_after_more:
                     model_picker_path = output_root / "recon-03-model-picker.png"
@@ -205,11 +205,21 @@ def _button_inventory(page: Any) -> list[str]:
     try:
         entries = page.evaluate(
             """
-            () => Array.from(document.querySelectorAll('button')).slice(0, 24).map((button) => {
-              const ariaLabel = button.getAttribute('aria-label');
-              const text = (button.innerText || '').trim();
-              return ariaLabel ? `${ariaLabel}::${text}` : text;
-            })
+            () => {
+              const format = (button) => {
+                const ariaLabel = button.getAttribute('aria-label');
+                const text = (button.innerText || '').trim();
+                return ariaLabel ? `${ariaLabel}::${text}` : text;
+              };
+              const composer = document.querySelector('[data-ask-input-container="true"]');
+              const composerButtons = composer
+                ? Array.from(composer.querySelectorAll('button')).map(format).filter(Boolean)
+                : [];
+              if (composerButtons.length) {
+                return composerButtons.slice(0, 24);
+              }
+              return Array.from(document.querySelectorAll('button')).slice(0, 24).map(format).filter(Boolean);
+            }
             """
         )
     except Exception:
@@ -231,14 +241,11 @@ def _composer_html(page: Any, *, selectors: PerplexitySelectors) -> str:
 
 
 def _click_more(page: Any, selectors: PerplexitySelectors) -> bool:
-    candidates = (
-        selectors.more_button,
-        'button:has-text("More")',
-    )
-    for candidate in candidates:
-        if _click_if_visible(page, candidate):
-            return True
-    return False
+    return _click_first_visible(page, (selectors.more_button, 'button:has-text("More")'))
+
+
+def _click_model_button(page: Any, selectors: PerplexitySelectors) -> bool:
+    return _click_first_visible(page, (selectors.composer_model_button, selectors.model_button))
 
 
 def _model_menu_snapshot(page: Any, *, selectors: PerplexitySelectors) -> list[str]:
@@ -266,8 +273,19 @@ def _click_if_visible(page: Any, selector: str) -> bool:
     return True
 
 
+def _click_first_visible(page: Any, selectors: tuple[str, ...]) -> bool:
+    for selector in selectors:
+        if _click_if_visible(page, selector):
+            return True
+    return False
+
+
 def _is_visible(page: Any, selector: str) -> bool:
     return _locator_is_visible(page.locator(selector))
+
+
+def _is_any_visible(page: Any, selectors: tuple[str, ...]) -> bool:
+    return any(_is_visible(page, selector) for selector in selectors)
 
 
 def _locator_is_visible(locator: Any) -> bool:
