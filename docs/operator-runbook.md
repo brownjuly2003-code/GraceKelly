@@ -177,6 +177,7 @@ gracekelly-export-postgres --task-id task-1 --task-id task-2
 
 Export artifacts now carry `snapshot_format_version`, `gracekelly_version`, and `snapshot_sha256` so restores can reject incompatible or corrupted JSON before task rows are touched.
 The export command summary now also echoes `repository_health` and `repository_schema`, so the operator can capture storage state without opening the snapshot file immediately.
+If the export path ends with `.gz`, the snapshot is written as gzip-compressed JSON.
 
 Restore a snapshot back into PostgreSQL:
 
@@ -201,6 +202,7 @@ gracekelly-import-postgres --input D:\GraceKelly\tmp\postgres-export\selected.js
 ```
 
 That success payload includes `repository_health` and `repository_schema`, so operators can confirm the target backend state in the same preflight call.
+Compressed `.json.gz` snapshot input is supported directly.
 
 ## Task inspection workflow
 

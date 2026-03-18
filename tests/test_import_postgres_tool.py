@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 from datetime import UTC, datetime
+import gzip
 import json
 from pathlib import Path
 import unittest
@@ -18,6 +19,13 @@ class ImportPostgresToolTests(unittest.TestCase):
         path = Path("tmp") / "test-import-tool" / f"{uuid4()}.json"
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+        return path
+
+    def write_gzip_snapshot(self, payload: dict[str, object]) -> Path:
+        path = Path("tmp") / "test-import-tool" / f"{uuid4()}.json.gz"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with gzip.open(path, "wt", encoding="utf-8") as handle:
+            json.dump(payload, handle, indent=2)
         return path
 
     def build_snapshot_payload(self, payload: dict[str, object]) -> dict[str, object]:
@@ -285,6 +293,56 @@ class ImportPostgresToolTests(unittest.TestCase):
             self.assertEqual(payload["imported_task_count"], 1)
             self.assertEqual(payload["imported_event_count"], 1)
             self.assertEqual(payload["replaced_task_ids"], ["task-1"])
+        finally:
+            if snapshot_path.exists():
+                snapshot_path.unlink()
+
+    def test_main_supports_gzip_snapshot_input(self) -> None:
+        snapshot_path = self.write_gzip_snapshot(
+            self.build_snapshot_payload(
+                {
+                    "migration": "0001_initial",
+                    "tasks": [],
+                }
+            )
+        )
+
+        class FakeRepository:
+            def __init__(self, dsn: str, *, bootstrap: bool) -> None:
+                pass
+
+            def healthcheck(self) -> dict[str, object]:
+                return {"status": "ok", "backend": "postgres"}
+
+            def schema_report(self) -> dict[str, object]:
+                return {"status": "ok", "backend": "postgres", "schema_version": "0001_initial"}
+
+            def replace_task_snapshot(self, task, steps, events) -> None:
+                raise AssertionError("replace_task_snapshot should not run for empty gzip snapshot")
+
+        try:
+            with (
+                patch.object(
+                    import_postgres,
+                    "parse_args",
+                    return_value=argparse.Namespace(
+                        dsn="postgresql://example",
+                        input=str(snapshot_path),
+                        allow_degraded_schema=False,
+                        dry_run=True,
+                    ),
+                ),
+                patch.object(import_postgres, "resolve_dsn", return_value="postgresql://example"),
+                patch.object(import_postgres, "PostgresTaskRepository", FakeRepository),
+                patch("builtins.print") as print_mock,
+            ):
+                code = import_postgres.main()
+
+            self.assertEqual(code, 0)
+            payload = json.loads(print_mock.call_args.args[0])
+            self.assertEqual(payload["status"], "ok")
+            self.assertTrue(payload["dry_run"])
+            self.assertEqual(payload["imported_task_count"], 0)
         finally:
             if snapshot_path.exists():
                 snapshot_path.unlink()

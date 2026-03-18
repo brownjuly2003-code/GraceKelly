@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 from datetime import UTC, datetime
+import gzip
 import json
 from pathlib import Path
 import unittest
@@ -206,6 +207,30 @@ class ExportPostgresToolTests(unittest.TestCase):
             self.assertEqual(snapshot["tasks"][0]["task"]["task_id"], "task-1")
             self.assertEqual(snapshot["missing_task_ids"], ["task-missing"])
             self.assertEqual(snapshot["snapshot_sha256"], compute_snapshot_sha256(snapshot))
+        finally:
+            if output_path.exists():
+                output_path.unlink()
+
+    def test_write_snapshot_supports_gzip_output(self) -> None:
+        output_path = Path("tmp") / "test-export-tool" / f"{uuid4()}.json.gz"
+        snapshot = {
+            "status": "ok",
+            "snapshot_format_version": SNAPSHOT_FORMAT_VERSION,
+            "gracekelly_version": __version__,
+            "migration": "0001_initial",
+            "task_count": 0,
+            "missing_task_ids": [],
+            "tasks": [],
+            "snapshot_sha256": "abc",
+        }
+        try:
+            export_postgres.write_snapshot(output_path, snapshot)
+
+            with gzip.open(output_path, "rt", encoding="utf-8") as handle:
+                payload = json.load(handle)
+
+            self.assertEqual(payload["status"], "ok")
+            self.assertEqual(payload["snapshot_format_version"], SNAPSHOT_FORMAT_VERSION)
         finally:
             if output_path.exists():
                 output_path.unlink()

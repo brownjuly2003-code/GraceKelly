@@ -14,6 +14,7 @@ from gracekelly.storage.base import TaskEventRecord, TaskRecord, TaskStepRecord
 from gracekelly.storage.postgres import PostgresTaskRepository
 from gracekelly.storage.schema import INITIAL_MIGRATION_NAME
 from gracekelly.tools.snapshot_digest import SNAPSHOT_FORMAT_VERSION, compute_snapshot_sha256
+from gracekelly.tools.snapshot_io import read_snapshot_text
 
 
 def parse_args() -> argparse.Namespace:
@@ -54,7 +55,7 @@ def _parse_datetime(value: str | None) -> datetime | None:
 
 
 def _load_snapshot(path: Path) -> dict[str, Any]:
-    return json.loads(path.read_text(encoding="utf-8"))
+    return json.loads(read_snapshot_text(path))
 
 
 def _json_default(value: object) -> str:

@@ -12,6 +12,7 @@ from gracekelly import __version__
 from gracekelly.storage.postgres import PostgresTaskRepository
 from gracekelly.storage.schema import INITIAL_MIGRATION_NAME
 from gracekelly.tools.snapshot_digest import SNAPSHOT_FORMAT_VERSION, compute_snapshot_sha256
+from gracekelly.tools.snapshot_io import write_snapshot_text
 
 
 def parse_args() -> argparse.Namespace:
@@ -129,8 +130,7 @@ def collect_export_snapshot(
 
 
 def write_snapshot(path: Path, snapshot: dict[str, Any]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(snapshot, indent=2, sort_keys=True), encoding="utf-8")
+    write_snapshot_text(path, json.dumps(snapshot, indent=2, sort_keys=True))
 
 
 def main() -> int:

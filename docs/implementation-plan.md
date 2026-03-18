@@ -181,6 +181,7 @@ This document is the working source of truth for GraceKelly delivery. We update 
 [x] Add `--dry-run` to PostgreSQL snapshot import so operators can validate artifacts and repository health without writing.
 [x] Include repository health/schema details in successful import and import `--dry-run` output so the preflight result is self-contained.
 [x] Include repository health/schema details in successful export output so snapshot creation and storage preflight share the same operator surface.
+[x] Support gzip-compressed PostgreSQL snapshots via `.json.gz` export/import paths so larger backups do not require manual compression steps.
 
 ## Issue log
 - 2026-03-16: Legacy reference project has corrupted SQLite databases. Decision: no storage design or migration path in GraceKelly may depend on SQLite integrity.
@@ -270,6 +271,7 @@ This document is the working source of truth for GraceKelly delivery. We update 
 - 2026-03-18: Operators could validate snapshot structure and repository health separately, but the import path still had no built-in no-write rehearsal. Decision: add `gracekelly-import-postgres --dry-run` so the exact restore validator path can run without touching task data.
 - 2026-03-18: Even after `--dry-run`, operators still had to infer repository state from separate commands instead of the import result itself. Decision: echo `repository_health` and `repository_schema` on successful import/dry-run so the preflight payload is sufficient on its own.
 - 2026-03-18: Export already captured repository health/schema into the snapshot file, but the command summary still hid that state unless the file was opened separately. Decision: include the same repository state in the successful export stdout payload.
+- 2026-03-18: Snapshot tooling still assumed plain JSON files, forcing operators to compress or decompress backups manually. Decision: support gzip transparently based on a `.gz` path suffix for both export and import.
 - 2026-03-16: Health can legitimately report `degraded` in development when optional adapters are intentionally unconfigured. Decision: treat degraded readiness as operationally informative, not as a startup failure.
 - 2026-03-16: HTTP smoke tests exposed a missing `requested_models` field in `TaskView`. Decision: keep smoke coverage mandatory for API contract changes; bug fixed immediately.
 - 2026-03-16: answers1.md made it clear that several current choices are transitional only: JSON-heavy execution storage, degraded-on-optional readiness, and `best_effort` merge semantics should not be treated as stable architecture.
@@ -380,3 +382,4 @@ This document is the working source of truth for GraceKelly delivery. We update 
 - 2026-03-18: Added `--dry-run` to `gracekelly-import-postgres`, so restore validation and target-repository checks can be rehearsed without writing any task, step, or event rows.
 - 2026-03-18: Extended successful import output with `repository_health` and `repository_schema`, making the import dry-run result a self-contained preflight report.
 - 2026-03-18: Extended successful export output with `repository_health` and `repository_schema`, so snapshot creation and storage preflight now expose the same operator-facing repository summary.
+- 2026-03-18: Added transparent `.json.gz` support to PostgreSQL snapshot export/import paths, with regression coverage for compressed output and compressed input.

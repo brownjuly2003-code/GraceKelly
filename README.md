@@ -210,6 +210,12 @@ This writes a JSON snapshot under `tmp/postgres-export/` by default, including:
 
 The command summary also includes `repository_health` and `repository_schema`, so the export result itself is usable as a lightweight storage preflight.
 
+If the output path ends with `.gz`, GraceKelly writes a gzip-compressed snapshot:
+
+```bash
+gracekelly-export-postgres --output D:\GraceKelly\tmp\postgres-export\selected.json.gz
+```
+
 Export specific tasks when needed:
 
 ```bash
@@ -237,6 +243,12 @@ gracekelly-import-postgres --input D:\GraceKelly\tmp\postgres-export\selected.js
 ```
 
 The success payload now includes `repository_health` and `repository_schema`, so a dry run can double as a pre-restore validation report.
+
+Gzip-compressed snapshot input is also supported:
+
+```bash
+gracekelly-import-postgres --input D:\GraceKelly\tmp\postgres-export\selected.json.gz --dry-run
+```
 
 If connectivity or schema state is intentionally degraded but you still need a manual restore, override the guard explicitly:
 
