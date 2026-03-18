@@ -1,6 +1,6 @@
 # Phased Roadmap
 
-Last updated: 2026-03-18
+Last updated: 2026-03-19
 
 ## Phase 0: Clean foundation
 
@@ -96,6 +96,8 @@ Already delivered:
 - execution saturation visibility in health/readiness
 - fail-fast plan/result cardinality invariants
 - explicit retry-schema deferral tests
+- API error response sanitization (no internal detail leakage)
+- browser profile-dir path-traversal validation
 
 Remaining:
 - account-pool abstractions
@@ -125,7 +127,7 @@ Not yet addressed:
 
 ## Parallel track: API adapters
 
-Status: started
+Status: consolidated
 
 Deliverables:
 - provider API adapter interface implementation
@@ -135,6 +137,7 @@ Deliverables:
 Already delivered:
 - Mistral-compatible adapter
 - OpenAI-compatible adapter
+- shared `BaseApiAdapter` with common execute, post, healthcheck, and error handling
 
 Next:
 - expand the API hedge beyond a single OpenAI-compatible model if browser fragility proves material

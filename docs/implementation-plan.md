@@ -57,10 +57,10 @@ This document is the working source of truth for GraceKelly delivery. We update 
 - Task-level `model_id` and `model_display_name` should be removed from storage. Winning and requested model information must be computed from steps, or from `task.accepted` payload for dry-run tasks.
 
 ## Current status
-- Phase: Phase 1 complete, Phase 2 browser spike next
-- Overall state: the core orchestration contract is stable with normalized task/step/event models, profile-aware readiness, and dual-backend storage (memory + PostgreSQL with packaged migration, validation, and task-scoped export/import tooling). Browser execution is exercisable end-to-end through a scripted backend, and the first headed Playwright slice has now passed a dedicated-profile authenticated smoke against the real Perplexity UI. API execution works through the Mistral and OpenAI-compatible adapters. In-process per-model concurrency limits, per-model timeouts, and a minimal browser-adapter circuit breaker are enforced at runtime. Operator surfaces include recent-task listing with multi-axis filtering (status, dry_run, failure_code, execution_mode), rich task detail with execution-plan policy and terminal summary diagnostics, and execution-plane saturation plus browser-breaker visibility through health/readiness and `/metrics`. The blocking sync execution path is offloaded from async HTTP routes via `asyncio.to_thread`. Structured key-value logs now cover orchestrator event-persistence failures, browser execution, API route request/response summaries, and PostgreSQL degraded health/schema paths, with `metadata.trace_id` propagated through route and orchestrator lifecycle logs when present. PostgreSQL connect timeout is explicitly configurable. In-memory repository is thread-safe via `RLock`. Step/result cardinality is enforced with `strict=True` zip.
+- Phase: Phase 1 complete, Phase 2 browser spike proven, Phase 4/5 hardening in progress
+- Overall state: the core orchestration contract is stable with normalized task/step/event models, profile-aware readiness, and dual-backend storage (memory + PostgreSQL with packaged migration, validation, and task-scoped export/import tooling). Browser execution is exercisable end-to-end through a scripted backend, and the headed Playwright slice has passed dedicated-profile authenticated smokes against the real Perplexity UI with verified model selection. API execution works through the Mistral and OpenAI-compatible adapters, both now backed by a shared `BaseApiAdapter`. In-process per-model concurrency limits, per-model timeouts, and a minimal browser-adapter circuit breaker are enforced at runtime. API error responses are sanitized to prevent implementation detail leakage. Browser profile directory paths are validated against traversal attacks. Test coverage expanded from 203 to 333 tests, closing gaps in concurrency, execution profiles, schemas, logging, browser policies, model catalog, API adapter error paths, scripted browser automation, and PostgreSQL row mapping.
 - Gate status: Gate 1 (schema) — open, Gate 2 (operational) — open, Gate 3 (execution policy) — open, Gate 4 (browser boundary) — completed
-- Last updated: 2026-03-18
+- Last updated: 2026-03-19
 
 ## Action items
 [x] Create an independent project root at `D:\GraceKelly`.
@@ -198,6 +198,19 @@ This document is the working source of truth for GraceKelly delivery. We update 
 [x] Include source compatibility verdict fields in import validation errors so parsed-but-rejected snapshots do not require a second inspect step.
 [x] Include artifact path metadata in inspect parse-failure payloads so unreadable snapshot files are still traceable without a second command.
 [x] Include output artifact metadata and, when available, assembled manifest context in export error payloads so failed exports remain traceable from one response.
+[x] Extract shared API adapter logic into `BaseApiAdapter` so Mistral and OpenAI-compatible adapters inherit common execute, post, healthcheck, and failure handling instead of duplicating ~150 lines each.
+[x] Sanitize API error responses so `ValueError`, `NotImplementedError`, and `StorageUnavailableError` do not leak internal implementation details to clients.
+[x] Validate browser `profile_dir` against path traversal (`..`, `~` segments) at `BrowserSessionManager` construction time.
+[x] Add unit tests for `ModelConcurrencyGate` thread-safety, including concurrent acquire/release stress tests.
+[x] Add unit tests for `ExecutionProfile` resolution, required/optional adapter classification, and frozen dataclass invariants.
+[x] Add unit tests for `OrchestrateRequest` Pydantic validation boundaries and `TaskStepView` output truncation.
+[x] Add unit tests for `format_log_kv`, `log_message`, and `trace_id_from_metadata` formatting and edge cases.
+[x] Add unit tests for `BrowserSessionManager` lifecycle, healthcheck, state isolation, and profile-dir traversal rejection.
+[x] Add unit tests for all four browser policy dataclasses: defaults, custom construction, and frozen invariants.
+[x] Add unit tests for `/api/v1/models` catalog logic: browser menu observation, availability status derivation, and full-spec catalog item generation.
+[x] Add unit tests for API adapter error paths: timeout, 429 rate limit, 500, network error, malformed responses, missing API key, and successful execution.
+[x] Add unit tests for `ScriptedBrowserAutomation` and `NullBrowserAutomation` covering all `BrowserAutomationPort` methods.
+[x] Add unit tests for PostgreSQL row-to-record mapping without a live database: task, step, and event deserialization plus metadata string/dict handling.
 
 ## Issue log
 - 2026-03-16: Legacy reference project has corrupted SQLite databases. Decision: no storage design or migration path in GraceKelly may depend on SQLite integrity.
@@ -431,3 +444,12 @@ This document is the working source of truth for GraceKelly delivery. We update 
 - 2026-03-18: Import validation errors now also include source compatibility verdict fields such as `source_format_status` and `source_import_ready` when the artifact JSON was parsed successfully, so a rejected snapshot can be classified from one payload.
 - 2026-03-18: Inspect parse failures now also include artifact compression mode and byte size, so unreadable snapshot files can be traced from the error payload without rerunning another tool.
 - 2026-03-18: Export error payloads now include output-path metadata and, when the manifest had already been assembled, the same manifest verification context as a successful export summary, so failed exports remain classifiable from one response.
+- 2026-03-18: Hardened the Playwright selector-recovery path so missing model pickers now trigger a return to the base home composer before the existing `New Thread` fallback, reducing repeated-session drift after prior thread executions and covering the new recovery path with unit tests.
+- 2026-03-18: Hardened `/api/v1/models` browser catalog honesty so a newer picker-unavailable signal now downgrades previously verified observed browser models back to `observed_unverified` until selection is re-proven, with direct HTTP coverage for the drift case.
+- 2026-03-18: Refreshed the canonical browser model registry with the recon-confirmed Perplexity menu entries (`Best`, `Sonar`, `Claude Opus 4.6`, `Max`, `Nemotron 3 Super`) and extended model-catalog coverage so the public catalog better matches the currently observed browser tier.
+- 2026-03-18: Prepared `gate1-audit-brief.md` so the still-open external schema review can be launched cleanly before any schema-freeze claim or real-environment promotion of the current PostgreSQL shape.
+- 2026-03-19: Ran a full project audit covering code quality, test coverage, security, and documentation consistency. Recorded findings in `audit_additional.md`.
+- 2026-03-19: Extracted `BaseApiAdapter` from Mistral and OpenAI-compatible adapters, reducing ~300 lines of duplicated execute/post/healthcheck/failure logic to two thin subclasses.
+- 2026-03-19: Sanitized API error responses: storage errors no longer leak DSN details, validation errors pass through an allowlist, and `NotImplementedError` returns a generic message.
+- 2026-03-19: Added browser `profile_dir` path-traversal validation at `BrowserSessionManager` construction, rejecting `..` and `~` path segments.
+- 2026-03-19: Expanded test suite from 203 to 333 tests (+130), closing coverage gaps for concurrency, execution profiles, schemas, logging, browser session/policies, model catalog, API adapter error paths, scripted/null browser automation, and PostgreSQL row mapping.
