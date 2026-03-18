@@ -196,6 +196,7 @@ This document is the working source of truth for GraceKelly delivery. We update 
 [x] Make export self-validate its generated snapshot manifest and expose the same manifest verification statuses in export summaries, not only in inspect/import.
 [x] Include artifact path metadata in import error payloads so rejected snapshot preflights are still traceable without a separate inspect call.
 [x] Include source compatibility verdict fields in import validation errors so parsed-but-rejected snapshots do not require a second inspect step.
+[x] Include artifact path metadata in inspect parse-failure payloads so unreadable snapshot files are still traceable without a second command.
 
 ## Issue log
 - 2026-03-16: Legacy reference project has corrupted SQLite databases. Decision: no storage design or migration path in GraceKelly may depend on SQLite integrity.
@@ -233,6 +234,7 @@ This document is the working source of truth for GraceKelly delivery. We update 
 - 2026-03-18: Export was now producing a richer manifest, but only inspect/import exposed verification statuses, leaving fresh exports less operator-friendly and making generator regressions less explicit. Decision: self-validate generated snapshots during export and mirror manifest verification statuses in the export summary.
 - 2026-03-18: Import success payloads had rich artifact context, but early preflight failures still returned only `input` plus the raw error text. Decision: include `compressed_input` and `input_size_bytes` in import error payloads so broken artifacts remain identifiable without a second inspection step.
 - 2026-03-18: Import validation errors still discarded most source compatibility context even when the snapshot had already been parsed successfully. Decision: include source format/migration/checksum/import-ready verdict fields in import error payloads whenever the artifact JSON was readable.
+- 2026-03-18: Inspect already had a rich success surface, but parse failures still dropped artifact metadata. Decision: include `compressed_input` and `input_size_bytes` in inspect error payloads too, so unreadable files remain traceable from one response.
 - 2026-03-17: The project was still being managed without local git history. Decision: initialize a repository on `main` and ignore generated Python packaging/test artifacts before further iteration.
 - 2026-03-17: `MergeStrategy` had been introduced at the request/planning layer, but repository read paths and one event-building branch still fell back to raw strings. Decision: normalize storage reads back to `MergeStrategy` and remove the last internal string comparison.
 - 2026-03-17: Browser adapter generic runtime failures were still reported as `provider_unavailable`, conflating internal crashes with upstream availability problems. Decision: map unexpected browser exceptions to `unknown_error` and reserve `provider_unavailable` for actual configuration/provider reachability issues.
@@ -425,3 +427,4 @@ This document is the working source of truth for GraceKelly delivery. We update 
 - 2026-03-18: Export now self-validates generated snapshot manifests before writing and echoes the same manifest verification statuses in its success summary, making export/inspect/import operator surfaces symmetric.
 - 2026-03-18: Import error payloads now include artifact compression mode and byte size, so failed preflights remain traceable to a concrete snapshot file without rerunning inspection.
 - 2026-03-18: Import validation errors now also include source compatibility verdict fields such as `source_format_status` and `source_import_ready` when the artifact JSON was parsed successfully, so a rejected snapshot can be classified from one payload.
+- 2026-03-18: Inspect parse failures now also include artifact compression mode and byte size, so unreadable snapshot files can be traced from the error payload without rerunning another tool.

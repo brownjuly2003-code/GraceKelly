@@ -108,6 +108,7 @@ def main() -> int:
             )
         )
         return 2
+    input_metadata = artifact_metadata(input_path)
 
     try:
         snapshot = load_snapshot(input_path)
@@ -118,6 +119,8 @@ def main() -> int:
                 {
                     "status": "error",
                     "input": str(input_path),
+                    "compressed_input": input_metadata["compressed"],
+                    "input_size_bytes": input_metadata["size_bytes"],
                     "error": str(exc),
                 },
                 indent=2,
@@ -125,7 +128,6 @@ def main() -> int:
         )
         return 2
 
-    input_metadata = artifact_metadata(input_path)
     result["input"] = str(input_path)
     result["compressed_input"] = input_metadata["compressed"]
     result["input_size_bytes"] = input_metadata["size_bytes"]

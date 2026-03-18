@@ -185,7 +185,7 @@ Inspect a snapshot artifact offline before restore:
 gracekelly-inspect-snapshot --input D:\GraceKelly\tmp\postgres-export\selected.json
 ```
 
-That command verifies `snapshot_sha256` when present and reports manifest details such as `manifest_status`, `snapshot_status_consistency_status`, `selection_status`, `missing_task_ids_status`, field-level manifest verification statuses, `selection`, `task_count`, `step_count`, `event_count`, `exported_task_ids`, `missing_task_ids`, `input_size_bytes`, and `import_ready` without requiring database connectivity.
+That command verifies `snapshot_sha256` when present and reports manifest details such as `manifest_status`, `snapshot_status_consistency_status`, `selection_status`, `missing_task_ids_status`, field-level manifest verification statuses, `selection`, `task_count`, `step_count`, `event_count`, `exported_task_ids`, `missing_task_ids`, `input_size_bytes`, and `import_ready` without requiring database connectivity. If the file cannot be parsed, the error payload still includes `compressed_input` and `input_size_bytes`.
 
 Restore a snapshot back into PostgreSQL:
 

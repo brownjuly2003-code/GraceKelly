@@ -53,6 +53,28 @@ class InspectSnapshotToolTests(unittest.TestCase):
         self.assertEqual(payload["status"], "error")
         self.assertIn("does not exist", payload["error"])
 
+    def test_main_error_payload_includes_input_metadata_for_invalid_gzip_json(self) -> None:
+        snapshot_path = Path("tmp") / "test-inspect-snapshot-tool" / f"{uuid4()}.json.gz"
+        snapshot_path.parent.mkdir(parents=True, exist_ok=True)
+        with gzip.open(snapshot_path, "wt", encoding="utf-8") as handle:
+            handle.write("{not-json}")
+        try:
+            with (
+                patch.object(inspect_snapshot, "parse_args", return_value=argparse.Namespace(input=str(snapshot_path))),
+                patch("builtins.print") as print_mock,
+            ):
+                code = inspect_snapshot.main()
+
+            self.assertEqual(code, 2)
+            payload = json.loads(print_mock.call_args.args[0])
+            self.assertEqual(payload["status"], "error")
+            self.assertTrue(payload["compressed_input"])
+            self.assertGreater(payload["input_size_bytes"], 0)
+            self.assertIn("error", payload)
+        finally:
+            if snapshot_path.exists():
+                snapshot_path.unlink()
+
     def test_main_inspects_snapshot_and_verifies_checksum(self) -> None:
         snapshot_path = self.write_snapshot(
             self.build_snapshot_payload(

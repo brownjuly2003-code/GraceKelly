@@ -231,6 +231,7 @@ gracekelly-inspect-snapshot --input D:\GraceKelly\tmp\postgres-export\selected.j
 ```
 
 This verifies `snapshot_sha256` when present and returns the manifest summary, including `manifest_status`, `snapshot_status_consistency_status`, `selection_status`, `missing_task_ids_status`, per-field manifest verification statuses, `selection`, `task_count`, `step_count`, `event_count`, `exported_task_ids`, `missing_task_ids`, `input_size_bytes`, and an `import_ready` verdict based on checksum, `snapshot_format_version`, `migration`, and manifest consistency, without requiring a PostgreSQL DSN.
+If the snapshot cannot be parsed, the error payload still includes `compressed_input` and `input_size_bytes`.
 
 ## PostgreSQL import
 
