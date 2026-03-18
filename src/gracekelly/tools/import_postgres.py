@@ -19,6 +19,7 @@ from gracekelly.tools.snapshot_artifact import (
     exported_task_ids,
     manifest_count,
     manifest_status,
+    selection_status,
     validate_manifest,
 )
 from gracekelly.tools.snapshot_digest import SNAPSHOT_FORMAT_VERSION, compute_snapshot_sha256
@@ -359,6 +360,7 @@ def main() -> int:
         "source_status": snapshot.get("status", "unknown"),
         "source_manifest_status": manifest_status(snapshot),
         "source_selection": snapshot.get("selection"),
+        "source_selection_status": selection_status(snapshot),
         "source_task_count": manifest_count(snapshot, "task_count"),
         "source_step_count": manifest_count(snapshot, "step_count"),
         "source_event_count": manifest_count(snapshot, "event_count"),

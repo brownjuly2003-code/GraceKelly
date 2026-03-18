@@ -190,6 +190,7 @@ This document is the working source of truth for GraceKelly delivery. We update 
 [x] Add top-level `step_count` and `event_count` manifest totals to snapshot export, offline inspection, and import summaries so nested volume is visible without opening task payloads.
 [x] Expose artifact-level path metadata and checksum status across export/import/inspect summaries so operators can identify the exact snapshot file without re-reading it.
 [x] Validate top-level snapshot manifest totals and exported task IDs against nested task payloads, and surface manifest verification statuses in offline inspection/import summaries.
+[x] Validate snapshot `selection` metadata against exported and missing task IDs, and surface `selection_status` in offline inspection/import summaries.
 
 ## Issue log
 - 2026-03-16: Legacy reference project has corrupted SQLite databases. Decision: no storage design or migration path in GraceKelly may depend on SQLite integrity.
@@ -221,6 +222,7 @@ This document is the working source of truth for GraceKelly delivery. We update 
 - 2026-03-18: Snapshot manifests still surfaced only task totals, leaving step and event volume implicit unless the operator opened nested payloads. Decision: add top-level `step_count` and `event_count` across export, inspect, and import summaries.
 - 2026-03-18: Snapshot summaries still lacked file-level identity details such as size, compression mode, and explicit checksum status, so operators had to inspect the filesystem or rerun a different command to confirm which artifact they were looking at. Decision: expose artifact-level metadata directly in export/import/inspect output.
 - 2026-03-18: Top-level manifest fields in snapshot artifacts were informative but still not enforced, so a hand-edited or truncated file could present misleading totals while leaving nested payloads intact. Decision: validate manifest counts and exported task IDs on import, and expose manifest verification status in offline inspection and import output.
+- 2026-03-18: Snapshot `selection` metadata still was not checked against the actual exported and missing task IDs, so a manually edited artifact could claim a different request scope than the nested payloads. Decision: validate `selection` consistency and expose `selection_status` alongside the broader manifest verdict.
 - 2026-03-17: The project was still being managed without local git history. Decision: initialize a repository on `main` and ignore generated Python packaging/test artifacts before further iteration.
 - 2026-03-17: `MergeStrategy` had been introduced at the request/planning layer, but repository read paths and one event-building branch still fell back to raw strings. Decision: normalize storage reads back to `MergeStrategy` and remove the last internal string comparison.
 - 2026-03-17: Browser adapter generic runtime failures were still reported as `provider_unavailable`, conflating internal crashes with upstream availability problems. Decision: map unexpected browser exceptions to `unknown_error` and reserve `provider_unavailable` for actual configuration/provider reachability issues.
@@ -407,3 +409,4 @@ This document is the working source of truth for GraceKelly delivery. We update 
 - 2026-03-18: Added top-level `step_count` and `event_count` manifest totals to snapshot export plus inspect/import summaries, so nested durable-state volume is visible without inspecting task bodies.
 - 2026-03-18: Added artifact-level metadata such as compression mode, file size, and explicit checksum status across snapshot export/import/inspect summaries, making the operator surface fully traceable to a concrete artifact.
 - 2026-03-18: Added manifest validation plus `manifest_status` reporting for snapshot artifacts, so mismatched top-level totals or `exported_task_ids` are caught before restore and called out in offline inspection.
+- 2026-03-18: Extended manifest validation to cover `selection` metadata and added `selection_status` to inspect/import summaries, so reported request scope cannot drift from the actual task bundles in the artifact.

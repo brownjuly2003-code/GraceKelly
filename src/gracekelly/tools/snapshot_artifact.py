@@ -108,12 +108,42 @@ def exported_task_ids_status(snapshot: dict[str, Any]) -> str:
     return "mismatch"
 
 
+def selection_status(snapshot: dict[str, Any]) -> str:
+    selection = snapshot.get("selection")
+    if selection is None:
+        return "missing"
+    if not isinstance(selection, dict):
+        return "mismatch"
+
+    task_ids = selection.get("task_ids")
+    limit = selection.get("limit")
+    if not isinstance(task_ids, list):
+        return "mismatch"
+    if any(not isinstance(task_id, str) for task_id in task_ids):
+        return "mismatch"
+
+    if task_ids:
+        if limit is not None:
+            return "mismatch"
+        expected_ids = exported_task_ids(snapshot) + [
+            str(task_id) for task_id in snapshot.get("missing_task_ids", []) if task_id is not None
+        ]
+        return "verified" if task_ids == expected_ids else "mismatch"
+
+    if not isinstance(limit, int) or limit < 1:
+        return "mismatch"
+    if manifest_count(snapshot, "task_count") > limit:
+        return "mismatch"
+    return "verified"
+
+
 def manifest_status(snapshot: dict[str, Any]) -> str:
     statuses = [
         manifest_count_status(snapshot, "task_count"),
         manifest_count_status(snapshot, "step_count"),
         manifest_count_status(snapshot, "event_count"),
         exported_task_ids_status(snapshot),
+        selection_status(snapshot),
     ]
     return "mismatch" if "mismatch" in statuses else "verified"
 
@@ -127,4 +157,8 @@ def validate_manifest(snapshot: dict[str, Any]) -> None:
     if exported_task_ids_status(snapshot) == "mismatch":
         raise ValueError(
             "Snapshot exported_task_ids do not match task bundles in the artifact."
+        )
+    if selection_status(snapshot) == "mismatch":
+        raise ValueError(
+            "Snapshot selection metadata does not match the exported and missing task IDs."
         )
