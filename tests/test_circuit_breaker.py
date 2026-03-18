@@ -155,6 +155,36 @@ class CircuitBreakingExecutionAdapterTests(unittest.TestCase):
         self.assertEqual(recovered.status, StepStatus.COMPLETED)
         self.assertEqual(breaker.healthcheck()["circuit_breaker"]["state"], "closed")
 
+    def test_breaker_logs_trip_and_close(self) -> None:
+        adapter = _SequencedAdapter(
+            [
+                self.build_failure_result(code=FailureCode.PROVIDER_UNAVAILABLE, message="offline"),
+                self.build_failure_result(code=FailureCode.PROVIDER_UNAVAILABLE, message="still offline"),
+                self.build_success_result(),
+            ]
+        )
+        clock = _Clock(datetime(2026, 3, 18, 15, 0, tzinfo=UTC))
+        breaker = CircuitBreakingExecutionAdapter(
+            adapter,
+            config=CircuitBreakerConfig(enabled=True, failure_threshold=2, cooldown_seconds=60),
+            now_factory=clock,
+        )
+        request = self.build_request()
+
+        with self.assertLogs("gracekelly.core.circuit_breaker", level="WARNING") as captured:
+            breaker.execute(request)
+            breaker.execute(request)
+
+        self.assertTrue(any("tripped open" in msg for msg in captured.output))
+        self.assertTrue(any("consecutive failures" in msg for msg in captured.output))
+
+        clock.now = clock.now + timedelta(seconds=61)
+        with self.assertLogs("gracekelly.core.circuit_breaker", level="INFO") as captured:
+            breaker.execute(request)
+
+        self.assertTrue(any("half-open" in msg for msg in captured.output))
+        self.assertTrue(any("closed" in msg for msg in captured.output))
+
     def test_breaker_ignores_request_specific_failures(self) -> None:
         adapter = _SequencedAdapter(
             [

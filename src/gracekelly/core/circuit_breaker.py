@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 import inspect
+import logging
 from threading import Lock
 from typing import Any, Callable
 
@@ -14,6 +15,8 @@ from gracekelly.core.contracts import (
     FailureCode,
     StepStatus,
 )
+
+logger = logging.getLogger(__name__)
 
 
 def _utcnow() -> datetime:
@@ -120,9 +123,19 @@ class CircuitBreakingExecutionAdapter(ExecutionAdapter):
             if reopen_at is not None and now >= reopen_at and not self._probe_in_flight:
                 self._state = "half-open"
                 self._probe_in_flight = True
+                logger.info(
+                    "Circuit breaker entering half-open for adapter '%s', allowing probe request",
+                    self.name,
+                )
                 return None
 
             self._fail_fast_rejections += 1
+            logger.debug(
+                "Circuit breaker rejecting request for adapter '%s' (state=%s, rejections=%d)",
+                self.name,
+                self._state,
+                self._fail_fast_rejections,
+            )
             return {
                 "state": self._state,
                 "opened_at": _serialize_timestamp(self._opened_at),
@@ -168,12 +181,23 @@ class CircuitBreakingExecutionAdapter(ExecutionAdapter):
         self._opened_at = opened_at
         self._open_count += 1
         self._consecutive_failures = max(self._consecutive_failures, self._config.failure_threshold)
+        logger.warning(
+            "Circuit breaker tripped open for adapter '%s' after %d consecutive failures "
+            "(last_code=%s, open_count=%d)",
+            self.name,
+            self._consecutive_failures,
+            self._last_failure_code.value if self._last_failure_code else "unknown",
+            self._open_count,
+        )
 
     def _close_circuit(self) -> None:
+        was_open = self._state != "closed"
         self._state = "closed"
         self._opened_at = None
         self._probe_in_flight = False
         self._consecutive_failures = 0
+        if was_open:
+            logger.info("Circuit breaker closed for adapter '%s'", self.name)
 
     def _reopen_at(self) -> datetime | None:
         if self._opened_at is None:

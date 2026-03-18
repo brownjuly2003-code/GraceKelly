@@ -65,6 +65,7 @@ class PlaywrightBrowserAutomation(BrowserAutomationPort):
         if self._page is not None:
             is_closed = getattr(self._page, "is_closed", None)
             if callable(is_closed) and not is_closed():
+                logger.debug("Reusing existing Playwright browser session")
                 return
 
         logger.info(
@@ -461,6 +462,11 @@ class PlaywrightBrowserAutomation(BrowserAutomationPort):
             candidate_texts = self._collect_response_candidates(page=page, prompt=prompt)
             response_text = self._pick_response_text(prompt=prompt, candidate_texts=candidate_texts)
             if response_text is not None and not self._is_response_generating(page):
+                logger.info(
+                    "Response extracted via source=%s length=%d",
+                    response_text["source"],
+                    response_text["selected_length"],
+                )
                 return response_text
             time.sleep(self._runtime.poll_interval_seconds)
         raise TimeoutError(f"Perplexity did not return a response within {timeout_seconds}s.")

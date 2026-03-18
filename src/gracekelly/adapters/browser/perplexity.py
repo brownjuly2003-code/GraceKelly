@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import asdict
 import inspect
 import logging
+import time
 
 from gracekelly.adapters.browser.automation import (
     BrowserAutomationPort,
@@ -47,6 +48,7 @@ class PerplexityBrowserAdapter(ExecutionAdapter):
 
     def execute(self, request: ExecutionRequest) -> ExecutionResult:
         model = request.step.model
+        t0 = time.monotonic()
         logger.info(
             "Browser execution started for task %s model %s provider %s",
             request.task_id,
@@ -69,6 +71,11 @@ class PerplexityBrowserAdapter(ExecutionAdapter):
             self._session_manager.mark_active()
             self._automation.dismiss_popups(self._popup_policy)
             auth = self._ensure_auth()
+            logger.info(
+                "Browser auth check for task %s: logged_in=%s",
+                request.task_id,
+                auth.logged_in,
+            )
             if not auth.logged_in:
                 return self._failure(
                     task_id=request.task_id,
@@ -108,11 +115,16 @@ class PerplexityBrowserAdapter(ExecutionAdapter):
             )
             if request.cancellation and request.cancellation.is_cancelled and not output.output_text.strip():
                 return self._cancelled(model.id, model.display_name)
+            elapsed_ms = int((time.monotonic() - t0) * 1000)
             logger.info(
-                "Browser execution completed for task %s model %s provider %s",
+                "Browser execution completed for task %s model %s provider %s "
+                "duration_ms=%d response_source=%s model_verified=%s",
                 request.task_id,
                 model.id,
                 model.provider,
+                elapsed_ms,
+                output.details.get("response_source", "unknown"),
+                selection.details.get("model_selection_verified", False),
             )
             return ExecutionResult(
                 adapter_name=self.name,
@@ -247,12 +259,13 @@ class PerplexityBrowserAdapter(ExecutionAdapter):
         self._session_manager.mark_error(message)
         session_state = self._session_manager.state
         logger.warning(
-            "Browser execution failed for task %s model %s code %s: %s",
+            "Browser execution failed for task %s model %s code=%s: %s",
             task_id,
             model_id,
             failure_code.value,
             message,
         )
+
         details = {
             "provider": "perplexity",
             "configured": session_state.configured,

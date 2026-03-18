@@ -249,9 +249,12 @@ class BrowserAdapterTests(unittest.TestCase):
             result = adapter.execute(self.build_request())
 
         self.assertEqual(result.status, StepStatus.COMPLETED)
-        self.assertEqual(len(captured.output), 2)
+        self.assertEqual(len(captured.output), 3)
         self.assertIn("Browser execution started", captured.output[0])
-        self.assertIn("Browser execution completed", captured.output[1])
+        self.assertIn("auth check", captured.output[1])
+        self.assertIn("logged_in=True", captured.output[1])
+        self.assertIn("Browser execution completed", captured.output[2])
+        self.assertIn("duration_ms=", captured.output[2])
 
     def test_browser_adapter_logs_failed_execution(self) -> None:
         adapter = PerplexityBrowserAdapter(
