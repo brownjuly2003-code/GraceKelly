@@ -260,6 +260,7 @@ gracekelly-import-postgres --input D:\GraceKelly\tmp\postgres-export\selected.js
 ```
 
 The success payload now includes `repository_health` and `repository_schema`, so a dry run can double as a pre-restore validation report.
+It also echoes `source_selection`, `source_task_count`, `source_exported_task_ids`, and `source_missing_task_ids` from the artifact manifest, so restore output stays self-contained.
 
 Gzip-compressed snapshot input is also supported:
 

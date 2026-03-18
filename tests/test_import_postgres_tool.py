@@ -81,6 +81,10 @@ class ImportPostgresToolTests(unittest.TestCase):
         accepted_at = datetime(2026, 3, 18, 18, 0, tzinfo=UTC).isoformat().replace("+00:00", "Z")
         snapshot_payload = self.build_snapshot_payload({
             "migration": "0001_initial",
+            "selection": {"task_ids": ["task-1"], "limit": None},
+            "task_count": 1,
+            "exported_task_ids": ["task-1"],
+            "missing_task_ids": [],
             "tasks": [
                 {
                     "task": {
@@ -193,6 +197,10 @@ class ImportPostgresToolTests(unittest.TestCase):
             self.assertEqual(payload["requested_task_ids"], [])
             self.assertEqual(payload["missing_task_ids"], [])
             self.assertEqual(payload["source_status"], "ok")
+            self.assertEqual(payload["source_selection"], {"task_ids": ["task-1"], "limit": None})
+            self.assertEqual(payload["source_task_count"], 1)
+            self.assertEqual(payload["source_exported_task_ids"], ["task-1"])
+            self.assertEqual(payload["source_missing_task_ids"], [])
             self.assertEqual(payload["source_gracekelly_version"], __version__)
             self.assertEqual(payload["repository_health"]["status"], "ok")
             self.assertEqual(payload["repository_schema"]["schema_version"], "0001_initial")

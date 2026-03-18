@@ -265,6 +265,27 @@ def select_snapshot_tasks(
     return selected_snapshot, missing_task_ids
 
 
+def _snapshot_exported_task_ids(snapshot: dict[str, Any]) -> list[str]:
+    explicit_ids = snapshot.get("exported_task_ids")
+    if isinstance(explicit_ids, list):
+        return [str(task_id) for task_id in explicit_ids]
+
+    derived_ids: list[str] = []
+    tasks = snapshot.get("tasks")
+    if not isinstance(tasks, list):
+        return derived_ids
+    for item in tasks:
+        if not isinstance(item, dict):
+            continue
+        task_payload = item.get("task")
+        if not isinstance(task_payload, dict):
+            continue
+        task_id = task_payload.get("task_id")
+        if task_id is not None:
+            derived_ids.append(str(task_id))
+    return derived_ids
+
+
 def main() -> int:
     args = parse_args()
     dsn = resolve_dsn(args.dsn)
@@ -345,6 +366,10 @@ def main() -> int:
         "requested_task_ids": requested_task_ids,
         "missing_task_ids": missing_task_ids,
         "source_status": snapshot.get("status", "unknown"),
+        "source_selection": snapshot.get("selection"),
+        "source_task_count": snapshot.get("task_count"),
+        "source_exported_task_ids": _snapshot_exported_task_ids(snapshot),
+        "source_missing_task_ids": list(snapshot.get("missing_task_ids", [])),
         "source_gracekelly_version": snapshot.get("gracekelly_version"),
         "source_migration": snapshot.get("migration"),
         "dry_run": args.dry_run,

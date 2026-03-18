@@ -218,6 +218,7 @@ gracekelly-import-postgres --input D:\GraceKelly\tmp\postgres-export\selected.js
 ```
 
 That success payload includes `repository_health` and `repository_schema`, so operators can confirm the target backend state in the same preflight call.
+It also echoes `source_selection`, `source_task_count`, `source_exported_task_ids`, and `source_missing_task_ids`, so the restore report preserves the source artifact manifest context.
 Compressed `.json.gz` snapshot input is supported directly.
 
 ## Task inspection workflow
