@@ -5,6 +5,7 @@ import unittest
 from gracekelly.adapters.browser.perplexity import PerplexityBrowserAdapter
 from gracekelly.adapters.browser.session import BrowserSessionConfig, BrowserSessionManager
 from gracekelly.adapters.dry_run import DryRunExecutionAdapter
+from gracekelly.core.circuit_breaker import CircuitBreakerConfig, CircuitBreakingExecutionAdapter
 from gracekelly.core.execution_profile import resolve_execution_profile
 from gracekelly.core.readiness import build_readiness_report
 from gracekelly.core.router import ExecutionRouter
@@ -106,6 +107,36 @@ class ReadinessTests(unittest.TestCase):
         self.assertEqual(execution["details"]["active_model_executions"], 0)
         self.assertEqual(execution["details"]["saturated_models"], [])
         self.assertEqual(execution["details"]["model_limits"]["kimi-k2-5"], 1)
+
+    def test_build_readiness_report_surfaces_open_browser_circuit_breaker(self) -> None:
+        class OpenBreakerAdapter:
+            def healthcheck(self) -> dict[str, object]:
+                return {
+                    "status": "degraded",
+                    "adapter_name": "browser.perplexity",
+                    "circuit_breaker": {
+                        "enabled": True,
+                        "state": "open",
+                        "failure_threshold": 3,
+                        "cooldown_seconds": 60,
+                    },
+                }
+
+        report = build_readiness_report(
+            environment="test",
+            profile=resolve_execution_profile("hybrid"),
+            repository=InMemoryTaskRepository(),
+            adapters={
+                "dry-run": DryRunExecutionAdapter(),
+                "browser.perplexity": OpenBreakerAdapter(),
+            },
+        )
+
+        browser_component = next(item for item in report["components"] if item["name"] == "browser.perplexity")
+
+        self.assertEqual(report["status"], "degraded")
+        self.assertEqual(browser_component["status"], "degraded")
+        self.assertEqual(browser_component["details"]["circuit_breaker"]["state"], "open")
 
 
 if __name__ == "__main__":

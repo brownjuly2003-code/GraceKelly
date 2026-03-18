@@ -47,6 +47,7 @@ uvicorn gracekelly.main:app --app-dir src --host 127.0.0.1 --port 8011
 `GET /api/v1/tasks` supports `limit`, `status`, `execution_mode`, `dry_run`, and `failure_code` query params and returns summary metadata including `adapter_name`, winning `model`, `requested_models`, and short-circuit fields such as `cancelled_step_count` / `cancel_reason`.
 `GET /api/v1/tasks/{task_id}` also lifts both execution policy and terminal execution context to top-level fields such as `quorum`, `merge_strategy`, `adapter_hint`, `cancel_on_quorum`, `winning_step_index`, `cancelled_steps`, `cancel_reason`, and `execution_details`, while still returning the raw event stream.
 `GET /api/v1/models` now includes `adapter_kind`, `provider`, and browser-specific availability hints (`available`, `availability_status`, `availability_checked_at`, `availability_source`) so the catalog can distinguish static registry entries from the last authenticated Perplexity menu actually observed by the Playwright runtime.
+`GET /api/v1/readiness` exposes browser-adapter circuit-breaker state under the `browser.perplexity` component whenever repeated infrastructure-grade browser failures temporarily open the adapter.
 
 ## Tests
 
@@ -69,6 +70,7 @@ curl -X POST http://127.0.0.1:8011/api/v1/orchestrate \
 - `dry_run=true` exercises the orchestration path without calling providers.
 - API-backed execution now includes both a minimal Mistral adapter boundary and an OpenAI-compatible boundary.
 - Browser-backed execution now includes both the `scripted` backend and a first headed Playwright backend.
+- Browser execution is wrapped in a small in-process circuit breaker that trips on repeated `provider_unavailable`, `timeout`, or `unknown_error` failures and reports its state through health/readiness.
 - PostgreSQL schema bootstrap now lives in a packaged SQL migration: `src/gracekelly/storage/migrations/0001_initial.sql`.
 - Live Perplexity reconnaissance from 2026-03-17 is captured in `docs/perplexity-dom-recon.md`.
 - `memory` stays the zero-config development default; for durable browser runs, set `GRACEKELLY_STORAGE_BACKEND=postgres` explicitly.
@@ -103,6 +105,9 @@ set GRACEKELLY_BROWSER_AUTOMATION_BACKEND=playwright
 set GRACEKELLY_BROWSER_PROFILE_DIR=D:\Profiles\GraceKellyPlaywright
 set GRACEKELLY_BROWSER_PLAYWRIGHT_CHANNEL=chrome
 set GRACEKELLY_BROWSER_PLAYWRIGHT_HEADLESS=false
+set GRACEKELLY_BROWSER_CIRCUIT_BREAKER_ENABLED=true
+set GRACEKELLY_BROWSER_CIRCUIT_BREAKER_FAILURE_THRESHOLD=3
+set GRACEKELLY_BROWSER_CIRCUIT_BREAKER_COOLDOWN_SECONDS=60
 uvicorn gracekelly.main:app --app-dir src --host 127.0.0.1 --port 8011
 ```
 

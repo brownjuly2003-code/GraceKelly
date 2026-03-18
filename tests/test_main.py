@@ -6,7 +6,7 @@ from unittest.mock import patch
 from fastapi.testclient import TestClient
 
 from gracekelly.config import Settings
-from gracekelly.main import build_browser_automation, build_task_repository, create_app
+from gracekelly.main import build_browser_adapter, build_browser_automation, build_task_repository, create_app
 
 
 class MainWiringTests(unittest.TestCase):
@@ -61,14 +61,34 @@ class MainWiringTests(unittest.TestCase):
         self.assertEqual(automation.healthcheck()["channel"], "msedge")
         self.assertTrue(automation.healthcheck()["headless"])
 
+    def test_build_browser_adapter_wraps_perplexity_with_circuit_breaker(self) -> None:
+        adapter = build_browser_adapter(
+            Settings(
+                storage_backend="memory",
+                browser_enabled=True,
+                browser_profile_dir=r"D:\Profiles\GraceKelly",
+                browser_circuit_breaker_enabled=True,
+                browser_circuit_breaker_failure_threshold=4,
+                browser_circuit_breaker_cooldown_seconds=90,
+            )
+        )
+
+        health = adapter.healthcheck()
+
+        self.assertEqual(adapter.name, "browser.perplexity")
+        self.assertIn("circuit_breaker", health)
+        self.assertTrue(health["circuit_breaker"]["enabled"])
+        self.assertEqual(health["circuit_breaker"]["failure_threshold"], 4)
+        self.assertEqual(health["circuit_breaker"]["cooldown_seconds"], 90)
+
     def test_app_lifespan_closes_browser_automation(self) -> None:
         closed = {"value": False}
 
-        class ClosableAutomation:
-            def close(self) -> None:
+        class ClosableAdapter:
+            async def close(self) -> None:
                 closed["value"] = True
 
-        with patch("gracekelly.main.build_browser_automation", return_value=ClosableAutomation()):
+        with patch("gracekelly.main.build_browser_adapter", return_value=ClosableAdapter()):
             app = create_app(Settings(storage_backend="memory"))
             with TestClient(app):
                 self.assertFalse(closed["value"])

@@ -102,6 +102,49 @@ class HttpApiSmokeTests(unittest.TestCase):
         self.assertEqual(readiness.status_code, 200)
         self.assertEqual(mocked.await_count, 2)
 
+    def test_readiness_exposes_browser_circuit_breaker_details(self) -> None:
+        app = create_app(
+            Settings(
+                env="test",
+                host="127.0.0.1",
+                port=8011,
+                log_level="INFO",
+                storage_backend="memory",
+                execution_profile="hybrid",
+                browser_enabled=True,
+                browser_profile_dir=r"D:\GraceKelly\tmp\browser-recon\perplexity-profile",
+                browser_base_url="https://www.perplexity.ai",
+            )
+        )
+
+        class OpenBreakerAdapter:
+            name = "browser.perplexity"
+
+            def healthcheck(self) -> dict[str, object]:
+                return {
+                    "status": "degraded",
+                    "adapter_name": self.name,
+                    "circuit_breaker": {
+                        "enabled": True,
+                        "state": "open",
+                        "failure_threshold": 3,
+                        "cooldown_seconds": 60,
+                    },
+                }
+
+        app.state.browser_adapter = OpenBreakerAdapter()
+        app.state.adapter_registry["browser.perplexity"] = app.state.browser_adapter
+
+        with TestClient(app) as client:
+            readiness = client.get("/api/v1/readiness")
+
+        self.assertEqual(readiness.status_code, 200)
+        browser = next(
+            item for item in readiness.json()["components"] if item["name"] == "browser.perplexity"
+        )
+        self.assertEqual(browser["status"], "degraded")
+        self.assertEqual(browser["details"]["circuit_breaker"]["state"], "open")
+
     def test_models_endpoint_returns_aliases_and_reasoning_capability(self) -> None:
         response = self.client.get("/api/v1/models")
 

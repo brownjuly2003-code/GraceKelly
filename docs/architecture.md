@@ -13,13 +13,13 @@ Implemented:
 - typed task/step/event contracts with multi-model execution planning
 - dual-backend storage: in-memory (development) and PostgreSQL (durable)
 - execution adapters: dry-run, Mistral API, OpenAI-compatible API, Perplexity browser (scripted and thin Playwright backends)
-- cooperative cancel-on-quorum with per-model timeout and concurrency enforcement
+- cooperative cancel-on-quorum with per-model timeout, concurrency enforcement, and a minimal browser circuit breaker
 - operator surfaces: recent-task listing with multi-axis filtering, rich task detail with diagnostics
 
 Not yet implemented:
-- authenticated live-browser proof and hardening beyond the first Playwright slice
 - account pools
-- circuit breakers and retry policies
+- richer retry policies beyond the current deferral
+- broader browser catalog refresh if account-tier drift continues
 - analytics dashboards
 - admin UI
 - cross-project integration glue
@@ -73,10 +73,9 @@ Excluded by design:
 
 ## Next steps
 
-1. Prove one authenticated prompt -> response path through the Playwright backend with a dedicated browser profile.
-2. Harden response extraction and model-menu verification on top of the captured DOM recon.
-3. Minimal circuit breaker around browser adapter (fail-fast on repeated failures).
-4. Broaden structured logging beyond the current orchestrator and browser-layer coverage.
-5. Backup and restore strategy for PostgreSQL.
-6. Metrics endpoint for operational monitoring.
-7. Production migration tooling (version-tracked SQL or Alembic).
+1. Broaden structured logging beyond the current orchestrator and browser-layer coverage.
+2. Refresh browser catalog strategy if Perplexity account-tier drift keeps diverging from the canonical registry.
+3. Backup and restore strategy for PostgreSQL.
+4. Metrics endpoint for operational monitoring.
+5. Production migration tooling (version-tracked SQL or Alembic).
+6. Account pools and any real retry model beyond the current deferral.

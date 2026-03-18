@@ -17,6 +17,9 @@ class SettingsTests(unittest.TestCase):
         self.assertEqual(settings.openai_timeout_seconds, 60.0)
         self.assertEqual(settings.browser_playwright_channel, "chrome")
         self.assertFalse(settings.browser_playwright_headless)
+        self.assertTrue(settings.browser_circuit_breaker_enabled)
+        self.assertEqual(settings.browser_circuit_breaker_failure_threshold, 3)
+        self.assertEqual(settings.browser_circuit_breaker_cooldown_seconds, 60)
 
     def test_from_env_reads_postgres_connect_timeout(self) -> None:
         with patch.dict(
@@ -57,6 +60,9 @@ class SettingsTests(unittest.TestCase):
                 "GRACEKELLY_BROWSER_AUTOMATION_BACKEND": "playwright",
                 "GRACEKELLY_BROWSER_PLAYWRIGHT_CHANNEL": "msedge",
                 "GRACEKELLY_BROWSER_PLAYWRIGHT_HEADLESS": "true",
+                "GRACEKELLY_BROWSER_CIRCUIT_BREAKER_ENABLED": "false",
+                "GRACEKELLY_BROWSER_CIRCUIT_BREAKER_FAILURE_THRESHOLD": "5",
+                "GRACEKELLY_BROWSER_CIRCUIT_BREAKER_COOLDOWN_SECONDS": "120",
             },
             clear=True,
         ):
@@ -65,3 +71,6 @@ class SettingsTests(unittest.TestCase):
         self.assertEqual(settings.browser_automation_backend, "playwright")
         self.assertEqual(settings.browser_playwright_channel, "msedge")
         self.assertTrue(settings.browser_playwright_headless)
+        self.assertFalse(settings.browser_circuit_breaker_enabled)
+        self.assertEqual(settings.browser_circuit_breaker_failure_threshold, 5)
+        self.assertEqual(settings.browser_circuit_breaker_cooldown_seconds, 120)

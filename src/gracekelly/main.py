@@ -23,6 +23,7 @@ from gracekelly.api.routes.health import router as health_router
 from gracekelly.api.routes.models import router as models_router
 from gracekelly.api.routes.orchestrate import router as orchestrate_router
 from gracekelly.config import Settings, settings
+from gracekelly.core.circuit_breaker import CircuitBreakerConfig, CircuitBreakingExecutionAdapter
 from gracekelly.core.execution_profile import resolve_execution_profile
 from gracekelly.core.orchestrator import OrchestratorService
 from gracekelly.core.router import ExecutionRouter
@@ -68,6 +69,32 @@ def build_browser_automation(active_settings: Settings):
     raise ValueError(f"Unsupported browser automation backend: {backend}")
 
 
+def build_browser_adapter(active_settings: Settings):
+    adapter = PerplexityBrowserAdapter(
+        session_manager=BrowserSessionManager(
+            BrowserSessionConfig(
+                enabled=active_settings.browser_enabled,
+                provider="perplexity",
+                base_url=active_settings.browser_base_url,
+                profile_dir=active_settings.browser_profile_dir,
+            )
+        ),
+        automation=build_browser_automation(active_settings),
+        popup_policy=PopupPolicy(),
+        auth_recovery_policy=AuthRecoveryPolicy(),
+        model_verification_policy=ModelVerificationPolicy(),
+        submit_policy=SubmitPolicy(),
+    )
+    return CircuitBreakingExecutionAdapter(
+        adapter,
+        config=CircuitBreakerConfig(
+            enabled=active_settings.browser_circuit_breaker_enabled,
+            failure_threshold=active_settings.browser_circuit_breaker_failure_threshold,
+            cooldown_seconds=active_settings.browser_circuit_breaker_cooldown_seconds,
+        ),
+    )
+
+
 @asynccontextmanager
 async def app_lifespan(app: FastAPI):
     yield
@@ -107,22 +134,8 @@ def create_app(app_settings: Settings | None = None) -> FastAPI:
             timeout_seconds=active_settings.openai_timeout_seconds,
         ),
     }
-    app.state.browser_session_manager = BrowserSessionManager(
-        BrowserSessionConfig(
-            enabled=active_settings.browser_enabled,
-            provider="perplexity",
-            base_url=active_settings.browser_base_url,
-            profile_dir=active_settings.browser_profile_dir,
-        )
-    )
-    app.state.browser_adapter = PerplexityBrowserAdapter(
-        session_manager=app.state.browser_session_manager,
-        automation=build_browser_automation(active_settings),
-        popup_policy=PopupPolicy(),
-        auth_recovery_policy=AuthRecoveryPolicy(),
-        model_verification_policy=ModelVerificationPolicy(),
-        submit_policy=SubmitPolicy(),
-    )
+    app.state.browser_adapter = build_browser_adapter(active_settings)
+    app.state.browser_session_manager = getattr(app.state.browser_adapter, "_session_manager", None)
     app.state.adapter_registry = {
         "dry-run": app.state.dry_run_adapter,
         "api.mistral": app.state.api_adapters["mistral"],

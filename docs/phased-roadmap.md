@@ -1,6 +1,6 @@
 # Phased Roadmap
 
-Last updated: 2026-03-17
+Last updated: 2026-03-18
 
 ## Phase 0: Clean foundation
 
@@ -50,9 +50,9 @@ Deliverables:
 - external Gate 4 boundary review completed in `audit2.md`
 
 Next:
-- response DOM hardening and rediscovery of the authenticated model-picker path
 - concrete browser-driver cleanup on top of the new app lifespan hook
 - broader browser catalog refresh if Perplexity account tiers continue to drift beyond the canonical registry
+- structured browser-layer logging beyond the current adapter/runtime entries
 
 Support in place:
 - manual-gated live Playwright smoke test in `tests/test_playwright_live.py`
@@ -88,12 +88,12 @@ Deliverables:
 Already delivered:
 - per-model timeout defaults
 - in-process concurrency limits
+- minimal browser-adapter circuit breaker behavior with readiness visibility
 - execution saturation visibility in health/readiness
 - fail-fast plan/result cardinality invariants
 - explicit retry-schema deferral tests
 
 Remaining:
-- circuit breaker behavior
 - account-pool abstractions
 - any real retry model beyond the current deferral
 
