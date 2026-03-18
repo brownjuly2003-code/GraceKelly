@@ -17,8 +17,11 @@ from gracekelly.tools.snapshot_artifact import (
     artifact_metadata,
     checksum_status,
     exported_task_ids,
+    format_status,
+    import_ready,
     manifest_count,
     manifest_status,
+    migration_status,
     missing_task_ids as snapshot_missing_task_ids,
     missing_task_ids_status,
     snapshot_status_consistency_status,
@@ -306,6 +309,7 @@ def main() -> int:
         )
         return 2
     input_metadata = artifact_metadata(input_path)
+    snapshot: dict[str, Any] | None = None
 
     try:
         snapshot = _load_snapshot(input_path)
@@ -343,6 +347,28 @@ def main() -> int:
                     "input": str(input_path),
                     "compressed_input": input_metadata["compressed"],
                     "input_size_bytes": input_metadata["size_bytes"],
+                    **(
+                        {}
+                        if snapshot is None
+                        else {
+                            "source_status": snapshot.get("status", "unknown"),
+                            "source_format_status": format_status(
+                                snapshot,
+                                supported_snapshot_format_version=SNAPSHOT_FORMAT_VERSION,
+                            ),
+                            "source_migration_status": migration_status(
+                                snapshot,
+                                supported_migration=INITIAL_MIGRATION_NAME,
+                            ),
+                            "source_checksum_status": checksum_status(snapshot)[0],
+                            "source_manifest_status": manifest_status(snapshot),
+                            "source_import_ready": import_ready(
+                                snapshot,
+                                supported_snapshot_format_version=SNAPSHOT_FORMAT_VERSION,
+                                supported_migration=INITIAL_MIGRATION_NAME,
+                            ),
+                        }
+                    ),
                     "error": str(exc),
                 },
                 indent=2,
@@ -363,6 +389,19 @@ def main() -> int:
         "requested_task_ids": requested_task_ids,
         "missing_task_ids": missing_task_ids,
         "source_status": snapshot.get("status", "unknown"),
+        "source_format_status": format_status(
+            snapshot,
+            supported_snapshot_format_version=SNAPSHOT_FORMAT_VERSION,
+        ),
+        "source_migration_status": migration_status(
+            snapshot,
+            supported_migration=INITIAL_MIGRATION_NAME,
+        ),
+        "source_import_ready": import_ready(
+            snapshot,
+            supported_snapshot_format_version=SNAPSHOT_FORMAT_VERSION,
+            supported_migration=INITIAL_MIGRATION_NAME,
+        ),
         "source_status_consistency_status": snapshot_status_consistency_status(snapshot),
         "source_manifest_status": manifest_status(snapshot),
         "source_selection": snapshot.get("selection"),

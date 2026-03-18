@@ -218,8 +218,8 @@ gracekelly-import-postgres --input D:\GraceKelly\tmp\postgres-export\selected.js
 ```
 
 That success payload includes `repository_health` and `repository_schema`, so operators can confirm the target backend state in the same preflight call.
-It also echoes `compressed_input`, `input_size_bytes`, `source_checksum_status`, `source_snapshot_sha256`, `source_status_consistency_status`, `source_manifest_status`, `source_selection_status`, `source_selection`, `source_task_count`, `source_step_count`, `source_event_count`, `source_exported_task_ids`, `source_missing_task_ids`, and `source_missing_task_ids_status`, so the restore report preserves the source artifact manifest context.
-Failed import preflights also include `compressed_input` and `input_size_bytes`, so the operator can still identify the rejected artifact from the error payload.
+It also echoes `compressed_input`, `input_size_bytes`, `source_format_status`, `source_migration_status`, `source_checksum_status`, `source_snapshot_sha256`, `source_import_ready`, `source_status_consistency_status`, `source_manifest_status`, `source_selection_status`, `source_selection`, `source_task_count`, `source_step_count`, `source_event_count`, `source_exported_task_ids`, `source_missing_task_ids`, and `source_missing_task_ids_status`, so the restore report preserves the source artifact manifest context.
+Failed import preflights also include `compressed_input`, `input_size_bytes`, and the source compatibility verdict fields derivable from the parsed artifact, so the operator can still identify and classify the rejected snapshot from the error payload.
 Compressed `.json.gz` snapshot input is supported directly.
 
 ## Task inspection workflow

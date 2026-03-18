@@ -23,6 +23,24 @@ def checksum_status(snapshot: dict[str, Any]) -> tuple[str, str | None, str]:
     return "mismatch", str(expected_digest), computed_digest
 
 
+def format_status(snapshot: dict[str, Any], *, supported_snapshot_format_version: int) -> str:
+    format_version = snapshot.get("snapshot_format_version")
+    if format_version is None:
+        return "unknown"
+    if format_version == supported_snapshot_format_version:
+        return "current"
+    return "mismatch"
+
+
+def migration_status(snapshot: dict[str, Any], *, supported_migration: str) -> str:
+    migration = snapshot.get("migration")
+    if migration is None:
+        return "unknown"
+    if migration == supported_migration:
+        return "current"
+    return "mismatch"
+
+
 def has_task_list(snapshot: dict[str, Any]) -> bool:
     return isinstance(snapshot.get("tasks"), list)
 
@@ -195,6 +213,21 @@ def manifest_status(snapshot: dict[str, Any]) -> str:
         selection_status(snapshot),
     ]
     return "mismatch" if "mismatch" in statuses else "verified"
+
+
+def import_ready(
+    snapshot: dict[str, Any],
+    *,
+    supported_snapshot_format_version: int,
+    supported_migration: str,
+) -> bool:
+    checksum_state, _, _ = checksum_status(snapshot)
+    return (
+        checksum_state != "mismatch"
+        and format_status(snapshot, supported_snapshot_format_version=supported_snapshot_format_version) != "mismatch"
+        and migration_status(snapshot, supported_migration=supported_migration) != "mismatch"
+        and manifest_status(snapshot) != "mismatch"
+    )
 
 
 def validate_manifest(snapshot: dict[str, Any]) -> None:

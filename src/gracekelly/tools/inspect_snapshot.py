@@ -11,9 +11,12 @@ from gracekelly.tools.snapshot_artifact import (
     checksum_status,
     exported_task_ids,
     exported_task_ids_status,
+    format_status,
+    import_ready,
     manifest_count,
     manifest_count_status,
     manifest_status,
+    migration_status,
     missing_task_ids,
     missing_task_ids_status,
     snapshot_status_consistency_status,
@@ -41,42 +44,33 @@ def load_snapshot(path: Path) -> dict[str, Any]:
 
 def inspect_snapshot(snapshot: dict[str, Any]) -> dict[str, Any]:
     checksum_state, expected_digest, computed_digest = checksum_status(snapshot)
-
-    format_version = snapshot.get("snapshot_format_version")
-    if format_version is None:
-        format_status = "unknown"
-    elif format_version == SNAPSHOT_FORMAT_VERSION:
-        format_status = "current"
-    else:
-        format_status = "mismatch"
-
-    migration = snapshot.get("migration")
-    if migration is None:
-        migration_status = "unknown"
-    elif migration == INITIAL_MIGRATION_NAME:
-        migration_status = "current"
-    else:
-        migration_status = "mismatch"
+    snapshot_format_status = format_status(
+        snapshot,
+        supported_snapshot_format_version=SNAPSHOT_FORMAT_VERSION,
+    )
+    snapshot_migration_status = migration_status(
+        snapshot,
+        supported_migration=INITIAL_MIGRATION_NAME,
+    )
 
     exported_ids = exported_task_ids(snapshot)
     snapshot_manifest_status = manifest_status(snapshot)
-    import_ready = (
-        checksum_state != "mismatch"
-        and format_status != "mismatch"
-        and migration_status != "mismatch"
-        and snapshot_manifest_status != "mismatch"
+    snapshot_import_ready = import_ready(
+        snapshot,
+        supported_snapshot_format_version=SNAPSHOT_FORMAT_VERSION,
+        supported_migration=INITIAL_MIGRATION_NAME,
     )
     result = {
-        "status": "ok" if import_ready else "error",
+        "status": "ok" if snapshot_import_ready else "error",
         "snapshot_status": snapshot.get("status", "unknown"),
         "snapshot_status_consistency_status": snapshot_status_consistency_status(snapshot),
         "snapshot_format_version": snapshot.get("snapshot_format_version"),
         "supported_snapshot_format_version": SNAPSHOT_FORMAT_VERSION,
-        "format_status": format_status,
+        "format_status": snapshot_format_status,
         "gracekelly_version": snapshot.get("gracekelly_version"),
         "migration": snapshot.get("migration"),
         "supported_migration": INITIAL_MIGRATION_NAME,
-        "migration_status": migration_status,
+        "migration_status": snapshot_migration_status,
         "generated_at": snapshot.get("generated_at"),
         "backend": snapshot.get("backend"),
         "selection": snapshot.get("selection"),
@@ -95,7 +89,7 @@ def inspect_snapshot(snapshot: dict[str, Any]) -> dict[str, Any]:
         "checksum_status": checksum_state,
         "snapshot_sha256": expected_digest,
         "computed_snapshot_sha256": computed_digest,
-        "import_ready": import_ready,
+        "import_ready": snapshot_import_ready,
     }
     return result
 

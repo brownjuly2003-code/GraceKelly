@@ -261,8 +261,8 @@ gracekelly-import-postgres --input D:\GraceKelly\tmp\postgres-export\selected.js
 ```
 
 The success payload now includes `repository_health` and `repository_schema`, so a dry run can double as a pre-restore validation report.
-It also echoes `compressed_input`, `input_size_bytes`, `source_checksum_status`, `source_snapshot_sha256`, `source_status_consistency_status`, `source_manifest_status`, `source_selection_status`, `source_selection`, `source_task_count`, `source_step_count`, `source_event_count`, `source_exported_task_ids`, `source_missing_task_ids`, and `source_missing_task_ids_status` from the artifact manifest, so restore output stays self-contained.
-Even failed import preflights now include `compressed_input` and `input_size_bytes`, so a broken artifact is still identifiable from the error payload alone.
+It also echoes `compressed_input`, `input_size_bytes`, `source_format_status`, `source_migration_status`, `source_checksum_status`, `source_snapshot_sha256`, `source_import_ready`, `source_status_consistency_status`, `source_manifest_status`, `source_selection_status`, `source_selection`, `source_task_count`, `source_step_count`, `source_event_count`, `source_exported_task_ids`, `source_missing_task_ids`, and `source_missing_task_ids_status` from the artifact manifest, so restore output stays self-contained.
+Even failed import preflights now include `compressed_input`, `input_size_bytes`, and the source compatibility verdict fields available from the parsed artifact, so a broken snapshot is still identifiable without a second inspection step.
 
 Gzip-compressed snapshot input is also supported:
 

@@ -201,6 +201,9 @@ class ImportPostgresToolTests(unittest.TestCase):
             self.assertEqual(payload["requested_task_ids"], [])
             self.assertEqual(payload["missing_task_ids"], [])
             self.assertEqual(payload["source_status"], "ok")
+            self.assertEqual(payload["source_format_status"], "current")
+            self.assertEqual(payload["source_migration_status"], "current")
+            self.assertTrue(payload["source_import_ready"])
             self.assertEqual(payload["source_status_consistency_status"], "verified")
             self.assertEqual(payload["source_manifest_status"], "verified")
             self.assertEqual(payload["source_selection"], {"task_ids": ["task-1"], "limit": None})
@@ -1088,6 +1091,12 @@ class ImportPostgresToolTests(unittest.TestCase):
             self.assertEqual(payload["status"], "error")
             self.assertFalse(payload["compressed_input"])
             self.assertGreater(payload["input_size_bytes"], 0)
+            self.assertEqual(payload["source_status"], "ok")
+            self.assertEqual(payload["source_format_status"], "mismatch")
+            self.assertEqual(payload["source_migration_status"], "current")
+            self.assertEqual(payload["source_checksum_status"], "missing")
+            self.assertEqual(payload["source_manifest_status"], "verified")
+            self.assertFalse(payload["source_import_ready"])
             self.assertIn("format version", payload["error"])
         finally:
             if snapshot_path.exists():
@@ -1125,6 +1134,12 @@ class ImportPostgresToolTests(unittest.TestCase):
             self.assertEqual(payload["status"], "error")
             self.assertTrue(payload["compressed_input"])
             self.assertGreater(payload["input_size_bytes"], 0)
+            self.assertEqual(payload["source_status"], "ok")
+            self.assertEqual(payload["source_format_status"], "mismatch")
+            self.assertEqual(payload["source_migration_status"], "current")
+            self.assertEqual(payload["source_checksum_status"], "missing")
+            self.assertEqual(payload["source_manifest_status"], "verified")
+            self.assertFalse(payload["source_import_ready"])
             self.assertIn("format version", payload["error"])
         finally:
             if snapshot_path.exists():
