@@ -154,20 +154,8 @@ def import_snapshot(repository, snapshot: dict[str, Any]) -> dict[str, Any]:
         steps = [_step_from_snapshot(step) for step in item.get("steps", [])]
         events = [_event_from_snapshot(event) for event in item.get("events", [])]
         _validate_task_bundle(task, steps, events)
-        if hasattr(repository, "replace_task_snapshot"):
-            repository.replace_task_snapshot(task, steps, events)
-            imported_event_count += len(events)
-        else:
-            repository.save_task_with_steps(task, steps)
-            existing_sequence_nos = {
-                event.sequence_no
-                for event in repository.list_events(task.task_id)
-            }
-            for event in events:
-                if event.sequence_no in existing_sequence_nos:
-                    continue
-                repository.append_event(event)
-                imported_event_count += 1
+        repository.replace_task_snapshot(task, steps, events)
+        imported_event_count += len(events)
         imported_task_count += 1
         imported_step_count += len(steps)
         replaced_task_ids.append(task.task_id)

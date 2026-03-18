@@ -5,6 +5,7 @@ import unittest
 
 from gracekelly.storage.base import TaskRecord
 from gracekelly.storage.base import TaskEventRecord
+from gracekelly.storage.base import TaskStepRecord
 from gracekelly.storage.memory import InMemoryTaskRepository
 
 
@@ -163,6 +164,103 @@ class InMemoryRepositoryTests(unittest.TestCase):
                     payload={},
                 )
             )
+
+    def test_replace_task_snapshot_replaces_steps_and_events_for_task(self) -> None:
+        repository = InMemoryTaskRepository()
+        created_at = datetime.now(timezone.utc)
+        repository.save_task_with_steps(
+            TaskRecord(
+                task_id="task-1",
+                status="completed",
+                accepted_at=created_at,
+                completed_at=created_at,
+                duration_ms=1,
+                prompt="before",
+                reasoning=False,
+                execution_mode="dry-run",
+                dry_run=True,
+                model_count=1,
+                quorum=1,
+                merge_strategy="first_success",
+                adapter_hint="auto",
+                cancel_on_quorum=True,
+            ),
+            [
+                TaskStepRecord(
+                    task_id="task-1",
+                    step_index=1,
+                    model_id="old-model",
+                    model_display_name="Old Model",
+                    backend="api",
+                    provider="old",
+                    status="completed",
+                )
+            ],
+        )
+        repository.append_event(
+            TaskEventRecord(
+                event_id="event-1",
+                task_id="task-1",
+                sequence_no=1,
+                event_type="task.accepted",
+                created_at=created_at,
+                payload={"before": True},
+            )
+        )
+
+        repository.replace_task_snapshot(
+            TaskRecord(
+                task_id="task-1",
+                status="failed",
+                accepted_at=created_at,
+                completed_at=created_at,
+                duration_ms=2,
+                prompt="after",
+                reasoning=False,
+                execution_mode="api",
+                dry_run=False,
+                model_count=1,
+                quorum=1,
+                merge_strategy="first_success",
+                adapter_hint="auto",
+                cancel_on_quorum=True,
+                failure_code="provider_unavailable",
+            ),
+            [
+                TaskStepRecord(
+                    task_id="task-1",
+                    step_index=1,
+                    model_id="new-model",
+                    model_display_name="New Model",
+                    backend="browser",
+                    provider="perplexity",
+                    status="failed",
+                    failure_code="provider_unavailable",
+                )
+            ],
+            [
+                TaskEventRecord(
+                    event_id="event-2",
+                    task_id="task-1",
+                    sequence_no=1,
+                    event_type="task.failed",
+                    created_at=created_at,
+                    payload={"after": True},
+                )
+            ],
+        )
+
+        task = repository.get("task-1")
+        steps = repository.list_steps("task-1")
+        events = repository.list_events("task-1")
+
+        self.assertEqual(task.prompt, "after")
+        self.assertEqual(task.status, "failed")
+        self.assertEqual(steps[0].model_id, "new-model")
+        self.assertEqual(steps[0].backend, "browser")
+        self.assertEqual(len(events), 1)
+        self.assertEqual(events[0].event_type, "task.failed")
+        self.assertEqual(events[0].payload, {"after": True})
 
 
 if __name__ == "__main__":

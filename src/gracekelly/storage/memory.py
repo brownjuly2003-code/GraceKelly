@@ -70,6 +70,17 @@ class InMemoryTaskRepository(TaskRepository):
         with self._lock:
             return sorted(self._events.get(task_id, []), key=lambda item: item.sequence_no)
 
+    def replace_task_snapshot(
+        self,
+        task: TaskRecord,
+        steps: list[TaskStepRecord],
+        events: list[TaskEventRecord],
+    ) -> None:
+        with self._lock:
+            self._tasks[task.task_id] = task
+            self._steps[task.task_id] = list(steps)
+            self._events[task.task_id] = sorted(list(events), key=lambda item: item.sequence_no)
+
     def healthcheck(self) -> dict[str, object]:
         with self._lock:
             return {

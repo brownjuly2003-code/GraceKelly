@@ -175,6 +175,7 @@ This document is the working source of truth for GraceKelly delivery. We update 
 [x] Add a PostgreSQL import CLI that restores exported task/step/event snapshots by replacing matching task IDs in place.
 [x] Expose PostgreSQL task/step/event row counts through storage health so `/metrics` reports durable storage volume alongside in-memory counts.
 [x] Add a built-in snapshot checksum to PostgreSQL export/import artifacts so corrupted JSON is rejected before restore.
+[x] Make snapshot replacement an explicit storage contract via `replace_task_snapshot(...)` instead of relying on repository duck-typing in the import path.
 
 ## Issue log
 - 2026-03-16: Legacy reference project has corrupted SQLite databases. Decision: no storage design or migration path in GraceKelly may depend on SQLite integrity.
@@ -258,6 +259,7 @@ This document is the working source of truth for GraceKelly delivery. We update 
 - 2026-03-18: PostgreSQL durability had validation tooling and an export path, but still no built-in restore flow that could replay a task snapshot cleanly. Decision: add a task-scoped import CLI that replaces matching `task_id` bundles in place via PostgreSQL cascade semantics instead of pretending an upsert-only merge is a real restore.
 - 2026-03-18: `/metrics` exposed storage counts only for the in-memory backend even though operators now have a durable PostgreSQL restore path. Decision: include PostgreSQL row counts in storage health so the same metrics surface can reflect durable-state volume without a separate stats endpoint.
 - 2026-03-18: Export/import snapshot files were structurally valid JSON but had no built-in integrity signal, so a truncated or manually edited artifact could still reach restore logic. Decision: stamp each export with `snapshot_sha256` and verify it on import before any database writes.
+- 2026-03-18: Snapshot restore semantics had become real enough that the import CLI should not depend on `hasattr(...)` duck-typing against repositories. Decision: promote `replace_task_snapshot(...)` to the explicit storage contract and implement it on both memory and PostgreSQL backends.
 - 2026-03-16: Health can legitimately report `degraded` in development when optional adapters are intentionally unconfigured. Decision: treat degraded readiness as operationally informative, not as a startup failure.
 - 2026-03-16: HTTP smoke tests exposed a missing `requested_models` field in `TaskView`. Decision: keep smoke coverage mandatory for API contract changes; bug fixed immediately.
 - 2026-03-16: answers1.md made it clear that several current choices are transitional only: JSON-heavy execution storage, degraded-on-optional readiness, and `best_effort` merge semantics should not be treated as stable architecture.
@@ -362,3 +364,4 @@ This document is the working source of truth for GraceKelly delivery. We update 
 - 2026-03-18: Added `gracekelly-import-postgres`, a PostgreSQL restore CLI that replays exported task/step/event bundles by replacing matching task IDs in place, and documented the task-scoped restore semantics in the runbook and README.
 - 2026-03-18: Extended PostgreSQL storage health with task/step/event row counts so `/metrics` now exposes durable-state volume through the same gauges previously limited to the in-memory backend.
 - 2026-03-18: Added `snapshot_sha256` integrity stamping to PostgreSQL exports and checksum verification on import, with regression coverage for both the happy path and checksum-mismatch rejection.
+- 2026-03-18: Promoted snapshot replacement to an explicit repository contract and removed the remaining duck-typed restore branch from the import CLI, with direct in-memory replacement coverage.

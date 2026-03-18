@@ -102,6 +102,15 @@ class TaskRepository(ABC):
     def list_events(self, task_id: str) -> list[TaskEventRecord]:
         raise NotImplementedError
 
+    @abstractmethod
+    def replace_task_snapshot(
+        self,
+        task: TaskRecord,
+        steps: list[TaskStepRecord],
+        events: list[TaskEventRecord],
+    ) -> None:
+        raise NotImplementedError
+
     def healthcheck(self) -> dict[str, Any]:
         return {
             "status": "ok",
