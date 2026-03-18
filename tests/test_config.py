@@ -4,7 +4,7 @@ import os
 import unittest
 from unittest.mock import patch
 
-from gracekelly.config import Settings
+from gracekelly.config import Settings, _env_int, _env_float
 
 
 class SettingsTests(unittest.TestCase):
@@ -74,3 +74,29 @@ class SettingsTests(unittest.TestCase):
         self.assertFalse(settings.browser_circuit_breaker_enabled)
         self.assertEqual(settings.browser_circuit_breaker_failure_threshold, 5)
         self.assertEqual(settings.browser_circuit_breaker_cooldown_seconds, 120)
+
+    def test_invalid_int_env_falls_back_to_default(self) -> None:
+        with patch.dict(os.environ, {"GRACEKELLY_PORT": "not_a_number"}, clear=True):
+            settings = Settings.from_env()
+        self.assertEqual(settings.port, 8011)
+
+    def test_invalid_float_env_falls_back_to_default(self) -> None:
+        with patch.dict(os.environ, {"GRACEKELLY_MISTRAL_TIMEOUT_SECONDS": "abc"}, clear=True):
+            settings = Settings.from_env()
+        self.assertEqual(settings.mistral_timeout_seconds, 30.0)
+
+    def test_env_int_valid(self) -> None:
+        with patch.dict(os.environ, {"TEST_INT": "42"}, clear=False):
+            self.assertEqual(_env_int("TEST_INT", "0"), 42)
+
+    def test_env_int_invalid(self) -> None:
+        with patch.dict(os.environ, {"TEST_INT": "bad"}, clear=False):
+            self.assertEqual(_env_int("TEST_INT", "7"), 7)
+
+    def test_env_float_valid(self) -> None:
+        with patch.dict(os.environ, {"TEST_FLOAT": "3.14"}, clear=False):
+            self.assertAlmostEqual(_env_float("TEST_FLOAT", "0"), 3.14)
+
+    def test_env_float_invalid(self) -> None:
+        with patch.dict(os.environ, {"TEST_FLOAT": "bad"}, clear=False):
+            self.assertAlmostEqual(_env_float("TEST_FLOAT", "1.5"), 1.5)

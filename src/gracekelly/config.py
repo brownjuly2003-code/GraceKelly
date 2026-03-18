@@ -1,7 +1,28 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import logging
 import os
+
+logger = logging.getLogger(__name__)
+
+
+def _env_int(name: str, default: str) -> int:
+    raw = os.getenv(name, default)
+    try:
+        return int(raw)
+    except ValueError:
+        logger.warning("Invalid integer for %s=%r, using default %s", name, raw, default)
+        return int(default)
+
+
+def _env_float(name: str, default: str) -> float:
+    raw = os.getenv(name, default)
+    try:
+        return float(raw)
+    except ValueError:
+        logger.warning("Invalid float for %s=%r, using default %s", name, raw, default)
+        return float(default)
 
 
 @dataclass(slots=True, frozen=True)
@@ -38,18 +59,18 @@ class Settings:
         return cls(
             env=os.getenv("GRACEKELLY_ENV", "development"),
             host=os.getenv("GRACEKELLY_HOST", "127.0.0.1"),
-            port=int(os.getenv("GRACEKELLY_PORT", "8011")),
+            port=_env_int("GRACEKELLY_PORT", "8011"),
             log_level=os.getenv("GRACEKELLY_LOG_LEVEL", "INFO"),
             storage_backend=os.getenv("GRACEKELLY_STORAGE_BACKEND", "memory"),
             postgres_dsn=os.getenv("GRACEKELLY_POSTGRES_DSN"),
-            postgres_connect_timeout_seconds=int(os.getenv("GRACEKELLY_POSTGRES_CONNECT_TIMEOUT_SECONDS", "5")),
+            postgres_connect_timeout_seconds=_env_int("GRACEKELLY_POSTGRES_CONNECT_TIMEOUT_SECONDS", "5"),
             execution_profile=os.getenv("GRACEKELLY_EXECUTION_PROFILE", "dry-run"),
             mistral_api_key=os.getenv("GRACEKELLY_MISTRAL_API_KEY"),
             mistral_base_url=os.getenv("GRACEKELLY_MISTRAL_BASE_URL", "https://api.mistral.ai/v1"),
-            mistral_timeout_seconds=float(os.getenv("GRACEKELLY_MISTRAL_TIMEOUT_SECONDS", "30")),
+            mistral_timeout_seconds=_env_float("GRACEKELLY_MISTRAL_TIMEOUT_SECONDS", "30"),
             openai_api_key=os.getenv("GRACEKELLY_OPENAI_API_KEY"),
             openai_base_url=os.getenv("GRACEKELLY_OPENAI_BASE_URL", "https://api.openai.com/v1"),
-            openai_timeout_seconds=float(os.getenv("GRACEKELLY_OPENAI_TIMEOUT_SECONDS", "60")),
+            openai_timeout_seconds=_env_float("GRACEKELLY_OPENAI_TIMEOUT_SECONDS", "60"),
             browser_enabled=os.getenv("GRACEKELLY_BROWSER_ENABLED", "false").lower() == "true",
             browser_automation_backend=os.getenv("GRACEKELLY_BROWSER_AUTOMATION_BACKEND", "null"),
             browser_profile_dir=os.getenv("GRACEKELLY_BROWSER_PROFILE_DIR"),
@@ -62,11 +83,11 @@ class Settings:
                 "true",
             ).lower()
             == "true",
-            browser_circuit_breaker_failure_threshold=int(
-                os.getenv("GRACEKELLY_BROWSER_CIRCUIT_BREAKER_FAILURE_THRESHOLD", "3")
+            browser_circuit_breaker_failure_threshold=_env_int(
+                "GRACEKELLY_BROWSER_CIRCUIT_BREAKER_FAILURE_THRESHOLD", "3",
             ),
-            browser_circuit_breaker_cooldown_seconds=int(
-                os.getenv("GRACEKELLY_BROWSER_CIRCUIT_BREAKER_COOLDOWN_SECONDS", "60")
+            browser_circuit_breaker_cooldown_seconds=_env_int(
+                "GRACEKELLY_BROWSER_CIRCUIT_BREAKER_COOLDOWN_SECONDS", "60",
             ),
             browser_scripted_logged_in=os.getenv(
                 "GRACEKELLY_BROWSER_SCRIPTED_LOGGED_IN",
