@@ -11,6 +11,11 @@ except ModuleNotFoundError:  # pragma: no cover
     psycopg = None
     dict_row = None
 
+try:
+    from psycopg_pool import ConnectionPool
+except ModuleNotFoundError:  # pragma: no cover
+    ConnectionPool = None
+
 from gracekelly.core.contracts import AdapterHint, EventType, ExecutionMode, FailureCode, MergeStrategy, StepStatus, TaskStatus
 from gracekelly.storage.base import TaskEventRecord, TaskRecord, TaskRepository, TaskStepRecord
 from gracekelly.storage.schema import (
@@ -146,11 +151,36 @@ VALUES (
 class PostgresTaskRepository(TaskRepository):
     backend_name = "postgres"
 
-    def __init__(self, dsn: str, *, bootstrap: bool = True, connect_timeout_seconds: int = 5) -> None:
+    def __init__(
+        self,
+        dsn: str,
+        *,
+        bootstrap: bool = True,
+        connect_timeout_seconds: int = 5,
+        use_pool: bool = False,
+        pool_min_size: int = 1,
+        pool_max_size: int = 5,
+    ) -> None:
         if psycopg is None:  # pragma: no cover
             raise RuntimeError("psycopg is required for the PostgreSQL backend.")
         self._dsn = dsn
         self._connect_timeout_seconds = connect_timeout_seconds
+        self._pool: Any | None = None
+        if use_pool:
+            if ConnectionPool is None:  # pragma: no cover
+                logger.warning("psycopg_pool is not installed, falling back to direct connections.")
+            else:
+                self._pool = ConnectionPool(
+                    dsn,
+                    min_size=pool_min_size,
+                    max_size=pool_max_size,
+                    kwargs={"connect_timeout": connect_timeout_seconds},
+                )
+                logger.info(
+                    "postgres.pool.started min_size=%s max_size=%s",
+                    pool_min_size,
+                    pool_max_size,
+                )
         if bootstrap:
             self.bootstrap()
 
@@ -347,8 +377,26 @@ class PostgresTaskRepository(TaskRepository):
                 "error": str(exc),
             }
 
-    def _connect(self, **kwargs):
-        kwargs.setdefault("connect_timeout", self._connect_timeout_seconds)
+    def _connect(self, *, row_factory=None):
+        if self._pool is not None:
+            conn_ctx = self._pool.connection()
+            if row_factory is not None:
+                class _PoolConnectionWithRowFactory:
+                    def __init__(self, pool_ctx, rf):
+                        self._pool_ctx = pool_ctx
+                        self._rf = rf
+                        self._conn = None
+                    def __enter__(self):
+                        self._conn = self._pool_ctx.__enter__()
+                        self._conn.row_factory = self._rf
+                        return self._conn
+                    def __exit__(self, *args):
+                        return self._pool_ctx.__exit__(*args)
+                return _PoolConnectionWithRowFactory(conn_ctx, row_factory)
+            return conn_ctx
+        kwargs: dict[str, Any] = {"connect_timeout": self._connect_timeout_seconds}
+        if row_factory is not None:
+            kwargs["row_factory"] = row_factory
         return psycopg.connect(self._dsn, **kwargs)
 
     def _load_schema_columns(self) -> dict[str, set[str]]:

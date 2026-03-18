@@ -34,6 +34,9 @@ class Settings:
     storage_backend: str = "memory"
     postgres_dsn: str | None = None
     postgres_connect_timeout_seconds: int = 5
+    postgres_pool_enabled: bool = False
+    postgres_pool_min_size: int = 1
+    postgres_pool_max_size: int = 5
     execution_profile: str = "dry-run"
     mistral_api_key: str | None = None
     mistral_base_url: str = "https://api.mistral.ai/v1"
@@ -64,6 +67,9 @@ class Settings:
             storage_backend=os.getenv("GRACEKELLY_STORAGE_BACKEND", "memory"),
             postgres_dsn=os.getenv("GRACEKELLY_POSTGRES_DSN"),
             postgres_connect_timeout_seconds=_env_int("GRACEKELLY_POSTGRES_CONNECT_TIMEOUT_SECONDS", "5"),
+            postgres_pool_enabled=os.getenv("GRACEKELLY_POSTGRES_POOL_ENABLED", "false").lower() == "true",
+            postgres_pool_min_size=_env_int("GRACEKELLY_POSTGRES_POOL_MIN_SIZE", "1"),
+            postgres_pool_max_size=_env_int("GRACEKELLY_POSTGRES_POOL_MAX_SIZE", "5"),
             execution_profile=os.getenv("GRACEKELLY_EXECUTION_PROFILE", "dry-run"),
             mistral_api_key=os.getenv("GRACEKELLY_MISTRAL_API_KEY"),
             mistral_base_url=os.getenv("GRACEKELLY_MISTRAL_BASE_URL", "https://api.mistral.ai/v1"),

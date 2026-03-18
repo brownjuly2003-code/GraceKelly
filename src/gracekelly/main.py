@@ -43,6 +43,9 @@ def build_task_repository(active_settings: Settings):
             active_settings.postgres_dsn,
             bootstrap=True,
             connect_timeout_seconds=active_settings.postgres_connect_timeout_seconds,
+            use_pool=active_settings.postgres_pool_enabled,
+            pool_min_size=active_settings.postgres_pool_min_size,
+            pool_max_size=active_settings.postgres_pool_max_size,
         )
     raise ValueError(f"Unsupported storage backend: {storage_backend}")
 

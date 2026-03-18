@@ -118,6 +118,7 @@ class PostgresSchemaTests(unittest.TestCase):
         repository = PostgresTaskRepository.__new__(PostgresTaskRepository)
         repository._dsn = "postgresql://example"
         repository._connect_timeout_seconds = 7
+        repository._pool = None
 
         class FakePsycopg:
             called_with: tuple[object, dict[str, object]] | None = None

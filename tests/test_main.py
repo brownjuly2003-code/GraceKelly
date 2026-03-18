@@ -14,10 +14,11 @@ class MainWiringTests(unittest.TestCase):
         captured: dict[str, object] = {}
 
         class FakeRepository:
-            def __init__(self, dsn: str, *, bootstrap: bool, connect_timeout_seconds: int) -> None:
+            def __init__(self, dsn: str, *, bootstrap: bool, connect_timeout_seconds: int, **kwargs) -> None:
                 captured["dsn"] = dsn
                 captured["bootstrap"] = bootstrap
                 captured["connect_timeout_seconds"] = connect_timeout_seconds
+                captured.update(kwargs)
 
         settings = Settings(
             storage_backend="postgres",
