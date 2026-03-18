@@ -17,8 +17,8 @@ class PerplexitySelectors:
     add_files_button: str = 'button[aria-label="Add files or tools"]'
     dictation_button: str = 'button[aria-label="Dictation"]'
     response_candidates: tuple[str, ...] = (
-        "main article",
         'main [data-message-author-role="assistant"]',
+        "main article",
         "main div.prose",
         'main [class*="prose"]',
     )

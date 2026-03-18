@@ -109,6 +109,7 @@ Authenticated recon update on 2026-03-18:
   - `Claude Opus 4.6`
   - `Nemotron 3 Super`
 - after scoping Playwright to that composer control, a live smoke switched from `GPT-5.4` to `Claude Sonnet 4.6` and returned `model_selection_verified=true`
+- a later 2026-03-18 live smoke still extracted the final answer from `body_after_prompt`, not from a stable assistant-message selector, so response extraction remains heuristic even though model selection is restored
 
 ## Anti-automation findings
 

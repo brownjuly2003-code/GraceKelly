@@ -225,6 +225,34 @@ class PlaywrightDriverTests(unittest.TestCase):
         self.assertEqual(response_text["text"], "OK")
         self.assertEqual(response_text["source"], "main div.prose")
         self.assertEqual(response_text["candidate_counts"]["main div.prose"], 1)
+        self.assertEqual(response_text["candidate_lengths"]["main div.prose"], 2)
+        self.assertEqual(response_text["selected_length"], 2)
+        self.assertFalse(response_text["used_body_fallback"])
+
+    def test_pick_response_text_prefers_structured_source_over_body_fallback(self) -> None:
+        driver = PlaywrightBrowserAutomation(sync_playwright_factory=lambda: object())
+
+        response_text = driver._pick_response_text(
+            prompt="Reply with only OK",
+            candidate_texts=[
+                ("body_after_prompt", "Reply with only OK\nOK\nDiscover\nFinance\nLatest News"),
+                ("main article", "Reply with only OK\nOK"),
+            ],
+        )
+
+        self.assertEqual(response_text["text"], "OK")
+        self.assertEqual(response_text["source"], "main article")
+        self.assertFalse(response_text["used_body_fallback"])
+
+    def test_clean_candidate_text_preserves_line_breaks(self) -> None:
+        driver = PlaywrightBrowserAutomation(sync_playwright_factory=lambda: object())
+
+        cleaned = driver._clean_candidate_text(
+            prompt="Summarize this",
+            candidate="Summarize this\nFirst line\nSecond line",
+        )
+
+        self.assertEqual(cleaned, "First line\nSecond line")
 
     def test_healthcheck_reports_missing_dependency_when_playwright_unavailable(self) -> None:
         driver = PlaywrightBrowserAutomation()

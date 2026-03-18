@@ -259,6 +259,9 @@ class PlaywrightBrowserAutomation(BrowserAutomationPort):
                 "timeout_seconds": timeout_seconds,
                 "response_source": output_text["source"],
                 "response_candidate_counts": output_text["candidate_counts"],
+                "response_candidate_lengths": output_text["candidate_lengths"],
+                "response_selected_length": output_text["selected_length"],
+                "response_used_body_fallback": output_text["used_body_fallback"],
             },
         )
 
@@ -490,22 +493,30 @@ class PlaywrightBrowserAutomation(BrowserAutomationPort):
     def _pick_response_text(self, *, prompt: str, candidate_texts: list[tuple[str, str]]) -> dict[str, Any] | None:
         cleaned_candidates: list[tuple[str, str]] = []
         candidate_counts: dict[str, int] = {}
+        candidate_lengths: dict[str, int] = {}
         for source, candidate in candidate_texts:
             candidate_counts[source] = candidate_counts.get(source, 0) + 1
             cleaned = self._clean_candidate_text(prompt=prompt, candidate=candidate)
             if cleaned:
                 cleaned_candidates.append((source, cleaned))
+                candidate_lengths[source] = max(candidate_lengths.get(source, 0), len(cleaned))
         if not cleaned_candidates:
             return None
-        source, text = max(cleaned_candidates, key=lambda item: len(item[1]))
+        source, text = max(
+            cleaned_candidates,
+            key=lambda item: (self._response_source_priority(item[0]), len(item[1])),
+        )
         return {
             "text": text,
             "source": source,
             "candidate_counts": candidate_counts,
+            "candidate_lengths": candidate_lengths,
+            "selected_length": len(text),
+            "used_body_fallback": source.startswith("body"),
         }
 
     def _clean_candidate_text(self, *, prompt: str, candidate: str) -> str | None:
-        normalized = " ".join(candidate.split())
+        normalized = candidate.strip()
         if not normalized:
             return None
         if prompt in normalized:
@@ -525,6 +536,13 @@ class PlaywrightBrowserAutomation(BrowserAutomationPort):
         if not filtered:
             return ""
         return "\n".join(filtered).strip()
+
+    def _response_source_priority(self, source: str) -> int:
+        if source in self._selectors.response_candidates:
+            return len(self._selectors.response_candidates) - self._selectors.response_candidates.index(source) + 1
+        if source == "body_after_prompt":
+            return 1
+        return 0
 
     def _first_visible_locator(self, locators: tuple[Any, ...]) -> Any | None:
         for locator in locators:
