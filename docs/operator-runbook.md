@@ -193,6 +193,14 @@ Restore semantics:
 - `snapshot_format_version` is verified when present
 - `snapshot_sha256` is verified when present
 
+Restore only selected task bundles from a larger snapshot:
+
+```bash
+gracekelly-import-postgres --input D:\GraceKelly\tmp\postgres-export\selected.json --task-id task-1 --task-id task-2
+```
+
+If one or more requested `task_id` values are absent, the command still restores the bundles that exist and returns `status=partial` plus `missing_task_ids` in the JSON summary.
+
 Use `--allow-degraded-schema` only for deliberate manual recovery when the guardrail would otherwise block a needed restore.
 
 Validate restore inputs without writing:

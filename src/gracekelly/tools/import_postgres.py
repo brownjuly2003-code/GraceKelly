@@ -31,6 +31,13 @@ def parse_args() -> argparse.Namespace:
         help="Path to a snapshot created by gracekelly-export-postgres.",
     )
     parser.add_argument(
+        "--task-id",
+        dest="task_ids",
+        action="append",
+        default=[],
+        help="Specific task_id to restore from the snapshot. Repeat to restore multiple tasks.",
+    )
+    parser.add_argument(
         "--allow-degraded-schema",
         action="store_true",
         help="Allow import to continue even if repository health or schema report is degraded.",
@@ -231,9 +238,37 @@ def summarize_snapshot(snapshot: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def select_snapshot_tasks(
+    snapshot: dict[str, Any],
+    *,
+    task_ids: list[str] | None = None,
+) -> tuple[dict[str, Any], list[str]]:
+    selected_task_ids = list(task_ids or [])
+    if not selected_task_ids:
+        return snapshot, []
+
+    task_map = {
+        item["task"]["task_id"]: item
+        for item in snapshot.get("tasks", [])
+    }
+    selected_tasks: list[dict[str, Any]] = []
+    missing_task_ids: list[str] = []
+    for task_id in selected_task_ids:
+        task_payload = task_map.get(task_id)
+        if task_payload is None:
+            missing_task_ids.append(task_id)
+            continue
+        selected_tasks.append(task_payload)
+
+    selected_snapshot = dict(snapshot)
+    selected_snapshot["tasks"] = selected_tasks
+    return selected_snapshot, missing_task_ids
+
+
 def main() -> int:
     args = parse_args()
     dsn = resolve_dsn(args.dsn)
+    requested_task_ids = list(dict.fromkeys(getattr(args, "task_ids", [])))
     if not dsn:
         print(
             json.dumps(
@@ -262,6 +297,7 @@ def main() -> int:
     try:
         snapshot = _load_snapshot(input_path)
         _validate_snapshot(snapshot)
+        selected_snapshot, missing_task_ids = select_snapshot_tasks(snapshot, task_ids=requested_task_ids)
         repository = PostgresTaskRepository(dsn, bootstrap=False)
         health = repository.healthcheck()
         schema = repository.schema_report()
@@ -282,9 +318,9 @@ def main() -> int:
             )
             return 2
         if args.dry_run:
-            summary = summarize_snapshot(snapshot)
+            summary = summarize_snapshot(selected_snapshot)
         else:
-            summary = import_snapshot(repository, snapshot)
+            summary = import_snapshot(repository, selected_snapshot)
     except Exception as exc:
         print(
             json.dumps(
@@ -299,12 +335,15 @@ def main() -> int:
         )
         return 2
 
+    result_status = "partial" if missing_task_ids else "ok"
     result = {
-        "status": "ok",
+        "status": result_status,
         "snapshot_format_version": snapshot.get("snapshot_format_version", SNAPSHOT_FORMAT_VERSION),
         "gracekelly_version": __version__,
         "migration": INITIAL_MIGRATION_NAME,
         "input": str(input_path),
+        "requested_task_ids": requested_task_ids,
+        "missing_task_ids": missing_task_ids,
         "source_status": snapshot.get("status", "unknown"),
         "source_gracekelly_version": snapshot.get("gracekelly_version"),
         "source_migration": snapshot.get("migration"),
@@ -314,7 +353,7 @@ def main() -> int:
         **summary,
     }
     print(json.dumps(result, indent=2, default=_json_default, sort_keys=True))
-    return 0
+    return 0 if result_status == "ok" else 1
 
 
 if __name__ == "__main__":

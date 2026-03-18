@@ -190,6 +190,8 @@ class ImportPostgresToolTests(unittest.TestCase):
             self.assertEqual(payload["status"], "ok")
             self.assertEqual(payload["snapshot_format_version"], SNAPSHOT_FORMAT_VERSION)
             self.assertEqual(payload["gracekelly_version"], __version__)
+            self.assertEqual(payload["requested_task_ids"], [])
+            self.assertEqual(payload["missing_task_ids"], [])
             self.assertEqual(payload["source_status"], "ok")
             self.assertEqual(payload["source_gracekelly_version"], __version__)
             self.assertEqual(payload["repository_health"]["status"], "ok")
@@ -197,6 +199,191 @@ class ImportPostgresToolTests(unittest.TestCase):
             self.assertEqual(payload["imported_task_count"], 1)
             self.assertEqual(payload["imported_step_count"], 1)
             self.assertEqual(payload["imported_event_count"], 2)
+            self.assertEqual(payload["replaced_task_ids"], ["task-1"])
+        finally:
+            if snapshot_path.exists():
+                snapshot_path.unlink()
+
+    def test_main_restores_only_requested_task_ids(self) -> None:
+        accepted_at = datetime(2026, 3, 18, 18, 0, tzinfo=UTC).isoformat().replace("+00:00", "Z")
+        task_template = {
+            "status": "completed",
+            "accepted_at": accepted_at,
+            "completed_at": accepted_at,
+            "duration_ms": 11,
+            "prompt": "import me",
+            "reasoning": False,
+            "execution_mode": "dry-run",
+            "dry_run": True,
+            "model_count": 1,
+            "quorum": 1,
+            "merge_strategy": "first_success",
+            "adapter_hint": "auto",
+            "cancel_on_quorum": True,
+            "failure_code": None,
+            "failure_message": None,
+            "output_text": None,
+            "metadata": {},
+        }
+        snapshot_payload = self.build_snapshot_payload(
+            {
+                "migration": "0001_initial",
+                "tasks": [
+                    {
+                        "task": {
+                            **task_template,
+                            "task_id": "task-1",
+                        },
+                        "steps": [],
+                        "events": [],
+                    },
+                    {
+                        "task": {
+                            **task_template,
+                            "task_id": "task-2",
+                        },
+                        "steps": [],
+                        "events": [],
+                    },
+                ],
+            }
+        )
+        snapshot_path = self.write_snapshot(snapshot_payload)
+
+        class FakeRepository:
+            def __init__(self, dsn: str, *, bootstrap: bool) -> None:
+                self.replaced = []
+
+            def healthcheck(self) -> dict[str, object]:
+                return {"status": "ok", "backend": "postgres"}
+
+            def schema_report(self) -> dict[str, object]:
+                return {"status": "ok", "backend": "postgres", "schema_version": "0001_initial"}
+
+            def replace_task_snapshot(self, task, steps, events) -> None:
+                self.replaced.append((task, steps, events))
+
+        fake_instances: list[FakeRepository] = []
+
+        def build_fake_repository(dsn: str, *, bootstrap: bool):
+            repo = FakeRepository(dsn, bootstrap=bootstrap)
+            fake_instances.append(repo)
+            return repo
+
+        try:
+            with (
+                patch.object(
+                    import_postgres,
+                    "parse_args",
+                    return_value=argparse.Namespace(
+                        dsn="postgresql://example",
+                        input=str(snapshot_path),
+                        task_ids=["task-2", "task-2"],
+                        allow_degraded_schema=False,
+                        dry_run=False,
+                    ),
+                ),
+                patch.object(import_postgres, "resolve_dsn", return_value="postgresql://example"),
+                patch.object(import_postgres, "PostgresTaskRepository", side_effect=build_fake_repository),
+                patch("builtins.print") as print_mock,
+            ):
+                code = import_postgres.main()
+
+            self.assertEqual(code, 0)
+            repo = fake_instances[0]
+            self.assertEqual([task.task_id for task, _, _ in repo.replaced], ["task-2"])
+            payload = json.loads(print_mock.call_args.args[0])
+            self.assertEqual(payload["status"], "ok")
+            self.assertEqual(payload["requested_task_ids"], ["task-2"])
+            self.assertEqual(payload["missing_task_ids"], [])
+            self.assertEqual(payload["imported_task_count"], 1)
+            self.assertEqual(payload["replaced_task_ids"], ["task-2"])
+        finally:
+            if snapshot_path.exists():
+                snapshot_path.unlink()
+
+    def test_main_returns_partial_for_missing_requested_task_ids(self) -> None:
+        accepted_at = datetime(2026, 3, 18, 18, 0, tzinfo=UTC).isoformat().replace("+00:00", "Z")
+        snapshot_payload = self.build_snapshot_payload(
+            {
+                "migration": "0001_initial",
+                "tasks": [
+                    {
+                        "task": {
+                            "task_id": "task-1",
+                            "status": "completed",
+                            "accepted_at": accepted_at,
+                            "completed_at": accepted_at,
+                            "duration_ms": 11,
+                            "prompt": "import me",
+                            "reasoning": False,
+                            "execution_mode": "dry-run",
+                            "dry_run": True,
+                            "model_count": 1,
+                            "quorum": 1,
+                            "merge_strategy": "first_success",
+                            "adapter_hint": "auto",
+                            "cancel_on_quorum": True,
+                            "failure_code": None,
+                            "failure_message": None,
+                            "output_text": None,
+                            "metadata": {},
+                        },
+                        "steps": [],
+                        "events": [],
+                    }
+                ],
+            }
+        )
+        snapshot_path = self.write_snapshot(snapshot_payload)
+
+        class FakeRepository:
+            def __init__(self, dsn: str, *, bootstrap: bool) -> None:
+                self.replaced = []
+
+            def healthcheck(self) -> dict[str, object]:
+                return {"status": "ok", "backend": "postgres"}
+
+            def schema_report(self) -> dict[str, object]:
+                return {"status": "ok", "backend": "postgres", "schema_version": "0001_initial"}
+
+            def replace_task_snapshot(self, task, steps, events) -> None:
+                self.replaced.append((task, steps, events))
+
+        fake_instances: list[FakeRepository] = []
+
+        def build_fake_repository(dsn: str, *, bootstrap: bool):
+            repo = FakeRepository(dsn, bootstrap=bootstrap)
+            fake_instances.append(repo)
+            return repo
+
+        try:
+            with (
+                patch.object(
+                    import_postgres,
+                    "parse_args",
+                    return_value=argparse.Namespace(
+                        dsn="postgresql://example",
+                        input=str(snapshot_path),
+                        task_ids=["task-1", "task-missing"],
+                        allow_degraded_schema=False,
+                        dry_run=False,
+                    ),
+                ),
+                patch.object(import_postgres, "resolve_dsn", return_value="postgresql://example"),
+                patch.object(import_postgres, "PostgresTaskRepository", side_effect=build_fake_repository),
+                patch("builtins.print") as print_mock,
+            ):
+                code = import_postgres.main()
+
+            self.assertEqual(code, 1)
+            repo = fake_instances[0]
+            self.assertEqual([task.task_id for task, _, _ in repo.replaced], ["task-1"])
+            payload = json.loads(print_mock.call_args.args[0])
+            self.assertEqual(payload["status"], "partial")
+            self.assertEqual(payload["requested_task_ids"], ["task-1", "task-missing"])
+            self.assertEqual(payload["missing_task_ids"], ["task-missing"])
+            self.assertEqual(payload["imported_task_count"], 1)
             self.assertEqual(payload["replaced_task_ids"], ["task-1"])
         finally:
             if snapshot_path.exists():

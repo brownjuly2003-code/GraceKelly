@@ -236,6 +236,14 @@ This restores the snapshot task-by-task into PostgreSQL:
 - `snapshot_format_version` is checked when present
 - `snapshot_sha256` is verified when present, so corrupted snapshots are rejected before restore
 
+Restore only a subset of task bundles from a larger snapshot:
+
+```bash
+gracekelly-import-postgres --input D:\GraceKelly\tmp\postgres-export\selected.json --task-id task-1 --task-id task-2
+```
+
+If some requested task IDs are missing from the artifact, the command returns `status=partial` and lists them under `missing_task_ids` after restoring the bundles that were present.
+
 Validate a snapshot and the target repository without writing any task data:
 
 ```bash
