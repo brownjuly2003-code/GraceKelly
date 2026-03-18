@@ -108,13 +108,13 @@ Deliverables:
 - lightweight admin surface if still justified
 
 Already delivered:
+- `/metrics` endpoint backed by existing readiness/runtime state
 - `/health` and `/api/v1/readiness`
 - recent-task list with operator filters
 - rich `GET /api/v1/tasks/{task_id}` task, step, and event views
 - execution saturation and terminal-summary diagnostics
 
 Not yet addressed:
-- metrics endpoint (Prometheus/OpenMetrics)
 - operator runbook
 - structured logging across all layers beyond the current orchestrator and browser coverage
 - admin UI (evaluate whether still justified after browser spike)

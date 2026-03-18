@@ -39,6 +39,7 @@ uvicorn gracekelly.main:app --app-dir src --host 127.0.0.1 --port 8011
 
 - `GET /health`
 - `GET /api/v1/readiness`
+- `GET /metrics`
 - `GET /api/v1/models`
 - `POST /api/v1/orchestrate`
 - `GET /api/v1/tasks`
@@ -48,6 +49,7 @@ uvicorn gracekelly.main:app --app-dir src --host 127.0.0.1 --port 8011
 `GET /api/v1/tasks/{task_id}` also lifts both execution policy and terminal execution context to top-level fields such as `quorum`, `merge_strategy`, `adapter_hint`, `cancel_on_quorum`, `winning_step_index`, `cancelled_steps`, `cancel_reason`, and `execution_details`, while still returning the raw event stream.
 `GET /api/v1/models` now includes `adapter_kind`, `provider`, and browser-specific availability hints (`available`, `availability_status`, `availability_checked_at`, `availability_source`) so the catalog can distinguish static registry entries from the last authenticated Perplexity menu actually observed by the Playwright runtime.
 `GET /api/v1/readiness` exposes browser-adapter circuit-breaker state under the `browser.perplexity` component whenever repeated infrastructure-grade browser failures temporarily open the adapter.
+`GET /metrics` exposes Prometheus-style gauges for service readiness, component states, execution saturation, in-memory storage counts when available, and browser circuit-breaker state.
 
 ## Tests
 

@@ -8,7 +8,7 @@ The foundation must stay understandable under failure.
 ## Current scope
 
 Implemented:
-- full API surface: orchestration, task inspection, health, readiness, model catalog
+- full API surface: orchestration, task inspection, health, readiness, model catalog, metrics
 - canonical model registry with alias normalization
 - typed task/step/event contracts with multi-model execution planning
 - dual-backend storage: in-memory (development) and PostgreSQL (durable)
@@ -76,6 +76,6 @@ Excluded by design:
 1. Broaden structured logging beyond the current orchestrator and browser-layer coverage.
 2. Refresh browser catalog strategy if Perplexity account-tier drift keeps diverging from the canonical registry.
 3. Backup and restore strategy for PostgreSQL.
-4. Metrics endpoint for operational monitoring.
+4. Operator runbook for the current health/readiness/metrics surfaces.
 5. Production migration tooling (version-tracked SQL or Alembic).
 6. Account pools and any real retry model beyond the current deferral.
