@@ -76,6 +76,7 @@ curl -X POST http://127.0.0.1:8011/api/v1/orchestrate \
 - PostgreSQL schema bootstrap now lives in a packaged SQL migration: `src/gracekelly/storage/migrations/0001_initial.sql`.
 - Live Perplexity reconnaissance from 2026-03-17 is captured in `docs/perplexity-dom-recon.md`.
 - `memory` stays the zero-config development default; for durable browser runs, set `GRACEKELLY_STORAGE_BACKEND=postgres` explicitly.
+- Current operational recovery steps are documented in `docs/operator-runbook.md`.
 
 ## OpenAI-compatible API mode
 

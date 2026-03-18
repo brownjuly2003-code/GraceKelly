@@ -76,6 +76,5 @@ Excluded by design:
 1. Broaden structured logging beyond the current orchestrator and browser-layer coverage.
 2. Refresh browser catalog strategy if Perplexity account-tier drift keeps diverging from the canonical registry.
 3. Backup and restore strategy for PostgreSQL.
-4. Operator runbook for the current health/readiness/metrics surfaces.
-5. Production migration tooling (version-tracked SQL or Alembic).
-6. Account pools and any real retry model beyond the current deferral.
+4. Production migration tooling (version-tracked SQL or Alembic).
+5. Account pools and any real retry model beyond the current deferral.
