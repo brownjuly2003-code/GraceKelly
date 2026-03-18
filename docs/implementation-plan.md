@@ -58,7 +58,7 @@ This document is the working source of truth for GraceKelly delivery. We update 
 
 ## Current status
 - Phase: Phase 1 complete, Phase 2 browser spike proven, Phase 4/5 hardening in progress
-- Overall state: the core orchestration contract is stable with normalized task/step/event models, profile-aware readiness, and dual-backend storage (memory + PostgreSQL with packaged migration, validation, and task-scoped export/import tooling). Browser execution is exercisable end-to-end through a scripted backend, and the headed Playwright slice has passed dedicated-profile authenticated smokes against the real Perplexity UI with verified model selection. API execution works through the Mistral and OpenAI-compatible adapters, both now backed by a shared `BaseApiAdapter`. In-process per-model concurrency limits, per-model timeouts, and a minimal browser-adapter circuit breaker are enforced at runtime. API error responses are sanitized to prevent implementation detail leakage. Browser profile directory paths are validated against traversal attacks. Test coverage expanded from 203 to 333 tests, closing gaps in concurrency, execution profiles, schemas, logging, browser policies, model catalog, API adapter error paths, scripted browser automation, and PostgreSQL row mapping.
+- Overall state: the core orchestration contract is stable with normalized task/step/event models, profile-aware readiness, and dual-backend storage (memory + PostgreSQL with packaged migration, validation, and task-scoped export/import tooling). Browser execution is exercisable end-to-end through a scripted backend, and the headed Playwright slice has passed dedicated-profile authenticated smokes against the real Perplexity UI with verified model selection. API execution works through the Mistral and OpenAI-compatible adapters, both now backed by a shared `BaseApiAdapter`. In-process per-model concurrency limits, per-model timeouts, and a minimal browser-adapter circuit breaker are enforced at runtime. API error responses are sanitized to prevent implementation detail leakage. Browser profile directory paths are validated against traversal attacks. Browser model catalog refreshed from recon data: "Thinking" added, outdated "Model" selector text removed, Kimi K2.5 handled by runtime observation. Test coverage at 370 tests.
 - Gate status: Gate 1 (schema) — open, Gate 2 (operational) — open, Gate 3 (execution policy) — open, Gate 4 (browser boundary) — completed
 - Last updated: 2026-03-19
 
@@ -215,6 +215,7 @@ This document is the working source of truth for GraceKelly delivery. We update 
 [x] Add optional PostgreSQL connection pooling via `psycopg_pool` with `GRACEKELLY_POSTGRES_POOL_ENABLED`, `_MIN_SIZE`, and `_MAX_SIZE` configuration.
 [x] Add opt-in API key authentication middleware with `GRACEKELLY_API_KEY` supporting Bearer token and X-API-Key headers, with `/health` and `/docs` exempt.
 [x] Add opt-in per-IP rate limiting middleware with `GRACEKELLY_RATE_LIMIT_PER_MINUTE` returning 429 on excess.
+[x] Refresh browser model catalog from recon findings: add "Thinking" model, remove outdated "Model" text from `ready_markers` and `shell_noise_lines`, keep Kimi K2.5 with runtime `observed_unavailable` handling.
 
 ## Issue log
 - 2026-03-16: Legacy reference project has corrupted SQLite databases. Decision: no storage design or migration path in GraceKelly may depend on SQLite integrity.
@@ -336,6 +337,8 @@ This document is the working source of truth for GraceKelly delivery. We update 
 - 2026-03-16: The normalized repository and API contract are now implemented and green against the in-memory test path. Decision: keep PostgreSQL live validation as the next storage-specific checkpoint before schema freeze.
 - 2026-03-16: Readiness semantics are now profile-aware in code, but alerting and production expectations are still unvalidated against a live deployment. Decision: keep the independent operational review gate before treating readiness as stable.
 - 2026-03-17: `questions.md` now contains only truly open blockers. Decision: remove future-looking placeholders and keep the file empty until a real design or implementation question appears.
+- 2026-03-19: Recon confirmed "Thinking" in the live Perplexity model menu but Kimi K2.5 absent. Decision: add "Thinking" to MODEL_SPECS, keep Kimi K2.5 with runtime `observed_unavailable` handling rather than removing it from ~80 test references.
+- 2026-03-19: "Model" text no longer appears in the Perplexity UI after the aria-label change. Decision: remove from `ready_markers` and `shell_noise_lines` since it causes false positive noise filtering.
 
 ## Change log
 - 2026-03-16: Chosen PostgreSQL as the first durable backend.

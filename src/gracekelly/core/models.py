@@ -117,6 +117,18 @@ MODEL_SPECS: tuple[ModelSpec, ...] = (
         reasoning_capable=True,
     ),
     ModelSpec(
+        id="thinking",
+        display_name="Thinking",
+        aliases=("Thinking", "Deep Thinking"),
+        adapter_kind="browser",
+        provider="perplexity",
+        provider_model_id="Thinking",
+        timeout_seconds=120,
+        expected_latency_class="slow",
+        concurrency_limit=1,
+        reasoning_capable=True,
+    ),
+    ModelSpec(
         id="max",
         display_name="Max",
         aliases=("Max",),

@@ -103,22 +103,24 @@ Perplexity теперь ставит **имя текущей выбранной 
 
 `recon-04-response-candidates.json`: `main div.prose` вернул чистый «OK» — лучший source, `body_after_prompt` содержит шум из sidebar/history.
 
-### Что нужно исправить в коде
+### Что было исправлено в коде
 
-1. **Селектор model button** (`selectors.py:9`): заменить `button[aria-label="Model"]` на `button[aria-haspopup="menu"]` внутри composer-контейнера, или искать кнопку по списку известных model names.
+1. **Селектор model button** — DONE: `composer_model_button` (`button[aria-haspopup="menu"]` внутри composer) уже реализован в `selectors.py:10-14`, используется как primary в `_resolve_model_button()`. Старый `button[aria-label="Model"]` оставлен как fallback.
 
-2. **Навигация перед model selection** (`playwright_driver.py`): перед `select_model()` убедиться, что страница на home composer (`/`), а не в thread view. Либо всегда делать `page.goto(base_url)` перед выбором модели, либо проверять наличие пикера и только при отсутствии — navigating home.
+2. **Навигация перед model selection** — DONE: `_navigate_home_for_model_selection()` реализована в `playwright_driver.py:597-609`, вызывается автоматически когда model button не найден.
 
-3. **Kimi K2.5** (`models.py:72`): модель отсутствует в реальном меню Perplexity — пометить как `observed_unavailable` или убрать из browser-каталога.
+3. **Kimi K2.5** — HANDLED: модель остаётся в каталоге, но runtime-наблюдение (`observed_unavailable`) корректно отмечает её отсутствие в реальном меню Perplexity. Удалять из MODEL_SPECS нецелесообразно — используется в 80+ тестах.
 
-## Why these questions remain open
+4. **Thinking** — ADDED: модель добавлена в каталог (присутствует в реальном меню Perplexity по данным recon).
 
-- ~~what is still missing is the current real DOM path for model selection in the authenticated UI~~ **RESOLVED** — путь найден: `aria-haspopup="menu"` на home composer
-- Осталось: имплементировать новый селектор и навигацию home-before-select в коде
+5. **ready_markers / shell_noise_lines** — CLEANED: убран "Model" (больше не текст на странице).
 
-## Resolved since the last question round
+## Resolved
 
-- Browser runs no longer fail the whole step when the picker is missing; they continue with `model_selection_verified=false`.
-- Browser execution now exposes `model_picker_unavailable=true` when the picker does not render.
-- `/api/v1/models` now exposes `observed_unverified` and `last_verified_at`.
-- The current implementation state is committed in `7d69ace` (`Degrade browser model selection honestly`).
+All items from the recon findings are now addressed:
+- Browser runs degrade gracefully when the picker is missing (`model_selection_verified=false`)
+- Browser execution exposes `model_picker_unavailable=true` when the picker does not render
+- `/api/v1/models` exposes `observed_unverified` and `last_verified_at`
+- `composer_model_button` selector is the primary resolution path
+- Home navigation before model selection is automatic
+- "Thinking" model added to catalog from recon evidence

@@ -219,8 +219,8 @@ class PlaywrightDriverTests(unittest.TestCase):
         response_text = driver._pick_response_text(
             prompt="Reply with only OK",
             candidate_texts=[
-                ("main div.prose", "Search\nModel\nReply with only OK\nOK"),
-                ("main article", "Model"),
+                ("main div.prose", "Search\nHistory\nReply with only OK\nOK"),
+                ("main article", "History"),
                 ("body", "Continue with Google"),
             ],
         )

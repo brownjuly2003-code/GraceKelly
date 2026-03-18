@@ -31,7 +31,6 @@ class PerplexitySelectors:
     ready_markers: tuple[str, ...] = (
         "Type @ for connectors and sources",
         "Type / for search modes",
-        "Model",
     )
     signed_out_markers: tuple[str, ...] = (
         "Sign in or create an account",
@@ -53,7 +52,6 @@ class PerplexitySelectors:
             "Recent",
             "Type @ for connectors and sources",
             "Type / for search modes",
-            "Model",
             "Add files or tools",
             "Dictation",
             "Use voice mode",

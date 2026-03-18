@@ -50,8 +50,12 @@ Deliverables:
 - external Gate 4 boundary review completed in `audit2.md`
 
 Next:
-- broader browser catalog refresh if Perplexity account tiers continue to drift beyond the canonical registry
 - broader browser-layer logging if the live Playwright path grows more stateful than the current adapter/runtime entries
+
+Delivered after catalog refresh:
+- "Thinking" model added from recon evidence
+- "Model" text removed from ready_markers and shell_noise_lines (no longer in Perplexity UI)
+- Kimi K2.5 kept in registry with runtime `observed_unavailable` handling
 
 Delivered after the first live-driver smoke:
 - concrete browser-driver cleanup on top of the app lifespan hook, including idle-session reset and stale runtime detection
