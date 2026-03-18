@@ -26,6 +26,41 @@ from gracekelly.storage.base import TaskEventRecord, TaskRecord, TaskRepository,
 logger = logging.getLogger(__name__)
 
 
+@dataclass(slots=True)
+class _StepSummary:
+    completed: list[dict[str, object]] = None  # type: ignore[assignment]
+    failed: list[dict[str, object]] = None  # type: ignore[assignment]
+    cancelled_indexes: list[int] = None  # type: ignore[assignment]
+
+    def __post_init__(self) -> None:
+        if self.completed is None:
+            self.completed = []
+        if self.failed is None:
+            self.failed = []
+        if self.cancelled_indexes is None:
+            self.cancelled_indexes = []
+
+
+class _EventSequence:
+    def __init__(self, task_id: str) -> None:
+        self._task_id = task_id
+        self._sequence_no = 0
+        self.events: list[TaskEventRecord] = []
+
+    def append(self, event_type: EventType, created_at: datetime, payload: dict[str, object]) -> None:
+        self._sequence_no += 1
+        self.events.append(
+            TaskEventRecord(
+                event_id=str(uuid4()),
+                task_id=self._task_id,
+                sequence_no=self._sequence_no,
+                event_type=event_type,
+                created_at=created_at,
+                payload=payload,
+            )
+        )
+
+
 class StorageUnavailableError(RuntimeError):
     def __init__(self, operation: str, message: str) -> None:
         super().__init__(f"Storage operation '{operation}' failed: {message}")
@@ -197,139 +232,109 @@ class OrchestratorService:
         plan: ExecutionPlan,
         batch_result: ExecutionBatchResult,
     ) -> list[TaskEventRecord]:
-        results = batch_result.results
-        events: list[TaskEventRecord] = []
-        sequence_no = 0
-
-        def next_event(event_type: EventType, created_at: datetime, payload: dict[str, object]) -> TaskEventRecord:
-            nonlocal sequence_no
-            sequence_no += 1
-            return TaskEventRecord(
-                event_id=str(uuid4()),
-                task_id=task.task_id,
-                sequence_no=sequence_no,
-                event_type=event_type,
-                created_at=created_at,
-                payload=payload,
-            )
-
-        events.append(
-            next_event(
-                EventType.TASK_ACCEPTED,
-                task.accepted_at,
-                {
-                    "dry_run": task.dry_run,
-                    "execution_plan": {
-                        "quorum": plan.quorum,
-                        "merge_strategy": plan.merge_strategy,
-                        "adapter_hint": plan.adapter_hint,
-                        "cancel_on_quorum": plan.cancel_on_quorum,
-                        "steps": [
-                            {
-                                "step_index": step.step_index,
-                                "model_id": step.model.id,
-                                "display_name": step.model.display_name,
-                                "backend": step.backend.value,
-                                "provider": step.provider,
-                            }
-                            for step in plan.steps
-                        ],
-                    },
-                },
-            )
-        )
-
+        seq = _EventSequence(task.task_id)
+        seq.append(EventType.TASK_ACCEPTED, task.accepted_at, self._accepted_payload(task, plan))
         if task.dry_run:
-            return events
+            return seq.events
 
-        completed_steps: list[dict[str, object]] = []
-        failed_steps: list[dict[str, object]] = []
-        cancelled_steps: list[int] = []
+        step_summary = self._build_step_events(seq, task, plan, batch_result.results)
+        self._build_terminal_event(seq, task, batch_result, step_summary)
+        return seq.events
 
+    def _accepted_payload(self, task: TaskRecord, plan: ExecutionPlan) -> dict[str, object]:
+        return {
+            "dry_run": task.dry_run,
+            "execution_plan": {
+                "quorum": plan.quorum,
+                "merge_strategy": plan.merge_strategy,
+                "adapter_hint": plan.adapter_hint,
+                "cancel_on_quorum": plan.cancel_on_quorum,
+                "steps": [
+                    {
+                        "step_index": step.step_index,
+                        "model_id": step.model.id,
+                        "display_name": step.model.display_name,
+                        "backend": step.backend.value,
+                        "provider": step.provider,
+                    }
+                    for step in plan.steps
+                ],
+            },
+        }
+
+    def _build_step_events(
+        self,
+        seq: _EventSequence,
+        task: TaskRecord,
+        plan: ExecutionPlan,
+        results: tuple[ExecutionResult, ...],
+    ) -> _StepSummary:
+        summary = _StepSummary()
+        event_time = task.completed_at or task.accepted_at
         for step, result in zip(plan.steps, results, strict=True):
             if result.status == StepStatus.COMPLETED:
-                step_payload = {
+                payload: dict[str, object] = {
                     "step_index": step.step_index,
                     "model_id": step.model.id,
                     "model_display_name": step.model.display_name,
                     "duration_ms": result.duration_ms,
                 }
-                step_payload.update(self._event_result_details(result))
-                completed_steps.append(step_payload)
-                events.append(
-                    next_event(
-                        EventType.STEP_COMPLETED,
-                        task.completed_at or task.accepted_at,
-                        step_payload,
-                    )
-                )
+                payload.update(self._event_result_details(result))
+                summary.completed.append(payload)
+                seq.append(EventType.STEP_COMPLETED, event_time, payload)
             elif result.status == StepStatus.FAILED:
-                step_payload = {
+                payload = {
                     "step_index": step.step_index,
                     "model_id": step.model.id,
                     "model_display_name": step.model.display_name,
                     "failure_code": result.failure_code.value if result.failure_code else None,
                     "failure_message": result.failure_message,
                 }
-                step_payload.update(self._event_result_details(result))
-                failed_steps.append(step_payload)
-                events.append(
-                    next_event(
-                        EventType.STEP_FAILED,
-                        task.completed_at or task.accepted_at,
-                        step_payload,
-                    )
-                )
+                payload.update(self._event_result_details(result))
+                summary.failed.append(payload)
+                seq.append(EventType.STEP_FAILED, event_time, payload)
             elif result.status == StepStatus.CANCELLED:
-                cancelled_steps.append(step.step_index)
+                summary.cancelled_indexes.append(step.step_index)
+        return summary
+
+    def _build_terminal_event(
+        self,
+        seq: _EventSequence,
+        task: TaskRecord,
+        batch_result: ExecutionBatchResult,
+        step_summary: _StepSummary,
+    ) -> None:
+        event_time = task.completed_at or task.accepted_at
+        batch_details = self._event_batch_details(batch_result)
 
         if task.status == TaskStatus.COMPLETED:
             winning_step = None
             if task.merge_strategy == MergeStrategy.FIRST_SUCCESS or task.model_count == 1:
-                winning_step = completed_steps[0] if completed_steps else None
-            task_payload = {
+                winning_step = step_summary.completed[0] if step_summary.completed else None
+            payload: dict[str, object] = {
                 "winning_step_index": winning_step["step_index"] if winning_step else None,
                 "winning_model_id": winning_step["model_id"] if winning_step else None,
                 "duration_ms": task.duration_ms,
-                "cancelled_steps": cancelled_steps,
-                "cancel_reason": "quorum_reached" if cancelled_steps else None,
+                "cancelled_steps": step_summary.cancelled_indexes,
+                "cancel_reason": "quorum_reached" if step_summary.cancelled_indexes else None,
             }
-            task_payload.update(self._event_batch_details(batch_result))
-            events.append(
-                next_event(
-                    EventType.TASK_COMPLETED,
-                    task.completed_at or task.accepted_at,
-                    task_payload,
-                )
-            )
+            payload.update(batch_details)
+            seq.append(EventType.TASK_COMPLETED, event_time, payload)
         elif task.status == TaskStatus.FAILED:
-            task_payload = {
+            payload = {
                 "failure_code": task.failure_code.value if task.failure_code else None,
                 "failure_message": task.failure_message,
-                "failed_steps": failed_steps,
+                "failed_steps": step_summary.failed,
             }
-            task_payload.update(self._event_batch_details(batch_result))
-            events.append(
-                next_event(
-                    EventType.TASK_FAILED,
-                    task.completed_at or task.accepted_at,
-                    task_payload,
-                )
-            )
+            payload.update(batch_details)
+            seq.append(EventType.TASK_FAILED, event_time, payload)
         elif task.status == TaskStatus.CANCELLED:
-            task_payload = {
+            payload = {
                 "reason": "operator",
-                "cancelled_steps": cancelled_steps,
+                "cancelled_steps": step_summary.cancelled_indexes,
             }
-            task_payload.update(self._event_batch_details(batch_result))
-            events.append(
-                next_event(
-                    EventType.TASK_CANCELLED,
-                    task.completed_at or task.accepted_at,
-                    task_payload,
-                )
-            )
-        return events
+            payload.update(batch_details)
+            seq.append(EventType.TASK_CANCELLED, event_time, payload)
 
     def _append_event_safe(self, event: TaskEventRecord, *, trace_id: str | None = None) -> None:
         try:
