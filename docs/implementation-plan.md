@@ -216,6 +216,8 @@ This document is the working source of truth for GraceKelly delivery. We update 
 [x] Add opt-in API key authentication middleware with `GRACEKELLY_API_KEY` supporting Bearer token and X-API-Key headers, with `/health` and `/docs` exempt.
 [x] Add opt-in per-IP rate limiting middleware with `GRACEKELLY_RATE_LIMIT_PER_MINUTE` returning 429 on excess.
 [x] Refresh browser model catalog from recon findings: add "Thinking" model, remove outdated "Model" text from `ready_markers` and `shell_noise_lines`, keep Kimi K2.5 with runtime `observed_unavailable` handling.
+[x] Add broader browser-layer logging: circuit breaker state transitions, auth check results, execution timing/duration, response source, session reuse.
+[x] Add version-tracked migration system with `gk_schema_migrations` tracking table, ordered discovery and application, `gracekelly-migrate-postgres` CLI with `--dry-run`, and migration status in `schema_report()`.
 
 ## Issue log
 - 2026-03-16: Legacy reference project has corrupted SQLite databases. Decision: no storage design or migration path in GraceKelly may depend on SQLite integrity.

@@ -20,6 +20,7 @@ gracekelly-validate-postgres = "gracekelly.tools.validate_postgres:main"
 gracekelly-export-postgres = "gracekelly.tools.export_postgres:main"
 gracekelly-import-postgres = "gracekelly.tools.import_postgres:main"
 gracekelly-inspect-snapshot = "gracekelly.tools.inspect_snapshot:main"
+gracekelly-migrate-postgres = "gracekelly.tools.migrate_postgres:main"
 
 [project.optional-dependencies]
 dev = [

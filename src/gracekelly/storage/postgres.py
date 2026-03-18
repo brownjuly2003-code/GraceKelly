@@ -21,7 +21,9 @@ from gracekelly.storage.base import TaskEventRecord, TaskRecord, TaskRepository,
 from gracekelly.storage.schema import (
     EXPECTED_SCHEMA_COLUMNS,
     INITIAL_MIGRATION_NAME,
+    MIGRATION_TRACKING_DDL,
     compute_schema_diff,
+    discover_migrations,
     load_migration_sql,
     split_sql_statements,
 )
@@ -191,13 +193,39 @@ class PostgresTaskRepository(TaskRepository):
         )
         with self._connect() as conn:
             with conn.cursor() as cursor:
-                for statement in split_sql_statements(load_migration_sql()):
-                    cursor.execute(statement)
-            conn.commit()
+                cursor.execute(MIGRATION_TRACKING_DDL)
+                conn.commit()
+                applied = self._applied_migrations(cursor)
+                pending = [m for m in discover_migrations() if m not in applied]
+                for migration_name in pending:
+                    sql = load_migration_sql(migration_name)
+                    for statement in split_sql_statements(sql):
+                        cursor.execute(statement)
+                    cursor.execute(
+                        "INSERT INTO gk_schema_migrations (name) VALUES (%s) ON CONFLICT (name) DO NOTHING",
+                        (migration_name,),
+                    )
+                    conn.commit()
+                    logger.info("postgres.migration.applied name=%s", migration_name)
         logger.info(
-            "postgres.bootstrap.completed schema_version=%s",
-            INITIAL_MIGRATION_NAME,
+            "postgres.bootstrap.completed migrations_applied=%d",
+            len(pending),
         )
+
+    def applied_migrations(self) -> list[str]:
+        with self._connect() as conn:
+            with conn.cursor() as cursor:
+                return self._applied_migrations(cursor)
+
+    @staticmethod
+    def _applied_migrations(cursor: Any) -> set[str]:
+        try:
+            cursor.execute(
+                "SELECT name FROM gk_schema_migrations ORDER BY name"
+            )
+            return {row[0] for row in cursor.fetchall()}
+        except Exception:
+            return set()
 
     def save_task_with_steps(
         self,
@@ -356,6 +384,12 @@ class PostgresTaskRepository(TaskRepository):
                     len(missing_tables),
                     len(missing_columns),
                 )
+            available = discover_migrations()
+            try:
+                applied = self.applied_migrations()
+            except Exception:
+                applied = []
+            pending = [m for m in available if m not in set(applied)]
             return {
                 "status": "ok" if not missing_tables and not missing_columns else "degraded",
                 "backend": self.backend_name,
@@ -363,6 +397,9 @@ class PostgresTaskRepository(TaskRepository):
                 "expected_tables": sorted(EXPECTED_SCHEMA_COLUMNS),
                 "missing_tables": missing_tables,
                 "missing_columns": missing_columns,
+                "migrations_available": available,
+                "migrations_applied": applied,
+                "migrations_pending": pending,
             }
         except Exception as exc:
             logger.warning(

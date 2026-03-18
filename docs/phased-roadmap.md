@@ -49,8 +49,10 @@ Deliverables:
 - thin Playwright-backed `BrowserAutomationPort` implementation
 - external Gate 4 boundary review completed in `audit2.md`
 
-Next:
-- broader browser-layer logging if the live Playwright path grows more stateful than the current adapter/runtime entries
+Delivered after logging hardening:
+- circuit breaker state transition logging (trip/close/half-open/fail-fast)
+- browser adapter auth check, execution duration, response source logging
+- Playwright session reuse and response extraction diagnostics
 
 Delivered after catalog refresh:
 - "Thinking" model added from recon evidence
@@ -75,8 +77,10 @@ Deliverables:
 - packaged SQL migration and schema-diff tooling
 - validation CLI and optional live-PostgreSQL tests
 
-Not yet addressed:
-- production migration tooling (Alembic or version-tracked raw SQL beyond bootstrap)
+Delivered after migration tooling:
+- `gk_schema_migrations` tracking table with ordered application
+- `gracekelly-migrate-postgres` CLI with `--dry-run`
+- migration status (available/applied/pending) in `schema_report()`
 
 Delivered after pooling:
 - optional `psycopg_pool` connection pooling via `GRACEKELLY_POSTGRES_POOL_ENABLED`

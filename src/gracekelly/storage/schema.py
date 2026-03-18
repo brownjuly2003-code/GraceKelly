@@ -1,10 +1,18 @@
 from __future__ import annotations
 
+import re
 from importlib.resources import files
 from typing import Iterable, Mapping
 
 
 INITIAL_MIGRATION_NAME = "0001_initial"
+
+MIGRATION_TRACKING_DDL = """\
+CREATE TABLE IF NOT EXISTS gk_schema_migrations (
+    name        TEXT PRIMARY KEY,
+    applied_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+"""
 
 EXPECTED_SCHEMA_COLUMNS: dict[str, tuple[str, ...]] = {
     "gk_tasks": (
@@ -57,6 +65,16 @@ def load_migration_sql(name: str = INITIAL_MIGRATION_NAME) -> str:
         .joinpath("migrations", f"{name}.sql")
         .read_text(encoding="ascii")
     )
+
+
+def discover_migrations() -> list[str]:
+    migrations_dir = files("gracekelly.storage").joinpath("migrations")
+    names: list[str] = []
+    for item in migrations_dir.iterdir():
+        item_name = getattr(item, "name", str(item))
+        if item_name.endswith(".sql") and re.match(r"^\d{4}_", item_name):
+            names.append(item_name.removesuffix(".sql"))
+    return sorted(names)
 
 
 def split_sql_statements(sql: str) -> list[str]:
