@@ -18,6 +18,7 @@ gracekelly-create-perplexity-profile = "gracekelly.tools.create_perplexity_profi
 gracekelly-capture-perplexity-recon = "gracekelly.tools.capture_perplexity_recon:main"
 gracekelly-validate-postgres = "gracekelly.tools.validate_postgres:main"
 gracekelly-export-postgres = "gracekelly.tools.export_postgres:main"
+gracekelly-import-postgres = "gracekelly.tools.import_postgres:main"
 
 [project.optional-dependencies]
 dev = [

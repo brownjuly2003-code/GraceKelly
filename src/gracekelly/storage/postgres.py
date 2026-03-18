@@ -23,6 +23,125 @@ from gracekelly.storage.schema import (
 
 logger = logging.getLogger(__name__)
 
+_TASK_UPSERT_QUERY = """
+INSERT INTO gk_tasks (
+    task_id,
+    status,
+    accepted_at,
+    completed_at,
+    duration_ms,
+    prompt,
+    reasoning,
+    execution_mode,
+    dry_run,
+    model_count,
+    quorum,
+    merge_strategy,
+    adapter_hint,
+    cancel_on_quorum,
+    failure_code,
+    failure_message,
+    output_text,
+    metadata
+)
+VALUES (
+    %(task_id)s,
+    %(status)s,
+    %(accepted_at)s,
+    %(completed_at)s,
+    %(duration_ms)s,
+    %(prompt)s,
+    %(reasoning)s,
+    %(execution_mode)s,
+    %(dry_run)s,
+    %(model_count)s,
+    %(quorum)s,
+    %(merge_strategy)s,
+    %(adapter_hint)s,
+    %(cancel_on_quorum)s,
+    %(failure_code)s,
+    %(failure_message)s,
+    %(output_text)s,
+    %(metadata)s::jsonb
+)
+ON CONFLICT (task_id) DO UPDATE SET
+    status = EXCLUDED.status,
+    accepted_at = EXCLUDED.accepted_at,
+    completed_at = EXCLUDED.completed_at,
+    duration_ms = EXCLUDED.duration_ms,
+    prompt = EXCLUDED.prompt,
+    reasoning = EXCLUDED.reasoning,
+    execution_mode = EXCLUDED.execution_mode,
+    dry_run = EXCLUDED.dry_run,
+    model_count = EXCLUDED.model_count,
+    quorum = EXCLUDED.quorum,
+    merge_strategy = EXCLUDED.merge_strategy,
+    adapter_hint = EXCLUDED.adapter_hint,
+    cancel_on_quorum = EXCLUDED.cancel_on_quorum,
+    failure_code = EXCLUDED.failure_code,
+    failure_message = EXCLUDED.failure_message,
+    output_text = EXCLUDED.output_text,
+    metadata = EXCLUDED.metadata;
+"""
+
+_STEP_UPSERT_QUERY = """
+INSERT INTO gk_task_steps (
+    task_id,
+    step_index,
+    model_id,
+    model_display_name,
+    backend,
+    provider,
+    status,
+    failure_code,
+    failure_message,
+    output_text,
+    duration_ms
+)
+VALUES (
+    %(task_id)s,
+    %(step_index)s,
+    %(model_id)s,
+    %(model_display_name)s,
+    %(backend)s,
+    %(provider)s,
+    %(status)s,
+    %(failure_code)s,
+    %(failure_message)s,
+    %(output_text)s,
+    %(duration_ms)s
+)
+ON CONFLICT (task_id, step_index) DO UPDATE SET
+    model_id = EXCLUDED.model_id,
+    model_display_name = EXCLUDED.model_display_name,
+    backend = EXCLUDED.backend,
+    provider = EXCLUDED.provider,
+    status = EXCLUDED.status,
+    failure_code = EXCLUDED.failure_code,
+    failure_message = EXCLUDED.failure_message,
+    output_text = EXCLUDED.output_text,
+    duration_ms = EXCLUDED.duration_ms;
+"""
+
+_EVENT_INSERT_QUERY = """
+INSERT INTO gk_task_events (
+    event_id,
+    task_id,
+    sequence_no,
+    event_type,
+    created_at,
+    payload
+)
+VALUES (
+    %(event_id)s,
+    %(task_id)s,
+    %(sequence_no)s,
+    %(event_type)s,
+    %(created_at)s,
+    %(payload)s::jsonb
+)
+"""
+
 
 class PostgresTaskRepository(TaskRepository):
     backend_name = "postgres"
@@ -55,109 +174,23 @@ class PostgresTaskRepository(TaskRepository):
         task: TaskRecord,
         steps: list[TaskStepRecord],
     ) -> None:
-        task_query = """
-        INSERT INTO gk_tasks (
-            task_id,
-            status,
-            accepted_at,
-            completed_at,
-            duration_ms,
-            prompt,
-            reasoning,
-            execution_mode,
-            dry_run,
-            model_count,
-            quorum,
-            merge_strategy,
-            adapter_hint,
-            cancel_on_quorum,
-            failure_code,
-            failure_message,
-            output_text,
-            metadata
-        )
-        VALUES (
-            %(task_id)s,
-            %(status)s,
-            %(accepted_at)s,
-            %(completed_at)s,
-            %(duration_ms)s,
-            %(prompt)s,
-            %(reasoning)s,
-            %(execution_mode)s,
-            %(dry_run)s,
-            %(model_count)s,
-            %(quorum)s,
-            %(merge_strategy)s,
-            %(adapter_hint)s,
-            %(cancel_on_quorum)s,
-            %(failure_code)s,
-            %(failure_message)s,
-            %(output_text)s,
-            %(metadata)s::jsonb
-        )
-        ON CONFLICT (task_id) DO UPDATE SET
-            status = EXCLUDED.status,
-            accepted_at = EXCLUDED.accepted_at,
-            completed_at = EXCLUDED.completed_at,
-            duration_ms = EXCLUDED.duration_ms,
-            prompt = EXCLUDED.prompt,
-            reasoning = EXCLUDED.reasoning,
-            execution_mode = EXCLUDED.execution_mode,
-            dry_run = EXCLUDED.dry_run,
-            model_count = EXCLUDED.model_count,
-            quorum = EXCLUDED.quorum,
-            merge_strategy = EXCLUDED.merge_strategy,
-            adapter_hint = EXCLUDED.adapter_hint,
-            cancel_on_quorum = EXCLUDED.cancel_on_quorum,
-            failure_code = EXCLUDED.failure_code,
-            failure_message = EXCLUDED.failure_message,
-            output_text = EXCLUDED.output_text,
-            metadata = EXCLUDED.metadata;
-        """
-        step_query = """
-        INSERT INTO gk_task_steps (
-            task_id,
-            step_index,
-            model_id,
-            model_display_name,
-            backend,
-            provider,
-            status,
-            failure_code,
-            failure_message,
-            output_text,
-            duration_ms
-        )
-        VALUES (
-            %(task_id)s,
-            %(step_index)s,
-            %(model_id)s,
-            %(model_display_name)s,
-            %(backend)s,
-            %(provider)s,
-            %(status)s,
-            %(failure_code)s,
-            %(failure_message)s,
-            %(output_text)s,
-            %(duration_ms)s
-        )
-        ON CONFLICT (task_id, step_index) DO UPDATE SET
-            model_id = EXCLUDED.model_id,
-            model_display_name = EXCLUDED.model_display_name,
-            backend = EXCLUDED.backend,
-            provider = EXCLUDED.provider,
-            status = EXCLUDED.status,
-            failure_code = EXCLUDED.failure_code,
-            failure_message = EXCLUDED.failure_message,
-            output_text = EXCLUDED.output_text,
-            duration_ms = EXCLUDED.duration_ms;
-        """
         with self._connect() as conn:
             with conn.cursor() as cursor:
-                cursor.execute(task_query, self._task_params(task))
-                for step in steps:
-                    cursor.execute(step_query, self._step_params(step))
+                self._save_task_with_steps_in_cursor(cursor, task, steps)
+            conn.commit()
+
+    def replace_task_snapshot(
+        self,
+        task: TaskRecord,
+        steps: list[TaskStepRecord],
+        events: list[TaskEventRecord],
+    ) -> None:
+        with self._connect() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute("DELETE FROM gk_tasks WHERE task_id = %s", (task.task_id,))
+                self._save_task_with_steps_in_cursor(cursor, task, steps)
+                for event in events:
+                    self._append_event_in_cursor(cursor, event)
             conn.commit()
 
     def get(self, task_id: str) -> TaskRecord | None:
@@ -237,37 +270,9 @@ class PostgresTaskRepository(TaskRepository):
         return [self._step_from_row(row) for row in rows]
 
     def append_event(self, event: TaskEventRecord) -> None:
-        query = """
-        INSERT INTO gk_task_events (
-            event_id,
-            task_id,
-            sequence_no,
-            event_type,
-            created_at,
-            payload
-        )
-        VALUES (
-            %(event_id)s,
-            %(task_id)s,
-            %(sequence_no)s,
-            %(event_type)s,
-            %(created_at)s,
-            %(payload)s::jsonb
-        )
-        """
         with self._connect() as conn:
             with conn.cursor() as cursor:
-                cursor.execute(
-                    query,
-                    {
-                        "event_id": event.event_id,
-                        "task_id": event.task_id,
-                        "sequence_no": event.sequence_no,
-                        "event_type": event.event_type,
-                        "created_at": event.created_at,
-                        "payload": json.dumps(event.payload),
-                    },
-                )
+                self._append_event_in_cursor(cursor, event)
             conn.commit()
 
     def list_events(self, task_id: str) -> list[TaskEventRecord]:
@@ -389,6 +394,16 @@ class PostgresTaskRepository(TaskRepository):
             "metadata": json.dumps(task.metadata),
         }
 
+    def _save_task_with_steps_in_cursor(
+        self,
+        cursor,
+        task: TaskRecord,
+        steps: list[TaskStepRecord],
+    ) -> None:
+        cursor.execute(_TASK_UPSERT_QUERY, self._task_params(task))
+        for step in steps:
+            cursor.execute(_STEP_UPSERT_QUERY, self._step_params(step))
+
     def _step_params(self, step: TaskStepRecord) -> dict[str, Any]:
         return {
             "task_id": step.task_id,
@@ -403,6 +418,19 @@ class PostgresTaskRepository(TaskRepository):
             "output_text": step.output_text,
             "duration_ms": step.duration_ms,
         }
+
+    def _append_event_in_cursor(self, cursor, event: TaskEventRecord) -> None:
+        cursor.execute(
+            _EVENT_INSERT_QUERY,
+            {
+                "event_id": event.event_id,
+                "task_id": event.task_id,
+                "sequence_no": event.sequence_no,
+                "event_type": event.event_type,
+                "created_at": event.created_at,
+                "payload": json.dumps(event.payload),
+            },
+        )
 
     def _task_from_row(self, row: dict[str, Any]) -> TaskRecord:
         metadata = row["metadata"]

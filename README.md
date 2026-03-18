@@ -212,6 +212,24 @@ Export specific tasks when needed:
 gracekelly-export-postgres --task-id task-1 --task-id task-2 --output D:\GraceKelly\tmp\postgres-export\selected.json
 ```
 
+## PostgreSQL import
+
+```bash
+set GRACEKELLY_POSTGRES_DSN=postgresql://postgres:postgres@localhost:5432/gracekelly
+gracekelly-import-postgres --input D:\GraceKelly\tmp\postgres-export\selected.json
+```
+
+This restores the snapshot task-by-task into PostgreSQL:
+- each imported `task_id` is replaced in place
+- related steps and events are replaced with the snapshot bundle for that task
+- unrelated tasks already in the database are left untouched
+
+If connectivity or schema state is intentionally degraded but you still need a manual restore, override the guard explicitly:
+
+```bash
+gracekelly-import-postgres --input D:\GraceKelly\tmp\postgres-export\selected.json --allow-degraded-schema
+```
+
 ## Optional live PostgreSQL test
 
 ```bash

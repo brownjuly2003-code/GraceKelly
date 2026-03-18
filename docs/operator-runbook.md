@@ -6,7 +6,7 @@ This runbook covers the current operating surface for GraceKelly:
 - service liveness and readiness
 - metrics scraping
 - browser-adapter recovery
-- storage validation
+- storage validation and task-scoped snapshot restore
 
 It is intentionally limited to the current in-process deployment model.
 
@@ -174,6 +174,20 @@ Export specific tasks only:
 ```bash
 gracekelly-export-postgres --task-id task-1 --task-id task-2
 ```
+
+Restore a snapshot back into PostgreSQL:
+
+```bash
+set GRACEKELLY_POSTGRES_DSN=postgresql://postgres:postgres@localhost:5432/gracekelly
+gracekelly-import-postgres --input D:\GraceKelly\tmp\postgres-export\selected.json
+```
+
+Restore semantics:
+- imported `task_id` values are replaced in place
+- related step and event rows are replaced together with the task
+- unrelated tasks remain in the database
+
+Use `--allow-degraded-schema` only for deliberate manual recovery when the guardrail would otherwise block a needed restore.
 
 ## Task inspection workflow
 
