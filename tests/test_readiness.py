@@ -7,7 +7,7 @@ from gracekelly.adapters.browser.session import BrowserSessionConfig, BrowserSes
 from gracekelly.adapters.dry_run import DryRunExecutionAdapter
 from gracekelly.core.circuit_breaker import CircuitBreakerConfig, CircuitBreakingExecutionAdapter
 from gracekelly.core.execution_profile import resolve_execution_profile
-from gracekelly.core.readiness import build_readiness_report
+from gracekelly.core.readiness import SupportsHealthcheck, build_readiness_report
 from gracekelly.core.router import ExecutionRouter
 from gracekelly.storage.memory import InMemoryTaskRepository
 
@@ -137,6 +137,25 @@ class ReadinessTests(unittest.TestCase):
         self.assertEqual(report["status"], "degraded")
         self.assertEqual(browser_component["status"], "degraded")
         self.assertEqual(browser_component["details"]["circuit_breaker"]["state"], "open")
+
+
+    def test_adapter_with_healthcheck_satisfies_protocol(self) -> None:
+        self.assertIsInstance(DryRunExecutionAdapter(), SupportsHealthcheck)
+
+    def test_object_without_healthcheck_does_not_satisfy_protocol(self) -> None:
+        self.assertNotIsInstance(object(), SupportsHealthcheck)
+
+    def test_readiness_with_non_healthcheck_adapter_shows_unknown(self) -> None:
+        report = build_readiness_report(
+            environment="test",
+            profile=resolve_execution_profile("dry-run"),
+            repository=InMemoryTaskRepository(),
+            adapters={
+                "dry-run": object(),
+            },
+        )
+        dry_run_component = next(item for item in report["components"] if item["name"] == "dry-run")
+        self.assertEqual(dry_run_component["status"], "unknown")
 
 
 if __name__ == "__main__":

@@ -1,10 +1,15 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, Protocol, runtime_checkable
 
 from gracekelly.core.execution_profile import ExecutionProfile
 from gracekelly.storage.base import TaskRepository
+
+
+@runtime_checkable
+class SupportsHealthcheck(Protocol):
+    def healthcheck(self) -> dict[str, Any]: ...
 
 
 @dataclass(frozen=True, slots=True)
@@ -21,8 +26,8 @@ def build_readiness_report(
     environment: str,
     profile: ExecutionProfile,
     repository: TaskRepository,
-    adapters: dict[str, object],
-    execution_router: object | None = None,
+    adapters: dict[str, SupportsHealthcheck | object],
+    execution_router: SupportsHealthcheck | None = None,
 ) -> dict[str, Any]:
     components = [storage_component_status(repository, required=profile.storage_required)]
     if execution_router is not None:
@@ -68,8 +73,8 @@ def storage_component_status(repository: TaskRepository, *, required: bool) -> d
     }
 
 
-def execution_component_status(execution_router: object) -> dict[str, Any]:
-    if hasattr(execution_router, "healthcheck"):
+def execution_component_status(execution_router: SupportsHealthcheck | object) -> dict[str, Any]:
+    if isinstance(execution_router, SupportsHealthcheck):
         raw = execution_router.healthcheck()
     else:
         raw = {"status": "unknown"}
@@ -82,8 +87,8 @@ def execution_component_status(execution_router: object) -> dict[str, Any]:
     }
 
 
-def adapter_component_status(name: str, adapter: object, *, required: bool) -> dict[str, Any]:
-    if hasattr(adapter, "healthcheck"):
+def adapter_component_status(name: str, adapter: SupportsHealthcheck | object, *, required: bool) -> dict[str, Any]:
+    if isinstance(adapter, SupportsHealthcheck):
         raw = adapter.healthcheck()
     else:
         raw = {"status": "unknown"}
