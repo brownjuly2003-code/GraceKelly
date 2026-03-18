@@ -81,6 +81,8 @@ def collect_export_snapshot(
     selected_task_ids = list(task_ids or [])
     exported_tasks: list[dict[str, Any]] = []
     exported_task_ids: list[str] = []
+    exported_step_count = 0
+    exported_event_count = 0
     missing_task_ids: list[str] = []
 
     if selected_task_ids:
@@ -89,24 +91,32 @@ def collect_export_snapshot(
             if task is None:
                 missing_task_ids.append(task_id)
                 continue
+            steps = [serialize_record(item) for item in repository.list_steps(task_id)]
+            events = [serialize_record(item) for item in repository.list_events(task_id)]
             exported_tasks.append(
                 {
                     "task": serialize_record(task),
-                    "steps": [serialize_record(item) for item in repository.list_steps(task_id)],
-                    "events": [serialize_record(item) for item in repository.list_events(task_id)],
+                    "steps": steps,
+                    "events": events,
                 }
             )
             exported_task_ids.append(task_id)
+            exported_step_count += len(steps)
+            exported_event_count += len(events)
     else:
         for task in repository.list_recent(limit):
+            steps = [serialize_record(item) for item in repository.list_steps(task.task_id)]
+            events = [serialize_record(item) for item in repository.list_events(task.task_id)]
             exported_tasks.append(
                 {
                     "task": serialize_record(task),
-                    "steps": [serialize_record(item) for item in repository.list_steps(task.task_id)],
-                    "events": [serialize_record(item) for item in repository.list_events(task.task_id)],
+                    "steps": steps,
+                    "events": events,
                 }
             )
             exported_task_ids.append(task.task_id)
+            exported_step_count += len(steps)
+            exported_event_count += len(events)
 
     health = repository.healthcheck()
     schema = repository.schema_report()
@@ -125,6 +135,8 @@ def collect_export_snapshot(
         "health": _normalize(health),
         "schema": _normalize(schema),
         "task_count": len(exported_tasks),
+        "step_count": exported_step_count,
+        "event_count": exported_event_count,
         "exported_task_ids": exported_task_ids,
         "missing_task_ids": missing_task_ids,
         "tasks": exported_tasks,
@@ -199,6 +211,8 @@ def main() -> int:
         "repository_health": snapshot["health"],
         "repository_schema": snapshot["schema"],
         "task_count": snapshot["task_count"],
+        "step_count": snapshot["step_count"],
+        "event_count": snapshot["event_count"],
         "missing_task_ids": snapshot["missing_task_ids"],
         "snapshot_sha256": snapshot["snapshot_sha256"],
     }

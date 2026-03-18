@@ -62,6 +62,8 @@ class InspectSnapshotToolTests(unittest.TestCase):
                     "backend": "postgres",
                     "selection": {"task_ids": ["task-1"], "limit": None},
                     "task_count": 1,
+                    "step_count": 0,
+                    "event_count": 0,
                     "exported_task_ids": ["task-1"],
                     "missing_task_ids": [],
                     "tasks": [{"task": {"task_id": "task-1"}, "steps": [], "events": []}],
@@ -85,6 +87,8 @@ class InspectSnapshotToolTests(unittest.TestCase):
             self.assertTrue(payload["import_ready"])
             self.assertEqual(payload["exported_task_ids"], ["task-1"])
             self.assertEqual(payload["task_count"], 1)
+            self.assertEqual(payload["step_count"], 0)
+            self.assertEqual(payload["event_count"], 0)
             self.assertFalse(payload["compressed_input"])
         finally:
             if snapshot_path.exists():
@@ -113,6 +117,8 @@ class InspectSnapshotToolTests(unittest.TestCase):
             payload = json.loads(print_mock.call_args.args[0])
             self.assertEqual(payload["exported_task_ids"], ["task-1", "task-2"])
             self.assertEqual(payload["task_count"], 2)
+            self.assertEqual(payload["step_count"], 0)
+            self.assertEqual(payload["event_count"], 0)
             self.assertEqual(payload["format_status"], "current")
             self.assertTrue(payload["compressed_input"])
         finally:

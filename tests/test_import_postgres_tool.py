@@ -83,6 +83,8 @@ class ImportPostgresToolTests(unittest.TestCase):
             "migration": "0001_initial",
             "selection": {"task_ids": ["task-1"], "limit": None},
             "task_count": 1,
+            "step_count": 1,
+            "event_count": 2,
             "exported_task_ids": ["task-1"],
             "missing_task_ids": [],
             "tasks": [
@@ -199,6 +201,8 @@ class ImportPostgresToolTests(unittest.TestCase):
             self.assertEqual(payload["source_status"], "ok")
             self.assertEqual(payload["source_selection"], {"task_ids": ["task-1"], "limit": None})
             self.assertEqual(payload["source_task_count"], 1)
+            self.assertEqual(payload["source_step_count"], 1)
+            self.assertEqual(payload["source_event_count"], 2)
             self.assertEqual(payload["source_exported_task_ids"], ["task-1"])
             self.assertEqual(payload["source_missing_task_ids"], [])
             self.assertEqual(payload["source_gracekelly_version"], __version__)

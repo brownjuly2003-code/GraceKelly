@@ -286,6 +286,13 @@ def _snapshot_exported_task_ids(snapshot: dict[str, Any]) -> list[str]:
     return derived_ids
 
 
+def _snapshot_nested_count(snapshot: dict[str, Any], key: str) -> int | None:
+    explicit_count = snapshot.get(key)
+    if isinstance(explicit_count, int):
+        return explicit_count
+    return None
+
+
 def main() -> int:
     args = parse_args()
     dsn = resolve_dsn(args.dsn)
@@ -368,6 +375,8 @@ def main() -> int:
         "source_status": snapshot.get("status", "unknown"),
         "source_selection": snapshot.get("selection"),
         "source_task_count": snapshot.get("task_count"),
+        "source_step_count": _snapshot_nested_count(snapshot, "step_count"),
+        "source_event_count": _snapshot_nested_count(snapshot, "event_count"),
         "source_exported_task_ids": _snapshot_exported_task_ids(snapshot),
         "source_missing_task_ids": list(snapshot.get("missing_task_ids", [])),
         "source_gracekelly_version": snapshot.get("gracekelly_version"),

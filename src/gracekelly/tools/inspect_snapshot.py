@@ -47,6 +47,25 @@ def exported_task_ids(snapshot: dict[str, Any]) -> list[str]:
     return derived_ids
 
 
+def nested_record_count(snapshot: dict[str, Any], key: str) -> int:
+    explicit_count = snapshot.get(key)
+    if isinstance(explicit_count, int):
+        return explicit_count
+
+    total = 0
+    tasks = snapshot.get("tasks")
+    if not isinstance(tasks, list):
+        return total
+    nested_key = key.removesuffix("_count") + "s"
+    for item in tasks:
+        if not isinstance(item, dict):
+            continue
+        nested_records = item.get(nested_key)
+        if isinstance(nested_records, list):
+            total += len(nested_records)
+    return total
+
+
 def inspect_snapshot(snapshot: dict[str, Any]) -> dict[str, Any]:
     expected_digest = snapshot.get("snapshot_sha256")
     computed_digest = compute_snapshot_sha256(snapshot)
@@ -93,6 +112,8 @@ def inspect_snapshot(snapshot: dict[str, Any]) -> dict[str, Any]:
         "backend": snapshot.get("backend"),
         "selection": snapshot.get("selection"),
         "task_count": snapshot.get("task_count", len(exported_ids)),
+        "step_count": nested_record_count(snapshot, "step_count"),
+        "event_count": nested_record_count(snapshot, "event_count"),
         "exported_task_ids": exported_ids,
         "missing_task_ids": list(snapshot.get("missing_task_ids", [])),
         "checksum_status": checksum_status,
