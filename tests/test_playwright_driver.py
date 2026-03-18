@@ -57,6 +57,7 @@ class _FakePage:
         self.model_button = _FakeLocator(visible=True, inner_text="Model")
         self.option = _FakeLocator(visible=False)
         self.new_thread_button = _FakeLocator(visible=False, inner_text="New Thread")
+        self.stop_response_button = _FakeLocator(visible=False, inner_text="Stop response (Esc)")
         self.model_menu = _FakeLocator(
             visible=True,
             texts=["Best\nSelects the best available model\nGPT-5.4\nGemini 3.1 Pro"],
@@ -68,6 +69,8 @@ class _FakePage:
     def locator(self, selector: str) -> _FakeLocator:
         if "radix-popper" in selector or "role=\"dialog\"" in selector or "role=\"listbox\"" in selector:
             return self.model_menu
+        if "Stop response" in selector:
+            return self.stop_response_button
         if "New Thread" in selector:
             return self.new_thread_button
         return self.model_button
@@ -253,6 +256,39 @@ class PlaywrightDriverTests(unittest.TestCase):
         )
 
         self.assertEqual(cleaned, "First line\nSecond line")
+
+    def test_wait_for_response_text_ignores_body_fallback_while_generation_is_active(self) -> None:
+        driver = PlaywrightBrowserAutomation(sync_playwright_factory=lambda: object())
+
+        class _GeneratingResponsePage(_FakePage):
+            def __init__(self) -> None:
+                super().__init__()
+                self.stop_response_button = _TransientLocator(
+                    [True, True, False],
+                    inner_text="Stop response (Esc)",
+                )
+                self._body_reads = 0
+
+            def inner_text(self, selector: str) -> str:
+                if selector != "body":
+                    return ""
+                payloads = [
+                    "Reply with only OK\nDraft",
+                    "Reply with only OK\nStill drafting",
+                    "Reply with only OK\nOK",
+                ]
+                index = min(self._body_reads, len(payloads) - 1)
+                self._body_reads += 1
+                return payloads[index]
+
+        response_text = driver._wait_for_response_text(
+            page=_GeneratingResponsePage(),
+            prompt="Reply with only OK",
+            timeout_seconds=5,
+        )
+
+        self.assertEqual(response_text["text"], "OK")
+        self.assertEqual(response_text["source"], "body_after_prompt")
 
     def test_healthcheck_reports_missing_dependency_when_playwright_unavailable(self) -> None:
         driver = PlaywrightBrowserAutomation()

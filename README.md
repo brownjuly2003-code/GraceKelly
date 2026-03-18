@@ -142,6 +142,17 @@ By default this writes a dated artifact bundle under `tmp/browser-recon/YYYY-MM-
 - model-picker screenshot and menu snapshot if the picker becomes visible
 - a manifest JSON tying the capture together
 
+You can also capture a real answered state:
+
+```bash
+gracekelly-capture-perplexity-recon --prompt "Reply with only OK" --timeout-seconds 60
+```
+
+That adds:
+- post-response screenshot
+- captured `main` HTML after the answer
+- raw response-candidate JSON for selector/debug work
+
 If the current UI needs manual help after the automatic pass, run:
 
 ```bash

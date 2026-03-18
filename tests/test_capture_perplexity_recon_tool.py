@@ -11,11 +11,22 @@ from gracekelly.tools import capture_perplexity_recon
 
 
 class _FakeLocator:
-    def __init__(self, *, visible: bool = False, click=None, inner_html: str = "", texts: list[str] | None = None) -> None:
+    def __init__(
+        self,
+        *,
+        visible: bool = False,
+        click=None,
+        inner_html: str = "",
+        texts: list[str] | None = None,
+        fill=None,
+        press_sequentially=None,
+    ) -> None:
         self._visible = visible
         self._click = click
         self._inner_html = inner_html
         self._texts = texts or []
+        self._fill = fill
+        self._press_sequentially = press_sequentially
         self.first = self
 
     def is_visible(self) -> bool:
@@ -24,7 +35,7 @@ class _FakeLocator:
     def count(self) -> int:
         return 1 if self._visible or self._inner_html or self._texts else 0
 
-    def click(self) -> None:
+    def click(self, **kwargs) -> None:
         if self._click is not None:
             self._click()
 
@@ -34,6 +45,18 @@ class _FakeLocator:
     def all_inner_texts(self) -> list[str]:
         return list(self._texts)
 
+    def fill(self, value: str) -> None:
+        if self._fill is not None:
+            self._fill(value)
+            return
+        raise RuntimeError("fill not configured")
+
+    def press_sequentially(self, value: str) -> None:
+        if self._press_sequentially is not None:
+            self._press_sequentially(value)
+            return
+        raise RuntimeError("press_sequentially not configured")
+
 
 class _FakePage:
     def __init__(self) -> None:
@@ -41,8 +64,12 @@ class _FakePage:
         self.screenshot_paths: list[str] = []
         self.more_open = False
         self.model_menu_open = False
+        self.response_ready = False
         self.body = "Type @ for connectors and sources\nType / for search modes"
         self.composer_html = "<div>composer</div>"
+        self.main_html = "<div>main</div>"
+        self.prompt_value = ""
+        self.keyboard = _FakeKeyboard()
 
     def goto(self, url: str, wait_until: str) -> None:
         self.goto_calls.append((url, wait_until))
@@ -56,19 +83,28 @@ class _FakePage:
             if self.more_open:
                 return ["More::More", "Model::Model", "Submit::Submit"]
             return ["New Thread", "More::More", "Submit::Submit"]
+        if "document.querySelector(selector)" in script:
+            return True
         raise AssertionError(f"Unexpected script: {script}")
 
     def locator(self, selector: str) -> _FakeLocator:
         if selector == 'div#ask-input[role="textbox"][contenteditable="true"]':
-            return _FakeLocator(visible=True)
+            return _FakeLocator(visible=True, click=lambda: None, fill=self._set_prompt, press_sequentially=self._set_prompt)
         if selector == "form":
             return _FakeLocator(visible=True, inner_html=self.composer_html)
+        if selector == "main":
+            return _FakeLocator(visible=True, inner_html=self.main_html)
         if 'aria-label="Model"' in selector:
             return _FakeLocator(visible=self.more_open, click=self._open_model_menu)
         if selector == 'button[aria-label="More"]':
             return _FakeLocator(visible=True, click=self._open_more)
         if selector == 'button:has-text("More")':
             return _FakeLocator(visible=True, click=self._open_more)
+        if selector == 'button[aria-label="Submit"]':
+            return _FakeLocator(visible=True, click=self._submit_prompt)
+        if selector in ("main article", 'main [data-message-author-role="assistant"]', "main div.prose", 'main [class*="prose"]'):
+            texts = ["OK"] if self.response_ready else []
+            return _FakeLocator(visible=self.response_ready, texts=texts)
         if selector in ('[data-radix-popper-content-wrapper]', '[role="dialog"]', '[role="listbox"]'):
             texts = ["GPT-5.4\nClaude Sonnet 4.6"] if self.model_menu_open else []
             return _FakeLocator(texts=texts)
@@ -84,6 +120,21 @@ class _FakePage:
 
     def _open_model_menu(self) -> None:
         self.model_menu_open = True
+
+    def _set_prompt(self, value: str) -> None:
+        self.prompt_value = value
+
+    def _submit_prompt(self) -> None:
+        self.response_ready = True
+        self.body = f"{self.prompt_value}\nOK"
+
+
+class _FakeKeyboard:
+    def __init__(self) -> None:
+        self.pressed: list[str] = []
+
+    def press(self, value: str) -> None:
+        self.pressed.append(value)
 
 
 class _FakeContext:
@@ -202,6 +253,32 @@ class CapturePerplexityReconToolTests(unittest.TestCase):
         self.assertIn("manual_screenshot", manifest["files"])
         self.assertTrue((Path(temp_dir) / manifest["files"]["manual_screenshot"]).exists())
 
+    def test_capture_recon_can_collect_post_response_artifacts(self) -> None:
+        context = _FakeContext()
+        chromium = _FakeChromium(context)
+        manager = _FakePlaywrightManager(_FakePlaywright(chromium))
+
+        temp_dir = self._workspace_output_dir("response")
+        manifest = capture_perplexity_recon.capture_recon(
+            profile_dir=r"D:\GraceKelly\tmp\browser-recon\perplexity-profile",
+            output_dir=temp_dir,
+            base_url="https://www.perplexity.ai",
+            channel="chrome",
+            prompt="Reply with only OK",
+            timeout_seconds=30,
+            interactive_pause=False,
+            sync_playwright_factory=lambda: manager,
+        )
+
+        self.assertTrue(manifest["prompt_submitted"])
+        self.assertEqual(manifest["response_source"], 'main [data-message-author-role="assistant"]')
+        self.assertFalse(manifest["response_used_body_fallback"])
+        self.assertTrue((Path(temp_dir) / manifest["files"]["response_screenshot"]).exists())
+        self.assertTrue((Path(temp_dir) / manifest["files"]["response_main_html"]).exists())
+        payload = json.loads((Path(temp_dir) / manifest["files"]["response_candidates"]).read_text(encoding="utf-8"))
+        self.assertEqual(payload["selected_text"], "OK")
+        self.assertEqual(payload["response_source"], 'main [data-message-author-role="assistant"]')
+
     def test_main_returns_error_when_capture_fails(self) -> None:
         with (
             patch.object(
@@ -213,6 +290,8 @@ class CapturePerplexityReconToolTests(unittest.TestCase):
                     base_url="https://www.perplexity.ai",
                     channel="chrome",
                     interactive_pause=False,
+                    prompt=None,
+                    timeout_seconds=60,
                 ),
             ),
             patch.object(capture_perplexity_recon, "capture_recon", side_effect=RuntimeError("broken")),
@@ -234,6 +313,8 @@ class CapturePerplexityReconToolTests(unittest.TestCase):
                     base_url="https://www.perplexity.ai",
                     channel="chrome",
                     interactive_pause=True,
+                    prompt=None,
+                    timeout_seconds=60,
                 ),
             ),
             patch.object(capture_perplexity_recon, "resolve_output_dir", return_value="D:\\Recon\\Today"),

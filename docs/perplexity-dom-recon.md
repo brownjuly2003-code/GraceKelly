@@ -110,6 +110,8 @@ Authenticated recon update on 2026-03-18:
   - `Nemotron 3 Super`
 - after scoping Playwright to that composer control, a live smoke switched from `GPT-5.4` to `Claude Sonnet 4.6` and returned `model_selection_verified=true`
 - a later 2026-03-18 live smoke still extracted the final answer from `body_after_prompt`, not from a stable assistant-message selector, so response extraction remains heuristic even though model selection is restored
+- a later prompt-driven recon plus runtime guard around `Stop response` captured the final answer DOM and showed a stable answer path through `main div.prose`
+- after that fix, the live adapter path also returned `response_source=main div.prose` with `response_used_body_fallback=false`
 
 ## Anti-automation findings
 

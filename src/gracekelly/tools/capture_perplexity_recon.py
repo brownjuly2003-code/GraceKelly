@@ -8,6 +8,8 @@ from pathlib import Path
 import time
 from typing import Any
 
+from gracekelly.adapters.browser.playwright_driver import PlaywrightBrowserAutomation, PlaywrightBrowserRuntimeConfig
+from gracekelly.adapters.browser.policy import SubmitPolicy
 from gracekelly.adapters.browser.selectors import PerplexitySelectors
 from gracekelly.tools.create_perplexity_profile import DEFAULT_BASE_URL, resolve_profile_dir
 
@@ -41,6 +43,16 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Pause after the automatic capture so you can click through the live UI manually before the final screenshot.",
     )
+    parser.add_argument(
+        "--prompt",
+        help="Optional recon prompt. If set, the tool submits it and captures post-response artifacts too.",
+    )
+    parser.add_argument(
+        "--timeout-seconds",
+        type=int,
+        default=60,
+        help="Response wait timeout for --prompt mode. Defaults to 60 seconds.",
+    )
     return parser.parse_args()
 
 
@@ -61,6 +73,8 @@ def capture_recon(
     base_url: str,
     channel: str,
     interactive_pause: bool = False,
+    prompt: str | None = None,
+    timeout_seconds: int = 60,
     selectors: PerplexitySelectors | None = None,
     sync_playwright_factory=None,
     input_func=input,
@@ -75,6 +89,12 @@ def capture_recon(
         factory = sync_playwright
 
     selector_config = selectors or PerplexitySelectors()
+    runtime_config = PlaywrightBrowserRuntimeConfig(channel=channel, headless=False)
+    automation = PlaywrightBrowserAutomation(
+        selectors=selector_config,
+        runtime=runtime_config,
+        sync_playwright_factory=lambda: None,
+    )
     output_root = Path(output_dir)
     output_root.mkdir(parents=True, exist_ok=True)
 
@@ -97,6 +117,7 @@ def capture_recon(
                 "base_url": base_url,
                 "captured_at": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
                 "interactive_pause": interactive_pause,
+                "prompt_submitted": bool(prompt),
                 "files": {},
             }
 
@@ -148,6 +169,18 @@ def capture_recon(
                     manifest["files"]["model_menu_snapshot"] = model_menu_path.name
             manifest["more_clicked"] = more_clicked
 
+            if prompt:
+                response_payload = _capture_post_response_recon(
+                    page,
+                    automation=automation,
+                    prompt=prompt,
+                    timeout_seconds=timeout_seconds,
+                    output_root=output_root,
+                )
+                manifest["response_source"] = response_payload["response_source"]
+                manifest["response_used_body_fallback"] = response_payload["response_used_body_fallback"]
+                manifest["files"].update(response_payload["files"])
+
             if interactive_pause:
                 input_func(
                     "If needed, click through the live Perplexity UI now, then press Enter to capture the final manual-state artifacts."
@@ -178,6 +211,8 @@ def main() -> int:
             base_url=args.base_url,
             channel=args.channel,
             interactive_pause=args.interactive_pause,
+            prompt=args.prompt,
+            timeout_seconds=args.timeout_seconds,
         )
     except Exception as exc:
         print(f"Failed to capture Perplexity DOM recon: {exc}")
@@ -325,6 +360,61 @@ def _body_text(page: Any) -> str:
 
 def _write_json(path: Path, payload: object) -> None:
     path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+def _capture_post_response_recon(
+    page: Any,
+    *,
+    automation: PlaywrightBrowserAutomation,
+    prompt: str,
+    timeout_seconds: int,
+    output_root: Path,
+) -> dict[str, object]:
+    prompt_input = page.locator(automation._selectors.prompt_input)
+    if not automation._locator_is_visible(prompt_input):
+        raise RuntimeError("Perplexity prompt input is not visible for post-response recon.")
+
+    prompt_input.click(force=True)
+    automation._clear_prompt_input(page)
+    automation._fill_prompt_input(page, prompt)
+    automation._click_submit(page, SubmitPolicy())
+    selected = automation._wait_for_response_text(page=page, prompt=prompt, timeout_seconds=timeout_seconds)
+    candidate_texts = automation._collect_response_candidates(page=page, prompt=prompt)
+
+    response_shot = output_root / "recon-04-response.png"
+    page.screenshot(path=str(response_shot), full_page=True)
+    response_main = output_root / "recon-04-main.html"
+    response_main.write_text(_main_html(page), encoding="utf-8")
+    response_candidates = output_root / "recon-04-response-candidates.json"
+    _write_json(
+        response_candidates,
+        {
+            "prompt": prompt,
+            "selected_text": selected["text"],
+            "response_source": selected["source"],
+            "response_candidate_counts": selected["candidate_counts"],
+            "raw_candidates": [{"source": source, "text": text} for source, text in candidate_texts],
+        },
+    )
+    return {
+        "response_source": selected["source"],
+        "response_used_body_fallback": selected["source"].startswith("body"),
+        "files": {
+            "response_screenshot": response_shot.name,
+            "response_main_html": response_main.name,
+            "response_candidates": response_candidates.name,
+        },
+    }
+
+
+def _main_html(page: Any) -> str:
+    locator = page.locator("main")
+    if _locator_exists(locator):
+        try:
+            return locator.first.inner_html()
+        except Exception:
+            return ""
+    return ""
 
 
 if __name__ == "__main__":

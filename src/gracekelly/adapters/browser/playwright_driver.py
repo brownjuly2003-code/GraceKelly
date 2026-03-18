@@ -449,7 +449,7 @@ class PlaywrightBrowserAutomation(BrowserAutomationPort):
         while time.monotonic() < deadline:
             candidate_texts = self._collect_response_candidates(page=page, prompt=prompt)
             response_text = self._pick_response_text(prompt=prompt, candidate_texts=candidate_texts)
-            if response_text is not None:
+            if response_text is not None and not self._is_response_generating(page):
                 return response_text
             time.sleep(self._runtime.poll_interval_seconds)
         raise TimeoutError(f"Perplexity did not return a response within {timeout_seconds}s.")
@@ -543,6 +543,27 @@ class PlaywrightBrowserAutomation(BrowserAutomationPort):
         if source == "body_after_prompt":
             return 1
         return 0
+
+    def _is_response_generating(self, page: Any) -> bool:
+        try:
+            active = page.evaluate(
+                """
+                () => {
+                  const composer = document.querySelector('[data-ask-input-container="true"]');
+                  if (!composer) {
+                    return false;
+                  }
+                  return Array.from(composer.querySelectorAll('button')).some((button) =>
+                    (button.getAttribute('aria-label') || '').startsWith('Stop response')
+                  );
+                }
+                """
+            )
+            if isinstance(active, bool):
+                return active
+        except Exception:
+            pass
+        return self._locator_is_visible(page.locator(self._selectors.stop_response_button))
 
     def _first_visible_locator(self, locators: tuple[Any, ...]) -> Any | None:
         for locator in locators:

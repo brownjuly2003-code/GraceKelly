@@ -14,6 +14,7 @@ class PerplexitySelectors:
     )
     more_button: str = 'button[aria-label="More"]'
     submit_button: str = 'button[aria-label="Submit"]'
+    stop_response_button: str = 'button[aria-label^="Stop response"]'
     add_files_button: str = 'button[aria-label="Add files or tools"]'
     dictation_button: str = 'button[aria-label="Dictation"]'
     response_candidates: tuple[str, ...] = (
