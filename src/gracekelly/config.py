@@ -31,6 +31,8 @@ class Settings:
     host: str = "127.0.0.1"
     port: int = 8011
     log_level: str = "INFO"
+    api_key: str | None = None
+    rate_limit_per_minute: int | None = None
     storage_backend: str = "memory"
     postgres_dsn: str | None = None
     postgres_connect_timeout_seconds: int = 5
@@ -64,6 +66,8 @@ class Settings:
             host=os.getenv("GRACEKELLY_HOST", "127.0.0.1"),
             port=_env_int("GRACEKELLY_PORT", "8011"),
             log_level=os.getenv("GRACEKELLY_LOG_LEVEL", "INFO"),
+            api_key=os.getenv("GRACEKELLY_API_KEY"),
+            rate_limit_per_minute=_env_int("GRACEKELLY_RATE_LIMIT_PER_MINUTE", "0") or None,
             storage_backend=os.getenv("GRACEKELLY_STORAGE_BACKEND", "memory"),
             postgres_dsn=os.getenv("GRACEKELLY_POSTGRES_DSN"),
             postgres_connect_timeout_seconds=_env_int("GRACEKELLY_POSTGRES_CONNECT_TIMEOUT_SECONDS", "5"),
