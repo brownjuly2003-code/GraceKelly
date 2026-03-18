@@ -141,6 +141,22 @@ def missing_task_ids_status(snapshot: dict[str, Any]) -> str:
     return "mismatch"
 
 
+def derived_snapshot_status(snapshot: dict[str, Any]) -> str:
+    return "partial" if derived_missing_task_ids(snapshot) else "ok"
+
+
+def snapshot_status_consistency_status(snapshot: dict[str, Any]) -> str:
+    explicit_status = snapshot.get("status")
+    if explicit_status is None:
+        return "missing"
+    if not isinstance(explicit_status, str):
+        return "mismatch"
+    derived_status = derived_snapshot_status(snapshot)
+    if explicit_status == derived_status:
+        return "verified"
+    return "mismatch"
+
+
 def selection_status(snapshot: dict[str, Any]) -> str:
     selection = snapshot.get("selection")
     if selection is None:
@@ -175,6 +191,7 @@ def manifest_status(snapshot: dict[str, Any]) -> str:
         manifest_count_status(snapshot, "event_count"),
         exported_task_ids_status(snapshot),
         missing_task_ids_status(snapshot),
+        snapshot_status_consistency_status(snapshot),
         selection_status(snapshot),
     ]
     return "mismatch" if "mismatch" in statuses else "verified"
@@ -193,6 +210,10 @@ def validate_manifest(snapshot: dict[str, Any]) -> None:
     if missing_task_ids_status(snapshot) == "mismatch":
         raise ValueError(
             "Snapshot missing_task_ids do not match the selection and exported task bundles."
+        )
+    if snapshot_status_consistency_status(snapshot) == "mismatch":
+        raise ValueError(
+            "Snapshot status does not match the presence or absence of missing task bundles."
         )
     if selection_status(snapshot) == "mismatch":
         raise ValueError(

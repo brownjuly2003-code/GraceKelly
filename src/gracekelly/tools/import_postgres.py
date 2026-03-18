@@ -21,6 +21,7 @@ from gracekelly.tools.snapshot_artifact import (
     manifest_status,
     missing_task_ids as snapshot_missing_task_ids,
     missing_task_ids_status,
+    snapshot_status_consistency_status,
     selection_status,
     validate_manifest,
 )
@@ -360,6 +361,7 @@ def main() -> int:
         "requested_task_ids": requested_task_ids,
         "missing_task_ids": missing_task_ids,
         "source_status": snapshot.get("status", "unknown"),
+        "source_status_consistency_status": snapshot_status_consistency_status(snapshot),
         "source_manifest_status": manifest_status(snapshot),
         "source_selection": snapshot.get("selection"),
         "source_selection_status": selection_status(snapshot),

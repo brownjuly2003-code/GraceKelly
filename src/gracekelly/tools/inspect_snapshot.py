@@ -16,6 +16,7 @@ from gracekelly.tools.snapshot_artifact import (
     manifest_status,
     missing_task_ids,
     missing_task_ids_status,
+    snapshot_status_consistency_status,
     selection_status,
 )
 from gracekelly.tools.snapshot_digest import SNAPSHOT_FORMAT_VERSION
@@ -68,6 +69,7 @@ def inspect_snapshot(snapshot: dict[str, Any]) -> dict[str, Any]:
     result = {
         "status": "ok" if import_ready else "error",
         "snapshot_status": snapshot.get("status", "unknown"),
+        "snapshot_status_consistency_status": snapshot_status_consistency_status(snapshot),
         "snapshot_format_version": snapshot.get("snapshot_format_version"),
         "supported_snapshot_format_version": SNAPSHOT_FORMAT_VERSION,
         "format_status": format_status,

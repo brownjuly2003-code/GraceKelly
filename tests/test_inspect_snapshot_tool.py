@@ -81,6 +81,7 @@ class InspectSnapshotToolTests(unittest.TestCase):
             payload = json.loads(print_mock.call_args.args[0])
             self.assertEqual(payload["status"], "ok")
             self.assertEqual(payload["snapshot_status"], "ok")
+            self.assertEqual(payload["snapshot_status_consistency_status"], "verified")
             self.assertEqual(payload["checksum_status"], "verified")
             self.assertEqual(payload["format_status"], "current")
             self.assertEqual(payload["migration_status"], "current")
@@ -124,6 +125,7 @@ class InspectSnapshotToolTests(unittest.TestCase):
             self.assertEqual(code, 0)
             payload = json.loads(print_mock.call_args.args[0])
             self.assertEqual(payload["exported_task_ids"], ["task-1", "task-2"])
+            self.assertEqual(payload["snapshot_status_consistency_status"], "verified")
             self.assertEqual(payload["manifest_status"], "verified")
             self.assertEqual(payload["selection_status"], "missing")
             self.assertEqual(payload["task_count_status"], "derived")
@@ -256,6 +258,7 @@ class InspectSnapshotToolTests(unittest.TestCase):
         snapshot_path = self.write_snapshot(
             self.build_snapshot_payload(
                 {
+                    "status": "partial",
                     "migration": "0001_initial",
                     "selection": {"task_ids": ["task-2"], "limit": None},
                     "tasks": [{"task": {"task_id": "task-1"}, "steps": [], "events": []}],
@@ -283,6 +286,7 @@ class InspectSnapshotToolTests(unittest.TestCase):
         snapshot_path = self.write_snapshot(
             self.build_snapshot_payload(
                 {
+                    "status": "partial",
                     "migration": "0001_initial",
                     "selection": {"task_ids": ["task-1", "task-2"], "limit": None},
                     "missing_task_ids": ["task-3"],
@@ -302,6 +306,35 @@ class InspectSnapshotToolTests(unittest.TestCase):
             self.assertEqual(payload["status"], "error")
             self.assertEqual(payload["manifest_status"], "mismatch")
             self.assertEqual(payload["missing_task_ids_status"], "mismatch")
+            self.assertFalse(payload["import_ready"])
+        finally:
+            if snapshot_path.exists():
+                snapshot_path.unlink()
+
+    def test_main_reports_snapshot_status_consistency_mismatch(self) -> None:
+        snapshot_path = self.write_snapshot(
+            self.build_snapshot_payload(
+                {
+                    "status": "ok",
+                    "migration": "0001_initial",
+                    "selection": {"task_ids": ["task-1", "task-2"], "limit": None},
+                    "missing_task_ids": ["task-2"],
+                    "tasks": [{"task": {"task_id": "task-1"}, "steps": [], "events": []}],
+                }
+            )
+        )
+        try:
+            with (
+                patch.object(inspect_snapshot, "parse_args", return_value=argparse.Namespace(input=str(snapshot_path))),
+                patch("builtins.print") as print_mock,
+            ):
+                code = inspect_snapshot.main()
+
+            self.assertEqual(code, 1)
+            payload = json.loads(print_mock.call_args.args[0])
+            self.assertEqual(payload["status"], "error")
+            self.assertEqual(payload["snapshot_status_consistency_status"], "mismatch")
+            self.assertEqual(payload["manifest_status"], "mismatch")
             self.assertFalse(payload["import_ready"])
         finally:
             if snapshot_path.exists():
