@@ -4,6 +4,8 @@ import hashlib
 import json
 from typing import Any
 
+SNAPSHOT_FORMAT_VERSION = 1
+
 
 def snapshot_without_digest(snapshot: dict[str, Any]) -> dict[str, Any]:
     return {

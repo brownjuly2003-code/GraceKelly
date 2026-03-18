@@ -8,11 +8,12 @@ import os
 from pathlib import Path
 from typing import Any
 
+from gracekelly import __version__
 from gracekelly.core.contracts import AdapterHint, EventType, ExecutionMode, FailureCode, MergeStrategy, StepStatus, TaskStatus
 from gracekelly.storage.base import TaskEventRecord, TaskRecord, TaskStepRecord
 from gracekelly.storage.postgres import PostgresTaskRepository
 from gracekelly.storage.schema import INITIAL_MIGRATION_NAME
-from gracekelly.tools.snapshot_digest import compute_snapshot_sha256
+from gracekelly.tools.snapshot_digest import SNAPSHOT_FORMAT_VERSION, compute_snapshot_sha256
 
 
 def parse_args() -> argparse.Namespace:
@@ -110,6 +111,11 @@ def _event_from_snapshot(payload: dict[str, Any]) -> TaskEventRecord:
 def _validate_snapshot(snapshot: dict[str, Any]) -> None:
     if snapshot.get("status") == "error":
         raise ValueError("Snapshot status is 'error'; refusing to import a failed export artifact.")
+    format_version = snapshot.get("snapshot_format_version")
+    if format_version is not None and format_version != SNAPSHOT_FORMAT_VERSION:
+        raise ValueError(
+            f"Snapshot format version '{format_version}' does not match expected '{SNAPSHOT_FORMAT_VERSION}'."
+        )
     source_migration = snapshot.get("migration")
     if source_migration is not None and source_migration != INITIAL_MIGRATION_NAME:
         raise ValueError(
@@ -264,9 +270,12 @@ def main() -> int:
 
     result = {
         "status": "ok",
+        "snapshot_format_version": snapshot.get("snapshot_format_version", SNAPSHOT_FORMAT_VERSION),
+        "gracekelly_version": __version__,
         "migration": INITIAL_MIGRATION_NAME,
         "input": str(input_path),
         "source_status": snapshot.get("status", "unknown"),
+        "source_gracekelly_version": snapshot.get("gracekelly_version"),
         "source_migration": snapshot.get("migration"),
         **summary,
     }

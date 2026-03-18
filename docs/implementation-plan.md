@@ -177,6 +177,7 @@ This document is the working source of truth for GraceKelly delivery. We update 
 [x] Add a built-in snapshot checksum to PostgreSQL export/import artifacts so corrupted JSON is rejected before restore.
 [x] Make snapshot replacement an explicit storage contract via `replace_task_snapshot(...)` instead of relying on repository duck-typing in the import path.
 [x] Harden snapshot import validation so duplicate `task_id`, `step_index`, and event `sequence_no` values are rejected before any restore writes begin.
+[x] Add explicit `snapshot_format_version` metadata to PostgreSQL snapshot artifacts so future import compatibility is not inferred only from migration names.
 
 ## Issue log
 - 2026-03-16: Legacy reference project has corrupted SQLite databases. Decision: no storage design or migration path in GraceKelly may depend on SQLite integrity.
@@ -262,6 +263,7 @@ This document is the working source of truth for GraceKelly delivery. We update 
 - 2026-03-18: Export/import snapshot files were structurally valid JSON but had no built-in integrity signal, so a truncated or manually edited artifact could still reach restore logic. Decision: stamp each export with `snapshot_sha256` and verify it on import before any database writes.
 - 2026-03-18: Snapshot restore semantics had become real enough that the import CLI should not depend on `hasattr(...)` duck-typing against repositories. Decision: promote `replace_task_snapshot(...)` to the explicit storage contract and implement it on both memory and PostgreSQL backends.
 - 2026-03-18: Snapshot restore still relied on database or repository write failures to catch duplicate task bundles, step indexes, or event sequence numbers. Decision: reject those duplicate shapes in the import validator before any write path starts.
+- 2026-03-18: Snapshot compatibility was still inferred indirectly through migration naming, which is too weak once export/import artifacts become longer-lived. Decision: stamp each snapshot with an explicit `snapshot_format_version` and reject unknown versions on import.
 - 2026-03-16: Health can legitimately report `degraded` in development when optional adapters are intentionally unconfigured. Decision: treat degraded readiness as operationally informative, not as a startup failure.
 - 2026-03-16: HTTP smoke tests exposed a missing `requested_models` field in `TaskView`. Decision: keep smoke coverage mandatory for API contract changes; bug fixed immediately.
 - 2026-03-16: answers1.md made it clear that several current choices are transitional only: JSON-heavy execution storage, degraded-on-optional readiness, and `best_effort` merge semantics should not be treated as stable architecture.
@@ -368,3 +370,4 @@ This document is the working source of truth for GraceKelly delivery. We update 
 - 2026-03-18: Added `snapshot_sha256` integrity stamping to PostgreSQL exports and checksum verification on import, with regression coverage for both the happy path and checksum-mismatch rejection.
 - 2026-03-18: Promoted snapshot replacement to an explicit repository contract and removed the remaining duck-typed restore branch from the import CLI, with direct in-memory replacement coverage.
 - 2026-03-18: Hardened snapshot import validation to reject duplicate task bundles, duplicate step indexes, and duplicate event sequence numbers before restore writes begin.
+- 2026-03-18: Added `snapshot_format_version` and `gracekelly_version` to PostgreSQL snapshot artifacts and made import reject mismatched format versions before restore begins.

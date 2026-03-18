@@ -8,8 +8,9 @@ import unittest
 from unittest.mock import patch
 from uuid import uuid4
 
+from gracekelly import __version__
 from gracekelly.tools import export_postgres
-from gracekelly.tools.snapshot_digest import compute_snapshot_sha256
+from gracekelly.tools.snapshot_digest import SNAPSHOT_FORMAT_VERSION, compute_snapshot_sha256
 
 
 class ExportPostgresToolTests(unittest.TestCase):
@@ -105,6 +106,8 @@ class ExportPostgresToolTests(unittest.TestCase):
         )
 
         self.assertEqual(snapshot["status"], "ok")
+        self.assertEqual(snapshot["snapshot_format_version"], SNAPSHOT_FORMAT_VERSION)
+        self.assertEqual(snapshot["gracekelly_version"], __version__)
         self.assertEqual(snapshot["task_count"], 1)
         self.assertEqual(snapshot["generated_at"], "2026-03-18T17:05:00Z")
         self.assertEqual(snapshot["tasks"][0]["task"]["task_id"], "task-1")
@@ -190,10 +193,14 @@ class ExportPostgresToolTests(unittest.TestCase):
             self.assertEqual(len(fake_instances), 1)
             result = json.loads(print_mock.call_args.args[0])
             self.assertEqual(result["status"], "partial")
+            self.assertEqual(result["snapshot_format_version"], SNAPSHOT_FORMAT_VERSION)
+            self.assertEqual(result["gracekelly_version"], __version__)
             self.assertEqual(result["task_count"], 1)
             self.assertEqual(result["missing_task_ids"], ["task-missing"])
             self.assertIn("snapshot_sha256", result)
             snapshot = json.loads(output_path.read_text(encoding="utf-8"))
+            self.assertEqual(snapshot["snapshot_format_version"], SNAPSHOT_FORMAT_VERSION)
+            self.assertEqual(snapshot["gracekelly_version"], __version__)
             self.assertEqual(snapshot["tasks"][0]["task"]["task_id"], "task-1")
             self.assertEqual(snapshot["missing_task_ids"], ["task-missing"])
             self.assertEqual(snapshot["snapshot_sha256"], compute_snapshot_sha256(snapshot))

@@ -203,6 +203,7 @@ gracekelly-export-postgres --limit 100
 
 This writes a JSON snapshot under `tmp/postgres-export/` by default, including:
 - export timestamp and schema version
+- `snapshot_format_version` and `gracekelly_version`
 - `snapshot_sha256` integrity digest
 - repository health and schema report
 - serialized task records with nested steps and events
@@ -224,6 +225,7 @@ This restores the snapshot task-by-task into PostgreSQL:
 - each imported `task_id` is replaced in place
 - related steps and events are replaced with the snapshot bundle for that task
 - unrelated tasks already in the database are left untouched
+- `snapshot_format_version` is checked when present
 - `snapshot_sha256` is verified when present, so corrupted snapshots are rejected before restore
 
 If connectivity or schema state is intentionally degraded but you still need a manual restore, override the guard explicitly:

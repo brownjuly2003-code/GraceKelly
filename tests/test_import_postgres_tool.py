@@ -8,8 +8,9 @@ import unittest
 from unittest.mock import patch
 from uuid import uuid4
 
+from gracekelly import __version__
 from gracekelly.tools import import_postgres
-from gracekelly.tools.snapshot_digest import compute_snapshot_sha256
+from gracekelly.tools.snapshot_digest import SNAPSHOT_FORMAT_VERSION, compute_snapshot_sha256
 
 
 class ImportPostgresToolTests(unittest.TestCase):
@@ -18,6 +19,16 @@ class ImportPostgresToolTests(unittest.TestCase):
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
         return path
+
+    def build_snapshot_payload(self, payload: dict[str, object]) -> dict[str, object]:
+        snapshot = {
+            "status": "ok",
+            "snapshot_format_version": SNAPSHOT_FORMAT_VERSION,
+            "gracekelly_version": __version__,
+            **payload,
+        }
+        snapshot["snapshot_sha256"] = compute_snapshot_sha256(snapshot)
+        return snapshot
 
     def test_main_returns_error_when_dsn_is_missing(self) -> None:
         with (
@@ -59,8 +70,7 @@ class ImportPostgresToolTests(unittest.TestCase):
 
     def test_main_replaces_snapshot_task_bundle(self) -> None:
         accepted_at = datetime(2026, 3, 18, 18, 0, tzinfo=UTC).isoformat().replace("+00:00", "Z")
-        snapshot_payload = {
-            "status": "ok",
+        snapshot_payload = self.build_snapshot_payload({
             "migration": "0001_initial",
             "tasks": [
                 {
@@ -119,8 +129,7 @@ class ImportPostgresToolTests(unittest.TestCase):
                     ],
                 }
             ],
-        }
-        snapshot_payload["snapshot_sha256"] = compute_snapshot_sha256(snapshot_payload)
+        })
         snapshot_path = self.write_snapshot(snapshot_payload)
 
         class FakeRepository:
@@ -169,7 +178,10 @@ class ImportPostgresToolTests(unittest.TestCase):
             self.assertEqual(len(events), 2)
             payload = json.loads(print_mock.call_args.args[0])
             self.assertEqual(payload["status"], "ok")
+            self.assertEqual(payload["snapshot_format_version"], SNAPSHOT_FORMAT_VERSION)
+            self.assertEqual(payload["gracekelly_version"], __version__)
             self.assertEqual(payload["source_status"], "ok")
+            self.assertEqual(payload["source_gracekelly_version"], __version__)
             self.assertEqual(payload["imported_task_count"], 1)
             self.assertEqual(payload["imported_step_count"], 1)
             self.assertEqual(payload["imported_event_count"], 2)
@@ -179,7 +191,14 @@ class ImportPostgresToolTests(unittest.TestCase):
                 snapshot_path.unlink()
 
     def test_main_blocks_on_degraded_schema_without_override(self) -> None:
-        snapshot_path = self.write_snapshot({"status": "ok", "migration": "0001_initial", "tasks": []})
+        snapshot_path = self.write_snapshot(
+            self.build_snapshot_payload(
+                {
+                    "migration": "0001_initial",
+                    "tasks": [],
+                }
+            )
+        )
 
         class FakeRepository:
             def __init__(self, dsn: str, *, bootstrap: bool) -> None:
@@ -217,7 +236,14 @@ class ImportPostgresToolTests(unittest.TestCase):
                 snapshot_path.unlink()
 
     def test_main_rejects_migration_mismatch(self) -> None:
-        snapshot_path = self.write_snapshot({"status": "ok", "migration": "9999_future", "tasks": []})
+        snapshot_path = self.write_snapshot(
+            self.build_snapshot_payload(
+                {
+                    "migration": "9999_future",
+                    "tasks": [],
+                }
+            )
+        )
         try:
             with (
                 patch.object(
@@ -246,6 +272,8 @@ class ImportPostgresToolTests(unittest.TestCase):
         snapshot_path = self.write_snapshot(
             {
                 "status": "ok",
+                "snapshot_format_version": SNAPSHOT_FORMAT_VERSION,
+                "gracekelly_version": __version__,
                 "migration": "0001_initial",
                 "snapshot_sha256": "deadbeef",
                 "tasks": [],
@@ -276,15 +304,13 @@ class ImportPostgresToolTests(unittest.TestCase):
                 snapshot_path.unlink()
 
     def test_main_rejects_duplicate_task_ids(self) -> None:
-        snapshot_payload = {
-            "status": "ok",
+        snapshot_payload = self.build_snapshot_payload({
             "migration": "0001_initial",
             "tasks": [
                 {"task": {"task_id": "task-1"}, "steps": [], "events": []},
                 {"task": {"task_id": "task-1"}, "steps": [], "events": []},
             ],
-        }
-        snapshot_payload["snapshot_sha256"] = compute_snapshot_sha256(snapshot_payload)
+        })
         snapshot_path = self.write_snapshot(snapshot_payload)
         try:
             with (
@@ -312,8 +338,7 @@ class ImportPostgresToolTests(unittest.TestCase):
 
     def test_main_rejects_duplicate_step_indexes_for_task(self) -> None:
         accepted_at = datetime(2026, 3, 18, 18, 0, tzinfo=UTC).isoformat().replace("+00:00", "Z")
-        snapshot_payload = {
-            "status": "ok",
+        snapshot_payload = self.build_snapshot_payload({
             "migration": "0001_initial",
             "tasks": [
                 {
@@ -360,8 +385,7 @@ class ImportPostgresToolTests(unittest.TestCase):
                     "events": [],
                 }
             ],
-        }
-        snapshot_payload["snapshot_sha256"] = compute_snapshot_sha256(snapshot_payload)
+        })
         snapshot_path = self.write_snapshot(snapshot_payload)
 
         class FakeRepository:
@@ -404,8 +428,7 @@ class ImportPostgresToolTests(unittest.TestCase):
 
     def test_main_rejects_duplicate_event_sequence_numbers_for_task(self) -> None:
         accepted_at = datetime(2026, 3, 18, 18, 0, tzinfo=UTC).isoformat().replace("+00:00", "Z")
-        snapshot_payload = {
-            "status": "ok",
+        snapshot_payload = self.build_snapshot_payload({
             "migration": "0001_initial",
             "tasks": [
                 {
@@ -450,8 +473,7 @@ class ImportPostgresToolTests(unittest.TestCase):
                     ],
                 }
             ],
-        }
-        snapshot_payload["snapshot_sha256"] = compute_snapshot_sha256(snapshot_payload)
+        })
         snapshot_path = self.write_snapshot(snapshot_payload)
 
         class FakeRepository:
@@ -488,6 +510,40 @@ class ImportPostgresToolTests(unittest.TestCase):
             payload = json.loads(print_mock.call_args.args[0])
             self.assertEqual(payload["status"], "error")
             self.assertIn("duplicate event sequence_no", payload["error"])
+        finally:
+            if snapshot_path.exists():
+                snapshot_path.unlink()
+
+    def test_main_rejects_snapshot_format_version_mismatch(self) -> None:
+        snapshot_path = self.write_snapshot(
+            {
+                "status": "ok",
+                "snapshot_format_version": SNAPSHOT_FORMAT_VERSION + 1,
+                "gracekelly_version": __version__,
+                "migration": "0001_initial",
+                "tasks": [],
+            }
+        )
+        try:
+            with (
+                patch.object(
+                    import_postgres,
+                    "parse_args",
+                    return_value=argparse.Namespace(
+                        dsn="postgresql://example",
+                        input=str(snapshot_path),
+                        allow_degraded_schema=False,
+                    ),
+                ),
+                patch.object(import_postgres, "resolve_dsn", return_value="postgresql://example"),
+                patch("builtins.print") as print_mock,
+            ):
+                code = import_postgres.main()
+
+            self.assertEqual(code, 2)
+            payload = json.loads(print_mock.call_args.args[0])
+            self.assertEqual(payload["status"], "error")
+            self.assertIn("format version", payload["error"])
         finally:
             if snapshot_path.exists():
                 snapshot_path.unlink()

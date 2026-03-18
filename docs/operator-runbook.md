@@ -175,7 +175,7 @@ Export specific tasks only:
 gracekelly-export-postgres --task-id task-1 --task-id task-2
 ```
 
-Export artifacts now carry a `snapshot_sha256` checksum so restores can reject corrupted JSON before task rows are touched.
+Export artifacts now carry `snapshot_format_version`, `gracekelly_version`, and `snapshot_sha256` so restores can reject incompatible or corrupted JSON before task rows are touched.
 
 Restore a snapshot back into PostgreSQL:
 
@@ -188,6 +188,7 @@ Restore semantics:
 - imported `task_id` values are replaced in place
 - related step and event rows are replaced together with the task
 - unrelated tasks remain in the database
+- `snapshot_format_version` is verified when present
 - `snapshot_sha256` is verified when present
 
 Use `--allow-degraded-schema` only for deliberate manual recovery when the guardrail would otherwise block a needed restore.

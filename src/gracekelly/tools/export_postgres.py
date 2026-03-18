@@ -8,9 +8,10 @@ import os
 from pathlib import Path
 from typing import Any
 
+from gracekelly import __version__
 from gracekelly.storage.postgres import PostgresTaskRepository
 from gracekelly.storage.schema import INITIAL_MIGRATION_NAME
-from gracekelly.tools.snapshot_digest import compute_snapshot_sha256
+from gracekelly.tools.snapshot_digest import SNAPSHOT_FORMAT_VERSION, compute_snapshot_sha256
 
 
 def parse_args() -> argparse.Namespace:
@@ -108,6 +109,8 @@ def collect_export_snapshot(
     status = "partial" if missing_task_ids else "ok"
     snapshot = {
         "status": status,
+        "snapshot_format_version": SNAPSHOT_FORMAT_VERSION,
+        "gracekelly_version": __version__,
         "migration": INITIAL_MIGRATION_NAME,
         "generated_at": _normalize(generated_at or datetime.now(UTC)),
         "backend": repository.backend_name,
@@ -182,6 +185,8 @@ def main() -> int:
 
     result = {
         "status": snapshot["status"],
+        "snapshot_format_version": snapshot["snapshot_format_version"],
+        "gracekelly_version": snapshot["gracekelly_version"],
         "migration": INITIAL_MIGRATION_NAME,
         "output": str(output_path),
         "task_count": snapshot["task_count"],
