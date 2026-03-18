@@ -179,6 +179,14 @@ Export artifacts now carry `snapshot_format_version`, `gracekelly_version`, and 
 The export command summary now also echoes `requested_task_ids`, `exported_task_ids`, `missing_task_ids`, `repository_health`, and `repository_schema`, so the operator can capture both selection results and storage state without opening the snapshot file immediately.
 If the export path ends with `.gz`, the snapshot is written as gzip-compressed JSON.
 
+Inspect a snapshot artifact offline before restore:
+
+```bash
+gracekelly-inspect-snapshot --input D:\GraceKelly\tmp\postgres-export\selected.json
+```
+
+That command verifies `snapshot_sha256` when present and reports manifest details such as `selection`, `task_count`, `exported_task_ids`, and `missing_task_ids` without requiring database connectivity.
+
 Restore a snapshot back into PostgreSQL:
 
 ```bash

@@ -223,6 +223,14 @@ Export specific tasks when needed:
 gracekelly-export-postgres --task-id task-1 --task-id task-2 --output D:\GraceKelly\tmp\postgres-export\selected.json
 ```
 
+Inspect a snapshot artifact offline before restore:
+
+```bash
+gracekelly-inspect-snapshot --input D:\GraceKelly\tmp\postgres-export\selected.json
+```
+
+This verifies `snapshot_sha256` when present and returns the manifest summary, including `selection`, `task_count`, `exported_task_ids`, and `missing_task_ids`, without requiring a PostgreSQL DSN.
+
 ## PostgreSQL import
 
 ```bash
