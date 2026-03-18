@@ -196,9 +196,13 @@ class ExportPostgresToolTests(unittest.TestCase):
             self.assertEqual(code, 1)
             self.assertEqual(len(fake_instances), 1)
             result = json.loads(print_mock.call_args.args[0])
+            snapshot = json.loads(output_path.read_text(encoding="utf-8"))
             self.assertEqual(result["status"], "partial")
             self.assertEqual(result["snapshot_format_version"], SNAPSHOT_FORMAT_VERSION)
             self.assertEqual(result["gracekelly_version"], __version__)
+            self.assertEqual(result["generated_at"], snapshot["generated_at"])
+            self.assertFalse(result["compressed_output"])
+            self.assertGreater(result["output_size_bytes"], 0)
             self.assertEqual(result["requested_task_ids"], ["task-1", "task-missing"])
             self.assertEqual(result["exported_task_ids"], ["task-1"])
             self.assertEqual(result["repository_health"]["status"], "ok")
@@ -208,7 +212,6 @@ class ExportPostgresToolTests(unittest.TestCase):
             self.assertEqual(result["event_count"], 0)
             self.assertEqual(result["missing_task_ids"], ["task-missing"])
             self.assertIn("snapshot_sha256", result)
-            snapshot = json.loads(output_path.read_text(encoding="utf-8"))
             self.assertEqual(snapshot["snapshot_format_version"], SNAPSHOT_FORMAT_VERSION)
             self.assertEqual(snapshot["gracekelly_version"], __version__)
             self.assertEqual(snapshot["selection"]["task_ids"], ["task-1", "task-missing"])
@@ -242,6 +245,58 @@ class ExportPostgresToolTests(unittest.TestCase):
 
             self.assertEqual(payload["status"], "ok")
             self.assertEqual(payload["snapshot_format_version"], SNAPSHOT_FORMAT_VERSION)
+        finally:
+            if output_path.exists():
+                output_path.unlink()
+
+    def test_main_reports_compressed_output_metadata_for_gzip_snapshot(self) -> None:
+        class FakeRepository:
+            backend_name = "postgres"
+
+            def __init__(self, dsn: str, *, bootstrap: bool) -> None:
+                pass
+
+            def get(self, task_id: str):
+                raise AssertionError("get should not be used without explicit task_ids")
+
+            def list_recent(self, limit: int):
+                return []
+
+            def list_steps(self, task_id: str):
+                return []
+
+            def list_events(self, task_id: str):
+                return []
+
+            def healthcheck(self) -> dict[str, object]:
+                return {"status": "ok", "backend": "postgres"}
+
+            def schema_report(self) -> dict[str, object]:
+                return {"status": "ok", "backend": "postgres", "schema_version": "0001_initial"}
+
+        output_path = Path("tmp") / "test-export-tool" / f"{uuid4()}.json.gz"
+        try:
+            with (
+                patch.object(
+                    export_postgres,
+                    "parse_args",
+                    return_value=argparse.Namespace(
+                        dsn="postgresql://example",
+                        output=str(output_path),
+                        task_ids=[],
+                        limit=100,
+                    ),
+                ),
+                patch.object(export_postgres, "resolve_dsn", return_value="postgresql://example"),
+                patch.object(export_postgres, "PostgresTaskRepository", FakeRepository),
+                patch("builtins.print") as print_mock,
+            ):
+                code = export_postgres.main()
+
+            self.assertEqual(code, 0)
+            result = json.loads(print_mock.call_args.args[0])
+            self.assertTrue(result["compressed_output"])
+            self.assertGreater(result["output_size_bytes"], 0)
         finally:
             if output_path.exists():
                 output_path.unlink()

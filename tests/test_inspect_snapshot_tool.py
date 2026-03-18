@@ -90,6 +90,7 @@ class InspectSnapshotToolTests(unittest.TestCase):
             self.assertEqual(payload["step_count"], 0)
             self.assertEqual(payload["event_count"], 0)
             self.assertFalse(payload["compressed_input"])
+            self.assertGreater(payload["input_size_bytes"], 0)
         finally:
             if snapshot_path.exists():
                 snapshot_path.unlink()
@@ -121,6 +122,7 @@ class InspectSnapshotToolTests(unittest.TestCase):
             self.assertEqual(payload["event_count"], 0)
             self.assertEqual(payload["format_status"], "current")
             self.assertTrue(payload["compressed_input"])
+            self.assertGreater(payload["input_size_bytes"], 0)
         finally:
             if snapshot_path.exists():
                 snapshot_path.unlink()

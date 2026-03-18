@@ -13,6 +13,7 @@ from gracekelly.core.contracts import AdapterHint, EventType, ExecutionMode, Fai
 from gracekelly.storage.base import TaskEventRecord, TaskRecord, TaskStepRecord
 from gracekelly.storage.postgres import PostgresTaskRepository
 from gracekelly.storage.schema import INITIAL_MIGRATION_NAME
+from gracekelly.tools.snapshot_artifact import artifact_metadata, checksum_status
 from gracekelly.tools.snapshot_digest import SNAPSHOT_FORMAT_VERSION, compute_snapshot_sha256
 from gracekelly.tools.snapshot_io import read_snapshot_text
 
@@ -364,12 +365,16 @@ def main() -> int:
         return 2
 
     result_status = "partial" if missing_task_ids else "ok"
+    source_checksum_status, source_snapshot_sha256, _ = checksum_status(snapshot)
+    input_metadata = artifact_metadata(input_path)
     result = {
         "status": result_status,
         "snapshot_format_version": snapshot.get("snapshot_format_version", SNAPSHOT_FORMAT_VERSION),
         "gracekelly_version": __version__,
         "migration": INITIAL_MIGRATION_NAME,
         "input": str(input_path),
+        "compressed_input": input_metadata["compressed"],
+        "input_size_bytes": input_metadata["size_bytes"],
         "requested_task_ids": requested_task_ids,
         "missing_task_ids": missing_task_ids,
         "source_status": snapshot.get("status", "unknown"),
@@ -379,6 +384,8 @@ def main() -> int:
         "source_event_count": _snapshot_nested_count(snapshot, "event_count"),
         "source_exported_task_ids": _snapshot_exported_task_ids(snapshot),
         "source_missing_task_ids": list(snapshot.get("missing_task_ids", [])),
+        "source_checksum_status": source_checksum_status,
+        "source_snapshot_sha256": source_snapshot_sha256,
         "source_gracekelly_version": snapshot.get("gracekelly_version"),
         "source_migration": snapshot.get("migration"),
         "dry_run": args.dry_run,

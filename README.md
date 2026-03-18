@@ -210,7 +210,7 @@ This writes a JSON snapshot under `tmp/postgres-export/` by default, including:
 - `exported_task_ids` for quick manifest inspection
 - serialized task records with nested steps and events
 
-The command summary also includes `requested_task_ids`, `exported_task_ids`, `missing_task_ids`, `task_count`, `step_count`, `event_count`, `repository_health`, and `repository_schema`, so the export result itself is usable as a lightweight storage preflight.
+The command summary also includes `generated_at`, `compressed_output`, `output_size_bytes`, `requested_task_ids`, `exported_task_ids`, `missing_task_ids`, `task_count`, `step_count`, `event_count`, `repository_health`, and `repository_schema`, so the export result itself is usable as a lightweight storage preflight.
 
 If the output path ends with `.gz`, GraceKelly writes a gzip-compressed snapshot:
 
@@ -230,7 +230,7 @@ Inspect a snapshot artifact offline before restore:
 gracekelly-inspect-snapshot --input D:\GraceKelly\tmp\postgres-export\selected.json
 ```
 
-This verifies `snapshot_sha256` when present and returns the manifest summary, including `selection`, `task_count`, `step_count`, `event_count`, `exported_task_ids`, `missing_task_ids`, and an `import_ready` verdict based on checksum, `snapshot_format_version`, and `migration`, without requiring a PostgreSQL DSN.
+This verifies `snapshot_sha256` when present and returns the manifest summary, including `selection`, `task_count`, `step_count`, `event_count`, `exported_task_ids`, `missing_task_ids`, `input_size_bytes`, and an `import_ready` verdict based on checksum, `snapshot_format_version`, and `migration`, without requiring a PostgreSQL DSN.
 
 ## PostgreSQL import
 
@@ -261,7 +261,7 @@ gracekelly-import-postgres --input D:\GraceKelly\tmp\postgres-export\selected.js
 ```
 
 The success payload now includes `repository_health` and `repository_schema`, so a dry run can double as a pre-restore validation report.
-It also echoes `source_selection`, `source_task_count`, `source_step_count`, `source_event_count`, `source_exported_task_ids`, and `source_missing_task_ids` from the artifact manifest, so restore output stays self-contained.
+It also echoes `compressed_input`, `input_size_bytes`, `source_checksum_status`, `source_snapshot_sha256`, `source_selection`, `source_task_count`, `source_step_count`, `source_event_count`, `source_exported_task_ids`, and `source_missing_task_ids` from the artifact manifest, so restore output stays self-contained.
 
 Gzip-compressed snapshot input is also supported:
 

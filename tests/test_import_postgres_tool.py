@@ -196,6 +196,8 @@ class ImportPostgresToolTests(unittest.TestCase):
             self.assertEqual(payload["status"], "ok")
             self.assertEqual(payload["snapshot_format_version"], SNAPSHOT_FORMAT_VERSION)
             self.assertEqual(payload["gracekelly_version"], __version__)
+            self.assertFalse(payload["compressed_input"])
+            self.assertGreater(payload["input_size_bytes"], 0)
             self.assertEqual(payload["requested_task_ids"], [])
             self.assertEqual(payload["missing_task_ids"], [])
             self.assertEqual(payload["source_status"], "ok")
@@ -205,6 +207,8 @@ class ImportPostgresToolTests(unittest.TestCase):
             self.assertEqual(payload["source_event_count"], 2)
             self.assertEqual(payload["source_exported_task_ids"], ["task-1"])
             self.assertEqual(payload["source_missing_task_ids"], [])
+            self.assertEqual(payload["source_checksum_status"], "verified")
+            self.assertEqual(payload["source_snapshot_sha256"], snapshot_payload["snapshot_sha256"])
             self.assertEqual(payload["source_gracekelly_version"], __version__)
             self.assertEqual(payload["repository_health"]["status"], "ok")
             self.assertEqual(payload["repository_schema"]["schema_version"], "0001_initial")
@@ -541,6 +545,8 @@ class ImportPostgresToolTests(unittest.TestCase):
             payload = json.loads(print_mock.call_args.args[0])
             self.assertEqual(payload["status"], "ok")
             self.assertTrue(payload["dry_run"])
+            self.assertTrue(payload["compressed_input"])
+            self.assertGreater(payload["input_size_bytes"], 0)
             self.assertEqual(payload["imported_task_count"], 0)
         finally:
             if snapshot_path.exists():

@@ -11,6 +11,7 @@ from typing import Any
 from gracekelly import __version__
 from gracekelly.storage.postgres import PostgresTaskRepository
 from gracekelly.storage.schema import INITIAL_MIGRATION_NAME
+from gracekelly.tools.snapshot_artifact import artifact_metadata
 from gracekelly.tools.snapshot_digest import SNAPSHOT_FORMAT_VERSION, compute_snapshot_sha256
 from gracekelly.tools.snapshot_io import write_snapshot_text
 
@@ -200,12 +201,16 @@ def main() -> int:
         )
         return 2
 
+    output_metadata = artifact_metadata(output_path)
     result = {
         "status": snapshot["status"],
         "snapshot_format_version": snapshot["snapshot_format_version"],
         "gracekelly_version": snapshot["gracekelly_version"],
         "migration": INITIAL_MIGRATION_NAME,
+        "generated_at": snapshot["generated_at"],
         "output": str(output_path),
+        "compressed_output": output_metadata["compressed"],
+        "output_size_bytes": output_metadata["size_bytes"],
         "requested_task_ids": requested_task_ids,
         "exported_task_ids": snapshot["exported_task_ids"],
         "repository_health": snapshot["health"],

@@ -188,6 +188,7 @@ This document is the working source of truth for GraceKelly delivery. We update 
 [x] Extend offline snapshot inspection with an `import_ready` compatibility verdict based on checksum, format version, and migration metadata.
 [x] Echo source snapshot selection and exported task IDs in successful import output so restore and dry-run results stay self-contained.
 [x] Add top-level `step_count` and `event_count` manifest totals to snapshot export, offline inspection, and import summaries so nested volume is visible without opening task payloads.
+[x] Expose artifact-level path metadata and checksum status across export/import/inspect summaries so operators can identify the exact snapshot file without re-reading it.
 
 ## Issue log
 - 2026-03-16: Legacy reference project has corrupted SQLite databases. Decision: no storage design or migration path in GraceKelly may depend on SQLite integrity.
@@ -217,6 +218,7 @@ This document is the working source of truth for GraceKelly delivery. We update 
 - 2026-03-18: Offline snapshot inspection could verify checksum but still left operators guessing whether a file matched the current import contract. Decision: add an explicit `import_ready` verdict plus format/migration status fields to the inspection output.
 - 2026-03-18: Import and import `--dry-run` summaries still hid the source artifact manifest unless the operator reran a separate inspect command. Decision: echo source selection and exported-task metadata directly in successful import output.
 - 2026-03-18: Snapshot manifests still surfaced only task totals, leaving step and event volume implicit unless the operator opened nested payloads. Decision: add top-level `step_count` and `event_count` across export, inspect, and import summaries.
+- 2026-03-18: Snapshot summaries still lacked file-level identity details such as size, compression mode, and explicit checksum status, so operators had to inspect the filesystem or rerun a different command to confirm which artifact they were looking at. Decision: expose artifact-level metadata directly in export/import/inspect output.
 - 2026-03-17: The project was still being managed without local git history. Decision: initialize a repository on `main` and ignore generated Python packaging/test artifacts before further iteration.
 - 2026-03-17: `MergeStrategy` had been introduced at the request/planning layer, but repository read paths and one event-building branch still fell back to raw strings. Decision: normalize storage reads back to `MergeStrategy` and remove the last internal string comparison.
 - 2026-03-17: Browser adapter generic runtime failures were still reported as `provider_unavailable`, conflating internal crashes with upstream availability problems. Decision: map unexpected browser exceptions to `unknown_error` and reserve `provider_unavailable` for actual configuration/provider reachability issues.
@@ -401,3 +403,4 @@ This document is the working source of truth for GraceKelly delivery. We update 
 - 2026-03-18: Extended offline snapshot inspection with `format_status`, `migration_status`, and `import_ready`, so artifact compatibility can be evaluated before any restore dry-run or DSN setup.
 - 2026-03-18: Extended successful import output with source manifest fields such as `source_selection` and `source_exported_task_ids`, keeping restore and dry-run results self-contained.
 - 2026-03-18: Added top-level `step_count` and `event_count` manifest totals to snapshot export plus inspect/import summaries, so nested durable-state volume is visible without inspecting task bodies.
+- 2026-03-18: Added artifact-level metadata such as compression mode, file size, and explicit checksum status across snapshot export/import/inspect summaries, making the operator surface fully traceable to a concrete artifact.

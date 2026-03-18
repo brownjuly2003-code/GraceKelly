@@ -6,7 +6,8 @@ from pathlib import Path
 from typing import Any
 
 from gracekelly.storage.schema import INITIAL_MIGRATION_NAME
-from gracekelly.tools.snapshot_digest import SNAPSHOT_FORMAT_VERSION, compute_snapshot_sha256
+from gracekelly.tools.snapshot_artifact import artifact_metadata, checksum_status
+from gracekelly.tools.snapshot_digest import SNAPSHOT_FORMAT_VERSION
 from gracekelly.tools.snapshot_io import read_snapshot_text
 
 
@@ -67,14 +68,7 @@ def nested_record_count(snapshot: dict[str, Any], key: str) -> int:
 
 
 def inspect_snapshot(snapshot: dict[str, Any]) -> dict[str, Any]:
-    expected_digest = snapshot.get("snapshot_sha256")
-    computed_digest = compute_snapshot_sha256(snapshot)
-    if expected_digest is None:
-        checksum_status = "missing"
-    elif expected_digest == computed_digest:
-        checksum_status = "verified"
-    else:
-        checksum_status = "mismatch"
+    checksum_state, expected_digest, computed_digest = checksum_status(snapshot)
 
     format_version = snapshot.get("snapshot_format_version")
     if format_version is None:
@@ -94,7 +88,7 @@ def inspect_snapshot(snapshot: dict[str, Any]) -> dict[str, Any]:
 
     exported_ids = exported_task_ids(snapshot)
     import_ready = (
-        checksum_status != "mismatch"
+        checksum_state != "mismatch"
         and format_status != "mismatch"
         and migration_status != "mismatch"
     )
@@ -116,7 +110,7 @@ def inspect_snapshot(snapshot: dict[str, Any]) -> dict[str, Any]:
         "event_count": nested_record_count(snapshot, "event_count"),
         "exported_task_ids": exported_ids,
         "missing_task_ids": list(snapshot.get("missing_task_ids", [])),
-        "checksum_status": checksum_status,
+        "checksum_status": checksum_state,
         "snapshot_sha256": expected_digest,
         "computed_snapshot_sha256": computed_digest,
         "import_ready": import_ready,
@@ -155,8 +149,10 @@ def main() -> int:
         )
         return 2
 
+    input_metadata = artifact_metadata(input_path)
     result["input"] = str(input_path)
-    result["compressed_input"] = input_path.suffix == ".gz"
+    result["compressed_input"] = input_metadata["compressed"]
+    result["input_size_bytes"] = input_metadata["size_bytes"]
     print(json.dumps(result, indent=2, sort_keys=True))
     return 0 if result["status"] == "ok" else 1
 
