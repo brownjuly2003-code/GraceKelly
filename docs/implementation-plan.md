@@ -185,6 +185,7 @@ This document is the working source of truth for GraceKelly delivery. We update 
 [x] Allow PostgreSQL snapshot import to target specific `task_id` values from a larger artifact and surface missing IDs as a partial restore outcome.
 [x] Expose `requested_task_ids` and `exported_task_ids` in PostgreSQL export summaries so partial or deduplicated selection is visible without opening the artifact.
 [x] Add an offline snapshot inspection CLI so operators can verify checksum and manifest metadata without a PostgreSQL DSN.
+[x] Extend offline snapshot inspection with an `import_ready` compatibility verdict based on checksum, format version, and migration metadata.
 
 ## Issue log
 - 2026-03-16: Legacy reference project has corrupted SQLite databases. Decision: no storage design or migration path in GraceKelly may depend on SQLite integrity.
@@ -211,6 +212,7 @@ This document is the working source of truth for GraceKelly delivery. We update 
 - 2026-03-18: Snapshot export already supported task selection, but import still forced whole-artifact replay even when the operator only needed one bundle back. Decision: add repeatable `--task-id` filters on import and surface missing IDs via an explicit `partial` result instead of silently restoring everything.
 - 2026-03-18: Export selection still required opening the snapshot file to confirm which task bundles actually landed after deduplication or missing-ID filtering. Decision: expose both requested and exported task IDs in the export summary and manifest.
 - 2026-03-18: Snapshot checksum and selection metadata were present, but there was still no DSN-free operator path to validate an artifact before considering restore. Decision: add an offline inspection CLI that verifies checksum and reports manifest fields directly from the snapshot file.
+- 2026-03-18: Offline snapshot inspection could verify checksum but still left operators guessing whether a file matched the current import contract. Decision: add an explicit `import_ready` verdict plus format/migration status fields to the inspection output.
 - 2026-03-17: The project was still being managed without local git history. Decision: initialize a repository on `main` and ignore generated Python packaging/test artifacts before further iteration.
 - 2026-03-17: `MergeStrategy` had been introduced at the request/planning layer, but repository read paths and one event-building branch still fell back to raw strings. Decision: normalize storage reads back to `MergeStrategy` and remove the last internal string comparison.
 - 2026-03-17: Browser adapter generic runtime failures were still reported as `provider_unavailable`, conflating internal crashes with upstream availability problems. Decision: map unexpected browser exceptions to `unknown_error` and reserve `provider_unavailable` for actual configuration/provider reachability issues.
@@ -392,3 +394,4 @@ This document is the working source of truth for GraceKelly delivery. We update 
 - 2026-03-18: Added selective `--task-id` filtering to `gracekelly-import-postgres`, including partial-result reporting when only some requested task bundles are present in the snapshot artifact.
 - 2026-03-18: Extended PostgreSQL export artifacts and summaries with explicit requested/exported task ID lists, so partial or deduplicated selection is visible without inspecting nested task payloads.
 - 2026-03-18: Added `gracekelly-inspect-snapshot`, an offline manifest/checksum inspection CLI for JSON or `.json.gz` snapshot artifacts, with regression coverage and runbook documentation.
+- 2026-03-18: Extended offline snapshot inspection with `format_status`, `migration_status`, and `import_ready`, so artifact compatibility can be evaluated before any restore dry-run or DSN setup.

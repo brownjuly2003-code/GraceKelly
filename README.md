@@ -229,7 +229,7 @@ Inspect a snapshot artifact offline before restore:
 gracekelly-inspect-snapshot --input D:\GraceKelly\tmp\postgres-export\selected.json
 ```
 
-This verifies `snapshot_sha256` when present and returns the manifest summary, including `selection`, `task_count`, `exported_task_ids`, and `missing_task_ids`, without requiring a PostgreSQL DSN.
+This verifies `snapshot_sha256` when present and returns the manifest summary, including `selection`, `task_count`, `exported_task_ids`, `missing_task_ids`, and an `import_ready` verdict based on checksum, `snapshot_format_version`, and `migration`, without requiring a PostgreSQL DSN.
 
 ## PostgreSQL import
 

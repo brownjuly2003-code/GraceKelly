@@ -80,6 +80,9 @@ class InspectSnapshotToolTests(unittest.TestCase):
             self.assertEqual(payload["status"], "ok")
             self.assertEqual(payload["snapshot_status"], "ok")
             self.assertEqual(payload["checksum_status"], "verified")
+            self.assertEqual(payload["format_status"], "current")
+            self.assertEqual(payload["migration_status"], "current")
+            self.assertTrue(payload["import_ready"])
             self.assertEqual(payload["exported_task_ids"], ["task-1"])
             self.assertEqual(payload["task_count"], 1)
             self.assertFalse(payload["compressed_input"])
@@ -110,6 +113,7 @@ class InspectSnapshotToolTests(unittest.TestCase):
             payload = json.loads(print_mock.call_args.args[0])
             self.assertEqual(payload["exported_task_ids"], ["task-1", "task-2"])
             self.assertEqual(payload["task_count"], 2)
+            self.assertEqual(payload["format_status"], "current")
             self.assertTrue(payload["compressed_input"])
         finally:
             if snapshot_path.exists():
@@ -137,8 +141,36 @@ class InspectSnapshotToolTests(unittest.TestCase):
             payload = json.loads(print_mock.call_args.args[0])
             self.assertEqual(payload["status"], "error")
             self.assertEqual(payload["checksum_status"], "mismatch")
+            self.assertFalse(payload["import_ready"])
             self.assertEqual(payload["snapshot_sha256"], "deadbeef")
             self.assertNotEqual(payload["computed_snapshot_sha256"], "deadbeef")
+        finally:
+            if snapshot_path.exists():
+                snapshot_path.unlink()
+
+    def test_main_reports_format_and_migration_mismatch(self) -> None:
+        snapshot_path = self.write_snapshot(
+            self.build_snapshot_payload(
+                {
+                    "snapshot_format_version": SNAPSHOT_FORMAT_VERSION + 1,
+                    "migration": "9999_future",
+                    "tasks": [],
+                }
+            )
+        )
+        try:
+            with (
+                patch.object(inspect_snapshot, "parse_args", return_value=argparse.Namespace(input=str(snapshot_path))),
+                patch("builtins.print") as print_mock,
+            ):
+                code = inspect_snapshot.main()
+
+            self.assertEqual(code, 1)
+            payload = json.loads(print_mock.call_args.args[0])
+            self.assertEqual(payload["status"], "error")
+            self.assertEqual(payload["format_status"], "mismatch")
+            self.assertEqual(payload["migration_status"], "mismatch")
+            self.assertFalse(payload["import_ready"])
         finally:
             if snapshot_path.exists():
                 snapshot_path.unlink()

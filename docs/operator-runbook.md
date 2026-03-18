@@ -185,7 +185,7 @@ Inspect a snapshot artifact offline before restore:
 gracekelly-inspect-snapshot --input D:\GraceKelly\tmp\postgres-export\selected.json
 ```
 
-That command verifies `snapshot_sha256` when present and reports manifest details such as `selection`, `task_count`, `exported_task_ids`, and `missing_task_ids` without requiring database connectivity.
+That command verifies `snapshot_sha256` when present and reports manifest details such as `selection`, `task_count`, `exported_task_ids`, `missing_task_ids`, and `import_ready` without requiring database connectivity.
 
 Restore a snapshot back into PostgreSQL:
 

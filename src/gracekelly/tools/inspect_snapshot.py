@@ -5,7 +5,8 @@ import json
 from pathlib import Path
 from typing import Any
 
-from gracekelly.tools.snapshot_digest import compute_snapshot_sha256
+from gracekelly.storage.schema import INITIAL_MIGRATION_NAME
+from gracekelly.tools.snapshot_digest import SNAPSHOT_FORMAT_VERSION, compute_snapshot_sha256
 from gracekelly.tools.snapshot_io import read_snapshot_text
 
 
@@ -56,13 +57,38 @@ def inspect_snapshot(snapshot: dict[str, Any]) -> dict[str, Any]:
     else:
         checksum_status = "mismatch"
 
+    format_version = snapshot.get("snapshot_format_version")
+    if format_version is None:
+        format_status = "unknown"
+    elif format_version == SNAPSHOT_FORMAT_VERSION:
+        format_status = "current"
+    else:
+        format_status = "mismatch"
+
+    migration = snapshot.get("migration")
+    if migration is None:
+        migration_status = "unknown"
+    elif migration == INITIAL_MIGRATION_NAME:
+        migration_status = "current"
+    else:
+        migration_status = "mismatch"
+
     exported_ids = exported_task_ids(snapshot)
+    import_ready = (
+        checksum_status != "mismatch"
+        and format_status != "mismatch"
+        and migration_status != "mismatch"
+    )
     result = {
-        "status": "ok" if checksum_status != "mismatch" else "error",
+        "status": "ok" if import_ready else "error",
         "snapshot_status": snapshot.get("status", "unknown"),
         "snapshot_format_version": snapshot.get("snapshot_format_version"),
+        "supported_snapshot_format_version": SNAPSHOT_FORMAT_VERSION,
+        "format_status": format_status,
         "gracekelly_version": snapshot.get("gracekelly_version"),
         "migration": snapshot.get("migration"),
+        "supported_migration": INITIAL_MIGRATION_NAME,
+        "migration_status": migration_status,
         "generated_at": snapshot.get("generated_at"),
         "backend": snapshot.get("backend"),
         "selection": snapshot.get("selection"),
@@ -72,6 +98,7 @@ def inspect_snapshot(snapshot: dict[str, Any]) -> dict[str, Any]:
         "checksum_status": checksum_status,
         "snapshot_sha256": expected_digest,
         "computed_snapshot_sha256": computed_digest,
+        "import_ready": import_ready,
     }
     return result
 
