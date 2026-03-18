@@ -11,6 +11,7 @@ from gracekelly.core.contracts import AdapterHint, EventType, ExecutionMode, Fai
 from gracekelly.storage.base import TaskEventRecord, TaskRecord, TaskStepRecord
 from gracekelly.storage.postgres import PostgresTaskRepository
 from gracekelly.storage.schema import INITIAL_MIGRATION_NAME
+from gracekelly.tools.snapshot_digest import compute_snapshot_sha256
 
 
 def parse_args() -> argparse.Namespace:
@@ -116,6 +117,13 @@ def _validate_snapshot(snapshot: dict[str, Any]) -> None:
     tasks = snapshot.get("tasks")
     if not isinstance(tasks, list):
         raise ValueError("Snapshot must contain a top-level 'tasks' list.")
+    expected_digest = snapshot.get("snapshot_sha256")
+    if expected_digest is not None:
+        actual_digest = compute_snapshot_sha256(snapshot)
+        if actual_digest != expected_digest:
+            raise ValueError(
+                f"Snapshot checksum mismatch: expected '{expected_digest}' but computed '{actual_digest}'."
+            )
 
 
 def _validate_task_bundle(

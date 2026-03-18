@@ -10,6 +10,7 @@ from typing import Any
 
 from gracekelly.storage.postgres import PostgresTaskRepository
 from gracekelly.storage.schema import INITIAL_MIGRATION_NAME
+from gracekelly.tools.snapshot_digest import compute_snapshot_sha256
 
 
 def parse_args() -> argparse.Namespace:
@@ -105,7 +106,7 @@ def collect_export_snapshot(
     health = repository.healthcheck()
     schema = repository.schema_report()
     status = "partial" if missing_task_ids else "ok"
-    return {
+    snapshot = {
         "status": status,
         "migration": INITIAL_MIGRATION_NAME,
         "generated_at": _normalize(generated_at or datetime.now(UTC)),
@@ -120,6 +121,8 @@ def collect_export_snapshot(
         "missing_task_ids": missing_task_ids,
         "tasks": exported_tasks,
     }
+    snapshot["snapshot_sha256"] = compute_snapshot_sha256(snapshot)
+    return snapshot
 
 
 def write_snapshot(path: Path, snapshot: dict[str, Any]) -> None:
@@ -183,6 +186,7 @@ def main() -> int:
         "output": str(output_path),
         "task_count": snapshot["task_count"],
         "missing_task_ids": snapshot["missing_task_ids"],
+        "snapshot_sha256": snapshot["snapshot_sha256"],
     }
     print(json.dumps(result, indent=2, sort_keys=True))
     return 0 if snapshot["status"] == "ok" else 1

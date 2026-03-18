@@ -9,6 +9,7 @@ from unittest.mock import patch
 from uuid import uuid4
 
 from gracekelly.tools import import_postgres
+from gracekelly.tools.snapshot_digest import compute_snapshot_sha256
 
 
 class ImportPostgresToolTests(unittest.TestCase):
@@ -58,69 +59,69 @@ class ImportPostgresToolTests(unittest.TestCase):
 
     def test_main_replaces_snapshot_task_bundle(self) -> None:
         accepted_at = datetime(2026, 3, 18, 18, 0, tzinfo=UTC).isoformat().replace("+00:00", "Z")
-        snapshot_path = self.write_snapshot(
-            {
-                "status": "ok",
-                "migration": "0001_initial",
-                "tasks": [
-                    {
-                        "task": {
+        snapshot_payload = {
+            "status": "ok",
+            "migration": "0001_initial",
+            "tasks": [
+                {
+                    "task": {
+                        "task_id": "task-1",
+                        "status": "completed",
+                        "accepted_at": accepted_at,
+                        "completed_at": accepted_at,
+                        "duration_ms": 11,
+                        "prompt": "import me",
+                        "reasoning": False,
+                        "execution_mode": "dry-run",
+                        "dry_run": True,
+                        "model_count": 1,
+                        "quorum": 1,
+                        "merge_strategy": "first_success",
+                        "adapter_hint": "auto",
+                        "cancel_on_quorum": True,
+                        "failure_code": None,
+                        "failure_message": None,
+                        "output_text": None,
+                        "metadata": {"trace_id": "imp-1"},
+                    },
+                    "steps": [
+                        {
                             "task_id": "task-1",
+                            "step_index": 1,
+                            "model_id": "kimi-k2-5",
+                            "model_display_name": "Kimi K2.5",
+                            "backend": "browser",
+                            "provider": "perplexity",
                             "status": "completed",
-                            "accepted_at": accepted_at,
-                            "completed_at": accepted_at,
-                            "duration_ms": 11,
-                            "prompt": "import me",
-                            "reasoning": False,
-                            "execution_mode": "dry-run",
-                            "dry_run": True,
-                            "model_count": 1,
-                            "quorum": 1,
-                            "merge_strategy": "first_success",
-                            "adapter_hint": "auto",
-                            "cancel_on_quorum": True,
                             "failure_code": None,
                             "failure_message": None,
-                            "output_text": None,
-                            "metadata": {"trace_id": "imp-1"},
+                            "output_text": "OK",
+                            "duration_ms": 11,
+                        }
+                    ],
+                    "events": [
+                        {
+                            "event_id": "event-1",
+                            "task_id": "task-1",
+                            "sequence_no": 1,
+                            "event_type": "task.accepted",
+                            "created_at": accepted_at,
+                            "payload": {"dry_run": True},
                         },
-                        "steps": [
-                            {
-                                "task_id": "task-1",
-                                "step_index": 1,
-                                "model_id": "kimi-k2-5",
-                                "model_display_name": "Kimi K2.5",
-                                "backend": "browser",
-                                "provider": "perplexity",
-                                "status": "completed",
-                                "failure_code": None,
-                                "failure_message": None,
-                                "output_text": "OK",
-                                "duration_ms": 11,
-                            }
-                        ],
-                        "events": [
-                            {
-                                "event_id": "event-1",
-                                "task_id": "task-1",
-                                "sequence_no": 1,
-                                "event_type": "task.accepted",
-                                "created_at": accepted_at,
-                                "payload": {"dry_run": True},
-                            },
-                            {
-                                "event_id": "event-2",
-                                "task_id": "task-1",
-                                "sequence_no": 2,
-                                "event_type": "task.completed",
-                                "created_at": accepted_at,
-                                "payload": {"winning_step_index": 1},
-                            },
-                        ],
-                    }
-                ],
-            }
-        )
+                        {
+                            "event_id": "event-2",
+                            "task_id": "task-1",
+                            "sequence_no": 2,
+                            "event_type": "task.completed",
+                            "created_at": accepted_at,
+                            "payload": {"winning_step_index": 1},
+                        },
+                    ],
+                }
+            ],
+        }
+        snapshot_payload["snapshot_sha256"] = compute_snapshot_sha256(snapshot_payload)
+        snapshot_path = self.write_snapshot(snapshot_payload)
 
         class FakeRepository:
             def __init__(self, dsn: str, *, bootstrap: bool) -> None:
@@ -237,6 +238,39 @@ class ImportPostgresToolTests(unittest.TestCase):
             payload = json.loads(print_mock.call_args.args[0])
             self.assertEqual(payload["status"], "error")
             self.assertIn("does not match expected", payload["error"])
+        finally:
+            if snapshot_path.exists():
+                snapshot_path.unlink()
+
+    def test_main_rejects_checksum_mismatch(self) -> None:
+        snapshot_path = self.write_snapshot(
+            {
+                "status": "ok",
+                "migration": "0001_initial",
+                "snapshot_sha256": "deadbeef",
+                "tasks": [],
+            }
+        )
+        try:
+            with (
+                patch.object(
+                    import_postgres,
+                    "parse_args",
+                    return_value=argparse.Namespace(
+                        dsn="postgresql://example",
+                        input=str(snapshot_path),
+                        allow_degraded_schema=False,
+                    ),
+                ),
+                patch.object(import_postgres, "resolve_dsn", return_value="postgresql://example"),
+                patch("builtins.print") as print_mock,
+            ):
+                code = import_postgres.main()
+
+            self.assertEqual(code, 2)
+            payload = json.loads(print_mock.call_args.args[0])
+            self.assertEqual(payload["status"], "error")
+            self.assertIn("checksum mismatch", payload["error"])
         finally:
             if snapshot_path.exists():
                 snapshot_path.unlink()
