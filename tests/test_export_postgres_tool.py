@@ -203,6 +203,14 @@ class ExportPostgresToolTests(unittest.TestCase):
             self.assertEqual(result["generated_at"], snapshot["generated_at"])
             self.assertFalse(result["compressed_output"])
             self.assertGreater(result["output_size_bytes"], 0)
+            self.assertEqual(result["manifest_status"], "verified")
+            self.assertEqual(result["snapshot_status_consistency_status"], "verified")
+            self.assertEqual(result["selection_status"], "verified")
+            self.assertEqual(result["task_count_status"], "verified")
+            self.assertEqual(result["step_count_status"], "verified")
+            self.assertEqual(result["event_count_status"], "verified")
+            self.assertEqual(result["exported_task_ids_status"], "verified")
+            self.assertEqual(result["missing_task_ids_status"], "verified")
             self.assertEqual(result["requested_task_ids"], ["task-1", "task-missing"])
             self.assertEqual(result["exported_task_ids"], ["task-1"])
             self.assertEqual(result["repository_health"]["status"], "ok")
@@ -297,6 +305,61 @@ class ExportPostgresToolTests(unittest.TestCase):
             result = json.loads(print_mock.call_args.args[0])
             self.assertTrue(result["compressed_output"])
             self.assertGreater(result["output_size_bytes"], 0)
+            self.assertEqual(result["manifest_status"], "verified")
+            self.assertEqual(result["selection_status"], "verified")
+        finally:
+            if output_path.exists():
+                output_path.unlink()
+
+    def test_main_returns_error_when_generated_manifest_fails_self_validation(self) -> None:
+        class FakeRepository:
+            backend_name = "postgres"
+
+            def __init__(self, dsn: str, *, bootstrap: bool) -> None:
+                pass
+
+            def get(self, task_id: str):
+                raise AssertionError("get should not be used without explicit task_ids")
+
+            def list_recent(self, limit: int):
+                return []
+
+            def list_steps(self, task_id: str):
+                return []
+
+            def list_events(self, task_id: str):
+                return []
+
+            def healthcheck(self) -> dict[str, object]:
+                return {"status": "ok", "backend": "postgres"}
+
+            def schema_report(self) -> dict[str, object]:
+                return {"status": "ok", "backend": "postgres", "schema_version": "0001_initial"}
+
+        output_path = Path("tmp") / "test-export-tool" / f"{uuid4()}.json"
+        try:
+            with (
+                patch.object(
+                    export_postgres,
+                    "parse_args",
+                    return_value=argparse.Namespace(
+                        dsn="postgresql://example",
+                        output=str(output_path),
+                        task_ids=[],
+                        limit=100,
+                    ),
+                ),
+                patch.object(export_postgres, "resolve_dsn", return_value="postgresql://example"),
+                patch.object(export_postgres, "PostgresTaskRepository", FakeRepository),
+                patch.object(export_postgres, "validate_manifest", side_effect=ValueError("manifest self-check failed")),
+                patch("builtins.print") as print_mock,
+            ):
+                code = export_postgres.main()
+
+            self.assertEqual(code, 2)
+            payload = json.loads(print_mock.call_args.args[0])
+            self.assertEqual(payload["status"], "error")
+            self.assertIn("manifest self-check failed", payload["error"])
         finally:
             if output_path.exists():
                 output_path.unlink()

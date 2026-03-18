@@ -210,7 +210,7 @@ This writes a JSON snapshot under `tmp/postgres-export/` by default, including:
 - `exported_task_ids` for quick manifest inspection
 - serialized task records with nested steps and events
 
-The command summary also includes `generated_at`, `compressed_output`, `output_size_bytes`, `requested_task_ids`, `exported_task_ids`, `missing_task_ids`, `task_count`, `step_count`, `event_count`, `repository_health`, and `repository_schema`, so the export result itself is usable as a lightweight storage preflight.
+The command summary also includes `generated_at`, `compressed_output`, `output_size_bytes`, `manifest_status`, `snapshot_status_consistency_status`, `selection_status`, `missing_task_ids_status`, field-level manifest verification statuses, `requested_task_ids`, `exported_task_ids`, `missing_task_ids`, `task_count`, `step_count`, `event_count`, `repository_health`, and `repository_schema`, so the export result itself is usable as a lightweight storage preflight.
 
 If the output path ends with `.gz`, GraceKelly writes a gzip-compressed snapshot:
 

@@ -11,7 +11,16 @@ from typing import Any
 from gracekelly import __version__
 from gracekelly.storage.postgres import PostgresTaskRepository
 from gracekelly.storage.schema import INITIAL_MIGRATION_NAME
-from gracekelly.tools.snapshot_artifact import artifact_metadata
+from gracekelly.tools.snapshot_artifact import (
+    artifact_metadata,
+    exported_task_ids_status,
+    manifest_count_status,
+    manifest_status,
+    missing_task_ids_status,
+    snapshot_status_consistency_status,
+    selection_status,
+    validate_manifest,
+)
 from gracekelly.tools.snapshot_digest import SNAPSHOT_FORMAT_VERSION, compute_snapshot_sha256
 from gracekelly.tools.snapshot_io import write_snapshot_text
 
@@ -142,6 +151,7 @@ def collect_export_snapshot(
         "missing_task_ids": missing_task_ids,
         "tasks": exported_tasks,
     }
+    validate_manifest(snapshot)
     snapshot["snapshot_sha256"] = compute_snapshot_sha256(snapshot)
     return snapshot
 
@@ -211,6 +221,14 @@ def main() -> int:
         "output": str(output_path),
         "compressed_output": output_metadata["compressed"],
         "output_size_bytes": output_metadata["size_bytes"],
+        "manifest_status": manifest_status(snapshot),
+        "snapshot_status_consistency_status": snapshot_status_consistency_status(snapshot),
+        "selection_status": selection_status(snapshot),
+        "task_count_status": manifest_count_status(snapshot, "task_count"),
+        "step_count_status": manifest_count_status(snapshot, "step_count"),
+        "event_count_status": manifest_count_status(snapshot, "event_count"),
+        "exported_task_ids_status": exported_task_ids_status(snapshot),
+        "missing_task_ids_status": missing_task_ids_status(snapshot),
         "requested_task_ids": requested_task_ids,
         "exported_task_ids": snapshot["exported_task_ids"],
         "repository_health": snapshot["health"],

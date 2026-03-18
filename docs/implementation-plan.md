@@ -193,6 +193,7 @@ This document is the working source of truth for GraceKelly delivery. We update 
 [x] Validate snapshot `selection` metadata against exported and missing task IDs, and surface `selection_status` in offline inspection/import summaries.
 [x] Validate `missing_task_ids` against snapshot selection and exported bundles, and surface `missing_task_ids_status` in offline inspection/import summaries.
 [x] Validate top-level snapshot `status` against selection-derived missing bundles, and surface `snapshot_status_consistency_status` in offline inspection/import summaries.
+[x] Make export self-validate its generated snapshot manifest and expose the same manifest verification statuses in export summaries, not only in inspect/import.
 
 ## Issue log
 - 2026-03-16: Legacy reference project has corrupted SQLite databases. Decision: no storage design or migration path in GraceKelly may depend on SQLite integrity.
@@ -227,6 +228,7 @@ This document is the working source of truth for GraceKelly delivery. We update 
 - 2026-03-18: Snapshot `selection` metadata still was not checked against the actual exported and missing task IDs, so a manually edited artifact could claim a different request scope than the nested payloads. Decision: validate `selection` consistency and expose `selection_status` alongside the broader manifest verdict.
 - 2026-03-18: `missing_task_ids` was still only a displayed field, so an artifact could claim the wrong missing bundle set while leaving `selection` and task payloads otherwise intact. Decision: validate `missing_task_ids` against selection-derived expectations and expose a dedicated `missing_task_ids_status`.
 - 2026-03-18: Snapshot `status` (`ok` vs `partial`) was still trusted as-is, even though it should be derivable from whether any requested bundles are missing. Decision: validate snapshot status consistency against derived missing IDs and expose a dedicated status-consistency field in inspect/import output.
+- 2026-03-18: Export was now producing a richer manifest, but only inspect/import exposed verification statuses, leaving fresh exports less operator-friendly and making generator regressions less explicit. Decision: self-validate generated snapshots during export and mirror manifest verification statuses in the export summary.
 - 2026-03-17: The project was still being managed without local git history. Decision: initialize a repository on `main` and ignore generated Python packaging/test artifacts before further iteration.
 - 2026-03-17: `MergeStrategy` had been introduced at the request/planning layer, but repository read paths and one event-building branch still fell back to raw strings. Decision: normalize storage reads back to `MergeStrategy` and remove the last internal string comparison.
 - 2026-03-17: Browser adapter generic runtime failures were still reported as `provider_unavailable`, conflating internal crashes with upstream availability problems. Decision: map unexpected browser exceptions to `unknown_error` and reserve `provider_unavailable` for actual configuration/provider reachability issues.
@@ -416,3 +418,4 @@ This document is the working source of truth for GraceKelly delivery. We update 
 - 2026-03-18: Extended manifest validation to cover `selection` metadata and added `selection_status` to inspect/import summaries, so reported request scope cannot drift from the actual task bundles in the artifact.
 - 2026-03-18: Extended manifest validation to cover `missing_task_ids` and added `missing_task_ids_status` to inspect/import summaries, so reported missing bundles cannot drift from selection-derived reality.
 - 2026-03-18: Extended manifest validation to cover top-level snapshot `status` and added `snapshot_status_consistency_status` to inspect/import summaries, so `ok` vs `partial` cannot drift from the actual missing-bundle state.
+- 2026-03-18: Export now self-validates generated snapshot manifests before writing and echoes the same manifest verification statuses in its success summary, making export/inspect/import operator surfaces symmetric.

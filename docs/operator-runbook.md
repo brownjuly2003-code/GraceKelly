@@ -176,7 +176,7 @@ gracekelly-export-postgres --task-id task-1 --task-id task-2
 ```
 
 Export artifacts now carry `snapshot_format_version`, `gracekelly_version`, and `snapshot_sha256` so restores can reject incompatible or corrupted JSON before task rows are touched.
-The export command summary now also echoes `generated_at`, `compressed_output`, `output_size_bytes`, `requested_task_ids`, `exported_task_ids`, `missing_task_ids`, `task_count`, `step_count`, `event_count`, `repository_health`, and `repository_schema`, so the operator can capture both selection results and storage state without opening the snapshot file immediately.
+The export command summary now also echoes `generated_at`, `compressed_output`, `output_size_bytes`, `manifest_status`, `snapshot_status_consistency_status`, `selection_status`, `missing_task_ids_status`, field-level manifest verification statuses, `requested_task_ids`, `exported_task_ids`, `missing_task_ids`, `task_count`, `step_count`, `event_count`, `repository_health`, and `repository_schema`, so the operator can capture both selection results and storage state without opening the snapshot file immediately.
 If the export path ends with `.gz`, the snapshot is written as gzip-compressed JSON.
 
 Inspect a snapshot artifact offline before restore:
