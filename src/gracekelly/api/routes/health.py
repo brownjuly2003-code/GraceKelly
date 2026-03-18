@@ -1,14 +1,17 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 
 from fastapi import APIRouter, Request
 from fastapi.responses import PlainTextResponse
 
 from gracekelly import __version__
 from gracekelly.core.readiness import build_readiness_report
+from gracekelly.logging_utils import log_message
 
 router = APIRouter(tags=["health"])
+logger = logging.getLogger(__name__)
 
 
 def _build_readiness_payload(
@@ -268,7 +271,7 @@ async def health(request: Request) -> dict[str, object]:
     settings = request.app.state.settings
     profile = request.app.state.execution_profile
     repository = request.app.state.task_repository
-    return await asyncio.to_thread(
+    payload = await asyncio.to_thread(
         _build_health_summary,
         environment=settings.env,
         storage_backend=repository.backend_name,
@@ -277,6 +280,17 @@ async def health(request: Request) -> dict[str, object]:
         adapters=request.app.state.adapter_registry,
         execution_router=request.app.state.execution_router,
     )
+    if payload["status"] != "ok" or payload["saturated_models"]:
+        logger.warning(
+            log_message(
+                "health.snapshot",
+                status=payload["status"],
+                storage_backend=payload["storage_backend"],
+                active_model_executions=payload["active_model_executions"],
+                saturated_models=",".join(payload["saturated_models"]),
+            )
+        )
+    return payload
 
 
 @router.get("/api/v1/readiness")
@@ -284,7 +298,7 @@ async def readiness(request: Request) -> dict[str, object]:
     settings = request.app.state.settings
     profile = request.app.state.execution_profile
     repository = request.app.state.task_repository
-    return await asyncio.to_thread(
+    payload = await asyncio.to_thread(
         _build_readiness_payload,
         environment=settings.env,
         profile=profile,
@@ -292,6 +306,16 @@ async def readiness(request: Request) -> dict[str, object]:
         adapters=request.app.state.adapter_registry,
         execution_router=request.app.state.execution_router,
     )
+    if payload["status"] != "ok":
+        logger.warning(
+            log_message(
+                "readiness.snapshot",
+                status=payload["status"],
+                component_count=len(payload["components"]),
+                execution_profile=payload["execution_profile"],
+            )
+        )
+    return payload
 
 
 @router.get("/metrics", response_class=PlainTextResponse)

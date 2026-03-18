@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 from typing import Any
 
 try:
@@ -20,6 +21,8 @@ from gracekelly.storage.schema import (
     split_sql_statements,
 )
 
+logger = logging.getLogger(__name__)
+
 
 class PostgresTaskRepository(TaskRepository):
     backend_name = "postgres"
@@ -33,11 +36,19 @@ class PostgresTaskRepository(TaskRepository):
             self.bootstrap()
 
     def bootstrap(self) -> None:
+        logger.info(
+            "postgres.bootstrap.started connect_timeout_seconds=%s",
+            self._connect_timeout_seconds,
+        )
         with self._connect() as conn:
             with conn.cursor() as cursor:
                 for statement in split_sql_statements(load_migration_sql()):
                     cursor.execute(statement)
             conn.commit()
+        logger.info(
+            "postgres.bootstrap.completed schema_version=%s",
+            INITIAL_MIGRATION_NAME,
+        )
 
     def save_task_with_steps(
         self,
@@ -285,6 +296,12 @@ class PostgresTaskRepository(TaskRepository):
                 "details": row or {"ok": 1},
             }
         except Exception as exc:
+            logger.warning(
+                "postgres.healthcheck.degraded schema_version=%s connect_timeout_seconds=%s error=%r",
+                INITIAL_MIGRATION_NAME,
+                self._connect_timeout_seconds,
+                exc,
+            )
             return {
                 "status": "degraded",
                 "backend": self.backend_name,
@@ -298,6 +315,13 @@ class PostgresTaskRepository(TaskRepository):
             diff = compute_schema_diff(actual_columns)
             missing_tables = diff["missing_tables"]
             missing_columns = diff["missing_columns"]
+            if missing_tables or missing_columns:
+                logger.warning(
+                    "postgres.schema_report.degraded schema_version=%s missing_tables=%s missing_column_tables=%s",
+                    INITIAL_MIGRATION_NAME,
+                    len(missing_tables),
+                    len(missing_columns),
+                )
             return {
                 "status": "ok" if not missing_tables and not missing_columns else "degraded",
                 "backend": self.backend_name,
@@ -307,6 +331,11 @@ class PostgresTaskRepository(TaskRepository):
                 "missing_columns": missing_columns,
             }
         except Exception as exc:
+            logger.warning(
+                "postgres.schema_report.failed schema_version=%s error=%r",
+                INITIAL_MIGRATION_NAME,
+                exc,
+            )
             return {
                 "status": "degraded",
                 "backend": self.backend_name,

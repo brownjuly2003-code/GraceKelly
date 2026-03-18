@@ -52,7 +52,7 @@ Deliverables:
 Next:
 - concrete browser-driver cleanup on top of the new app lifespan hook
 - broader browser catalog refresh if Perplexity account tiers continue to drift beyond the canonical registry
-- structured browser-layer logging beyond the current adapter/runtime entries
+- broader browser-layer logging if the live Playwright path grows more stateful than the current adapter/runtime entries
 
 Support in place:
 - manual-gated live Playwright smoke test in `tests/test_playwright_live.py`
@@ -111,12 +111,12 @@ Already delivered:
 - `/metrics` endpoint backed by existing readiness/runtime state
 - `/health` and `/api/v1/readiness`
 - operator runbook for the current browser/storage/runtime surfaces
+- structured key-value logging across orchestrator, browser, API route, and PostgreSQL degradation paths
 - recent-task list with operator filters
 - rich `GET /api/v1/tasks/{task_id}` task, step, and event views
 - execution saturation and terminal-summary diagnostics
 
 Not yet addressed:
-- structured logging across all layers beyond the current orchestrator and browser coverage
 - admin UI (evaluate whether still justified after browser spike)
 
 ## Parallel track: API adapters

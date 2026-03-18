@@ -160,6 +160,37 @@ class PostgresSchemaTests(unittest.TestCase):
         self.assertNotIn("retry_of_task_id", step_fields)
         self.assertNotIn("attempt_no", step_fields)
 
+    def test_healthcheck_logs_warning_when_connectivity_is_degraded(self) -> None:
+        repository = PostgresTaskRepository.__new__(PostgresTaskRepository)
+        repository._connect_timeout_seconds = 5
+
+        def failing_connect(**kwargs):
+            raise RuntimeError("database offline")
+
+        repository._connect = failing_connect
+
+        with self.assertLogs("gracekelly.storage.postgres", level="WARNING") as captured:
+            report = repository.healthcheck()
+
+        self.assertEqual(report["status"], "degraded")
+        self.assertEqual(len(captured.output), 1)
+        self.assertIn("postgres.healthcheck.degraded", captured.output[0])
+        self.assertIn("database offline", captured.output[0])
+
+    def test_schema_report_logs_warning_when_schema_diff_is_present(self) -> None:
+        repository = PostgresTaskRepository.__new__(PostgresTaskRepository)
+        repository._load_schema_columns = lambda: {
+            "gk_tasks": {"task_id", "status"},
+            "gk_task_steps": {"task_id", "step_index"},
+        }
+
+        with self.assertLogs("gracekelly.storage.postgres", level="WARNING") as captured:
+            report = repository.schema_report()
+
+        self.assertEqual(report["status"], "degraded")
+        self.assertEqual(len(captured.output), 1)
+        self.assertIn("postgres.schema_report.degraded", captured.output[0])
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -14,6 +14,7 @@ Implemented:
 - dual-backend storage: in-memory (development) and PostgreSQL (durable)
 - execution adapters: dry-run, Mistral API, OpenAI-compatible API, Perplexity browser (scripted and thin Playwright backends)
 - cooperative cancel-on-quorum with per-model timeout, concurrency enforcement, and a minimal browser circuit breaker
+- structured key-value logging across orchestrator, browser adapters, API routes, and PostgreSQL degradation paths
 - operator surfaces: recent-task listing with multi-axis filtering, rich task detail with diagnostics
 
 Not yet implemented:
@@ -73,8 +74,7 @@ Excluded by design:
 
 ## Next steps
 
-1. Broaden structured logging beyond the current orchestrator and browser-layer coverage.
-2. Refresh browser catalog strategy if Perplexity account-tier drift keeps diverging from the canonical registry.
-3. Backup and restore strategy for PostgreSQL.
-4. Production migration tooling (version-tracked SQL or Alembic).
-5. Account pools and any real retry model beyond the current deferral.
+1. Refresh browser catalog strategy if Perplexity account-tier drift keeps diverging from the canonical registry.
+2. Backup and restore strategy for PostgreSQL.
+3. Production migration tooling (version-tracked SQL or Alembic).
+4. Account pools and any real retry model beyond the current deferral.

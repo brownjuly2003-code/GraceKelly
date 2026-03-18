@@ -215,6 +215,48 @@ class HttpApiSmokeTests(unittest.TestCase):
             metrics.text,
         )
 
+    def test_readiness_logs_when_overall_status_is_degraded(self) -> None:
+        app = create_app(
+            Settings(
+                env="test",
+                host="127.0.0.1",
+                port=8011,
+                log_level="INFO",
+                storage_backend="memory",
+                execution_profile="hybrid",
+                browser_enabled=True,
+                browser_profile_dir=r"D:\GraceKelly\tmp\browser-recon\perplexity-profile",
+                browser_base_url="https://www.perplexity.ai",
+            )
+        )
+
+        class OpenBreakerAdapter:
+            name = "browser.perplexity"
+
+            def healthcheck(self) -> dict[str, object]:
+                return {
+                    "status": "degraded",
+                    "adapter_name": self.name,
+                    "circuit_breaker": {
+                        "enabled": True,
+                        "state": "open",
+                        "failure_threshold": 3,
+                        "cooldown_seconds": 60,
+                    },
+                }
+
+        app.state.browser_adapter = OpenBreakerAdapter()
+        app.state.adapter_registry["browser.perplexity"] = app.state.browser_adapter
+
+        with self.assertLogs("gracekelly.api.routes.health", level="WARNING") as captured:
+            with TestClient(app) as client:
+                readiness = client.get("/api/v1/readiness")
+
+        self.assertEqual(readiness.status_code, 200)
+        self.assertEqual(len(captured.output), 1)
+        self.assertIn("readiness.snapshot", captured.output[0])
+        self.assertIn('status="degraded"', captured.output[0])
+
     def test_models_endpoint_returns_aliases_and_reasoning_capability(self) -> None:
         response = self.client.get("/api/v1/models")
 
@@ -336,6 +378,25 @@ class HttpApiSmokeTests(unittest.TestCase):
         self.assertTrue(task_payload["cancel_on_quorum"])
         self.assertEqual(task_payload["steps"], [])
 
+    def test_orchestrate_route_logs_request_and_acceptance_summary(self) -> None:
+        with self.assertLogs("gracekelly.api.routes.orchestrate", level="INFO") as captured:
+            response = self.client.post(
+                "/api/v1/orchestrate",
+                json={
+                    "prompt": "route logging",
+                    "model": "Kimi K2",
+                    "dry_run": True,
+                },
+            )
+
+        self.assertEqual(response.status_code, 202)
+        self.assertEqual(len(captured.output), 2)
+        self.assertIn("orchestrate.request", captured.output[0])
+        self.assertIn("dry_run=true", captured.output[0])
+        self.assertIn("model_count=1", captured.output[0])
+        self.assertIn("orchestrate.accepted", captured.output[1])
+        self.assertIn('status="completed"', captured.output[1])
+
     def test_orchestration_routes_offload_blocking_work_to_thread(self) -> None:
         async def run_sync(func, /, *args, **kwargs):
             return func(*args, **kwargs)
@@ -395,6 +456,31 @@ class HttpApiSmokeTests(unittest.TestCase):
         self.assertIsNone(payload[0]["cancel_reason"])
         self.assertNotIn("steps", payload[0])
         self.assertNotIn("events", payload[0])
+
+    def test_task_routes_log_list_and_not_found_events(self) -> None:
+        self.client.post(
+            "/api/v1/orchestrate",
+            json={
+                "prompt": "log list task",
+                "model": "Kimi K2",
+                "dry_run": True,
+            },
+        )
+
+        with self.assertLogs("gracekelly.api.routes.orchestrate", level="INFO") as captured:
+            response = self.client.get("/api/v1/tasks", params={"limit": 5, "dry_run": "true"})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(captured.output), 1)
+        self.assertIn("tasks.list", captured.output[0])
+        self.assertIn("result_count=1", captured.output[0])
+
+        with self.assertLogs("gracekelly.api.routes.orchestrate", level="WARNING") as captured:
+            response = self.client.get("/api/v1/tasks/task-does-not-exist")
+
+        self.assertEqual(response.status_code, 404)
+        self.assertEqual(len(captured.output), 1)
+        self.assertIn("task.get.not_found", captured.output[0])
 
     def test_list_tasks_can_filter_by_status_and_dry_run(self) -> None:
         self.client.post(
