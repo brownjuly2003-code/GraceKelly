@@ -386,6 +386,7 @@ class HttpApiSmokeTests(unittest.TestCase):
                     "prompt": "route logging",
                     "model": "Kimi K2",
                     "dry_run": True,
+                    "metadata": {"trace_id": "route-trace-1"},
                 },
             )
 
@@ -394,8 +395,10 @@ class HttpApiSmokeTests(unittest.TestCase):
         self.assertIn("orchestrate.request", captured.output[0])
         self.assertIn("dry_run=true", captured.output[0])
         self.assertIn("model_count=1", captured.output[0])
+        self.assertIn('trace_id="route-trace-1"', captured.output[0])
         self.assertIn("orchestrate.accepted", captured.output[1])
         self.assertIn('status="completed"', captured.output[1])
+        self.assertIn('trace_id="route-trace-1"', captured.output[1])
 
     def test_orchestration_routes_offload_blocking_work_to_thread(self) -> None:
         async def run_sync(func, /, *args, **kwargs):

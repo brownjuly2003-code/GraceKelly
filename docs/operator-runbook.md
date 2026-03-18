@@ -174,3 +174,12 @@ Use `--no-bootstrap` if the target database should not be modified during valida
    - `GET /api/v1/tasks/{task_id}`
 
 Use `execution_details`, terminal event payloads, and step event `details` together. That is where current adapter diagnostics, browser driver metadata, and circuit-breaker-origin failures surface without widening storage tables.
+
+## Log correlation
+
+If callers supply `metadata.trace_id` on `POST /api/v1/orchestrate`, GraceKelly now echoes that value in:
+- route-level `orchestrate.request` / `orchestrate.accepted`
+- orchestrator-level `task.submit.started` / `task.submit.completed`
+- `task.event_persistence_failed` warnings
+
+That gives a minimal correlation key across HTTP entry, task creation, and best-effort event logging without requiring an external tracing system.

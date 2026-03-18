@@ -18,6 +18,7 @@ from gracekelly.core.contracts import (
     TaskStatus,
 )
 from gracekelly.core.planning import build_execution_plan
+from gracekelly.logging_utils import log_message, trace_id_from_metadata
 from gracekelly.core.router import ExecutionRouter
 from gracekelly.schemas import OrchestrateRequest
 from gracekelly.storage.base import TaskEventRecord, TaskRecord, TaskRepository, TaskStepRecord
@@ -48,6 +49,18 @@ class OrchestratorService:
     def submit_snapshot(self, request: OrchestrateRequest) -> SubmissionSnapshot:
         execution_plan = build_execution_plan(request)
         task_id = str(uuid4())
+        trace_id = trace_id_from_metadata(request.metadata)
+        logger.info(
+            log_message(
+                "task.submit.started",
+                task_id=task_id,
+                trace_id=trace_id,
+                dry_run=execution_plan.dry_run,
+                model_count=len(execution_plan.steps),
+                quorum=execution_plan.quorum,
+                merge_strategy=execution_plan.merge_strategy,
+            )
+        )
         accepted_at = datetime.now(timezone.utc)
         batch_result = self._execution_router.execute(
             task_id=task_id,
@@ -83,10 +96,31 @@ class OrchestratorService:
         try:
             self._repository.save_task_with_steps(task, steps)
         except Exception as exc:
+            logger.warning(
+                log_message(
+                    "task.submit.storage_failed",
+                    task_id=task_id,
+                    trace_id=trace_id,
+                    operation="save_task_with_steps",
+                    message=str(exc),
+                )
+            )
             raise StorageUnavailableError("save_task_with_steps", str(exc)) from exc
 
         for event in self._build_events(task, execution_plan, batch_result):
-            self._append_event_safe(event)
+            self._append_event_safe(event, trace_id=trace_id)
+        logger.info(
+            log_message(
+                "task.submit.completed",
+                task_id=task_id,
+                trace_id=trace_id,
+                status=task.status,
+                execution_mode=task.execution_mode,
+                dry_run=task.dry_run,
+                step_count=len(steps),
+                event_count=1 if task.dry_run else len(batch_result.results) + 2,
+            )
+        )
         return SubmissionSnapshot(task=task, steps=steps)
 
     def get_task(self, task_id: str) -> TaskRecord:
@@ -297,16 +331,19 @@ class OrchestratorService:
             )
         return events
 
-    def _append_event_safe(self, event: TaskEventRecord) -> None:
+    def _append_event_safe(self, event: TaskEventRecord, *, trace_id: str | None = None) -> None:
         try:
             self._repository.append_event(event)
         except Exception as exc:
             logger.warning(
-                "Event persistence failed for task %s event %s sequence %s: %s",
-                event.task_id,
-                event.event_type,
-                event.sequence_no,
-                exc,
+                log_message(
+                    "task.event_persistence_failed",
+                    task_id=event.task_id,
+                    trace_id=trace_id,
+                    event_type=event.event_type,
+                    sequence_no=event.sequence_no,
+                    message=str(exc),
+                )
             )
             return
 

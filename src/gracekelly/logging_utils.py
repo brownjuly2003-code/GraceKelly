@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from enum import Enum
 import json
+from typing import Any, Mapping
 
 
 def _normalize_log_value(value: object) -> object:
@@ -31,3 +32,13 @@ def log_message(event: str, **context: object) -> str:
     if not details:
         return event
     return f"{event} {details}"
+
+
+def trace_id_from_metadata(metadata: Mapping[str, Any] | None) -> str | None:
+    if metadata is None:
+        return None
+    value = metadata.get("trace_id")
+    if not isinstance(value, str):
+        return None
+    value = value.strip()
+    return value or None

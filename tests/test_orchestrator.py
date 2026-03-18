@@ -189,8 +189,28 @@ class OrchestratorServiceTests(unittest.TestCase):
 
         self.assertEqual(task.status, "completed")
         self.assertEqual(len(captured.output), 1)
-        self.assertIn("Event persistence failed for task", captured.output[0])
-        self.assertIn("task.accepted", captured.output[0])
+        self.assertIn("task.event_persistence_failed", captured.output[0])
+        self.assertIn('event_type="task.accepted"', captured.output[0])
+        self.assertIn('message="event sink offline"', captured.output[0])
+
+    def test_submit_logs_trace_aware_task_lifecycle(self) -> None:
+        with self.assertLogs("gracekelly.core.orchestrator", level="INFO") as captured:
+            task = self.service.submit(
+                OrchestrateRequest(
+                    prompt="trace aware logging",
+                    model="Kimi K2",
+                    dry_run=True,
+                    metadata={"trace_id": "trace-123"},
+                )
+            )
+
+        self.assertEqual(task.status, "completed")
+        self.assertEqual(len(captured.output), 2)
+        self.assertIn("task.submit.started", captured.output[0])
+        self.assertIn('trace_id="trace-123"', captured.output[0])
+        self.assertIn("task.submit.completed", captured.output[1])
+        self.assertIn(f'task_id="{task.task_id}"', captured.output[1])
+        self.assertIn('trace_id="trace-123"', captured.output[1])
 
     def test_submit_records_quorum_short_circuit_in_steps_and_events(self) -> None:
         class FakeBrowserAdapter:

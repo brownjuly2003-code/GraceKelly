@@ -74,6 +74,7 @@ curl -X POST http://127.0.0.1:8011/api/v1/orchestrate \
 - Browser-backed execution now includes both the `scripted` backend and a first headed Playwright backend.
 - Browser execution is wrapped in a small in-process circuit breaker that trips on repeated `provider_unavailable`, `timeout`, or `unknown_error` failures and reports its state through health/readiness.
 - Route and degraded-storage diagnostics now emit structured `key=value` logs, so task submission, task lookup, readiness degradation, and PostgreSQL health/schema failures are easier to trace in plain logs.
+- If callers send `metadata.trace_id`, that value is propagated into route and orchestrator lifecycle logs for lightweight correlation.
 - PostgreSQL schema bootstrap now lives in a packaged SQL migration: `src/gracekelly/storage/migrations/0001_initial.sql`.
 - Live Perplexity reconnaissance from 2026-03-17 is captured in `docs/perplexity-dom-recon.md`.
 - `memory` stays the zero-config development default; for durable browser runs, set `GRACEKELLY_STORAGE_BACKEND=postgres` explicitly.
