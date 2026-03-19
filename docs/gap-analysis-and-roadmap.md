@@ -6,6 +6,67 @@
 
 ---
 
+## 0. Ландшафт: multi-model orchestration в 2024-2026
+
+### Ключевые подходы в индустрии
+
+| Подход | Авторы | Consensus метод | Роли | Decomposition | Итерации |
+|--------|--------|-----------------|------|---------------|----------|
+| **ReConcile** (ACL 2024) | Chen et al. | Confidence-weighted voting + раунды дискуссии между моделями. Каждая модель видит ответы и confidence-scores остальных, убеждает друг друга | Нет — модели равноправны | Нет | Да — до сходимости |
+| **Mixture-of-Agents** (Together AI, 2024) | Wang et al. | Layered: слой Proposers → слой Aggregator. Каждый слой видит выход предыдущего. Exploits "collaborativeness" — модели дают лучшие ответы, видя чужие | 2: Proposer + Aggregator | Нет | Да — N layers |
+| **LLM Council** (Karpathy, 2025) | Karpathy | 3 стадии: independent answers → anonymous peer review (модели ранжируют чужие ответы) → Chairman synthesizes | 1: Chairman | Нет | Нет — 1 pass |
+| **Consilium** (HF Hackathon, 2025) | Community | Majority voting / Ranked choice. 3 topology: Full (все видят всех), Ring (каждый видит предыдущего), Star (через Lead Analyst) | 1: Lead Analyst | Нет | Нет |
+| **DeepMind Delegation** (Feb 2026) | Tomašev et al. | Game-theoretic: Schelling points, dispute panels, cryptographic proofs, escrow mechanics, recursive liability | Delegator/Delegate hierarchy | Да — dynamic decomposition | Да — recursive |
+| **Perplexity_Orchestrator2** (наш) | — | Embedding clustering (Mistral, cosine ≥ 0.85) + cross-validation Claude + iterative loop до consensus ≥ 95% с 9 prompt variations | 12 ролей (Verifier, Judge, Devil's Advocate, Synthesizer...) | Да — complexity assessment → subtask graph → synthesis | Да — до порога |
+
+### Оценка нашей модели на фоне state-of-art
+
+**Что наш оркестратор делает ЛУЧШЕ** большинства open-source решений:
+
+1. **Embedding-based clustering** (семантический уровень). ReConcile и LLM Council используют text-level voting/ranking. Наш проект кластеризует через embeddings + AgglomerativeClustering — семантически глубже, чем majority vote.
+
+2. **Итеративный consensus loop до порога**. Ни один open-source фреймворк (кроме ReConcile) не делает итеративные раунды. MAXIMUM mode — уникален: 5 моделей × 3 prompt variations × N раундов до consensus ≥ 95%.
+
+3. **Task decomposition** — из перечисленных только DeepMind (теория без кода) и наш проект (рабочая реализация) делают автоматическую декомпозицию с complexity assessment.
+
+4. **12 ролей** — самая развитая ролевая система. LLM Council: 1 роль (Chairman). MoA: 2 роли. Наши Devil's Advocate + Fact Verifier — уникальная комбинация.
+
+5. **Prompt variations** — 9 переформулировок. Ни один фреймворк не делает автоматические prompt variations.
+
+**Что стоит ВЗЯТЬ из индустрии** (нет в нашей модели):
+
+| Идея | Источник | Приоритет | Обоснование |
+|------|----------|-----------|-------------|
+| **Anonymous peer review** — модели ранжируют чужие ответы, не зная авторства | LLM Council | HIGH | Снижает self-bias, дополняет embedding clustering |
+| **Confidence scores** — каждая модель оценивает уверенность в ответе (1-10) | ReConcile | HIGH | Weighted voting точнее простого clustering |
+| **Layered aggregation** — proposers → aggregator в 2+ слоя | MoA | MEDIUM | +10% quality по AlpacaEval, но дорого по токенам |
+| **Communication topologies** — Star/Ring/Full | Consilium | LOW | Нишевое, Ring экономит токены |
+| **Verifiable execution** — cryptographic proofs | DeepMind | LOW | Overkill для текущего scope |
+
+**Итоговая оценка старой модели**:
+
+| Аспект | Оценка | Комментарий |
+|--------|--------|-------------|
+| Идейная глубина | **9/10** | Сочетание consensus + roles + decomposition + prompt variations — нет аналога в open-source |
+| Уникальность | **8/10** | Embedding clustering + iterative loop + 12 ролей уникальны |
+| Реализация | **5/10** | Хрупкий browser, нет тестов consensus, plaintext secrets |
+| Production-readiness | **3/10** | Vs CrewAI/LangGraph — не в одной лиге |
+| Научная обоснованность | **7/10** | Consensus ближе к ReConcile, чем к простому voting |
+
+**Вывод**: идейно это одна из самых продвинутых моделей оркестрации. Проблема в реализации, не в концепции. GraceKelly должна перенести идеи + обогатить peer review и confidence scores из индустрии.
+
+### Источники
+
+- [ReConcile: Round-Table Conference (ACL 2024)](https://arxiv.org/abs/2309.13007)
+- [Mixture-of-Agents (Together AI, 2024)](https://arxiv.org/abs/2406.04692)
+- [LLM Council (Karpathy, 2025)](https://github.com/karpathy/llm-council)
+- [Consilium: Multi-LLM Collaboration (HF, 2025)](https://huggingface.co/blog/consilium-multi-llm)
+- [Google DeepMind Intelligent AI Delegation (Feb 2026)](https://arxiv.org/pdf/2602.11865)
+- [CrewAI vs LangGraph vs AutoGen 2026](https://dev.to/synsun/autogen-vs-langgraph-vs-crewai-which-agent-framework-actually-holds-up-in-2026-3fl8)
+- [Multi-Agent LLM for Incident Response (2025)](https://arxiv.org/abs/2511.15755)
+
+---
+
 ## 1. Что идейно НЕ реализовано в GraceKelly
 
 ### 1.1 Критические идейные пробелы (определяют качество ответов)
@@ -124,21 +185,30 @@
 
 ### Phase 6: Consensus Engine (приоритет CRITICAL)
 
-**Цель**: Реализовать embedding-based consensus — ключевое отличие от простого multi-model execution.
+**Цель**: Реализовать embedding-based consensus — ключевое отличие от простого multi-model execution. Обогатить peer review (LLM Council) и confidence scoring (ReConcile).
 
 **Deliverables**:
-- [ ] Mistral Embeddings client с кэшированием (`core/embeddings.py`)
-- [ ] `ConsensusAnalyzer` — кластеризация ответов через cosine similarity + AgglomerativeClustering
-- [ ] `ConsensusResult` — consensus_score, num_clusters, top_cluster, needs_debate
-- [ ] `PromptVariationGenerator` — 9 вариаций промпта
+- [ ] Mistral Embeddings client с кэшированием по SHA256 (`core/embeddings.py`)
+- [ ] `ConsensusAnalyzer` — кластеризация ответов через cosine similarity + AgglomerativeClustering (порог ≥ 0.85)
+- [ ] `ConsensusResult` — consensus_score, num_clusters, top_cluster, needs_debate, clusters detail
+- [ ] `PromptVariationGenerator` — 9 вариаций промпта, циклирование по 3 за раунд
 - [ ] Интеграция в execution pipeline: `merge_strategy=consensus`
-- [ ] Cross-validation через Claude при consensus < 70%
+- [ ] Cross-validation через Claude при consensus < 70% (из старого проекта)
+- [ ] **[NEW from LLM Council]** Anonymous peer review: после сбора ответов каждая модель ранжирует чужие ответы (анонимизированные) — peer_rankings дополняют embedding score
+- [ ] **[NEW from ReConcile]** Confidence scoring: каждая модель оценивает уверенность в своём ответе (1-10), используется для weighted voting при близких кластерах
+- [ ] Итеративный loop: раунды до consensus ≥ threshold (настраиваемый, default 95% для MAXIMUM)
 
-**Audit gate**: Gate 6 — independent review consensus accuracy vs manual assessment на 20 тестовых вопросах.
+**Архитектурные решения**:
+- Embedding clustering — основной сигнал (как в старом проекте)
+- Peer review — дополнительный сигнал (из LLM Council), опциональный (дорогой по токенам)
+- Confidence — вес при голосовании (из ReConcile), почти бесплатный (одно число в ответе)
+- Layered aggregation (MoA) — НЕ берём в Phase 6 (слишком дорого, можно добавить позже)
 
-**Зависимости**: Mistral API key для embeddings.
+**Audit gate**: Gate 6 — consensus accuracy vs manual assessment на 20 тестовых вопросах. Сравнить: (a) только clustering, (b) clustering + confidence, (c) clustering + peer review.
 
-**Оценка**: 3-4 дня.
+**Зависимости**: Mistral API key для embeddings, API adapter для cross-validation.
+
+**Оценка**: 4-5 дней (расширено из-за peer review + confidence).
 
 ### Phase 7: Role System (приоритет HIGH)
 
@@ -167,22 +237,31 @@
 
 **Оценка**: 2 дня.
 
-### Phase 9: Reliability Levels (приоритет HIGH)
+### Phase 9: Reliability Levels & Execution Patterns (приоритет HIGH)
 
-**Цель**: Режимы QUICK/STANDARD/HIGH/MAXIMUM с разным уровнем верификации.
+**Цель**: Режимы QUICK/STANDARD/HIGH/MAXIMUM + именованные паттерны (SONAR, SINGLE, DUAL, FIVE_MODELS, CONSENSUS).
 
 **Deliverables**:
-- [ ] `core/reliability.py` — ReliabilityLevel enum
-- [ ] QUICK: 1 execution + fact check
-- [ ] STANDARD: 2 executions + comparison + synthesis
-- [ ] HIGH: 3 executions + full verification + devil's advocate
-- [ ] MAXIMUM: iterative consensus loop до порога
-- [ ] API: `reliability_level` параметр в OrchestrateRequest
-- [ ] Маппинг reliability level → набор ролей + число моделей + consensus threshold
+- [ ] `core/reliability.py` — ReliabilityLevel enum + ReliabilityConfig dataclass
+- [ ] QUICK: 1 execution + fact check (Fact Verifier role)
+- [ ] STANDARD: 2 executions + comparison (Judge role) + synthesis (Synthesizer role)
+- [ ] HIGH: 3 executions + full verification + devil's advocate + synthesis
+- [ ] MAXIMUM: iterative consensus loop до порога (Phase 6) + all roles
+- [ ] `core/patterns.py` — ExecutionPattern enum:
+  - SONAR: 1 model (Sonar), no reasoning, max speed
+  - SINGLE: 1 model with reasoning
+  - DUAL: 2 models, both answers returned for comparison
+  - FIVE_MODELS: all models, answers returned as-is
+  - FIVE_MODELS_COMPARE: all models + Judge analyzes differences
+  - CONSENSUS: embedding clustering + cross-validation
+  - MAXIMUM: CONSENSUS + iterative loop + all roles
+- [ ] API: `reliability_level` и/или `pattern` параметр в OrchestrateRequest
+- [ ] Маппинг: reliability level → pattern → набор ролей + число моделей + consensus threshold + peer_review enabled
+- [ ] Decomposition integration: сложные задачи (Phase 8) автоматически decompose на reliability ≥ HIGH
 
-**Зависимости**: Phase 6 (consensus), Phase 7 (roles).
+**Зависимости**: Phase 6 (consensus), Phase 7 (roles), Phase 8 (decomposition).
 
-**Оценка**: 2-3 дня.
+**Оценка**: 3-4 дня (расширено из-за patterns).
 
 ### Phase 10: Analytics & Adaptive Routing (приоритет MEDIUM)
 
@@ -228,27 +307,44 @@
 
 | Gate | Когда | Что проверяется |
 |------|-------|-----------------|
-| Gate 6 | После Phase 6 (consensus) | Точность consensus vs manual assessment на 20 вопросах |
-| Gate 7 | После Phase 7 (roles) | Fact Verifier catch rate на синтетических галлюцинациях |
-| Gate 8 | После Phase 8 (decomposition) | Качество декомпозиции на 10 сложных и 10 простых задачах |
-| Gate 9 | После Phase 9 (reliability) | End-to-end: MAXIMUM level на 5 спорных и 5 фактических вопросах |
-| Gate 10 | После Phase 10 (analytics) | Adaptive selector outperforms random на historical data |
+| Gate 6 | После Phase 6 (consensus) | Consensus accuracy на 20 вопросах: (a) clustering only, (b) +confidence, (c) +peer review. Сравнить с manual assessment |
+| Gate 7 | После Phase 7 (roles) | Fact Verifier catch rate на 10 синтетических галлюцинациях. Devil's Advocate false positive rate |
+| Gate 8 | После Phase 8 (decomposition) | Декомпозиция на 10 сложных и 10 простых задачах. Простые НЕ должны decompose |
+| Gate 9 | После Phase 9 (reliability+patterns) | End-to-end: MAXIMUM на 5 спорных + 5 фактических вопросах. QUICK vs SINGLE — latency comparison |
+| Gate 10 | После Phase 10 (analytics) | Adaptive selector outperforms random model selection на historical data (>10% improvement) |
 
 ---
 
 ## 5. Приоритизация
 
 ```
-Phase 6 (Consensus)        ████████████████  CRITICAL — core value proposition
-Phase 7 (Roles)            ████████████      HIGH — verification quality
-Phase 8 (Decomposition)    ████████████      HIGH — complex task support
-Phase 9 (Reliability)      ████████████      HIGH — ties everything together
-Phase 10 (Analytics)       ████████          MEDIUM — optimization
-Phase 11 (Account Pool)    ████████          MEDIUM — operational reliability
-Phase 12 (Child Projects)  ████              LOW — incremental
+Phase 6 (Consensus + Peer Review)  ████████████████  CRITICAL — core value proposition
+Phase 7 (Roles)                    ████████████      HIGH — verification quality
+Phase 8 (Decomposition)            ████████████      HIGH — complex task support
+Phase 9 (Reliability + Patterns)   ████████████      HIGH — ties everything together
+Phase 10 (Analytics)               ████████          MEDIUM — optimization
+Phase 11 (Account Pool)            ████████          MEDIUM — operational reliability
+Phase 12 (Child Projects)          ████              LOW — incremental
 ```
 
-Суммарная оценка: **14-18 дней** при фокусированной работе (1-2 агента).
+Суммарная оценка: **16-22 дня** при фокусированной работе (1-2 агента).
+
+### Зависимости между фазами
+
+```
+Phase 6 (Consensus) ──┐
+Phase 7 (Roles) ──────┼──→ Phase 9 (Reliability + Patterns)
+Phase 8 (Decomposition)┘
+
+Phase 6 ──→ Phase 10 (Analytics needs consensus scores)
+Phase 9 ──→ Phase 11 (Account Pool needs patterns for concurrent execution)
+Phase 11 ──→ Phase 12 (Child projects need stable API)
+
+Параллельно:
+- Phase 6 и Phase 7 можно делать одновременно
+- Phase 8 можно начинать параллельно с Phase 7
+- Phase 10 и Phase 11 можно делать одновременно (после Phase 9)
+```
 
 ---
 
