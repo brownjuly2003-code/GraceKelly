@@ -58,7 +58,7 @@ This document is the working source of truth for GraceKelly delivery. We update 
 
 ## Current status
 - Phase: Phase 1 complete, Phase 2 browser spike proven, Phase 4/5 hardening in progress
-- Overall state: the core orchestration contract is stable with normalized task/step/event models, profile-aware readiness, and dual-backend storage (memory + PostgreSQL with version-tracked migrations and task-scoped export/import tooling). Browser execution is exercisable end-to-end through a scripted backend, and the headed Playwright slice has passed dedicated-profile authenticated smokes against the real Perplexity UI. API execution works through Mistral, OpenAI-compatible, and Anthropic adapters, all backed by `BaseApiAdapter`. Multi-model steps execute in parallel via ThreadPoolExecutor. Account pool abstraction supports credential rotation. Task-level retry via `retry_of_task_id`. Batch loading eliminates N+1, cursor pagination enabled. Incremental Prometheus counters. 413 tests including concurrent stress tests.
+- Overall state: the core orchestration contract is stable with normalized task/step/event models, profile-aware readiness, and dual-backend storage (memory + PostgreSQL with version-tracked migrations and task-scoped export/import tooling). Browser execution is exercisable end-to-end through a scripted backend, and the headed Playwright slice has passed dedicated-profile authenticated smokes against the real Perplexity UI. API execution works through Mistral, OpenAI-compatible, and Anthropic adapters, all backed by `BaseApiAdapter`. Multi-model steps execute in parallel via ThreadPoolExecutor. Account pool abstraction supports credential rotation. Task-level retry via `retry_of_task_id`. Batch loading eliminates N+1, cursor pagination enabled. Incremental Prometheus counters. 419 tests. All 21 audit findings closed.
 - Gate status: Gate 1 (schema) — open, Gate 2 (operational) — open, Gate 3 (execution policy) — open, Gate 4 (browser boundary) — completed
 - Last updated: 2026-03-19
 
@@ -236,6 +236,11 @@ This document is the working source of truth for GraceKelly delivery. We update 
 [x] Add incremental HTTP request and adapter error counters to /metrics ([O-1] from audit).
 [x] Add concurrent stress tests for rate limiter, concurrency gate, circuit breaker, account pool ([T-1] from audit).
 [x] Add UUID4 regex validation for task_id path parameters ([API-3] from audit).
+[x] Replace getattr proxy with public properties on browser adapter ([C-1] from audit).
+[x] Replace module-level app singleton with `app_factory()` and `--factory` mode ([A-3] from audit).
+[x] Emit `x-trace-id` response header from metadata.trace_id ([O-2] from audit).
+[x] Add pool connection wrapper tests ([T-2] from audit).
+[x] Add production startup and factory freshness tests ([T-3] from audit).
 
 ## Issue log
 - 2026-03-16: Legacy reference project has corrupted SQLite databases. Decision: no storage design or migration path in GraceKelly may depend on SQLite integrity.
