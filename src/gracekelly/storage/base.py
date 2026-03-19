@@ -103,6 +103,12 @@ class TaskRepository(ABC):
     def list_events(self, task_id: str) -> list[TaskEventRecord]:
         raise NotImplementedError
 
+    def list_steps_batch(self, task_ids: list[str]) -> dict[str, list[TaskStepRecord]]:
+        return {tid: self.list_steps(tid) for tid in task_ids}
+
+    def list_events_batch(self, task_ids: list[str]) -> dict[str, list[TaskEventRecord]]:
+        return {tid: self.list_events(tid) for tid in task_ids}
+
     @abstractmethod
     def replace_task_snapshot(
         self,

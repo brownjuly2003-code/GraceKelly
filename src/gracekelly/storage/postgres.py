@@ -346,6 +346,45 @@ class PostgresTaskRepository(TaskRepository):
                 rows = cursor.fetchall()
         return [self._step_from_row(row) for row in rows]
 
+    def list_steps_batch(self, task_ids: list[str]) -> dict[str, list[TaskStepRecord]]:
+        if not task_ids:
+            return {}
+        query = """
+        SELECT
+            task_id, step_index, model_id, model_display_name,
+            backend, provider, status, failure_code,
+            failure_message, output_text, duration_ms
+        FROM gk_task_steps
+        WHERE task_id = ANY(%s)
+        ORDER BY task_id, step_index ASC
+        """
+        with self._connect(row_factory=dict_row) as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(query, (task_ids,))
+                rows = cursor.fetchall()
+        result: dict[str, list[TaskStepRecord]] = {tid: [] for tid in task_ids}
+        for row in rows:
+            result.setdefault(row["task_id"], []).append(self._step_from_row(row))
+        return result
+
+    def list_events_batch(self, task_ids: list[str]) -> dict[str, list[TaskEventRecord]]:
+        if not task_ids:
+            return {}
+        query = """
+        SELECT event_id, task_id, sequence_no, event_type, created_at, payload
+        FROM gk_task_events
+        WHERE task_id = ANY(%s)
+        ORDER BY task_id, sequence_no ASC
+        """
+        with self._connect(row_factory=dict_row) as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(query, (task_ids,))
+                rows = cursor.fetchall()
+        result: dict[str, list[TaskEventRecord]] = {tid: [] for tid in task_ids}
+        for row in rows:
+            result.setdefault(row["task_id"], []).append(self._event_from_row(row))
+        return result
+
     def append_event(self, event: TaskEventRecord) -> None:
         with self._connect() as conn:
             with conn.cursor() as cursor:

@@ -197,6 +197,18 @@ class OrchestratorService:
         except Exception as exc:
             raise StorageUnavailableError("list_task_events", str(exc)) from exc
 
+    def list_steps_batch(self, task_ids: list[str]) -> dict[str, list[TaskStepRecord]]:
+        try:
+            return self._repository.list_steps_batch(task_ids)
+        except Exception as exc:
+            raise StorageUnavailableError("list_steps_batch", str(exc)) from exc
+
+    def list_events_batch(self, task_ids: list[str]) -> dict[str, list[TaskEventRecord]]:
+        try:
+            return self._repository.list_events_batch(task_ids)
+        except Exception as exc:
+            raise StorageUnavailableError("list_events_batch", str(exc)) from exc
+
     def _build_step_records(
         self,
         task_id: str,

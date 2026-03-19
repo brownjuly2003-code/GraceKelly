@@ -69,11 +69,16 @@ def _load_task_list_items(
         dry_run=dry_run,
         failure_code=failure_code,
     )
+    if not tasks:
+        return []
+    task_ids = [task.task_id for task in tasks]
+    steps_by_task = service.list_steps_batch(task_ids)
+    events_by_task = service.list_events_batch(task_ids)
     return [
         TaskListItem.from_task(
             task,
-            service.list_task_steps(task.task_id),
-            service.list_task_events(task.task_id),
+            steps_by_task.get(task.task_id, []),
+            events_by_task.get(task.task_id, []),
         )
         for task in tasks
     ]
