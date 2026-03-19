@@ -4,7 +4,7 @@ import asyncio
 from datetime import datetime, timezone
 import logging
 
-from fastapi import APIRouter, HTTPException, Path, Query, Request
+from fastapi import APIRouter, HTTPException, Path, Query, Request, Response
 
 from gracekelly.core.contracts import ExecutionMode, FailureCode, TaskStatus
 from gracekelly.core.models import resolve_model
@@ -104,9 +104,11 @@ def _load_task_view(service, task_id: str) -> TaskView:
 
 
 @router.post("/orchestrate", response_model=OrchestrateResponse, status_code=202)
-async def orchestrate(payload: OrchestrateRequest, request: Request) -> OrchestrateResponse:
+async def orchestrate(payload: OrchestrateRequest, request: Request, response: Response) -> OrchestrateResponse:
     service = request.app.state.orchestrator_service
     trace_id = trace_id_from_metadata(payload.metadata)
+    if trace_id:
+        response.headers["x-trace-id"] = trace_id
     logger.info(
         log_message(
             "orchestrate.request",

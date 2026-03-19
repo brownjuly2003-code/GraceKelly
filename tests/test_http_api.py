@@ -494,6 +494,15 @@ class HttpApiSmokeTests(unittest.TestCase):
         self.assertIn("orchestrate.accepted", captured.output[1])
         self.assertIn('status="completed"', captured.output[1])
         self.assertIn('trace_id="route-trace-1"', captured.output[1])
+        self.assertEqual(response.headers.get("x-trace-id"), "route-trace-1")
+
+    def test_orchestrate_without_trace_id_omits_header(self) -> None:
+        response = self.client.post(
+            "/api/v1/orchestrate",
+            json={"prompt": "no trace", "model": "Kimi K2", "dry_run": True},
+        )
+        self.assertEqual(response.status_code, 202)
+        self.assertNotIn("x-trace-id", response.headers)
 
     def test_orchestration_routes_offload_blocking_work_to_thread(self) -> None:
         async def run_sync(func, /, *args, **kwargs):

@@ -189,10 +189,11 @@ def create_app(app_settings: Settings | None = None) -> FastAPI:
     return app
 
 
-app = create_app()
+def app_factory() -> FastAPI:
+    return create_app()
 
 
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run("gracekelly.main:app", host=settings.host, port=settings.port, reload=False)
+    uvicorn.run("gracekelly.main:app_factory", host=settings.host, port=settings.port, reload=False, factory=True)
