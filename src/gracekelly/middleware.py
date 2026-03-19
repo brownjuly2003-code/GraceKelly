@@ -73,6 +73,17 @@ class RateLimiter:
             return True
 
 
+def setup_request_metrics(app: FastAPI) -> None:
+    @app.middleware("http")
+    async def metrics_middleware(request: Request, call_next: Callable) -> Response:
+        response = await call_next(request)
+        metrics = getattr(request.app.state, "request_metrics", None)
+        if metrics is not None:
+            endpoint = request.url.path
+            metrics.record_request(endpoint, response.status_code)
+        return response
+
+
 def setup_rate_limiting(app: FastAPI, *, requests_per_minute: int | None) -> None:
     if not requests_per_minute or requests_per_minute <= 0:
         logger.warning("Rate limiting is not configured — no per-IP request limits")

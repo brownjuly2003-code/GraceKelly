@@ -113,6 +113,7 @@ def _build_metrics_payload(
     repository,
     adapters,
     execution_router,
+    request_metrics=None,
 ) -> str:
     readiness = _build_readiness_payload(
         environment=environment,
@@ -263,6 +264,19 @@ def _build_metrics_payload(
             labels={"adapter_name": "browser.perplexity"},
         )
 
+    if request_metrics is not None:
+        requests = request_metrics.requests_total()
+        if requests:
+            _emit_help(lines, "gracekelly_http_requests_total", "Total HTTP requests by endpoint and status code.", metric_type="counter")
+            for (endpoint, code), count in sorted(requests.items()):
+                _emit_gauge(lines, "gracekelly_http_requests_total", count, labels={"endpoint": endpoint, "status_code": str(code)})
+
+        adapter_errors = request_metrics.adapter_errors_total()
+        if adapter_errors:
+            _emit_help(lines, "gracekelly_adapter_errors_total", "Total adapter execution errors by adapter and failure code.", metric_type="counter")
+            for (adapter, failure_code), count in sorted(adapter_errors.items()):
+                _emit_gauge(lines, "gracekelly_adapter_errors_total", count, labels={"adapter": adapter, "failure_code": failure_code})
+
     return "\n".join(lines) + "\n"
 
 
@@ -326,6 +340,7 @@ async def metrics(request: Request) -> PlainTextResponse:
     settings = request.app.state.settings
     profile = request.app.state.execution_profile
     repository = request.app.state.task_repository
+    request_metrics = getattr(request.app.state, "request_metrics", None)
     payload = await asyncio.to_thread(
         _build_metrics_payload,
         environment=settings.env,
@@ -334,5 +349,6 @@ async def metrics(request: Request) -> PlainTextResponse:
         repository=repository,
         adapters=request.app.state.adapter_registry,
         execution_router=request.app.state.execution_router,
+        request_metrics=request_metrics,
     )
     return PlainTextResponse(payload, media_type="text/plain; version=0.0.4; charset=utf-8")
