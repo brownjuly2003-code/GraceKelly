@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hmac
 import logging
 import time
 from collections import defaultdict
@@ -22,7 +23,10 @@ def _is_protected(path: str) -> bool:
 
 def setup_api_key_auth(app: FastAPI, *, api_key: str | None) -> None:
     if not api_key:
+        logger.warning("API key authentication is not configured — all endpoints are open")
         return
+
+    expected_bearer = f"Bearer {api_key}"
 
     @app.middleware("http")
     async def api_key_middleware(request: Request, call_next: Callable) -> Response:
@@ -30,11 +34,11 @@ def setup_api_key_auth(app: FastAPI, *, api_key: str | None) -> None:
             return await call_next(request)
 
         auth_header = request.headers.get("authorization", "")
-        if auth_header == f"Bearer {api_key}":
+        if hmac.compare_digest(auth_header, expected_bearer):
             return await call_next(request)
 
         x_api_key = request.headers.get("x-api-key", "")
-        if x_api_key == api_key:
+        if hmac.compare_digest(x_api_key, api_key):
             return await call_next(request)
 
         logger.warning("api.auth.rejected path=%s", request.url.path)
@@ -56,15 +60,22 @@ class RateLimiter:
         cutoff = now - self._window_seconds
         with self._lock:
             timestamps = self._buckets[client_id]
-            self._buckets[client_id] = [t for t in timestamps if t > cutoff]
-            if len(self._buckets[client_id]) >= self._limit:
+            recent = [t for t in timestamps if t > cutoff]
+            if not recent:
+                del self._buckets[client_id]
+                self._buckets[client_id] = [now]
+                return True
+            if len(recent) >= self._limit:
+                self._buckets[client_id] = recent
                 return False
-            self._buckets[client_id].append(now)
+            recent.append(now)
+            self._buckets[client_id] = recent
             return True
 
 
 def setup_rate_limiting(app: FastAPI, *, requests_per_minute: int | None) -> None:
     if not requests_per_minute or requests_per_minute <= 0:
+        logger.warning("Rate limiting is not configured — no per-IP request limits")
         return
 
     limiter = RateLimiter(requests_per_minute=requests_per_minute)
