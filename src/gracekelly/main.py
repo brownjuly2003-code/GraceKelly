@@ -24,12 +24,14 @@ from gracekelly.adapters.dry_run import DryRunExecutionAdapter
 from gracekelly.api.routes.health import router as health_router
 from gracekelly.api.routes.models import router as models_router
 from gracekelly.api.routes.orchestrate import router as orchestrate_router
+from gracekelly.api.routes.consensus import router as consensus_router
 from gracekelly.config import Settings, settings
 from gracekelly.core.circuit_breaker import CircuitBreakerConfig, CircuitBreakingExecutionAdapter
 from gracekelly.middleware import setup_api_key_auth, setup_rate_limiting, setup_request_metrics
 from gracekelly.request_metrics import RequestMetrics
 from gracekelly.core.execution_profile import resolve_execution_profile
 from gracekelly.core.orchestrator import OrchestratorService
+from gracekelly.core.embeddings import EmbeddingsClient
 from gracekelly.core.router import ExecutionRouter
 from gracekelly.storage.memory import InMemoryTaskRepository
 
@@ -180,6 +182,10 @@ def create_app(app_settings: Settings | None = None) -> FastAPI:
     )
 
     app.state.request_metrics = RequestMetrics()
+    app.state.embeddings_client = EmbeddingsClient(
+        api_key=active_settings.mistral_api_key or "",
+        base_url="https://api.mistral.ai/v1",
+    )
     setup_api_key_auth(app, api_key=active_settings.api_key)
     setup_rate_limiting(app, requests_per_minute=active_settings.rate_limit_per_minute)
     setup_request_metrics(app)
@@ -187,6 +193,7 @@ def create_app(app_settings: Settings | None = None) -> FastAPI:
     app.include_router(health_router)
     app.include_router(models_router)
     app.include_router(orchestrate_router)
+    app.include_router(consensus_router)
     return app
 
 
