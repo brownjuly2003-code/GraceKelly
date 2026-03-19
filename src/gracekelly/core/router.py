@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import replace
 from time import perf_counter
 
@@ -47,65 +48,107 @@ class ExecutionRouter:
         reasoning: bool,
         metadata: dict[str, object],
     ) -> ExecutionBatchResult:
-        results: list[ExecutionResult] = []
         cancellation = CancellationToken()
 
-        for step in plan.steps:
-            if not plan.dry_run and cancellation.is_cancelled:
-                results.append(self._cancelled_result(step))
-                continue
-
-            request = ExecutionRequest(
-                task_id=task_id,
-                prompt=prompt,
-                plan=plan,
-                step=step,
-                reasoning=reasoning,
-                metadata=dict(metadata),
-                cancellation=cancellation,
+        if plan.dry_run:
+            return self._execute_sequential(
+                task_id, prompt, plan, reasoning, metadata, cancellation,
             )
+        return self._execute_parallel(
+            task_id, prompt, plan, reasoning, metadata, cancellation,
+        )
 
+    def _execute_sequential(
+        self,
+        task_id: str,
+        prompt: str,
+        plan: ExecutionPlan,
+        reasoning: bool,
+        metadata: dict[str, object],
+        cancellation: CancellationToken,
+    ) -> ExecutionBatchResult:
+        results: list[ExecutionResult] = []
+        for step in plan.steps:
+            request = ExecutionRequest(
+                task_id=task_id, prompt=prompt, plan=plan, step=step,
+                reasoning=reasoning, metadata=dict(metadata), cancellation=cancellation,
+            )
             started = perf_counter()
-            if plan.dry_run:
-                result = self._dry_run_adapter.execute(request)
-            elif step.backend.value == "api":
-                adapter = self._api_adapters.get(step.provider)
-                if adapter is None:
-                    result = self._missing_adapter_result(
-                        step.model.id,
-                        step.model.display_name,
-                        adapter_name=f"{step.backend.value}.{step.provider}",
-                        execution_mode=ExecutionMode.API,
-                        message=f"No API adapter registered for provider '{step.provider}'.",
-                    )
-                else:
-                    result = self._execute_with_concurrency_limit(adapter, request)
-            else:
-                if self._browser_adapter is None:
-                    result = self._missing_adapter_result(
-                        step.model.id,
-                        step.model.display_name,
-                        adapter_name=f"{step.backend.value}.{step.provider}",
-                        execution_mode=ExecutionMode.BROWSER,
-                        message="Browser adapter is not connected yet.",
-                    )
-                else:
-                    result = self._execute_with_concurrency_limit(self._browser_adapter, request)
-
-            duration_ms = result.duration_ms
-            if duration_ms is None:
-                duration_ms = max(0, int((perf_counter() - started) * 1000))
-                result = replace(result, duration_ms=duration_ms)
-
+            result = self._dry_run_adapter.execute(request)
+            result = self._stamp_duration(result, started)
             results.append(result)
-            if (
-                not plan.dry_run
-                and plan.cancel_on_quorum
-                and self._successful_count(tuple(results)) >= plan.quorum
-            ):
-                cancellation.request_cancel()
-
         return self._aggregate(plan, tuple(results))
+
+    def _execute_parallel(
+        self,
+        task_id: str,
+        prompt: str,
+        plan: ExecutionPlan,
+        reasoning: bool,
+        metadata: dict[str, object],
+        cancellation: CancellationToken,
+    ) -> ExecutionBatchResult:
+        indexed_results: dict[int, ExecutionResult] = {}
+
+        def run_step(idx: int, step: ExecutionStep) -> tuple[int, ExecutionResult]:
+            if cancellation.is_cancelled:
+                return idx, self._cancelled_result(step)
+            request = ExecutionRequest(
+                task_id=task_id, prompt=prompt, plan=plan, step=step,
+                reasoning=reasoning, metadata=dict(metadata), cancellation=cancellation,
+            )
+            started = perf_counter()
+            result = self._dispatch_step(step, request)
+            return idx, self._stamp_duration(result, started)
+
+        with ThreadPoolExecutor(max_workers=len(plan.steps)) as pool:
+            futures = {
+                pool.submit(run_step, idx, step): idx
+                for idx, step in enumerate(plan.steps)
+            }
+            for future in as_completed(futures):
+                idx, result = future.result()
+                indexed_results[idx] = result
+                if (
+                    plan.cancel_on_quorum
+                    and self._successful_count(tuple(indexed_results.values())) >= plan.quorum
+                ):
+                    cancellation.request_cancel()
+
+        ordered = []
+        for idx in range(len(plan.steps)):
+            if idx in indexed_results:
+                ordered.append(indexed_results[idx])
+            else:
+                ordered.append(self._cancelled_result(plan.steps[idx]))
+        return self._aggregate(plan, tuple(ordered))
+
+    def _dispatch_step(self, step: ExecutionStep, request: ExecutionRequest) -> ExecutionResult:
+        if step.backend.value == "api":
+            adapter = self._api_adapters.get(step.provider)
+            if adapter is None:
+                return self._missing_adapter_result(
+                    step.model.id, step.model.display_name,
+                    adapter_name=f"{step.backend.value}.{step.provider}",
+                    execution_mode=ExecutionMode.API,
+                    message=f"No API adapter registered for provider '{step.provider}'.",
+                )
+            return self._execute_with_concurrency_limit(adapter, request)
+        if self._browser_adapter is None:
+            return self._missing_adapter_result(
+                step.model.id, step.model.display_name,
+                adapter_name=f"{step.backend.value}.{step.provider}",
+                execution_mode=ExecutionMode.BROWSER,
+                message="Browser adapter is not connected yet.",
+            )
+        return self._execute_with_concurrency_limit(self._browser_adapter, request)
+
+    @staticmethod
+    def _stamp_duration(result: ExecutionResult, started: float) -> ExecutionResult:
+        if result.duration_ms is not None:
+            return result
+        duration_ms = max(0, int((perf_counter() - started) * 1000))
+        return replace(result, duration_ms=duration_ms)
 
     def _aggregate(
         self,
