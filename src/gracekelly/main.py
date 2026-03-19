@@ -161,7 +161,7 @@ def create_app(app_settings: Settings | None = None) -> FastAPI:
         ),
     }
     app.state.browser_adapter = build_browser_adapter(active_settings)
-    app.state.browser_session_manager = getattr(app.state.browser_adapter, "_session_manager", None)
+    app.state.browser_session_manager = getattr(app.state.browser_adapter, "session_manager", None)
     app.state.adapter_registry = {
         "dry-run": app.state.dry_run_adapter,
         "api.mistral": app.state.api_adapters["mistral"],

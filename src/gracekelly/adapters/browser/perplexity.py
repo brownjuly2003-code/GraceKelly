@@ -40,11 +40,23 @@ class PerplexityBrowserAdapter(ExecutionAdapter):
         submit_policy: SubmitPolicy | None = None,
     ) -> None:
         self._session_manager = session_manager
-        self._automation = automation or NullBrowserAutomation()
+        self._automation: BrowserAutomationPort = automation or NullBrowserAutomation()
         self._popup_policy = popup_policy or PopupPolicy()
         self._auth_policy = auth_recovery_policy or AuthRecoveryPolicy()
         self._model_policy = model_verification_policy or ModelVerificationPolicy()
         self._submit_policy = submit_policy or SubmitPolicy()
+
+    @property
+    def session_manager(self) -> BrowserSessionManager:
+        return self._session_manager
+
+    @property
+    def automation(self) -> BrowserAutomationPort:
+        return self._automation
+
+    @automation.setter
+    def automation(self, value: BrowserAutomationPort) -> None:
+        self._automation = value
 
     def execute(self, request: ExecutionRequest) -> ExecutionResult:
         model = request.step.model

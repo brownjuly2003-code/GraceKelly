@@ -71,16 +71,17 @@ class CircuitBreakingExecutionAdapter(ExecutionAdapter):
         return getattr(self._adapter, "name", "unknown")
 
     @property
-    def _automation(self):
-        return getattr(self._adapter, "_automation", None)
+    def automation(self) -> Any:
+        return getattr(self._adapter, "automation", None)
 
-    @_automation.setter
-    def _automation(self, value) -> None:
-        setattr(self._adapter, "_automation", value)
+    @automation.setter
+    def automation(self, value: Any) -> None:
+        if hasattr(self._adapter, "automation"):
+            self._adapter.automation = value
 
     @property
-    def _session_manager(self):
-        return getattr(self._adapter, "_session_manager", None)
+    def session_manager(self) -> Any:
+        return getattr(self._adapter, "session_manager", None)
 
     def execute(self, request: ExecutionRequest) -> ExecutionResult:
         if not self._config.enabled:

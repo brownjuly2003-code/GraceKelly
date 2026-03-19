@@ -366,7 +366,7 @@ class HttpApiSmokeTests(unittest.TestCase):
                     "last_model_picker_unavailable_at": None,
                 }
 
-        app.state.browser_adapter._automation = ObservedMenuAutomation()
+        app.state.browser_adapter.automation = ObservedMenuAutomation()
         with TestClient(app) as client:
             response = client.get("/api/v1/models")
 
@@ -419,7 +419,7 @@ class HttpApiSmokeTests(unittest.TestCase):
                     "last_model_picker_unavailable_at": datetime(2026, 3, 17, 18, 50, tzinfo=UTC),
                 }
 
-        app.state.browser_adapter._automation = DriftedObservedMenuAutomation()
+        app.state.browser_adapter.automation = DriftedObservedMenuAutomation()
         with TestClient(app) as client:
             response = client.get("/api/v1/models")
 
