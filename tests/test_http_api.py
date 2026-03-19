@@ -78,10 +78,10 @@ class HttpApiSmokeTests(unittest.TestCase):
 
         self.assertEqual(health.status_code, 200)
         self.assertEqual(readiness.status_code, 200)
-        self.assertEqual(health.json()["service"], "gracekelly")
+        self.assertIn("status", health.json())
+        self.assertIn("version", health.json())
+        self.assertNotIn("saturated_models", health.json())
         self.assertEqual(readiness.json()["environment"], "test")
-        self.assertEqual(health.json()["active_model_executions"], 0)
-        self.assertEqual(health.json()["saturated_models"], [])
         self.assertGreaterEqual(len(readiness.json()["components"]), 4)
         storage = next(item for item in readiness.json()["components"] if item["kind"] == "storage")
         execution = next(item for item in readiness.json()["components"] if item["kind"] == "execution")

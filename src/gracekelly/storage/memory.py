@@ -9,11 +9,12 @@ from gracekelly.storage.base import TaskEventRecord, TaskRecord, TaskRepository,
 class InMemoryTaskRepository(TaskRepository):
     backend_name = "memory"
 
-    def __init__(self) -> None:
+    def __init__(self, *, max_tasks: int = 10_000) -> None:
         self._lock = RLock()
         self._tasks: dict[str, TaskRecord] = {}
         self._steps: dict[str, list[TaskStepRecord]] = {}
         self._events: dict[str, list[TaskEventRecord]] = {}
+        self._max_tasks = max_tasks
 
     def save_task_with_steps(
         self,
@@ -23,6 +24,7 @@ class InMemoryTaskRepository(TaskRepository):
         with self._lock:
             self._tasks[task.task_id] = task
             self._steps[task.task_id] = list(steps)
+            self._evict_oldest()
 
     def get(self, task_id: str) -> TaskRecord | None:
         with self._lock:
@@ -80,6 +82,16 @@ class InMemoryTaskRepository(TaskRepository):
             self._tasks[task.task_id] = task
             self._steps[task.task_id] = list(steps)
             self._events[task.task_id] = sorted(list(events), key=lambda item: item.sequence_no)
+
+    def _evict_oldest(self) -> None:
+        overflow = len(self._tasks) - self._max_tasks
+        if overflow <= 0:
+            return
+        oldest = sorted(self._tasks.values(), key=lambda t: t.accepted_at)[:overflow]
+        for task in oldest:
+            del self._tasks[task.task_id]
+            self._steps.pop(task.task_id, None)
+            self._events.pop(task.task_id, None)
 
     def healthcheck(self) -> dict[str, object]:
         with self._lock:

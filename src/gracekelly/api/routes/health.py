@@ -290,7 +290,10 @@ async def health(request: Request) -> dict[str, object]:
                 saturated_models=",".join(payload["saturated_models"]),
             )
         )
-    return payload
+    return {
+        "status": payload["status"],
+        "version": payload.get("version", "0.1.0"),
+    }
 
 
 @router.get("/api/v1/readiness")
