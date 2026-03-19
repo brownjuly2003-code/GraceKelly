@@ -25,6 +25,8 @@ from gracekelly.api.routes.health import router as health_router
 from gracekelly.api.routes.models import router as models_router
 from gracekelly.api.routes.orchestrate import router as orchestrate_router
 from gracekelly.api.routes.consensus import router as consensus_router
+from gracekelly.api.routes.analytics import router as analytics_router
+from gracekelly.api.routes.smart import router as smart_router
 from gracekelly.config import Settings, settings
 from gracekelly.core.circuit_breaker import CircuitBreakerConfig, CircuitBreakingExecutionAdapter
 from gracekelly.middleware import setup_api_key_auth, setup_rate_limiting, setup_request_metrics
@@ -194,6 +196,8 @@ def create_app(app_settings: Settings | None = None) -> FastAPI:
     app.include_router(models_router)
     app.include_router(orchestrate_router)
     app.include_router(consensus_router)
+    app.include_router(analytics_router)
+    app.include_router(smart_router)
     return app
 
 
