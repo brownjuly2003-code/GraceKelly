@@ -58,7 +58,7 @@ This document is the working source of truth for GraceKelly delivery. We update 
 
 ## Current status
 - Phase: Phase 1 complete, Phase 2 browser spike proven, Phase 4/5 hardening in progress
-- Overall state: the core orchestration contract is stable with normalized task/step/event models, profile-aware readiness, and dual-backend storage (memory + PostgreSQL with packaged migration, validation, and task-scoped export/import tooling). Browser execution is exercisable end-to-end through a scripted backend, and the headed Playwright slice has passed dedicated-profile authenticated smokes against the real Perplexity UI with verified model selection. API execution works through the Mistral and OpenAI-compatible adapters, both now backed by a shared `BaseApiAdapter`. In-process per-model concurrency limits, per-model timeouts, and a minimal browser-adapter circuit breaker are enforced at runtime. API error responses are sanitized to prevent implementation detail leakage. Browser profile directory paths are validated against traversal attacks. Browser model catalog refreshed from recon data: "Thinking" added, outdated "Model" selector text removed, Kimi K2.5 handled by runtime observation. Test coverage at 370 tests.
+- Overall state: the core orchestration contract is stable with normalized task/step/event models, profile-aware readiness, and dual-backend storage (memory + PostgreSQL with version-tracked migrations and task-scoped export/import tooling). Browser execution is exercisable end-to-end through a scripted backend, and the headed Playwright slice has passed dedicated-profile authenticated smokes against the real Perplexity UI. API execution works through Mistral, OpenAI-compatible, and Anthropic adapters, all backed by `BaseApiAdapter`. Account pool abstraction supports credential rotation. Task-level retry via `retry_of_task_id`. Timing-safe API auth, rate limiter memory cleanup, graceful shutdown, in-memory eviction. Test coverage at 406 tests.
 - Gate status: Gate 1 (schema) — open, Gate 2 (operational) — open, Gate 3 (execution policy) — open, Gate 4 (browser boundary) — completed
 - Last updated: 2026-03-19
 
@@ -220,6 +220,16 @@ This document is the working source of truth for GraceKelly delivery. We update 
 [x] Add version-tracked migration system with `gk_schema_migrations` tracking table, ordered discovery and application, `gracekelly-migrate-postgres` CLI with `--dry-run`, and migration status in `schema_report()`.
 [x] Add account-pool abstraction with thread-safe acquire/release/cooldown lifecycle for credential rotation across providers.
 [x] Add task-level retry model via `retry_of_task_id` linkage: migration `0002_add_retry_of_task_id.sql`, `POST /api/v1/tasks/{id}/retry` endpoint, model recovery from steps or accepted-event payload.
+[x] Add Anthropic API adapter with `x-api-key` auth and content-block response format, plus `claude-sonnet-4-6-api` model.
+[x] Fix timing-unsafe API key comparison with `hmac.compare_digest` ([S-1] from audit).
+[x] Fix rate limiter unbounded memory growth by cleaning empty buckets ([S-2] from audit).
+[x] Add startup warnings when auth or rate limiting are disabled ([S-3] from audit).
+[x] Minimize public `/health` response to status+version only ([S-4] from audit).
+[x] Add graceful shutdown: close PostgreSQL pool and browser adapter on lifespan exit ([R-1] from audit).
+[x] Add `max_tasks` eviction to InMemoryTaskRepository ([R-2] from audit).
+[x] Fix `_StepSummary` type:ignore with `field(default_factory)` ([C-2] from audit).
+[x] Extract `_PoolConnectionWithRowFactory` to module level ([C-3] from audit).
+[x] Add `ExecutionStep` type annotations to router methods ([C-4] from audit).
 
 ## Issue log
 - 2026-03-16: Legacy reference project has corrupted SQLite databases. Decision: no storage design or migration path in GraceKelly may depend on SQLite integrity.

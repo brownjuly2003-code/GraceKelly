@@ -57,7 +57,7 @@ uvicorn gracekelly.main:app --app-dir src --host 127.0.0.1 --port 8011
 pytest -q
 ```
 
-Current suite: 369 tests (4 optional skips for live PostgreSQL/Playwright).
+Current suite: 406 tests (4 optional skips for live PostgreSQL/Playwright).
 
 The project config adds `src` to the pytest import path, so local test runs do not require an editable install just to resolve `gracekelly.*` imports.
 
