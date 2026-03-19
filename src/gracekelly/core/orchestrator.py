@@ -179,6 +179,7 @@ class OrchestratorService:
         execution_mode: ExecutionMode | None = None,
         dry_run: bool | None = None,
         failure_code: FailureCode | None = None,
+        before: datetime | None = None,
     ) -> list[TaskRecord]:
         try:
             return self._repository.list_recent(
@@ -187,6 +188,7 @@ class OrchestratorService:
                 execution_mode=execution_mode,
                 dry_run=dry_run,
                 failure_code=failure_code,
+                before=before,
             )
         except Exception as exc:
             raise StorageUnavailableError("list_recent_tasks", str(exc)) from exc

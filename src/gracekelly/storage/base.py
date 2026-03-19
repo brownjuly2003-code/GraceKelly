@@ -88,6 +88,7 @@ class TaskRepository(ABC):
         execution_mode: ExecutionMode | None = None,
         dry_run: bool | None = None,
         failure_code: FailureCode | None = None,
+        before: datetime | None = None,
     ) -> list[TaskRecord]:
         raise NotImplementedError
 

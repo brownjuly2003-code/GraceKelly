@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+from datetime import datetime, timezone
 import logging
 
 from fastapi import APIRouter, HTTPException, Query, Request
@@ -53,6 +54,15 @@ def _requested_models_from_request(payload: OrchestrateRequest) -> list[ModelVie
     ]
 
 
+def _parse_before_cursor(value: str | None) -> datetime | None:
+    if not value:
+        return None
+    try:
+        return datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except (ValueError, TypeError):
+        return None
+
+
 def _load_task_list_items(
     service,
     *,
@@ -61,6 +71,7 @@ def _load_task_list_items(
     execution_mode: ExecutionMode | None,
     dry_run: bool | None,
     failure_code: FailureCode | None,
+    before: datetime | None = None,
 ) -> list[TaskListItem]:
     tasks = service.list_recent_tasks(
         limit,
@@ -68,6 +79,7 @@ def _load_task_list_items(
         execution_mode=execution_mode,
         dry_run=dry_run,
         failure_code=failure_code,
+        before=before,
     )
     if not tasks:
         return []
@@ -173,8 +185,10 @@ async def list_tasks(
     execution_mode: ExecutionMode | None = Query(default=None),
     dry_run: bool | None = Query(default=None),
     failure_code: FailureCode | None = Query(default=None),
+    before: str | None = Query(default=None, description="Cursor: accepted_at ISO timestamp for pagination"),
 ) -> list[TaskListItem]:
     service = request.app.state.orchestrator_service
+    before_dt = _parse_before_cursor(before)
     try:
         items = await asyncio.to_thread(
             _load_task_list_items,
@@ -184,6 +198,7 @@ async def list_tasks(
             execution_mode=execution_mode,
             dry_run=dry_run,
             failure_code=failure_code,
+            before=before_dt,
         )
         logger.info(
             log_message(

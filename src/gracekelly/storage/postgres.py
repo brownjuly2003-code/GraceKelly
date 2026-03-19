@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime
 import json
 import logging
 from typing import Any
@@ -288,6 +289,7 @@ class PostgresTaskRepository(TaskRepository):
         execution_mode: ExecutionMode | None = None,
         dry_run: bool | None = None,
         failure_code: FailureCode | None = None,
+        before: datetime | None = None,
     ) -> list[TaskRecord]:
         where_clauses: list[str] = []
         params: list[object] = []
@@ -303,6 +305,9 @@ class PostgresTaskRepository(TaskRepository):
         if failure_code is not None:
             where_clauses.append("failure_code = %s")
             params.append(failure_code)
+        if before is not None:
+            where_clauses.append("accepted_at < %s")
+            params.append(before)
 
         where_sql = ""
         if where_clauses:
