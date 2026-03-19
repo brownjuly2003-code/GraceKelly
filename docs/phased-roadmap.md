@@ -118,7 +118,7 @@ Delivered after account-pool and retry:
 
 ## Phase 5: Operations surface
 
-Status: substantially complete
+Status: complete
 
 Deliverables:
 - metrics endpoint
@@ -135,8 +135,8 @@ Already delivered:
 - rich `GET /api/v1/tasks/{task_id}` task, step, and event views
 - execution saturation and terminal-summary diagnostics
 
-Not yet addressed:
-- admin UI (evaluate whether still justified after browser spike)
+Evaluation outcome:
+- admin UI is not justified at this stage — API endpoints, CLI tools, Prometheus /metrics, operator runbook, and structured logging cover all current operator needs without adding frontend build complexity, dependencies, or security surface
 
 ## Parallel track: API adapters
 

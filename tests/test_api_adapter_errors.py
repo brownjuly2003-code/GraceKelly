@@ -7,6 +7,7 @@ from http.client import HTTPResponse
 from unittest.mock import MagicMock, patch
 from urllib import error
 
+from gracekelly.adapters.api.anthropic import AnthropicApiAdapter
 from gracekelly.adapters.api.mistral import MistralApiAdapter
 from gracekelly.adapters.api.openai_compat import OpenAICompatibleApiAdapter
 from gracekelly.core.contracts import (
@@ -28,6 +29,10 @@ def _mistral_spec():
 
 def _openai_spec():
     return next(s for s in MODEL_SPECS if s.id == "gpt-5-4-api")
+
+
+def _anthropic_spec():
+    return next(s for s in MODEL_SPECS if s.id == "claude-sonnet-4-6-api")
 
 
 def _execution_request(model_spec) -> ExecutionRequest:
@@ -190,6 +195,72 @@ class OpenAIErrorPathTests(unittest.TestCase):
     def test_missing_api_key(self) -> None:
         result = self._adapter(api_key=None).execute(_execution_request(_openai_spec()))
         self.assertEqual(result.failure_code, FailureCode.PROVIDER_UNAVAILABLE)
+
+
+class AnthropicErrorPathTests(unittest.TestCase):
+    def _adapter(self, api_key: str | None = "test-key") -> AnthropicApiAdapter:
+        return AnthropicApiAdapter(api_key=api_key, base_url="https://api.anthropic.com")
+
+    def test_missing_api_key(self) -> None:
+        result = self._adapter(api_key=None).execute(_execution_request(_anthropic_spec()))
+        self.assertEqual(result.failure_code, FailureCode.PROVIDER_UNAVAILABLE)
+
+    @patch("gracekelly.adapters.api.anthropic.urllib_request.urlopen")
+    def test_timeout(self, mock_urlopen: MagicMock) -> None:
+        mock_urlopen.side_effect = TimeoutError()
+        result = self._adapter().execute(_execution_request(_anthropic_spec()))
+        self.assertEqual(result.failure_code, FailureCode.TIMEOUT)
+
+    @patch("gracekelly.adapters.api.anthropic.urllib_request.urlopen")
+    def test_success_with_text_content(self, mock_urlopen: MagicMock) -> None:
+        payload = {"content": [{"type": "text", "text": "Hello from Claude"}]}
+        mock_urlopen.return_value = _mock_response(payload)
+        result = self._adapter().execute(_execution_request(_anthropic_spec()))
+        self.assertEqual(result.status, StepStatus.COMPLETED)
+        self.assertEqual(result.output_text, "Hello from Claude")
+
+    @patch("gracekelly.adapters.api.anthropic.urllib_request.urlopen")
+    def test_multi_block_content(self, mock_urlopen: MagicMock) -> None:
+        payload = {
+            "content": [
+                {"type": "text", "text": "Part A"},
+                {"type": "text", "text": "Part B"},
+            ]
+        }
+        mock_urlopen.return_value = _mock_response(payload)
+        result = self._adapter().execute(_execution_request(_anthropic_spec()))
+        self.assertEqual(result.output_text, "Part A\nPart B")
+
+    @patch("gracekelly.adapters.api.anthropic.urllib_request.urlopen")
+    def test_empty_content_fails(self, mock_urlopen: MagicMock) -> None:
+        mock_urlopen.return_value = _mock_response({"content": []})
+        result = self._adapter().execute(_execution_request(_anthropic_spec()))
+        self.assertEqual(result.failure_code, FailureCode.UNKNOWN_ERROR)
+
+    @patch("gracekelly.adapters.api.anthropic.urllib_request.urlopen")
+    def test_rate_limit_429(self, mock_urlopen: MagicMock) -> None:
+        mock_urlopen.side_effect = _make_http_error(429)
+        result = self._adapter().execute(_execution_request(_anthropic_spec()))
+        self.assertEqual(result.failure_code, FailureCode.RATE_LIMITED)
+
+    def test_healthcheck_configured(self) -> None:
+        health = self._adapter().healthcheck()
+        self.assertEqual(health["status"], "ok")
+        self.assertTrue(health["configured"])
+
+    def test_healthcheck_unconfigured(self) -> None:
+        health = self._adapter(api_key=None).healthcheck()
+        self.assertEqual(health["status"], "degraded")
+        self.assertFalse(health["configured"])
+
+    @patch("gracekelly.adapters.api.anthropic.urllib_request.urlopen")
+    def test_uses_x_api_key_header(self, mock_urlopen: MagicMock) -> None:
+        mock_urlopen.return_value = _mock_response({"content": [{"type": "text", "text": "ok"}]})
+        self._adapter().execute(_execution_request(_anthropic_spec()))
+        call_args = mock_urlopen.call_args
+        req = call_args[0][0]
+        self.assertEqual(req.get_header("X-api-key"), "test-key")
+        self.assertIn("anthropic-version", {k.lower(): v for k, v in req.header_items()})
 
 
 class RetryTests(unittest.TestCase):

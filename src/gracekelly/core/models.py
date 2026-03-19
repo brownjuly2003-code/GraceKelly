@@ -176,6 +176,18 @@ MODEL_SPECS: tuple[ModelSpec, ...] = (
         concurrency_limit=4,
         reasoning_capable=True,
     ),
+    ModelSpec(
+        id="claude-sonnet-4-6-api",
+        display_name="Claude Sonnet 4.6 API",
+        aliases=("Claude Sonnet 4.6 API", "Claude API", "Anthropic Claude"),
+        adapter_kind="api",
+        provider="anthropic",
+        provider_model_id="claude-sonnet-4-6-20250514",
+        timeout_seconds=120,
+        expected_latency_class="slow",
+        concurrency_limit=4,
+        reasoning_capable=True,
+    ),
 )
 
 

@@ -50,6 +50,11 @@ class Settings:
     openai_timeout_seconds: float = 60.0
     openai_max_retries: int = 0
     openai_retry_backoff_seconds: float = 1.0
+    anthropic_api_key: str | None = None
+    anthropic_base_url: str = "https://api.anthropic.com"
+    anthropic_timeout_seconds: float = 120.0
+    anthropic_max_retries: int = 0
+    anthropic_retry_backoff_seconds: float = 1.0
     browser_enabled: bool = False
     browser_automation_backend: str = "null"
     browser_profile_dir: str | None = None
@@ -89,6 +94,11 @@ class Settings:
             openai_timeout_seconds=_env_float("GRACEKELLY_OPENAI_TIMEOUT_SECONDS", "60"),
             openai_max_retries=_env_int("GRACEKELLY_OPENAI_MAX_RETRIES", "0"),
             openai_retry_backoff_seconds=_env_float("GRACEKELLY_OPENAI_RETRY_BACKOFF_SECONDS", "1.0"),
+            anthropic_api_key=os.getenv("GRACEKELLY_ANTHROPIC_API_KEY"),
+            anthropic_base_url=os.getenv("GRACEKELLY_ANTHROPIC_BASE_URL", "https://api.anthropic.com"),
+            anthropic_timeout_seconds=_env_float("GRACEKELLY_ANTHROPIC_TIMEOUT_SECONDS", "120"),
+            anthropic_max_retries=_env_int("GRACEKELLY_ANTHROPIC_MAX_RETRIES", "0"),
+            anthropic_retry_backoff_seconds=_env_float("GRACEKELLY_ANTHROPIC_RETRY_BACKOFF_SECONDS", "1.0"),
             browser_enabled=os.getenv("GRACEKELLY_BROWSER_ENABLED", "false").lower() == "true",
             browser_automation_backend=os.getenv("GRACEKELLY_BROWSER_AUTOMATION_BACKEND", "null"),
             browser_profile_dir=os.getenv("GRACEKELLY_BROWSER_PROFILE_DIR"),

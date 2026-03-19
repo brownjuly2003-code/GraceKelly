@@ -5,6 +5,7 @@ import inspect
 
 from fastapi import FastAPI
 
+from gracekelly.adapters.api.anthropic import AnthropicApiAdapter
 from gracekelly.adapters.api.mistral import MistralApiAdapter
 from gracekelly.adapters.api.openai_compat import OpenAICompatibleApiAdapter
 from gracekelly.adapters.browser.automation import NullBrowserAutomation
@@ -140,6 +141,13 @@ def create_app(app_settings: Settings | None = None) -> FastAPI:
             timeout_seconds=active_settings.openai_timeout_seconds,
             max_retries=active_settings.openai_max_retries,
             retry_backoff_seconds=active_settings.openai_retry_backoff_seconds,
+        ),
+        "anthropic": AnthropicApiAdapter(
+            api_key=active_settings.anthropic_api_key,
+            base_url=active_settings.anthropic_base_url,
+            timeout_seconds=active_settings.anthropic_timeout_seconds,
+            max_retries=active_settings.anthropic_max_retries,
+            retry_backoff_seconds=active_settings.anthropic_retry_backoff_seconds,
         ),
     }
     app.state.browser_adapter = build_browser_adapter(active_settings)
