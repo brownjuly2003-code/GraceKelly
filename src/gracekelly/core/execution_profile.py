@@ -21,17 +21,17 @@ PROFILES: dict[str, ExecutionProfile] = {
     "dry-run": ExecutionProfile(
         name="dry-run",
         required_adapters=frozenset({"dry-run"}),
-        optional_adapters=frozenset({"api.mistral", "api.openai", "browser.perplexity"}),
+        optional_adapters=frozenset({"api.mistral", "api.openai", "api.anthropic", "browser.perplexity"}),
     ),
     "api-only": ExecutionProfile(
         name="api-only",
         required_adapters=frozenset({"dry-run", "api.mistral"}),
-        optional_adapters=frozenset({"api.openai", "browser.perplexity"}),
+        optional_adapters=frozenset({"api.openai", "api.anthropic", "browser.perplexity"}),
     ),
     "hybrid": ExecutionProfile(
         name="hybrid",
         required_adapters=frozenset({"dry-run", "api.mistral", "browser.perplexity"}),
-        optional_adapters=frozenset({"api.openai"}),
+        optional_adapters=frozenset({"api.openai", "api.anthropic"}),
     ),
 }
 

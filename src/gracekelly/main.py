@@ -166,6 +166,7 @@ def create_app(app_settings: Settings | None = None) -> FastAPI:
         "dry-run": app.state.dry_run_adapter,
         "api.mistral": app.state.api_adapters["mistral"],
         "api.openai": app.state.api_adapters["openai"],
+        "api.anthropic": app.state.api_adapters["anthropic"],
         "browser.perplexity": app.state.browser_adapter,
     }
     app.state.execution_router = ExecutionRouter(

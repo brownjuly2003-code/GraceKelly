@@ -73,13 +73,22 @@ class RateLimiter:
             return True
 
 
+_UUID_RE = __import__("re").compile(
+    r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
+)
+
+
+def _normalize_endpoint(path: str) -> str:
+    return _UUID_RE.sub("{id}", path)
+
+
 def setup_request_metrics(app: FastAPI) -> None:
     @app.middleware("http")
     async def metrics_middleware(request: Request, call_next: Callable) -> Response:
         response = await call_next(request)
         metrics = getattr(request.app.state, "request_metrics", None)
         if metrics is not None:
-            endpoint = request.url.path
+            endpoint = _normalize_endpoint(request.url.path)
             metrics.record_request(endpoint, response.status_code)
         return response
 
