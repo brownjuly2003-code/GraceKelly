@@ -30,6 +30,22 @@ from gracekelly.storage.schema import (
 
 logger = logging.getLogger(__name__)
 
+
+class _PoolConnectionWithRowFactory:
+    def __init__(self, pool_ctx: Any, rf: Any) -> None:
+        self._pool_ctx = pool_ctx
+        self._rf = rf
+        self._conn: Any = None
+
+    def __enter__(self) -> Any:
+        self._conn = self._pool_ctx.__enter__()
+        self._conn.row_factory = self._rf
+        return self._conn
+
+    def __exit__(self, *args: Any) -> Any:
+        return self._pool_ctx.__exit__(*args)
+
+
 _TASK_UPSERT_QUERY = """
 INSERT INTO gk_tasks (
     task_id,
@@ -421,17 +437,6 @@ class PostgresTaskRepository(TaskRepository):
         if self._pool is not None:
             conn_ctx = self._pool.connection()
             if row_factory is not None:
-                class _PoolConnectionWithRowFactory:
-                    def __init__(self, pool_ctx, rf):
-                        self._pool_ctx = pool_ctx
-                        self._rf = rf
-                        self._conn = None
-                    def __enter__(self):
-                        self._conn = self._pool_ctx.__enter__()
-                        self._conn.row_factory = self._rf
-                        return self._conn
-                    def __exit__(self, *args):
-                        return self._pool_ctx.__exit__(*args)
                 return _PoolConnectionWithRowFactory(conn_ctx, row_factory)
             return conn_ctx
         kwargs: dict[str, Any] = {"connect_timeout": self._connect_timeout_seconds}

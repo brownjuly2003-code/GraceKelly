@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from contextlib import asynccontextmanager
 import inspect
+import logging
 
 from fastapi import FastAPI
 
@@ -30,6 +31,8 @@ from gracekelly.core.execution_profile import resolve_execution_profile
 from gracekelly.core.orchestrator import OrchestratorService
 from gracekelly.core.router import ExecutionRouter
 from gracekelly.storage.memory import InMemoryTaskRepository
+
+logger = logging.getLogger(__name__)
 
 
 def build_task_repository(active_settings: Settings):
@@ -103,15 +106,20 @@ def build_browser_adapter(active_settings: Settings):
 @asynccontextmanager
 async def app_lifespan(app: FastAPI):
     yield
+    logger.info("Shutting down — releasing resources")
     browser_adapter = getattr(app.state, "browser_adapter", None)
-    if browser_adapter is None:
-        return
-    close_method = getattr(browser_adapter, "close", None)
-    if not callable(close_method):
-        return
-    result = close_method()
-    if inspect.isawaitable(result):
-        await result
+    if browser_adapter is not None:
+        close_method = getattr(browser_adapter, "close", None)
+        if callable(close_method):
+            result = close_method()
+            if inspect.isawaitable(result):
+                await result
+    pool = getattr(app.state, "postgres_pool", None)
+    if pool is not None:
+        close_method = getattr(pool, "close", None)
+        if callable(close_method):
+            close_method()
+            logger.info("PostgreSQL connection pool closed")
 
 
 def create_app(app_settings: Settings | None = None) -> FastAPI:
@@ -126,6 +134,7 @@ def create_app(app_settings: Settings | None = None) -> FastAPI:
     app.state.settings = active_settings
     app.state.execution_profile = resolve_execution_profile(active_settings.execution_profile)
     app.state.task_repository = build_task_repository(active_settings)
+    app.state.postgres_pool = getattr(app.state.task_repository, "_pool", None)
     app.state.dry_run_adapter = DryRunExecutionAdapter()
     app.state.api_adapters = {
         "mistral": MistralApiAdapter(

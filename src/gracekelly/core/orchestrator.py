@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 import json
 import logging
@@ -28,17 +28,9 @@ logger = logging.getLogger(__name__)
 
 @dataclass(slots=True)
 class _StepSummary:
-    completed: list[dict[str, object]] = None  # type: ignore[assignment]
-    failed: list[dict[str, object]] = None  # type: ignore[assignment]
-    cancelled_indexes: list[int] = None  # type: ignore[assignment]
-
-    def __post_init__(self) -> None:
-        if self.completed is None:
-            self.completed = []
-        if self.failed is None:
-            self.failed = []
-        if self.cancelled_indexes is None:
-            self.cancelled_indexes = []
+    completed: list[dict[str, object]] = field(default_factory=list)
+    failed: list[dict[str, object]] = field(default_factory=list)
+    cancelled_indexes: list[int] = field(default_factory=list)
 
 
 class _EventSequence:

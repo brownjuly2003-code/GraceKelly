@@ -11,6 +11,7 @@ from gracekelly.core.contracts import (
     ExecutionMode,
     ExecutionPlan,
     ExecutionRequest,
+    ExecutionStep,
     ExecutionResult,
     FailureCode,
     MergeStrategy,
@@ -268,7 +269,7 @@ class ExecutionRouter:
         finally:
             self._concurrency_gate.release(step.model.id)
 
-    def _concurrency_limited_result(self, step) -> ExecutionResult:
+    def _concurrency_limited_result(self, step: ExecutionStep) -> ExecutionResult:
         return ExecutionResult(
             adapter_name=f"{step.backend.value}.{step.provider}",
             model_id=step.model.id,
@@ -286,7 +287,7 @@ class ExecutionRouter:
             },
         )
 
-    def _cancelled_result(self, step) -> ExecutionResult:
+    def _cancelled_result(self, step: ExecutionStep) -> ExecutionResult:
         return ExecutionResult(
             adapter_name=f"{step.backend.value}.{step.provider}",
             model_id=step.model.id,
