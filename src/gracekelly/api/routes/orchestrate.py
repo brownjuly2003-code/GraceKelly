@@ -4,7 +4,7 @@ import asyncio
 from datetime import datetime, timezone
 import logging
 
-from fastapi import APIRouter, HTTPException, Query, Request
+from fastapi import APIRouter, HTTPException, Path, Query, Request
 
 from gracekelly.core.contracts import ExecutionMode, FailureCode, TaskStatus
 from gracekelly.core.models import resolve_model
@@ -228,8 +228,14 @@ async def list_tasks(
         raise HTTPException(status_code=503, detail=_storage_error_detail(exc)) from exc
 
 
+_UUID_PATTERN = r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+
+
 @router.get("/tasks/{task_id}", response_model=TaskView)
-async def get_task(task_id: str, request: Request) -> TaskView:
+async def get_task(
+    task_id: str = Path(pattern=_UUID_PATTERN),
+    request: Request = None,
+) -> TaskView:
     service = request.app.state.orchestrator_service
     try:
         view = await asyncio.to_thread(_load_task_view, service, task_id)
@@ -260,7 +266,10 @@ async def get_task(task_id: str, request: Request) -> TaskView:
 
 
 @router.post("/tasks/{task_id}/retry", response_model=OrchestrateResponse, status_code=202)
-async def retry_task(task_id: str, request: Request) -> OrchestrateResponse:
+async def retry_task(
+    task_id: str = Path(pattern=_UUID_PATTERN),
+    request: Request = None,
+) -> OrchestrateResponse:
     service = request.app.state.orchestrator_service
     try:
         original = await asyncio.to_thread(service.get_task, task_id)

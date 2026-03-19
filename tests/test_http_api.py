@@ -574,7 +574,7 @@ class HttpApiSmokeTests(unittest.TestCase):
         self.assertIn("result_count=1", captured.output[0])
 
         with self.assertLogs("gracekelly.api.routes.orchestrate", level="WARNING") as captured:
-            response = self.client.get("/api/v1/tasks/task-does-not-exist")
+            response = self.client.get("/api/v1/tasks/00000000-0000-0000-0000-ffffffffffff")
 
         self.assertEqual(response.status_code, 404)
         self.assertEqual(len(captured.output), 1)
@@ -730,7 +730,7 @@ class HttpApiSmokeTests(unittest.TestCase):
 
         client = self._build_client_with_repository(ReadFailingRepository())
 
-        response = client.get("/api/v1/tasks/task-123")
+        response = client.get("/api/v1/tasks/00000000-0000-0000-0000-000000000123")
 
         self.assertEqual(response.status_code, 503)
         payload = response.json()
@@ -1003,8 +1003,12 @@ class HttpApiSmokeTests(unittest.TestCase):
         retry = self.client.post(f"/api/v1/tasks/{task_id}/retry")
         self.assertEqual(retry.status_code, 409)
 
+    def test_invalid_uuid_task_id_returns_422(self) -> None:
+        response = self.client.get("/api/v1/tasks/not-a-uuid")
+        self.assertEqual(response.status_code, 422)
+
     def test_retry_nonexistent_task_returns_404(self) -> None:
-        retry = self.client.post("/api/v1/tasks/nonexistent/retry")
+        retry = self.client.post("/api/v1/tasks/00000000-0000-0000-0000-000000000000/retry")
         self.assertEqual(retry.status_code, 404)
 
 
