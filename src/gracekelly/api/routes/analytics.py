@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
 
 from gracekelly.core.model_stats import ModelPerformance, aggregate_model_stats, rank_models_by_success_rate
@@ -43,8 +43,9 @@ def get_analytics(request: Request) -> AnalyticsResponse:
                         "status": step.status,
                         "duration_ms": step.duration_ms,
                     })
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.error("Analytics storage read failed: %s", exc)
+            raise HTTPException(status_code=503, detail="Storage unavailable.")
 
     stats = aggregate_model_stats(step_records)
     ranked = rank_models_by_success_rate(stats, min_executions=1)

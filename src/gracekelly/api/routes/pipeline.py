@@ -1,0 +1,115 @@
+from __future__ import annotations
+
+import logging
+
+from fastapi import APIRouter, HTTPException, Request
+from pydantic import BaseModel, Field
+
+from gracekelly.core.complexity import assess_complexity
+from gracekelly.core.contracts import (
+    AdapterHint,
+    ExecutionBackend,
+    ExecutionPlan,
+    ExecutionRequest,
+    ExecutionStep,
+    MergeStrategy,
+    StepStatus,
+)
+from gracekelly.core.models import resolve_model
+from gracekelly.core.pattern_resolver import resolve_from_level
+from gracekelly.core.reliability import ReliabilityLevel
+from gracekelly.core.task_classifier import classify_task
+
+router = APIRouter(prefix="/api/v1", tags=["pipeline"])
+logger = logging.getLogger(__name__)
+
+
+class PipelineRequest(BaseModel):
+    prompt: str = Field(min_length=1, max_length=40000)
+    model: str = Field(default="mistral-small", min_length=1, max_length=120)
+    reliability_level: str | None = Field(default=None)
+
+
+class PipelineResponse(BaseModel):
+    answer: str
+    task_type: str
+    pattern_used: str
+    reliability_level: str
+    total_llm_calls: int
+    model_id: str
+
+
+@router.post("/pipeline", response_model=PipelineResponse)
+def run_pipeline(payload: PipelineRequest, request: Request) -> PipelineResponse:
+    api_adapters = getattr(request.app.state, "api_adapters", {})
+
+    try:
+        model_spec = resolve_model(payload.model)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+    adapter = api_adapters.get(model_spec.provider)
+    if adapter is None:
+        raise HTTPException(
+            status_code=400,
+            detail=f"No adapter for '{model_spec.provider}'.",
+        )
+
+    if payload.reliability_level:
+        try:
+            resolved = resolve_from_level(ReliabilityLevel(payload.reliability_level))
+        except ValueError:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Unknown level: {payload.reliability_level}",
+            )
+    else:
+        complexity = assess_complexity(payload.prompt)
+        if complexity.level.value == "complex":
+            resolved = resolve_from_level(ReliabilityLevel.STANDARD)
+        else:
+            resolved = resolve_from_level(ReliabilityLevel.QUICK)
+
+    step = ExecutionStep(
+        model=model_spec,
+        backend=ExecutionBackend.API,
+        provider=model_spec.provider,
+        provider_model_id=model_spec.provider_model_id,
+        step_index=0,
+    )
+    plan = ExecutionPlan(
+        steps=(step,),
+        quorum=1,
+        merge_strategy=MergeStrategy.FIRST_SUCCESS,
+        dry_run=False,
+        adapter_hint=AdapterHint.API,
+        cancel_on_quorum=False,
+    )
+
+    call_count = {"n": 0}
+
+    def execute_fn(prompt_text: str) -> str:
+        call_count["n"] += 1
+        exec_request = ExecutionRequest(
+            task_id="pipeline",
+            prompt=prompt_text,
+            plan=plan,
+            step=step,
+            reasoning=resolved.reasoning,
+        )
+        result = adapter.execute(exec_request)
+        if result.status == StepStatus.COMPLETED and result.output_text:
+            return result.output_text
+        return f"[{result.failure_code or 'error'}] {result.failure_message or 'No output'}"
+
+    answer = execute_fn(payload.prompt)
+    task_type = classify_task(payload.prompt)
+
+    return PipelineResponse(
+        answer=answer,
+        task_type=task_type.value,
+        pattern_used=resolved.pattern.value,
+        reliability_level=resolved.reliability_level.value,
+        total_llm_calls=call_count["n"],
+        model_id=model_spec.id,
+    )
