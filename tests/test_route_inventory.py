@@ -101,3 +101,11 @@ class RouteInventoryTests(unittest.TestCase):
     def test_post_task_retry(self) -> None:
         r = self.client.post("/api/v1/tasks/nonexistent-id/retry")
         self.assertNotEqual(404, r.status_code)
+
+    def test_debate_reachable(self) -> None:
+        response = self.client.post("/api/v1/debate", json={})
+        self.assertNotEqual(404, response.status_code)
+
+    def test_compare_reachable(self) -> None:
+        response = self.client.post("/api/v1/compare", json={})
+        self.assertNotEqual(404, response.status_code)
