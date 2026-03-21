@@ -21,5 +21,17 @@
 - `StrEnum` для перечислений
 - `unittest.TestCase` для тестов
 - 4 пробела, snake_case, без docstrings/комментариев
-- Тесты: `python -m pytest -q`
+- Тесты: `python -m pytest tests/ -q`
 - Платформа: Windows 11
+
+## Выполненные задачи
+
+Все задачи 010-170 выполнены. Файлы в `done/`.
+
+## Текущее состояние проекта
+
+- 881+ тестов, все зелёные
+- 12 endpoints зарегистрированы
+- Consensus V2 engine с HAC clustering, debate, cross-pollination
+- Infrastructure: account pool manager, execution history, multi-model, peer review reranker
+- Audit fixes: error sanitization, graceful degradation

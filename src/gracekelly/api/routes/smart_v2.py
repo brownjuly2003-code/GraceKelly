@@ -6,8 +6,7 @@ from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
 
 from gracekelly.core.complexity import assess_complexity
-from gracekelly.core.consensus import ConsensusConfig
-from gracekelly.core.consensus_execution import ConsensusExecutionConfig, ConsensusExecutor
+from gracekelly.core.consensus_v2 import ConsensusExecutorV2, ConsensusV2Config
 from gracekelly.core.contracts import (
     AdapterHint,
     ExecutionBackend,
@@ -152,18 +151,27 @@ def run_smart_v2(payload: SmartV2Request, request: Request) -> SmartV2Response:
         answer = decomp_result.final_answer
         was_decomposed = decomp_result.was_decomposed
     elif resolved.use_consensus and embeddings_client is not None:
-        consensus_config = ConsensusConfig(
-            consensus_target=resolved.consensus_threshold,
-            max_rounds=resolved.max_consensus_rounds,
+        v2_config = ConsensusV2Config(
+            use_adaptive_params=True,
+            use_debate=True,
+            use_cross_pollination=True,
+            use_cluster_confidence=True,
+            use_divergence_handling=True,
         )
-        exec_config = ConsensusExecutionConfig(consensus_config=consensus_config)
-        executor = ConsensusExecutor(embeddings_client, exec_config)
-        consensus_result = executor.execute(payload.prompt, execute_fn)
-        answer = consensus_result.best_response
+        executor = ConsensusExecutorV2(embeddings_client, v2_config)
+        v2_result = executor.execute(payload.prompt, execute_fn)
+        answer = v2_result.best_response
         used_consensus = True
-        consensus_score = consensus_result.consensus_result.consensus_score
-        cluster_confidence = consensus_result.weighted_score
-        consensus_status = "completed"
+        consensus_status = v2_result.final_result.status.value
+        consensus_score = v2_result.consensus_result.consensus_score
+        cluster_confidence = v2_result.weighted_score
+        dissenting_views = [
+            DissentingViewResponse(
+                perspective=dv.perspective[:500],
+                support_ratio=dv.support_ratio,
+            )
+            for dv in v2_result.final_result.dissenting_views
+        ]
     else:
         answer = execute_fn(payload.prompt)
 
