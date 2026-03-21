@@ -1,6 +1,6 @@
 # Phased Roadmap
 
-Last updated: 2026-03-19
+Last updated: 2026-03-21
 
 ## Phase 0: Clean foundation
 
@@ -154,3 +154,36 @@ Already delivered:
 
 Next:
 - expand the API hedge beyond a single OpenAI-compatible model if browser fragility proves material
+
+## Phase 6–10: Core smart endpoints and consensus V1
+
+Status: complete
+
+Deliverables:
+- Smart endpoint with execution profile resolution
+- Consensus V1 engine with majority voting and confidence scoring
+- Analytics endpoint with graceful degradation
+- Batch endpoint for parallel multi-prompt execution
+- Embeddings client integration
+
+## Phase 11: Consensus V2 + Infrastructure Integration
+
+Status: complete
+
+Deliverables:
+- Consensus V2 engine: HAC clustering, cluster confidence, cross-pollination, debate round, divergence handling, adaptive parameters
+- Full ConsensusExecutorV2 pipeline with peer review reranking and round weighting
+- Infrastructure modules: account loader, account pool manager, execution history, round weighting, multi-model executor, peer review reranker
+- 4 new endpoints: POST /api/v1/batch, POST /api/v1/pipeline, GET /api/v1/health/detailed, POST /api/v1/smart/v2
+- Route inventory smoke test covering all 15 endpoints
+- Audit fixes: consensus error sanitization, analytics graceful degradation
+
+## Phase 12: Child Project APIs
+
+Status: planned
+
+Deliverables:
+- JuHub: webhook endpoint for daily debate scheduler
+- Debate: dedicated debate endpoint using Devil's Advocate module
+- Batch: already delivered in Phase 11
+- English Practice / Interview Trainer: evaluate standalone vs GraceKelly integration

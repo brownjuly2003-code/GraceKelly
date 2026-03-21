@@ -10,6 +10,8 @@ from gracekelly.core.consensus import ClusterInfo, ConsensusResult
 from gracekelly.core.cross_pollination import cross_pollinate
 from gracekelly.core.debate_round import run_debate
 from gracekelly.core.divergence import DivergenceAction, assess_divergence
+from gracekelly.core.peer_review_reranker import build_review_prompt, parse_rankings, rerank_cluster
+from gracekelly.core.round_weighting import consensus_score_weighted
 from gracekelly.core.similarity import cosine_similarity
 from gracekelly.core.task_classifier import classify_task
 
@@ -21,6 +23,8 @@ class ConsensusV2Config:
     use_cross_pollination: bool = True
     use_cluster_confidence: bool = True
     use_divergence_handling: bool = True
+    use_peer_review: bool = False
+    use_round_weighting: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -103,12 +107,14 @@ class ConsensusExecutorV2:
             params = AdaptiveConsensusParams(0.85, 3, 3, True, False)
 
         all_responses: list[str] = []
+        response_rounds: list[int] = []
         total_rounds = 0
 
         for round_num in range(params.max_rounds):
             total_rounds += 1
             new_responses = [execute_fn(prompt) for _ in range(params.min_responses)]
             all_responses.extend(new_responses)
+            response_rounds.extend([round_num] * len(new_responses))
 
             embeddings = self._embeddings.embed_batch(all_responses)
             n = len(embeddings)
@@ -182,6 +188,26 @@ class ConsensusExecutorV2:
         best_idx = top_info.centroid_index
         best_response = all_responses[best_idx] if all_responses else ""
 
+        if self._config.use_peer_review and len(all_responses) > 1:
+            cluster_responses = [all_responses[i] for i in top_info.member_indices]
+            review_prompt = build_review_prompt(prompt, cluster_responses)
+            review_output = execute_fn(review_prompt)
+            rankings = parse_rankings(review_output, len(cluster_responses))
+            reranked = rerank_cluster(cluster_responses, [rankings])
+            if reranked:
+                best_local_idx = reranked[0].response_index
+                best_idx = top_info.member_indices[best_local_idx]
+                best_response = all_responses[best_idx]
+
+        weighted_score = conf_result.confidence
+        if self._config.use_round_weighting:
+            rounds_tuple = tuple(response_rounds)
+            all_indices = tuple(range(len(all_responses)))
+            ws = consensus_score_weighted(
+                top_info.member_indices, all_indices, rounds_tuple
+            )
+            weighted_score = ws.weighted_score
+
         top_set = set(top_info.member_indices)
         dissenting: list[DissentingView] = []
         for info in sorted_infos:
@@ -207,12 +233,12 @@ class ConsensusExecutorV2:
         return ConsensusV2Result(
             best_response=best_response,
             consensus_result=consensus_result,
-            weighted_score=conf_result.confidence,
+            weighted_score=weighted_score,
             total_rounds=total_rounds,
             final_result=ConsensusV2FinalResult(
                 status=(
                     DivergenceAction.ACCEPT
-                    if conf_result.confidence >= 0.9
+                    if weighted_score >= 0.9
                     else DivergenceAction.ESCALATE
                 ),
                 dissenting_views=tuple(dissenting),

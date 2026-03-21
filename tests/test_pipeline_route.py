@@ -72,6 +72,7 @@ class PipelineRouteTests(unittest.TestCase):
         expected_fields = {
             "answer", "task_type", "pattern_used",
             "reliability_level", "total_llm_calls", "model_id",
+            "models_used",
         }
         self.assertEqual(expected_fields, set(body.keys()))
 
@@ -86,6 +87,17 @@ class PipelineRouteTests(unittest.TestCase):
         response = client.post("/api/v1/pipeline", json={"prompt": "Hello"})
         body = response.json()
         self.assertEqual("mistral-small", body["model_id"])
+
+    def test_multi_model_flag_accepted(self) -> None:
+        client = TestClient(_create_test_app())
+        response = client.post(
+            "/api/v1/pipeline",
+            json={"prompt": "Hello", "multi_model": True},
+        )
+        self.assertEqual(200, response.status_code)
+        body = response.json()
+        self.assertIsInstance(body["models_used"], list)
+        self.assertGreater(len(body["models_used"]), 0)
 
     def test_general_task_type_for_simple_prompt(self) -> None:
         client = TestClient(_create_test_app())

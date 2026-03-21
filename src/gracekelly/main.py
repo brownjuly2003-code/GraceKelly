@@ -38,6 +38,7 @@ from gracekelly.request_metrics import RequestMetrics
 from gracekelly.core.execution_profile import resolve_execution_profile
 from gracekelly.core.orchestrator import OrchestratorService
 from gracekelly.core.embeddings import EmbeddingsClient
+from gracekelly.core.account_pool_manager import AccountPoolManager
 from gracekelly.core.execution_history import ExecutionHistory
 from gracekelly.core.router import ExecutionRouter
 from gracekelly.storage.memory import InMemoryTaskRepository
@@ -194,6 +195,7 @@ def create_app(app_settings: Settings | None = None) -> FastAPI:
         base_url="https://api.mistral.ai/v1",
     )
     app.state.execution_history = ExecutionHistory()
+    app.state.account_pool_manager = AccountPoolManager()
     setup_api_key_auth(app, api_key=active_settings.api_key)
     setup_rate_limiting(app, requests_per_minute=active_settings.rate_limit_per_minute)
     setup_request_metrics(app)

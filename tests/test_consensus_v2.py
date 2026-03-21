@@ -172,6 +172,54 @@ class TestConsensusV2(unittest.TestCase):
         self.assertGreater(result.consensus_result.total_responses, 0)
         self.assertIsNotNone(result.consensus_result.top_cluster)
 
+    def test_peer_review_enabled(self):
+        client = _make_embeddings_client()
+        config = ConsensusV2Config(
+            use_adaptive_params=False,
+            use_divergence_handling=False,
+            use_peer_review=True,
+        )
+        call_log: list[str] = []
+
+        def mock_fn(prompt: str) -> str:
+            call_log.append(prompt)
+            return "response"
+
+        executor = ConsensusExecutorV2(client, config)
+        result = executor.execute("hello", mock_fn)
+        self.assertIsInstance(result, ConsensusV2Result)
+        review_calls = [c for c in call_log if "Rank these answers" in c]
+        self.assertGreater(len(review_calls), 0)
+
+    def test_round_weighting_enabled(self):
+        client = _make_embeddings_client()
+        config = ConsensusV2Config(
+            use_adaptive_params=False,
+            use_divergence_handling=False,
+            use_round_weighting=True,
+        )
+        executor = ConsensusExecutorV2(client, config)
+        result = executor.execute("hello", lambda p: "response")
+        self.assertIsInstance(result, ConsensusV2Result)
+        self.assertGreaterEqual(result.weighted_score, 0.0)
+        self.assertLessEqual(result.weighted_score, 1.0)
+
+    def test_all_new_features_enabled(self):
+        client = _make_embeddings_client()
+        config = ConsensusV2Config(
+            use_adaptive_params=True,
+            use_debate=True,
+            use_cross_pollination=True,
+            use_cluster_confidence=True,
+            use_divergence_handling=True,
+            use_peer_review=True,
+            use_round_weighting=True,
+        )
+        executor = ConsensusExecutorV2(client, config)
+        result = executor.execute("write python code", lambda p: "code_output")
+        self.assertIsInstance(result, ConsensusV2Result)
+        self.assertGreaterEqual(result.weighted_score, 0.0)
+
 
 if __name__ == "__main__":
     unittest.main()

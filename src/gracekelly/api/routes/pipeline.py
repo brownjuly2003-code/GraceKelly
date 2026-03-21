@@ -15,7 +15,8 @@ from gracekelly.core.contracts import (
     MergeStrategy,
     StepStatus,
 )
-from gracekelly.core.models import resolve_model
+from gracekelly.core.models import MODEL_SPECS, ModelSpec, resolve_model
+from gracekelly.core.multi_model import MultiModelExecutor
 from gracekelly.core.pattern_resolver import resolve_from_level
 from gracekelly.core.reliability import ReliabilityLevel
 from gracekelly.core.task_classifier import classify_task
@@ -28,6 +29,7 @@ class PipelineRequest(BaseModel):
     prompt: str = Field(min_length=1, max_length=40000)
     model: str = Field(default="mistral-small", min_length=1, max_length=120)
     reliability_level: str | None = Field(default=None)
+    multi_model: bool = Field(default=False)
 
 
 class PipelineResponse(BaseModel):
@@ -37,6 +39,7 @@ class PipelineResponse(BaseModel):
     reliability_level: str
     total_llm_calls: int
     model_id: str
+    models_used: list[str] = Field(default_factory=list)
 
 
 @router.post("/pipeline", response_model=PipelineResponse)
@@ -102,7 +105,30 @@ def run_pipeline(payload: PipelineRequest, request: Request) -> PipelineResponse
             return result.output_text
         return f"[{result.failure_code or 'error'}] {result.failure_message or 'No output'}"
 
-    answer = execute_fn(payload.prompt)
+    if payload.multi_model:
+        available_specs: list[ModelSpec] = [model_spec]
+        for provider_name, prov_adapter in api_adapters.items():
+            if provider_name == model_spec.provider:
+                continue
+            if not getattr(prov_adapter, "_api_key", None):
+                continue
+            for spec in MODEL_SPECS:
+                if spec.provider == provider_name and spec.adapter_kind == "api":
+                    available_specs.append(spec)
+                    break
+        executor = MultiModelExecutor(api_adapters, available_specs)
+        mm_result = executor.execute_all(
+            payload.prompt, reasoning=resolved.reasoning,
+        )
+        call_count["n"] = len(mm_result.responses) + len(mm_result.failed_models)
+        answer = mm_result.responses[0] if mm_result.responses else execute_fn(payload.prompt)
+        models_used = list(mm_result.model_ids)
+        if not models_used:
+            models_used = [model_spec.id]
+    else:
+        answer = execute_fn(payload.prompt)
+        models_used = [model_spec.id]
+
     task_type = classify_task(payload.prompt)
 
     return PipelineResponse(
@@ -112,4 +138,5 @@ def run_pipeline(payload: PipelineRequest, request: Request) -> PipelineResponse
         reliability_level=resolved.reliability_level.value,
         total_llm_calls=call_count["n"],
         model_id=model_spec.id,
+        models_used=models_used,
     )
