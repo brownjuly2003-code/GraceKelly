@@ -190,10 +190,16 @@ Deliverables:
 
 ## Phase 13: Production Hardening
 
-Status: next
+Status: in progress
 
-Priorities:
+Delivered:
+- GitHub Actions CI pipeline (Python 3.11/3.12, import check)
+- Dockerfile (Python 3.12-slim, uvicorn)
+- docker-compose (standalone + postgres-backed configurations)
+- .dockerignore
+- Security audit: no hardcoded keys, all 44 core modules importable, no silent exception swallowing in routes
+
+Remaining:
 - Live testing with real multi-model consensus (multiple API keys)
 - Performance profiling of V2 consensus pipeline
-- Deployment documentation
-- CI/CD setup
+- Load testing
