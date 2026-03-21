@@ -73,21 +73,21 @@
 
 | # | Возможность | Старый проект | GraceKelly | Приоритет |
 |---|-------------|---------------|------------|-----------|
-| G-1 | **Embedding-based consensus** — кластеризация ответов через Mistral embeddings, cosine similarity, AgglomerativeClustering | `orchestrator/consensus.py`, `ConsensusAnalyzer`, порог 85% similarity | Нет. Только `first_success` и `concat` merge strategies — нет семантического сравнения ответов | CRITICAL |
-| G-2 | **12-role system** — специализированные роли: Planner, Executor, Verifier, Judge, Devil's Advocate, Synthesizer, Fact Verifier, Logic Verifier, Completeness Verifier, Researcher, Code Executor, Decomposer | `orchestrator/roles.py`, каждая роль = system prompt + preferred model + reasoning flag | Нет. Модели вызываются без ролевых system prompts | HIGH |
-| G-3 | **MAXIMUM reliability level** — итеративный цикл: 5 моделей × 3 вариации промпта → кластеризация → cross-validation Claude → повторение до consensus ≥ 95% | `orchestrator/run_modes.py:_run_maximum()` + `_run_consensus_based()` | Нет. Один раунд выполнения, нет итеративного достижения консенсуса | HIGH |
-| G-4 | **Task decomposition** — автоматическая оценка сложности запроса, разбивка на подзадачи, выполнение с синтезом | `api/routes/gk_decomposition.py`, `_assess_complexity()`, `_run_decomposed()` | Нет. Prompt выполняется как есть, без декомпозиции | HIGH |
-| G-5 | **Prompt variation generator** — 9 вариаций промпта для увеличения diversity ответов | `ConsensusAnalyzer.PromptVariationGenerator`, циклирование по 3 за раунд | Нет. Один prompt → один ответ на модель | MEDIUM |
+| G-1 | **Embedding-based consensus** — кластеризация ответов через Mistral embeddings, cosine similarity, AgglomerativeClustering | `orchestrator/consensus.py`, `ConsensusAnalyzer`, порог 85% similarity | ✅ V1 consensus + V2 HAC clustering (`core/consensus.py`, `core/clustering_hac.py`) | DONE |
+| G-2 | **12-role system** — специализированные роли: Planner, Executor, Verifier, Judge, Devil's Advocate, Synthesizer, Fact Verifier, Logic Verifier, Completeness Verifier, Researcher, Code Executor, Decomposer | `orchestrator/roles.py`, каждая роль = system prompt + preferred model + reasoning flag | ✅ 6 ролей в `core/roles.py` + `RoleExecutor` (Verifier, Synthesizer, Judge, Devil's Advocate, Fact Verifier, Decomposer) | DONE |
+| G-3 | **MAXIMUM reliability level** — итеративный цикл: 5 моделей × 3 вариации промпта → кластеризация → cross-validation Claude → повторение до consensus ≥ 95% | `orchestrator/run_modes.py:_run_maximum()` + `_run_consensus_based()` | ✅ Итеративный consensus loop в `ConsensusExecutorV2` с adaptive params, divergence handling, max_rounds | DONE |
+| G-4 | **Task decomposition** — автоматическая оценка сложности запроса, разбивка на подзадачи, выполнение с синтезом | `api/routes/gk_decomposition.py`, `_assess_complexity()`, `_run_decomposed()` | ✅ `core/decomposition.py` с complexity assessment и LLM-based decomposition | DONE |
+| G-5 | **Prompt variation generator** — 9 вариаций промпта для увеличения diversity ответов | `ConsensusAnalyzer.PromptVariationGenerator`, циклирование по 3 за раунд | ✅ `core/prompt_variations.py` с 9 типами вариаций | DONE |
 
 ### 1.2 Операционные пробелы
 
 | # | Возможность | Старый проект | GraceKelly | Приоритет |
 |---|-------------|---------------|------------|-----------|
-| G-6 | **Adaptive model selection** — выбор моделей по исторической статистике (success rate, task type) | `analytics/model_selector.py`, `IntelligentModelSelector`, 6 типов задач | Нет. Статический MODEL_SPECS, ручной выбор | MEDIUM |
-| G-7 | **Statistics collector** — сбор метрик по задачам, моделям, consensus scores в SQLite | `analytics/collector.py`, `StatsCollector` | Нет. Есть events, но нет агрегированной аналитики | MEDIUM |
-| G-8 | **Task graph** — граф зависимостей подзадач, resume после прерывания, status tracking | `tasks/task_graph.py`, `TaskGraph`, `SubTask`, statuses | Нет. Нет dependency graph. retry есть, но только task-level | LOW |
-| G-9 | **Account rotation** — пул из ~30 аккаунтов Perplexity, ротация при failures | `browser/model_selection.py`, `on_model_selection_failed` callback | Частично. `AccountPool` создан, но не подключён к browser adapter | MEDIUM |
-| G-10 | **File attachment** — отправка длинных промптов через файл в Perplexity UI | `browser/query.py`, `send_long_prompt_via_file()` | Нет. Только текстовый ввод | LOW |
+| G-6 | **Adaptive model selection** — выбор моделей по исторической статистике (success rate, task type) | `analytics/model_selector.py`, `IntelligentModelSelector`, 6 типов задач | ✅ `core/adaptive_selector.py` с task-type based model selection | DONE |
+| G-7 | **Statistics collector** — сбор метрик по задачам, моделям, consensus scores в SQLite | `analytics/collector.py`, `StatsCollector` | ✅ `core/model_stats.py` + `core/execution_history.py`, `GET /api/v1/analytics` | DONE |
+| G-8 | **Task graph** — граф зависимостей подзадач, resume после прерывания, status tracking | `tasks/task_graph.py`, `TaskGraph`, `SubTask`, statuses | ✅ `core/task_graph.py` + builder + executor с Kahn's topological sort | DONE |
+| G-9 | **Account rotation** — пул из ~30 аккаунтов Perplexity, ротация при failures | `browser/model_selection.py`, `on_model_selection_failed` callback | ✅ `core/account_pool_manager.py` wired в app.state | DONE |
+| G-10 | **File attachment** — отправка длинных промптов через файл в Perplexity UI | `browser/query.py`, `send_long_prompt_via_file()` | Нет. Только текстовый ввод. Low priority — не планируется | LOW |
 
 ### 1.3 Паттерны выполнения (GK Patterns)
 
@@ -97,9 +97,9 @@
 | **SINGLE** — 1 модель с reasoning | ✅ `run_single()` | ✅ Через single model execution + reasoning=true |
 | **DUAL** — 2 модели, ответы рядом для сравнения | ✅ `run_dual()`, фиксированные пары | ✅ Через multi-model с quorum=2 + concat |
 | **FIVE_MODELS** — все 5 моделей, без анализа | ✅ `run_five_models()` | ✅ Через multi-model с concat |
-| **FIVE_MODELS_COMPARE** — 5 моделей + Claude анализирует | ✅ `run_five_models_compare()` | ❌ Нет 2-фазного выполнения (сбор → анализ) |
-| **CONSENSUS** — 3 модели × 3 вариации, порог 90% | ✅ `run_consensus()` | ❌ Нет consensus-based execution |
-| **MAXIMUM** — 5 моделей × 3 вариации, итеративный цикл до 95% | ✅ `run_maximum()` | ❌ Нет iterative consensus loop |
+| **FIVE_MODELS_COMPARE** — 5 моделей + Claude анализирует | ✅ `run_five_models_compare()` | ✅ `POST /api/v1/compare` — multi-model + Judge analysis |
+| **CONSENSUS** — 3 модели × 3 вариации, порог 90% | ✅ `run_consensus()` | ✅ `POST /api/v1/consensus` + `POST /api/v1/smart` with consensus |
+| **MAXIMUM** — 5 моделей × 3 вариации, итеративный цикл до 95% | ✅ `run_maximum()` | ✅ `ConsensusExecutorV2` с iterative loop, adaptive params, debate, cross-pollination |
 
 ---
 

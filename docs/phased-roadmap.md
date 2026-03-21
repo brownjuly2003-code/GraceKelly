@@ -180,10 +180,20 @@ Deliverables:
 
 ## Phase 12: Child Project APIs
 
-Status: planned
+Status: complete
 
 Deliverables:
-- JuHub: webhook endpoint for daily debate scheduler
-- Debate: dedicated debate endpoint using Devil's Advocate module
-- Batch: already delivered in Phase 11
-- English Practice / Interview Trainer: evaluate standalone vs GraceKelly integration
+- POST /api/v1/debate — Devil's Advocate debate endpoint with challenge, defense, improved response
+- POST /api/v1/compare — multi-model FIVE_MODELS_COMPARE pattern with Judge analysis
+- POST /api/v1/batch — already delivered in Phase 11
+- Task graph system: core graph, builder (sequential/parallel/fan-out-fan-in/pipeline), executor with topological sort and skip-on-failure
+
+## Phase 13: Production Hardening
+
+Status: next
+
+Priorities:
+- Live testing with real multi-model consensus (multiple API keys)
+- Performance profiling of V2 consensus pipeline
+- Deployment documentation
+- CI/CD setup
