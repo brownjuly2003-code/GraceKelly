@@ -1,0 +1,40 @@
+services:
+  gracekelly:
+    build: .
+    ports:
+      - "8011:8011"
+    env_file:
+      - .env
+    restart: unless-stopped
+
+  gracekelly-postgres:
+    build: .
+    ports:
+      - "8011:8011"
+    env_file:
+      - .env
+    environment:
+      GRACEKELLY_STORAGE_BACKEND: postgres
+      GRACEKELLY_POSTGRES_DSN: postgresql://gk:gk@db:5432/gracekelly
+      GRACEKELLY_POSTGRES_POOL_ENABLED: "true"
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: gk
+      POSTGRES_PASSWORD: gk
+      POSTGRES_DB: gracekelly
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U gk"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+volumes:
+  pgdata:
