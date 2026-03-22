@@ -16,16 +16,17 @@ class ModelRegistryTests(unittest.TestCase):
         self.assertEqual(resolve_model("Best").id, "best")
         self.assertEqual(resolve_model("Sonar").id, "sonar")
         self.assertEqual(resolve_model("Claude Opus").id, "claude-opus-4-6")
-        self.assertEqual(resolve_model("Thinking").id, "thinking")
         self.assertEqual(resolve_model("Max").id, "max")
         self.assertEqual(resolve_model("Nemotron 3").id, "nemotron-3-super")
 
-    def test_thinking_model_is_reasoning_capable(self) -> None:
-        spec = resolve_model("Thinking")
-        self.assertTrue(spec.reasoning_capable)
-        self.assertEqual(spec.adapter_kind, "browser")
-        self.assertEqual(spec.provider, "perplexity")
-        self.assertEqual(spec.timeout_seconds, 120)
+    def test_thinking_is_not_a_model(self) -> None:
+        with self.assertRaises(ValueError):
+            resolve_model("Thinking")
+
+    def test_sonar_is_search_not_reasoning(self) -> None:
+        spec = resolve_model("Sonar")
+        self.assertFalse(spec.reasoning_capable)
+        self.assertEqual(spec.expected_latency_class, "fast")
 
     def test_unknown_model_raises(self) -> None:
         with self.assertRaises(ValueError):

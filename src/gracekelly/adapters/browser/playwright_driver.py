@@ -241,6 +241,43 @@ class PlaywrightBrowserAutomation(BrowserAutomationPort):
             },
         )
 
+    def enable_thinking(self) -> bool:
+        page = self._page_or_raise()
+        model_button = self._resolve_model_button(page, attempts=3)
+        if model_button is None:
+            logger.warning("Cannot enable Thinking: model button not found")
+            return False
+
+        button_text = self._locator_inner_text(model_button)
+        if button_text and "Thinking" in button_text:
+            logger.debug("Thinking already enabled: %s", button_text)
+            return True
+
+        model_button.click()
+        time.sleep(self._runtime.poll_interval_seconds)
+
+        thinking_el = self._first_visible_locator((
+            page.get_by_text("Thinking", exact=True),
+        ))
+        if thinking_el is None:
+            logger.warning("Thinking toggle not found in model menu")
+            page.keyboard.press("Escape")
+            return False
+
+        thinking_el.click()
+        time.sleep(self._runtime.poll_interval_seconds)
+
+        page.keyboard.press("Escape")
+        time.sleep(self._runtime.poll_interval_seconds)
+
+        button_text_after = self._locator_inner_text(model_button)
+        enabled = button_text_after is not None and "Thinking" in button_text_after
+        if enabled:
+            logger.info("Thinking mode enabled: %s", button_text_after)
+        else:
+            logger.warning("Thinking toggle clicked but button shows: %s", button_text_after)
+        return enabled
+
     def submit_prompt(
         self,
         *,

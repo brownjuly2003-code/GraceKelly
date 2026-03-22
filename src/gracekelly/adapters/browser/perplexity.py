@@ -117,6 +117,13 @@ class PerplexityBrowserAdapter(ExecutionAdapter):
                     },
                 )
 
+            thinking_enabled = False
+            if model.reasoning_capable:
+                enable_thinking_fn = getattr(self._automation, "enable_thinking", None)
+                if callable(enable_thinking_fn):
+                    thinking_enabled = enable_thinking_fn()
+                    logger.info("Thinking toggle for model %s: %s", model.id, thinking_enabled)
+
             if request.cancellation and request.cancellation.is_cancelled:
                 return self._cancelled(model.id, model.display_name)
 
@@ -149,6 +156,7 @@ class PerplexityBrowserAdapter(ExecutionAdapter):
                     "provider": "perplexity",
                     "requested_model_label": selection.requested_label,
                     "actual_model_label": selection.actual_label,
+                    "thinking_enabled": thinking_enabled,
                     **selection.details,
                     **output.details,
                 },
