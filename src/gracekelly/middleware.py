@@ -48,21 +48,36 @@ def setup_api_key_auth(app: FastAPI, *, api_key: str | None) -> None:
         )
 
 
+_PURGE_EVERY_N_REQUESTS = 500
+
+
 class RateLimiter:
+    """In-process sliding-window rate limiter.
+
+    NOTE: Works correctly only within a single process. Multiple uvicorn
+    workers or multiple service instances will each maintain their own
+    independent counters — effective limit becomes limit × worker_count.
+    Use a Redis-backed limiter for multi-process deployments.
+    """
+
     def __init__(self, *, requests_per_minute: int) -> None:
         self._limit = requests_per_minute
         self._window_seconds = 60.0
         self._lock = Lock()
         self._buckets: dict[str, list[float]] = defaultdict(list)
+        self._request_count = 0
 
     def is_allowed(self, client_id: str) -> bool:
         now = time.monotonic()
         cutoff = now - self._window_seconds
         with self._lock:
+            self._request_count += 1
+            if self._request_count >= _PURGE_EVERY_N_REQUESTS:
+                self._purge_stale(now)
+                self._request_count = 0
             timestamps = self._buckets[client_id]
             recent = [t for t in timestamps if t > cutoff]
             if not recent:
-                del self._buckets[client_id]
                 self._buckets[client_id] = [now]
                 return True
             if len(recent) >= self._limit:
@@ -71,6 +86,12 @@ class RateLimiter:
             recent.append(now)
             self._buckets[client_id] = recent
             return True
+
+    def _purge_stale(self, now: float) -> None:
+        cutoff = now - self._window_seconds
+        stale_keys = [k for k, ts in self._buckets.items() if not ts or max(ts) < cutoff]
+        for k in stale_keys:
+            del self._buckets[k]
 
 
 _UUID_RE = __import__("re").compile(
@@ -110,6 +131,11 @@ def setup_rate_limiting(app: FastAPI, *, requests_per_minute: int | None) -> Non
         logger.warning("Rate limiting is not configured — no per-IP request limits")
         return
 
+    logger.warning(
+        "Rate limiting enabled at %d req/min — in-process only, "
+        "does not coordinate across multiple workers or instances",
+        requests_per_minute,
+    )
     limiter = RateLimiter(requests_per_minute=requests_per_minute)
 
     @app.middleware("http")

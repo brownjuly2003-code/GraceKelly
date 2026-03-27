@@ -127,6 +127,28 @@ class RateLimiterUnitTests(unittest.TestCase):
         self.assertFalse(limiter.is_allowed("client1"))
         self.assertTrue(limiter.is_allowed("client2"))
 
+    def test_purge_stale_removes_expired_buckets(self) -> None:
+        import time as _time
+
+        limiter = RateLimiter(requests_per_minute=100)
+        limiter.is_allowed("old-client")
+        # Manually backdate the bucket to simulate expiry
+        with limiter._lock:
+            limiter._buckets["old-client"] = [_time.monotonic() - 120]
+        with limiter._lock:
+            limiter._purge_stale(_time.monotonic())
+        with limiter._lock:
+            self.assertNotIn("old-client", limiter._buckets)
+
+    def test_active_bucket_not_purged(self) -> None:
+        limiter = RateLimiter(requests_per_minute=100)
+        limiter.is_allowed("active-client")
+        import time as _time
+        with limiter._lock:
+            limiter._purge_stale(_time.monotonic())
+        with limiter._lock:
+            self.assertIn("active-client", limiter._buckets)
+
 
 class RateLimitMiddlewareTests(unittest.TestCase):
     def test_no_limit_allows_all(self) -> None:
