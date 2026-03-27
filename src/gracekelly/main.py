@@ -41,7 +41,7 @@ from gracekelly.core.execution_history import ExecutionHistory
 from gracekelly.core.execution_profile import resolve_execution_profile
 from gracekelly.core.orchestrator import OrchestratorService
 from gracekelly.core.router import ExecutionRouter
-from gracekelly.middleware import setup_api_key_auth, setup_rate_limiting, setup_request_metrics
+from gracekelly.middleware import setup_api_key_auth, setup_rate_limiting, setup_request_metrics, setup_security_headers
 from gracekelly.request_metrics import RequestMetrics
 from gracekelly.storage.memory import InMemoryTaskRepository
 
@@ -198,6 +198,7 @@ def create_app(app_settings: Settings | None = None) -> FastAPI:
     )
     app.state.execution_history = ExecutionHistory()
     app.state.account_pool_manager = AccountPoolManager()
+    setup_security_headers(app)
     setup_api_key_auth(app, api_key=active_settings.api_key)
     setup_rate_limiting(app, requests_per_minute=active_settings.rate_limit_per_minute)
     setup_request_metrics(app)

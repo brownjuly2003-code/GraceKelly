@@ -5,7 +5,22 @@ import unittest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from gracekelly.middleware import RateLimiter, setup_api_key_auth, setup_rate_limiting
+from gracekelly.middleware import RateLimiter, setup_api_key_auth, setup_rate_limiting, setup_security_headers
+
+
+def _test_app_with_security_headers() -> FastAPI:
+    app = FastAPI()
+
+    @app.get("/health")
+    def health():
+        return {"status": "ok"}
+
+    @app.get("/api/v1/models")
+    def models():
+        return []
+
+    setup_security_headers(app)
+    return app
 
 
 def _test_app(*, api_key: str | None = None, rate_limit: int | None = None) -> FastAPI:
@@ -149,3 +164,33 @@ class CombinedMiddlewareTests(unittest.TestCase):
         self.assertEqual(client.get("/api/v1/models", headers=headers).status_code, 200)
         self.assertEqual(client.get("/api/v1/models", headers=headers).status_code, 200)
         self.assertEqual(client.get("/api/v1/models", headers=headers).status_code, 429)
+
+
+class SecurityHeadersTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.client = TestClient(_test_app_with_security_headers())
+
+    def test_x_content_type_options(self) -> None:
+        resp = self.client.get("/health")
+        self.assertEqual(resp.headers.get("x-content-type-options"), "nosniff")
+
+    def test_x_frame_options(self) -> None:
+        resp = self.client.get("/health")
+        self.assertEqual(resp.headers.get("x-frame-options"), "DENY")
+
+    def test_x_xss_protection(self) -> None:
+        resp = self.client.get("/health")
+        self.assertEqual(resp.headers.get("x-xss-protection"), "1; mode=block")
+
+    def test_referrer_policy(self) -> None:
+        resp = self.client.get("/health")
+        self.assertEqual(resp.headers.get("referrer-policy"), "strict-origin-when-cross-origin")
+
+    def test_content_security_policy(self) -> None:
+        resp = self.client.get("/health")
+        self.assertEqual(resp.headers.get("content-security-policy"), "default-src 'none'")
+
+    def test_headers_present_on_api_endpoint(self) -> None:
+        resp = self.client.get("/api/v1/models")
+        self.assertIn("x-content-type-options", resp.headers)
+        self.assertIn("x-frame-options", resp.headers)
