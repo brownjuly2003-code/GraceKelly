@@ -9,6 +9,9 @@ __pycache__/
 htmlcov/
 pip-wheel-metadata/
 .env
+.env.*
+*.pem
+*.key
 build/
 dist/
 logs/

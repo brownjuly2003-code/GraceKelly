@@ -45,4 +45,4 @@
 **Files:**
 - Modify: `.gitignore`
 
-- [ ] Проверить что .env, secrets, __pycache__, dist, *.egg-info в .gitignore
+- [x] Все нужные паттерны уже были: .env, __pycache__, dist, *.egg-info. Добавлены .env.*, *.pem, *.key
