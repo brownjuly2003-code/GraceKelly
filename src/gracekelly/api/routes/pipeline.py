@@ -111,7 +111,7 @@ def run_pipeline(payload: PipelineRequest, request: Request) -> PipelineResponse
         for provider_name, prov_adapter in api_adapters.items():
             if provider_name == model_spec.provider:
                 continue
-            if not getattr(prov_adapter, "_api_key", None):
+            if not getattr(prov_adapter, "has_api_key", False):
                 continue
             for spec in MODEL_SPECS:
                 if spec.provider == provider_name and spec.adapter_kind == "api":

@@ -37,19 +37,16 @@ def health_detailed(request: Request) -> DetailedHealthResponse:
 
     adapter_statuses: list[AdapterStatus] = []
     for name, adapter in api_adapters.items():
-        has_key = getattr(adapter, "_api_key", None)
         adapter_statuses.append(AdapterStatus(
             name=name,
-            status="ok" if has_key else "no_key",
+            status="ok" if getattr(adapter, "has_api_key", False) else "no_key",
         ))
 
     embed_status = EmbeddingsStatus(status="unavailable", cache_size=0)
     if embeddings_client is not None:
-        cache_size = embeddings_client.cache_size()
-        has_key = getattr(embeddings_client, "_api_key", None)
         embed_status = EmbeddingsStatus(
-            status="ok" if has_key else "no_key",
-            cache_size=cache_size,
+            status="ok" if embeddings_client.has_api_key else "no_key",
+            cache_size=embeddings_client.cache_size(),
         )
 
     all_ok = all(a.status == "ok" for a in adapter_statuses)

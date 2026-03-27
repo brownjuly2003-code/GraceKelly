@@ -111,7 +111,7 @@ def run_consensus(payload: ConsensusRequest, request: Request) -> ConsensusRespo
         result = executor.execute(payload.prompt, execute_fn)
     except Exception as exc:
         logger.error("Consensus execution failed: %s", exc)
-        raise HTTPException(status_code=500, detail="Consensus execution failed.")
+        raise HTTPException(status_code=500, detail=f"Consensus execution failed: {exc}") from exc
 
     return ConsensusResponse(
         consensus_score=result.consensus_result.consensus_score,

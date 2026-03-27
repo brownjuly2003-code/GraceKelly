@@ -42,6 +42,10 @@ class EmbeddingsClient:
             results.append(self.embed(text))
         return results
 
+    @property
+    def has_api_key(self) -> bool:
+        return bool(self._api_key)
+
     def cache_size(self) -> int:
         with self._lock:
             return len(self._cache)

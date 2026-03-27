@@ -39,6 +39,10 @@ class BaseApiAdapter(ExecutionAdapter):
         self._max_retries = max(0, max_retries)
         self._retry_backoff_seconds = retry_backoff_seconds
 
+    @property
+    def has_api_key(self) -> bool:
+        return bool(self._api_key)
+
     def execute(self, request_model: ExecutionRequest) -> ExecutionResult:
         model = request_model.step.model
         timeout_seconds = self._resolve_timeout_seconds(request_model)

@@ -20,21 +20,14 @@ def _create_test_app(
 
     adapter_a = MagicMock()
     adapter_b = MagicMock()
-    if adapters_with_keys:
-        adapter_a._api_key = "key-a"
-        adapter_b._api_key = "key-b"
-    else:
-        adapter_a._api_key = None
-        adapter_b._api_key = None
+    adapter_a.has_api_key = adapters_with_keys
+    adapter_b.has_api_key = adapters_with_keys
     app.state.api_adapters = {"mistral": adapter_a, "openai": adapter_b}
 
     if has_embeddings:
         embeddings = MagicMock()
         embeddings.cache_size.return_value = 42
-        if embeddings_has_key:
-            embeddings._api_key = "embed-key"
-        else:
-            embeddings._api_key = None
+        embeddings.has_api_key = embeddings_has_key
         app.state.embeddings_client = embeddings
     else:
         app.state.embeddings_client = None
