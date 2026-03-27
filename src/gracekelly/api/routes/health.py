@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from typing import Any
 
 from fastapi import APIRouter, Request
 from fastapi.responses import PlainTextResponse
@@ -18,11 +19,11 @@ logger = logging.getLogger(__name__)
 def _build_readiness_payload(
     *,
     environment: str,
-    profile,
-    repository,
-    adapters,
-    execution_router,
-) -> dict[str, object]:
+    profile: Any,
+    repository: Any,
+    adapters: Any,
+    execution_router: Any,
+) -> dict[str, Any]:
     return build_readiness_report(
         environment=environment,
         profile=profile,
@@ -36,11 +37,11 @@ def _build_health_summary(
     *,
     environment: str,
     storage_backend: str,
-    profile,
-    repository,
-    adapters,
-    execution_router,
-) -> dict[str, object]:
+    profile: Any,
+    repository: Any,
+    adapters: Any,
+    execution_router: Any,
+) -> dict[str, Any]:
     readiness = _build_readiness_payload(
         environment=environment,
         profile=profile,
@@ -110,11 +111,11 @@ def _build_metrics_payload(
     *,
     environment: str,
     storage_backend: str,
-    profile,
-    repository,
-    adapters,
-    execution_router,
-    request_metrics=None,
+    profile: Any,
+    repository: Any,
+    adapters: Any,
+    execution_router: Any,
+    request_metrics: Any = None,
 ) -> str:
     readiness = _build_readiness_payload(
         environment=environment,

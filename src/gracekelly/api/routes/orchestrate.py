@@ -236,8 +236,8 @@ _UUID_PATTERN = r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$
 
 @router.get("/tasks/{task_id}", response_model=TaskView)
 async def get_task(
+    request: Request,
     task_id: str = Path(pattern=_UUID_PATTERN),
-    request: Request = None,
 ) -> TaskView:
     service = get_app_state(request).orchestrator_service
     try:
@@ -270,8 +270,8 @@ async def get_task(
 
 @router.post("/tasks/{task_id}/retry", response_model=OrchestrateResponse, status_code=202)
 async def retry_task(
+    request: Request,
     task_id: str = Path(pattern=_UUID_PATTERN),
-    request: Request = None,
 ) -> OrchestrateResponse:
     service = get_app_state(request).orchestrator_service
     try:
