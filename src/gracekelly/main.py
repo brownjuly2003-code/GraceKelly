@@ -48,6 +48,15 @@ from gracekelly.storage.memory import InMemoryTaskRepository
 logger = logging.getLogger(__name__)
 
 
+def _get_version() -> str:
+    try:
+        from importlib.metadata import version as _v
+
+        return _v("gracekelly")
+    except Exception:
+        return "0.0.0-dev"
+
+
 def build_task_repository(active_settings: Settings):
     storage_backend = active_settings.storage_backend
     if storage_backend == "memory":
@@ -141,7 +150,7 @@ def create_app(app_settings: Settings | None = None) -> FastAPI:
     app = FastAPI(
         title="GraceKelly",
         description="Independent orchestrator rebuilt from a clean slate.",
-        version="0.1.0",
+        version=_get_version(),
         lifespan=app_lifespan,
     )
     app.state.settings = active_settings
