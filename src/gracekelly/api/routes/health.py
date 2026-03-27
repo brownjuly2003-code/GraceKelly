@@ -288,7 +288,7 @@ async def health(request: Request) -> dict[str, object]:
     payload = await asyncio.to_thread(
         _build_health_summary,
         environment=state.settings.env,
-        storage_backend=state.task_repository.backend_name,
+        storage_backend=state.task_repository.backend_name if state.task_repository else "none",
         profile=state.execution_profile,
         repository=state.task_repository,
         adapters=state.adapter_registry,
@@ -339,7 +339,7 @@ async def metrics(request: Request) -> PlainTextResponse:
     payload = await asyncio.to_thread(
         _build_metrics_payload,
         environment=state.settings.env,
-        storage_backend=state.task_repository.backend_name,
+        storage_backend=state.task_repository.backend_name if state.task_repository else "none",
         profile=state.execution_profile,
         repository=state.task_repository,
         adapters=state.adapter_registry,
