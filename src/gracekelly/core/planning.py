@@ -32,7 +32,7 @@ def build_execution_plan(request: OrchestrateRequest) -> ExecutionPlan:
 
     for step_index, model in enumerate(requested_models, start=1):
         backend = ExecutionBackend(model.adapter_kind)
-        if request.adapter_hint != AdapterHint.AUTO and request.adapter_hint != backend:
+        if request.adapter_hint != AdapterHint.AUTO and request.adapter_hint.value != backend.value:
             raise ValueError(
                 f"Model '{model.display_name}' requires backend '{backend.value}', "
                 f"but adapter_hint is '{request.adapter_hint}'."

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import inspect
 import logging
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -9,7 +10,7 @@ from fastapi import FastAPI
 from gracekelly.adapters.api.anthropic import AnthropicApiAdapter
 from gracekelly.adapters.api.mistral import MistralApiAdapter
 from gracekelly.adapters.api.openai_compat import OpenAICompatibleApiAdapter
-from gracekelly.adapters.browser.automation import NullBrowserAutomation
+from gracekelly.adapters.browser.automation import BrowserAutomationPort, NullBrowserAutomation
 from gracekelly.adapters.browser.perplexity import PerplexityBrowserAdapter
 from gracekelly.adapters.browser.playwright_driver import PlaywrightBrowserAutomation, PlaywrightBrowserRuntimeConfig
 from gracekelly.adapters.browser.policy import (
@@ -36,6 +37,7 @@ from gracekelly.api.routes.smart_v2 import router as smart_v2_router
 from gracekelly.config import Settings, settings
 from gracekelly.core.account_pool_manager import AccountPoolManager
 from gracekelly.core.circuit_breaker import CircuitBreakerConfig, CircuitBreakingExecutionAdapter
+from gracekelly.core.contracts import ExecutionAdapter
 from gracekelly.core.embeddings import EmbeddingsClient
 from gracekelly.core.execution_history import ExecutionHistory
 from gracekelly.core.execution_profile import resolve_execution_profile
@@ -43,6 +45,7 @@ from gracekelly.core.orchestrator import OrchestratorService
 from gracekelly.core.router import ExecutionRouter
 from gracekelly.middleware import setup_api_key_auth, setup_rate_limiting, setup_request_metrics, setup_security_headers
 from gracekelly.request_metrics import RequestMetrics
+from gracekelly.storage.base import TaskRepository
 from gracekelly.storage.memory import InMemoryTaskRepository
 
 logger = logging.getLogger(__name__)
@@ -57,7 +60,7 @@ def _get_version() -> str:
         return "0.0.0-dev"
 
 
-def build_task_repository(active_settings: Settings):
+def build_task_repository(active_settings: Settings) -> TaskRepository:
     storage_backend = active_settings.storage_backend
     if storage_backend == "memory":
         return InMemoryTaskRepository()
@@ -77,7 +80,7 @@ def build_task_repository(active_settings: Settings):
     raise ValueError(f"Unsupported storage backend: {storage_backend}")
 
 
-def build_browser_automation(active_settings: Settings):
+def build_browser_automation(active_settings: Settings) -> BrowserAutomationPort:
     backend = active_settings.browser_automation_backend
     if backend == "null":
         return NullBrowserAutomation()
@@ -99,7 +102,7 @@ def build_browser_automation(active_settings: Settings):
     raise ValueError(f"Unsupported browser automation backend: {backend}")
 
 
-def build_browser_adapter(active_settings: Settings):
+def build_browser_adapter(active_settings: Settings) -> ExecutionAdapter:
     adapter = PerplexityBrowserAdapter(
         session_manager=BrowserSessionManager(
             BrowserSessionConfig(
@@ -126,7 +129,7 @@ def build_browser_adapter(active_settings: Settings):
 
 
 @asynccontextmanager
-async def app_lifespan(app: FastAPI):
+async def app_lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     yield
     logger.info("Shutting down — releasing resources")
     browser_adapter = getattr(app.state, "browser_adapter", None)

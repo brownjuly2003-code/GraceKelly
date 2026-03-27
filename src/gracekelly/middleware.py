@@ -2,9 +2,10 @@ from __future__ import annotations
 
 import hmac
 import logging
+import re
 import time
 from collections import defaultdict
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 from threading import Lock
 
 from fastapi import FastAPI, Request, Response
@@ -29,7 +30,7 @@ def setup_api_key_auth(app: FastAPI, *, api_key: str | None) -> None:
     expected_bearer = f"Bearer {api_key}"
 
     @app.middleware("http")
-    async def api_key_middleware(request: Request, call_next: Callable) -> Response:
+    async def api_key_middleware(request: Request, call_next: Callable[[Request], Awaitable[Response]]) -> Response:
         if not _is_protected(request.url.path):
             return await call_next(request)
 
@@ -94,7 +95,7 @@ class RateLimiter:
             del self._buckets[k]
 
 
-_UUID_RE = __import__("re").compile(
+_UUID_RE = re.compile(
     r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
 )
 
@@ -105,7 +106,7 @@ def _normalize_endpoint(path: str) -> str:
 
 def setup_security_headers(app: FastAPI) -> None:
     @app.middleware("http")
-    async def security_headers_middleware(request: Request, call_next: Callable) -> Response:
+    async def security_headers_middleware(request: Request, call_next: Callable[[Request], Awaitable[Response]]) -> Response:
         response = await call_next(request)
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["X-Frame-Options"] = "DENY"
@@ -117,7 +118,7 @@ def setup_security_headers(app: FastAPI) -> None:
 
 def setup_request_metrics(app: FastAPI) -> None:
     @app.middleware("http")
-    async def metrics_middleware(request: Request, call_next: Callable) -> Response:
+    async def metrics_middleware(request: Request, call_next: Callable[[Request], Awaitable[Response]]) -> Response:
         response = await call_next(request)
         metrics = getattr(request.app.state, "request_metrics", None)
         if metrics is not None:
@@ -139,7 +140,7 @@ def setup_rate_limiting(app: FastAPI, *, requests_per_minute: int | None) -> Non
     limiter = RateLimiter(requests_per_minute=requests_per_minute)
 
     @app.middleware("http")
-    async def rate_limit_middleware(request: Request, call_next: Callable) -> Response:
+    async def rate_limit_middleware(request: Request, call_next: Callable[[Request], Awaitable[Response]]) -> Response:
         if not _is_protected(request.url.path):
             return await call_next(request)
 

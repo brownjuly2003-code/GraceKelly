@@ -39,7 +39,7 @@ _LAZY_EXPORTS: dict[str, tuple[str, str]] = {
 }
 
 
-def __getattr__(name: str):
+def __getattr__(name: str) -> object:
     try:
         module_name, attr_name = _LAZY_EXPORTS[name]
     except KeyError as exc:  # pragma: no cover
