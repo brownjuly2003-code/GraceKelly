@@ -47,6 +47,9 @@ jobs:
       - name: Type check with mypy
         run: python -m mypy src/gracekelly/ --ignore-missing-imports
 
+      - name: Type check with mypy (strict)
+        run: python -m mypy --strict src/gracekelly/
+
       - name: Run tests
         run: python -m pytest -q
 
