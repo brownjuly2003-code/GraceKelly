@@ -60,8 +60,7 @@ ignore = ["E501"]
 
 [tool.mypy]
 python_version = "3.11"
-warn_return_any = false
-warn_unused_ignores = true
+strict = true
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]

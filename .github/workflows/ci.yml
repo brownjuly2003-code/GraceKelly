@@ -44,11 +44,8 @@ jobs:
       - name: Lint with ruff
         run: python -m ruff check src/ tests/
 
-      - name: Type check with mypy
-        run: python -m mypy src/gracekelly/ --ignore-missing-imports
-
       - name: Type check with mypy (strict)
-        run: python -m mypy --strict src/gracekelly/
+        run: python -m mypy src/gracekelly/
 
       - name: Run tests
         run: python -m pytest -q
