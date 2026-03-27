@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 import argparse
-from datetime import UTC, datetime
 import gzip
 import json
-from pathlib import Path
 import unittest
+from datetime import UTC, datetime
+from pathlib import Path
 from unittest.mock import patch
 from uuid import uuid4
 

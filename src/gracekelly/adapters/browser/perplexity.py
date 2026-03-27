@@ -1,15 +1,13 @@
 from __future__ import annotations
 
-from dataclasses import asdict
 import inspect
 import logging
 import time
+from dataclasses import asdict
 
 from gracekelly.adapters.browser.automation import (
-    BrowserAutomationPort,
     BrowserAuthStatus,
-    BrowserExecutionOutput,
-    BrowserModelSelection,
+    BrowserAutomationPort,
     BrowserProfileBusyError,
     NullBrowserAutomation,
 )
@@ -20,7 +18,14 @@ from gracekelly.adapters.browser.policy import (
     SubmitPolicy,
 )
 from gracekelly.adapters.browser.session import BrowserSessionManager
-from gracekelly.core.contracts import ExecutionAdapter, ExecutionMode, ExecutionRequest, ExecutionResult, FailureCode, StepStatus
+from gracekelly.core.contracts import (
+    ExecutionAdapter,
+    ExecutionMode,
+    ExecutionRequest,
+    ExecutionResult,
+    FailureCode,
+    StepStatus,
+)
 from gracekelly.core.models import models_equivalent
 
 logger = logging.getLogger(__name__)

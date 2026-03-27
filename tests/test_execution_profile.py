@@ -4,7 +4,6 @@ import unittest
 
 from gracekelly.core.execution_profile import (
     PROFILES,
-    ExecutionProfile,
     resolve_execution_profile,
 )
 

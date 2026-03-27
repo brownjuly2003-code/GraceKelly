@@ -3,9 +3,9 @@ from __future__ import annotations
 import unittest
 
 from gracekelly.core.adaptive_params import (
-    AdaptiveConsensusParams,
     _DEFAULT,
     _TASK_PARAMS,
+    AdaptiveConsensusParams,
     get_adaptive_params,
 )
 from gracekelly.core.task_classifier import TaskType

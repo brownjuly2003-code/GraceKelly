@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import unittest
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from gracekelly.api.routes.models import (
     _browser_menu_observation,
@@ -34,7 +34,7 @@ class BrowserMenuObservationTests(unittest.TestCase):
         self.assertEqual(labels, [])
 
     def test_adapter_with_valid_observation(self) -> None:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         class FakeAdapter:
             def healthcheck(self) -> dict:
@@ -88,12 +88,12 @@ class IsObservedBrowserModelAvailableTests(unittest.TestCase):
 
 class LastVerifiedAtTests(unittest.TestCase):
     def test_exact_match(self) -> None:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         result = _last_verified_at("GPT-5.4", {"GPT-5.4": now})
         self.assertEqual(result, now)
 
     def test_no_match(self) -> None:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         result = _last_verified_at("Kimi K2.5", {"GPT-5.4": now})
         self.assertIsNone(result)
 
@@ -133,7 +133,7 @@ class ModelCatalogItemTests(unittest.TestCase):
         self.assertIsNone(item.available)
 
     def test_browser_model_observed_unavailable(self) -> None:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         spec = self._browser_spec()
         item = _model_catalog_item(
             spec,
@@ -147,7 +147,7 @@ class ModelCatalogItemTests(unittest.TestCase):
         self.assertFalse(item.available)
 
     def test_browser_model_observed_unverified(self) -> None:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         spec = self._browser_spec()
         item = _model_catalog_item(
             spec,
@@ -162,7 +162,7 @@ class ModelCatalogItemTests(unittest.TestCase):
         self.assertIsNone(item.last_verified_at)
 
     def test_browser_model_observed_available_verified(self) -> None:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         spec = self._browser_spec()
         item = _model_catalog_item(
             spec,

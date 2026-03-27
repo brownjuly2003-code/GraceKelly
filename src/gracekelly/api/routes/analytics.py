@@ -3,10 +3,9 @@ from __future__ import annotations
 import logging
 
 from fastapi import APIRouter, HTTPException, Request
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
-from gracekelly.core.execution_history import ExecutionHistory
-from gracekelly.core.model_stats import ModelPerformance, aggregate_model_stats, rank_models_by_success_rate
+from gracekelly.core.model_stats import aggregate_model_stats, rank_models_by_success_rate
 
 router = APIRouter(prefix="/api/v1", tags=["analytics"])
 logger = logging.getLogger(__name__)

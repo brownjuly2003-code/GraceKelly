@@ -1,15 +1,14 @@
 from __future__ import annotations
 
-import json
 import unittest
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from gracekelly.api.routes.consensus import router
+from gracekelly.core.contracts import StepStatus
 from gracekelly.core.embeddings import EmbeddingsClient
-from gracekelly.core.contracts import ExecutionMode, StepStatus
 
 
 def _create_test_app(*, has_embeddings: bool = True, has_adapter: bool = True) -> FastAPI:

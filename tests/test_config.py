@@ -4,7 +4,7 @@ import os
 import unittest
 from unittest.mock import patch
 
-from gracekelly.config import Settings, _env_int, _env_float
+from gracekelly.config import Settings, _env_float, _env_int
 
 
 class SettingsTests(unittest.TestCase):

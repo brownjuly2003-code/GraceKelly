@@ -12,7 +12,7 @@ if TestClient is not None:
     from gracekelly.main import create_app
 
 
-def _make_client() -> "TestClient":
+def _make_client() -> TestClient:
     app = create_app(Settings(
         env="test",
         host="127.0.0.1",

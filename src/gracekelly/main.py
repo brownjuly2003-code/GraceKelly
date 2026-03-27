@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from contextlib import asynccontextmanager
 import inspect
 import logging
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
@@ -21,28 +21,28 @@ from gracekelly.adapters.browser.policy import (
 from gracekelly.adapters.browser.scripted import ScriptedBrowserAutomation, ScriptedBrowserScenario
 from gracekelly.adapters.browser.session import BrowserSessionConfig, BrowserSessionManager
 from gracekelly.adapters.dry_run import DryRunExecutionAdapter
+from gracekelly.api.routes.analytics import router as analytics_router
+from gracekelly.api.routes.batch import router as batch_router
+from gracekelly.api.routes.compare import router as compare_router
+from gracekelly.api.routes.consensus import router as consensus_router
+from gracekelly.api.routes.debate import router as debate_router
 from gracekelly.api.routes.health import router as health_router
+from gracekelly.api.routes.health_detailed import router as health_detailed_router
 from gracekelly.api.routes.models import router as models_router
 from gracekelly.api.routes.orchestrate import router as orchestrate_router
-from gracekelly.api.routes.consensus import router as consensus_router
-from gracekelly.api.routes.analytics import router as analytics_router
-from gracekelly.api.routes.smart import router as smart_router
-from gracekelly.api.routes.batch import router as batch_router
 from gracekelly.api.routes.pipeline import router as pipeline_router
-from gracekelly.api.routes.health_detailed import router as health_detailed_router
+from gracekelly.api.routes.smart import router as smart_router
 from gracekelly.api.routes.smart_v2 import router as smart_v2_router
-from gracekelly.api.routes.debate import router as debate_router
-from gracekelly.api.routes.compare import router as compare_router
 from gracekelly.config import Settings, settings
+from gracekelly.core.account_pool_manager import AccountPoolManager
 from gracekelly.core.circuit_breaker import CircuitBreakerConfig, CircuitBreakingExecutionAdapter
-from gracekelly.middleware import setup_api_key_auth, setup_rate_limiting, setup_request_metrics
-from gracekelly.request_metrics import RequestMetrics
+from gracekelly.core.embeddings import EmbeddingsClient
+from gracekelly.core.execution_history import ExecutionHistory
 from gracekelly.core.execution_profile import resolve_execution_profile
 from gracekelly.core.orchestrator import OrchestratorService
-from gracekelly.core.embeddings import EmbeddingsClient
-from gracekelly.core.account_pool_manager import AccountPoolManager
-from gracekelly.core.execution_history import ExecutionHistory
 from gracekelly.core.router import ExecutionRouter
+from gracekelly.middleware import setup_api_key_auth, setup_rate_limiting, setup_request_metrics
+from gracekelly.request_metrics import RequestMetrics
 from gracekelly.storage.memory import InMemoryTaskRepository
 
 logger = logging.getLogger(__name__)

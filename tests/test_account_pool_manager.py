@@ -5,7 +5,6 @@ import unittest
 from gracekelly.core.account_pool import Account, AccountPool
 from gracekelly.core.account_pool_manager import (
     AccountPoolManager,
-    PooledExecutionResult,
 )
 
 

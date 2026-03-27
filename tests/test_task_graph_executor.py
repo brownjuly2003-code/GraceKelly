@@ -8,7 +8,7 @@ from gracekelly.core.task_graph_builder import (
     build_parallel,
     build_sequential,
 )
-from gracekelly.core.task_graph_executor import execute_graph, TaskGraph
+from gracekelly.core.task_graph_executor import TaskGraph, execute_graph
 
 
 class ExecuteGraphTests(unittest.TestCase):

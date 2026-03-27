@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 import argparse
-from datetime import datetime
 import json
 import os
+from datetime import datetime
 
 from gracekelly.storage.postgres import PostgresTaskRepository
 from gracekelly.storage.schema import INITIAL_MIGRATION_NAME

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
 import unittest
+from datetime import UTC, datetime
 
 from gracekelly.core.contracts import FailureCode, MergeStrategy, StepStatus, TaskStatus
 from gracekelly.schemas import OrchestrateResponse, TaskStepView
@@ -46,7 +46,7 @@ class FailureCodeTests(unittest.TestCase):
         self.assertEqual(report["schema_version"], "not_applicable")
 
     def test_orchestrate_response_prefers_completed_adapter_over_cancelled_steps(self) -> None:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         task = TaskRecord(
             task_id="task-1",
             status=TaskStatus.COMPLETED,

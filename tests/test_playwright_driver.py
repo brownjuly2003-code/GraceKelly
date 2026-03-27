@@ -4,8 +4,8 @@ import unittest
 
 from gracekelly.adapters.browser.automation import BrowserProfileBusyError
 from gracekelly.adapters.browser.playwright_driver import PlaywrightBrowserAutomation
-from gracekelly.adapters.browser.session import BrowserSessionConfig, BrowserSessionManager
 from gracekelly.adapters.browser.policy import AuthRecoveryPolicy, ModelVerificationPolicy
+from gracekelly.adapters.browser.session import BrowserSessionConfig, BrowserSessionManager
 
 
 class _FakeLocator:
@@ -26,7 +26,7 @@ class _FakeLocator:
         self._on_click = on_click
 
     @property
-    def first(self) -> "_FakeLocator":
+    def first(self) -> _FakeLocator:
         return self
 
     def is_visible(self) -> bool:

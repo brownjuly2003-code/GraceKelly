@@ -1,11 +1,10 @@
 from __future__ import annotations
 
 import unittest
-from datetime import datetime, timezone
 
 from pydantic import ValidationError
 
-from gracekelly.core.contracts import StepStatus, TaskStatus, MergeStrategy
+from gracekelly.core.contracts import MergeStrategy, StepStatus
 from gracekelly.schemas import OrchestrateRequest, TaskStepView
 from gracekelly.storage.base import TaskStepRecord
 

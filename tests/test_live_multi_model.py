@@ -2,23 +2,26 @@ from __future__ import annotations
 
 import json
 import os
-from pathlib import Path
 import time
 import unittest
+from pathlib import Path
 
 from gracekelly.adapters.browser.perplexity import PerplexityBrowserAdapter
 from gracekelly.adapters.browser.playwright_driver import PlaywrightBrowserAutomation, PlaywrightBrowserRuntimeConfig
 from gracekelly.adapters.browser.policy import AuthRecoveryPolicy, ModelVerificationPolicy, PopupPolicy, SubmitPolicy
 from gracekelly.adapters.browser.session import BrowserSessionConfig, BrowserSessionManager
-from gracekelly.core.consensus import ConsensusConfig
-from gracekelly.core.consensus_execution import ConsensusExecutionConfig, ConsensusExecutor
-from gracekelly.core.contracts import ExecutionBackend, ExecutionPlan, ExecutionRequest, ExecutionStep, MergeStrategy, StepStatus
+from gracekelly.core.cluster_confidence import compute_cluster_confidence
+from gracekelly.core.clustering_hac import hac_cluster
+from gracekelly.core.contracts import (
+    ExecutionBackend,
+    ExecutionPlan,
+    ExecutionRequest,
+    ExecutionStep,
+    MergeStrategy,
+)
 from gracekelly.core.embeddings import EmbeddingsClient
 from gracekelly.core.models import resolve_model
 from gracekelly.core.similarity import cosine_similarity
-from gracekelly.core.clustering_hac import hac_cluster
-from gracekelly.core.cluster_confidence import compute_cluster_confidence
-
 
 LIVE_MODELS = ["GPT-5.4", "Gemini 3.1 Pro", "Claude Sonnet 4.6"]
 LIVE_PROMPT = "What are the three most important principles of software engineering? Be concise — one sentence per principle."

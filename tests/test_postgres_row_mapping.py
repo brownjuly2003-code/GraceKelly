@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import unittest
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from gracekelly.core.contracts import (
     AdapterHint,
@@ -28,8 +28,8 @@ class TaskFromRowTests(unittest.TestCase):
         base = {
             "task_id": "t1",
             "status": "completed",
-            "accepted_at": datetime(2026, 3, 19, tzinfo=timezone.utc),
-            "completed_at": datetime(2026, 3, 19, 0, 1, tzinfo=timezone.utc),
+            "accepted_at": datetime(2026, 3, 19, tzinfo=UTC),
+            "completed_at": datetime(2026, 3, 19, 0, 1, tzinfo=UTC),
             "duration_ms": 500,
             "prompt": "Hello",
             "reasoning": False,
@@ -147,7 +147,7 @@ class EventFromRowTests(unittest.TestCase):
             "task_id": "t1",
             "sequence_no": 1,
             "event_type": "task.accepted",
-            "created_at": datetime(2026, 3, 19, tzinfo=timezone.utc),
+            "created_at": datetime(2026, 3, 19, tzinfo=UTC),
             "payload": {"execution_plan": {}},
         }
         base.update(overrides)
@@ -192,8 +192,8 @@ class TaskParamsTests(unittest.TestCase):
         task = TaskRecord(
             task_id="t1",
             status=TaskStatus.COMPLETED,
-            accepted_at=datetime(2026, 3, 19, tzinfo=timezone.utc),
-            completed_at=datetime(2026, 3, 19, 0, 1, tzinfo=timezone.utc),
+            accepted_at=datetime(2026, 3, 19, tzinfo=UTC),
+            completed_at=datetime(2026, 3, 19, 0, 1, tzinfo=UTC),
             duration_ms=500,
             prompt="Hi",
             reasoning=False,

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from datetime import datetime
 import json
+from datetime import datetime
 from typing import Any
 
 from pydantic import BaseModel, Field, model_validator
@@ -23,7 +23,7 @@ class OrchestrateRequest(BaseModel):
     dry_run: bool = True
 
     @model_validator(mode="after")
-    def validate_model_selection(self) -> "OrchestrateRequest":
+    def validate_model_selection(self) -> OrchestrateRequest:
         if self.model is None and not self.models:
             raise ValueError("Either 'model' or 'models' must be provided.")
         if self.model is not None and self.models:
@@ -68,7 +68,7 @@ class TaskEventView(BaseModel):
     payload: dict[str, Any]
 
     @classmethod
-    def from_record(cls, event: TaskEventRecord) -> "TaskEventView":
+    def from_record(cls, event: TaskEventRecord) -> TaskEventView:
         return cls(
             event_id=event.event_id,
             sequence_no=event.sequence_no,
@@ -97,7 +97,7 @@ class TaskStepView(BaseModel):
         record: TaskStepRecord,
         *,
         max_output_length: int = 20_000,
-    ) -> "TaskStepView":
+    ) -> TaskStepView:
         output = record.output_text
         truncated = False
         if output is not None and len(output) > max_output_length:
@@ -139,7 +139,7 @@ class OrchestrateResponse(BaseModel):
         steps: list[TaskStepRecord] | None = None,
         events: list[TaskEventRecord] | None = None,
         requested_models_override: list[ModelView] | None = None,
-    ) -> "OrchestrateResponse":
+    ) -> OrchestrateResponse:
         step_records = list(steps or [])
         event_records = list(events or [])
         return cls(
@@ -181,7 +181,7 @@ class TaskListItem(BaseModel):
         task: TaskRecord,
         steps: list[TaskStepRecord] | None = None,
         events: list[TaskEventRecord] | None = None,
-    ) -> "TaskListItem":
+    ) -> TaskListItem:
         step_records = list(steps or [])
         event_records = list(events or [])
         cancelled_step_count, cancel_reason = _resolve_cancel_summary(task, step_records, event_records)
@@ -226,7 +226,7 @@ class TaskView(OrchestrateResponse):
         task: TaskRecord,
         steps: list[TaskStepRecord] | None = None,
         events: list[TaskEventRecord] | None = None,
-    ) -> "TaskView":
+    ) -> TaskView:
         step_records = list(steps or [])
         event_records = list(events or [])
         terminal_summary = _resolve_terminal_summary(event_records)

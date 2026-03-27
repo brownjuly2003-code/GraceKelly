@@ -3,7 +3,6 @@ from __future__ import annotations
 import unittest
 
 from gracekelly.core.cluster_confidence import (
-    ClusterConfidenceResult,
     compute_cluster_confidence,
 )
 

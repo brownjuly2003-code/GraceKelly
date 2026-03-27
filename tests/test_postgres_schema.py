@@ -1,9 +1,18 @@
 from __future__ import annotations
 
-from dataclasses import fields
 import unittest
+from dataclasses import fields
 
-from gracekelly.core.contracts import AdapterHint, EventType, ExecutionMode, FailureCode, MergeStrategy, StepStatus, TaskStatus
+from gracekelly.core.contracts import (
+    AdapterHint,
+    EventType,
+    ExecutionMode,
+    FailureCode,
+    MergeStrategy,
+    StepStatus,
+    TaskStatus,
+)
+from gracekelly.storage.base import TaskRecord, TaskStepRecord
 from gracekelly.storage.postgres import PostgresTaskRepository
 from gracekelly.storage.schema import (
     EXPECTED_SCHEMA_COLUMNS,
@@ -12,7 +21,6 @@ from gracekelly.storage.schema import (
     load_migration_sql,
     split_sql_statements,
 )
-from gracekelly.storage.base import TaskRecord, TaskStepRecord
 
 
 class PostgresSchemaTests(unittest.TestCase):

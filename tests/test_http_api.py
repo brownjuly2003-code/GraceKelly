@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from datetime import UTC, datetime
 import unittest
+from datetime import UTC, datetime
 from unittest.mock import AsyncMock, patch
 
 try:
@@ -983,7 +983,7 @@ class HttpApiSmokeTests(unittest.TestCase):
         # Patch the original task to "failed" for retry
         repo = self.client.app.state.orchestrator_service._repository
         task = repo.get(original_id)
-        from gracekelly.core.contracts import TaskStatus, FailureCode
+        from gracekelly.core.contracts import FailureCode, TaskStatus
         task.status = TaskStatus.FAILED
         task.failure_code = FailureCode.TIMEOUT
         task.failure_message = "timed out"

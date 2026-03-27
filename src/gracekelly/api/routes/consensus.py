@@ -8,13 +8,12 @@ from pydantic import BaseModel, Field
 from gracekelly.core.consensus import ConsensusConfig
 from gracekelly.core.consensus_execution import ConsensusExecutionConfig, ConsensusExecutor
 from gracekelly.core.contracts import (
+    AdapterHint,
     ExecutionBackend,
-    ExecutionMode,
     ExecutionPlan,
     ExecutionRequest,
     ExecutionStep,
     MergeStrategy,
-    AdapterHint,
     StepStatus,
 )
 from gracekelly.core.models import resolve_model

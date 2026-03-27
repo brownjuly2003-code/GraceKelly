@@ -5,7 +5,6 @@ import unittest
 from gracekelly.adapters.browser.perplexity import PerplexityBrowserAdapter
 from gracekelly.adapters.browser.session import BrowserSessionConfig, BrowserSessionManager
 from gracekelly.adapters.dry_run import DryRunExecutionAdapter
-from gracekelly.core.circuit_breaker import CircuitBreakerConfig, CircuitBreakingExecutionAdapter
 from gracekelly.core.execution_profile import resolve_execution_profile
 from gracekelly.core.readiness import SupportsHealthcheck, build_readiness_report
 from gracekelly.core.router import ExecutionRouter

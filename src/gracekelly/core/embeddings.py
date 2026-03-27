@@ -3,7 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 from threading import Lock
-from urllib import error, request
+from urllib import request
 
 
 class EmbeddingsClient:

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
 import unittest
+from datetime import UTC, datetime
 
 from gracekelly.adapters.dry_run import DryRunExecutionAdapter
 from gracekelly.core.contracts import ExecutionBatchResult, ExecutionMode, ExecutionResult, StepStatus, TaskStatus
@@ -315,7 +315,7 @@ class OrchestratorServiceTests(unittest.TestCase):
                 cancel_on_quorum=False,
             )
         )
-        accepted_at = datetime.now(timezone.utc)
+        accepted_at = datetime.now(UTC)
         task = TaskRecord(
             task_id="task-mismatch",
             status=TaskStatus.COMPLETED,

@@ -7,8 +7,8 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from gracekelly.api.routes.smart_v2 import router
-from gracekelly.core.embeddings import EmbeddingsClient
 from gracekelly.core.contracts import StepStatus
+from gracekelly.core.embeddings import EmbeddingsClient
 
 
 def _create_test_app(*, has_embeddings: bool = True) -> FastAPI:

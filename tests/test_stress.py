@@ -1,10 +1,9 @@
 from __future__ import annotations
 
-from concurrent.futures import ThreadPoolExecutor
-from datetime import UTC, datetime, timedelta
 import unittest
+from concurrent.futures import ThreadPoolExecutor
 
-from gracekelly.core.account_pool import Account, AccountPool, AccountPoolConfig
+from gracekelly.core.account_pool import Account, AccountPool
 from gracekelly.core.circuit_breaker import CircuitBreakerConfig, CircuitBreakingExecutionAdapter
 from gracekelly.core.concurrency import ModelConcurrencyGate
 from gracekelly.core.contracts import (

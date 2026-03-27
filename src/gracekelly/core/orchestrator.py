@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from datetime import datetime, timezone
 import json
 import logging
+from dataclasses import dataclass, field
+from datetime import UTC, datetime
 from uuid import uuid4
 
 from gracekelly.core.contracts import (
@@ -18,8 +18,8 @@ from gracekelly.core.contracts import (
     TaskStatus,
 )
 from gracekelly.core.planning import build_execution_plan
-from gracekelly.logging_utils import log_message, trace_id_from_metadata
 from gracekelly.core.router import ExecutionRouter
+from gracekelly.logging_utils import log_message, trace_id_from_metadata
 from gracekelly.schemas import OrchestrateRequest
 from gracekelly.storage.base import TaskEventRecord, TaskRecord, TaskRepository, TaskStepRecord
 
@@ -93,7 +93,7 @@ class OrchestratorService:
                 merge_strategy=execution_plan.merge_strategy,
             )
         )
-        accepted_at = datetime.now(timezone.utc)
+        accepted_at = datetime.now(UTC)
         batch_result = self._execution_router.execute(
             task_id=task_id,
             prompt=request.prompt,
@@ -101,7 +101,7 @@ class OrchestratorService:
             reasoning=request.reasoning,
             metadata=dict(request.metadata),
         )
-        completed_at = datetime.now(timezone.utc)
+        completed_at = datetime.now(UTC)
         duration_ms = max(0, int((completed_at - accepted_at).total_seconds() * 1000))
 
         task = TaskRecord(

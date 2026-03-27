@@ -1,14 +1,9 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, replace
-from typing import Callable
+from collections.abc import Callable
+from dataclasses import dataclass
 
-from gracekelly.core.contracts import (
-    ExecutionAdapter,
-    ExecutionRequest,
-    ExecutionResult,
-)
-from gracekelly.core.roles import Role, RoleType, get_role, format_prompt_with_role
+from gracekelly.core.roles import Role, RoleType, format_prompt_with_role, get_role
 
 
 @dataclass(frozen=True, slots=True)

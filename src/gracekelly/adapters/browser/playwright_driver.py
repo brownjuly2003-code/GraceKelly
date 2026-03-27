@@ -1,10 +1,11 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from datetime import UTC, datetime
 import logging
 import time
-from typing import Any, Callable
+from collections.abc import Callable
+from dataclasses import dataclass, field
+from datetime import UTC, datetime
+from typing import Any
 
 from gracekelly.adapters.browser.automation import (
     BrowserAuthStatus,

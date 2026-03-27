@@ -1,19 +1,17 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
 import unittest
+from datetime import UTC, datetime
 
-from gracekelly.storage.base import TaskRecord
-from gracekelly.storage.base import TaskEventRecord
-from gracekelly.storage.base import TaskStepRecord
+from gracekelly.storage.base import TaskEventRecord, TaskRecord, TaskStepRecord
 from gracekelly.storage.memory import InMemoryTaskRepository
 
 
 class InMemoryRepositoryTests(unittest.TestCase):
     def test_list_recent_orders_tasks_by_accepted_at_desc(self) -> None:
         repository = InMemoryTaskRepository()
-        older = datetime(2026, 3, 17, 10, 0, tzinfo=timezone.utc)
-        newer = datetime(2026, 3, 17, 10, 5, tzinfo=timezone.utc)
+        older = datetime(2026, 3, 17, 10, 0, tzinfo=UTC)
+        newer = datetime(2026, 3, 17, 10, 5, tzinfo=UTC)
         repository.save_task_with_steps(
             TaskRecord(
                 task_id="task-older",
@@ -59,7 +57,7 @@ class InMemoryRepositoryTests(unittest.TestCase):
 
     def test_list_recent_can_filter_by_status_and_dry_run(self) -> None:
         repository = InMemoryTaskRepository()
-        accepted_at = datetime(2026, 3, 17, 10, 0, tzinfo=timezone.utc)
+        accepted_at = datetime(2026, 3, 17, 10, 0, tzinfo=UTC)
         repository.save_task_with_steps(
             TaskRecord(
                 task_id="task-completed",
@@ -112,7 +110,7 @@ class InMemoryRepositoryTests(unittest.TestCase):
 
     def test_list_events_orders_by_sequence_number(self) -> None:
         repository = InMemoryTaskRepository()
-        created_at = datetime.now(timezone.utc)
+        created_at = datetime.now(UTC)
         repository.append_event(
             TaskEventRecord(
                 event_id="event-2",
@@ -141,7 +139,7 @@ class InMemoryRepositoryTests(unittest.TestCase):
 
     def test_append_event_rejects_duplicate_sequence_number_per_task(self) -> None:
         repository = InMemoryTaskRepository()
-        created_at = datetime.now(timezone.utc)
+        created_at = datetime.now(UTC)
         repository.append_event(
             TaskEventRecord(
                 event_id="event-1",
@@ -167,7 +165,7 @@ class InMemoryRepositoryTests(unittest.TestCase):
 
     def test_replace_task_snapshot_replaces_steps_and_events_for_task(self) -> None:
         repository = InMemoryTaskRepository()
-        created_at = datetime.now(timezone.utc)
+        created_at = datetime.now(UTC)
         repository.save_task_with_steps(
             TaskRecord(
                 task_id="task-1",

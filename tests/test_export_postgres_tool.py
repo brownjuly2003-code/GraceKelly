@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 import argparse
-from datetime import UTC, datetime
 import gzip
 import json
-from pathlib import Path
 import unittest
+from datetime import UTC, datetime
+from pathlib import Path
 from unittest.mock import patch
 from uuid import uuid4
 
@@ -50,7 +50,14 @@ class ExportPostgresToolTests(unittest.TestCase):
         self.assertIn("--limit must be at least 1", payload["error"])
 
     def test_collect_export_snapshot_includes_nested_steps_and_events(self) -> None:
-        from gracekelly.core.contracts import AdapterHint, EventType, ExecutionMode, MergeStrategy, StepStatus, TaskStatus
+        from gracekelly.core.contracts import (
+            AdapterHint,
+            EventType,
+            ExecutionMode,
+            MergeStrategy,
+            StepStatus,
+            TaskStatus,
+        )
         from gracekelly.storage.base import TaskEventRecord, TaskRecord, TaskStepRecord
         from gracekelly.storage.memory import InMemoryTaskRepository
 

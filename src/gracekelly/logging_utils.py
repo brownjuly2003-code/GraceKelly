@@ -1,8 +1,9 @@
 from __future__ import annotations
 
-from enum import Enum
 import json
-from typing import Any, Mapping
+from collections.abc import Mapping
+from enum import Enum
+from typing import Any
 
 
 def _normalize_log_value(value: object) -> object:

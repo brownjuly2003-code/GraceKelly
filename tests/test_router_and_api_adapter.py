@@ -6,7 +6,14 @@ import unittest
 from gracekelly.adapters.api.mistral import MistralApiAdapter
 from gracekelly.adapters.api.openai_compat import OpenAICompatibleApiAdapter
 from gracekelly.adapters.dry_run import DryRunExecutionAdapter
-from gracekelly.core.contracts import ExecutionMode, ExecutionRequest, ExecutionResult, FailureCode, StepStatus, TaskStatus
+from gracekelly.core.contracts import (
+    ExecutionMode,
+    ExecutionRequest,
+    ExecutionResult,
+    FailureCode,
+    StepStatus,
+    TaskStatus,
+)
 from gracekelly.core.planning import build_execution_plan
 from gracekelly.core.router import ExecutionRouter
 from gracekelly.schemas import OrchestrateRequest

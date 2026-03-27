@@ -1,15 +1,23 @@
 from __future__ import annotations
 
 import argparse
-from collections import Counter
-from datetime import datetime
 import json
 import os
+from collections import Counter
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
 from gracekelly import __version__
-from gracekelly.core.contracts import AdapterHint, EventType, ExecutionMode, FailureCode, MergeStrategy, StepStatus, TaskStatus
+from gracekelly.core.contracts import (
+    AdapterHint,
+    EventType,
+    ExecutionMode,
+    FailureCode,
+    MergeStrategy,
+    StepStatus,
+    TaskStatus,
+)
 from gracekelly.storage.base import TaskEventRecord, TaskRecord, TaskStepRecord
 from gracekelly.storage.postgres import PostgresTaskRepository
 from gracekelly.storage.schema import INITIAL_MIGRATION_NAME
@@ -22,11 +30,13 @@ from gracekelly.tools.snapshot_artifact import (
     manifest_count,
     manifest_status,
     migration_status,
-    missing_task_ids as snapshot_missing_task_ids,
     missing_task_ids_status,
-    snapshot_status_consistency_status,
     selection_status,
+    snapshot_status_consistency_status,
     validate_manifest,
+)
+from gracekelly.tools.snapshot_artifact import (
+    missing_task_ids as snapshot_missing_task_ids,
 )
 from gracekelly.tools.snapshot_digest import SNAPSHOT_FORMAT_VERSION, compute_snapshot_sha256
 from gracekelly.tools.snapshot_io import read_snapshot_text

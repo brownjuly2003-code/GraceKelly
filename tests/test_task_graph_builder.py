@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import unittest
 
-from gracekelly.core.task_graph import SubTaskStatus
 from gracekelly.core.task_graph_builder import (
     build_fan_out_fan_in,
     build_parallel,

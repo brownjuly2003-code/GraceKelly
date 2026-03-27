@@ -3,7 +3,6 @@ from __future__ import annotations
 import io
 import json
 import unittest
-from http.client import HTTPResponse
 from unittest.mock import MagicMock, patch
 from urllib import error
 

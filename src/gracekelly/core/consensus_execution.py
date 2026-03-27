@@ -1,7 +1,7 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Callable
 
 from gracekelly.core.confidence import extract_batch_confidence, weighted_vote
 from gracekelly.core.consensus import ConsensusConfig, ConsensusResult, needs_another_round

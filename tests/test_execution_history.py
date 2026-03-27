@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import unittest
 
-from gracekelly.core.execution_history import ExecutionHistory, ExecutionRecord
+from gracekelly.core.execution_history import ExecutionHistory
 from gracekelly.core.task_classifier import TaskType
 
 

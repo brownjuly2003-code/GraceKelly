@@ -12,7 +12,6 @@ from gracekelly.core.decomposition import (
     execute_decomposed,
 )
 
-
 SIMPLE_PROMPT = "What is 2+2?"
 COMPLEX_PROMPT = (
     "Compare and analyze the relationship between inflation and unemployment, "

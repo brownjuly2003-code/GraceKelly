@@ -3,7 +3,6 @@ from __future__ import annotations
 import unittest
 
 from gracekelly.core.cross_pollination import (
-    CrossPollinationResult,
     build_cross_pollination_prompt,
     cross_pollinate,
 )

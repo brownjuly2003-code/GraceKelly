@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 import argparse
-from datetime import date, datetime, UTC
 import json
 import os
-from pathlib import Path
 import time
+from datetime import UTC, date, datetime
+from pathlib import Path
 from typing import Any
 
 from gracekelly.adapters.browser.playwright_driver import PlaywrightBrowserAutomation, PlaywrightBrowserRuntimeConfig

@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from datetime import datetime
 import json
 import logging
+from datetime import datetime
 from typing import Any
 
 try:
@@ -17,7 +17,15 @@ try:
 except ModuleNotFoundError:  # pragma: no cover
     ConnectionPool = None
 
-from gracekelly.core.contracts import AdapterHint, EventType, ExecutionMode, FailureCode, MergeStrategy, StepStatus, TaskStatus
+from gracekelly.core.contracts import (
+    AdapterHint,
+    EventType,
+    ExecutionMode,
+    FailureCode,
+    MergeStrategy,
+    StepStatus,
+    TaskStatus,
+)
 from gracekelly.storage.base import TaskEventRecord, TaskRecord, TaskRepository, TaskStepRecord
 from gracekelly.storage.schema import (
     EXPECTED_SCHEMA_COLUMNS,

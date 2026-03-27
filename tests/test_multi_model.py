@@ -10,7 +10,7 @@ from gracekelly.core.contracts import (
     StepStatus,
 )
 from gracekelly.core.models import ModelSpec
-from gracekelly.core.multi_model import MultiModelExecutor, MultiModelResult
+from gracekelly.core.multi_model import MultiModelExecutor
 
 
 def _make_spec(

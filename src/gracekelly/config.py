@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 import logging
 import os
+from dataclasses import dataclass
 
 logger = logging.getLogger(__name__)
 
@@ -69,7 +69,7 @@ class Settings:
     browser_scripted_output_text: str = "scripted browser result"
 
     @classmethod
-    def from_env(cls) -> "Settings":
+    def from_env(cls) -> Settings:
         return cls(
             env=os.getenv("GRACEKELLY_ENV", "development"),
             host=os.getenv("GRACEKELLY_HOST", "127.0.0.1"),

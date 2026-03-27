@@ -3,7 +3,6 @@ from __future__ import annotations
 import unittest
 
 from gracekelly.core.debate_round import (
-    DebateResult,
     build_challenge_prompt,
     build_defense_prompt,
     run_debate,

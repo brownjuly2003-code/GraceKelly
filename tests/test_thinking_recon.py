@@ -2,12 +2,10 @@ from __future__ import annotations
 
 import json
 import os
-from pathlib import Path
 import unittest
+from pathlib import Path
 
-from gracekelly.adapters.browser.perplexity import PerplexityBrowserAdapter
 from gracekelly.adapters.browser.playwright_driver import PlaywrightBrowserAutomation, PlaywrightBrowserRuntimeConfig
-from gracekelly.adapters.browser.policy import AuthRecoveryPolicy, ModelVerificationPolicy, PopupPolicy, SubmitPolicy
 from gracekelly.adapters.browser.selectors import PerplexitySelectors
 from gracekelly.adapters.browser.session import BrowserSessionConfig, BrowserSessionManager
 

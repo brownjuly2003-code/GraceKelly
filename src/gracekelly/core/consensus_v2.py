@@ -1,13 +1,12 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Callable
 
 from gracekelly.core.adaptive_params import AdaptiveConsensusParams, get_adaptive_params
 from gracekelly.core.cluster_confidence import compute_cluster_confidence
 from gracekelly.core.clustering_hac import hac_cluster
 from gracekelly.core.consensus import ClusterInfo, ConsensusResult
-from gracekelly.core.cross_pollination import cross_pollinate
 from gracekelly.core.debate_round import run_debate
 from gracekelly.core.divergence import DivergenceAction, assess_divergence
 from gracekelly.core.peer_review_reranker import build_review_prompt, parse_rankings, rerank_cluster

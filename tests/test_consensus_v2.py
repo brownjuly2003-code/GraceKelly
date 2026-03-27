@@ -75,9 +75,6 @@ class TestConsensusV2(unittest.TestCase):
         self.assertEqual(result.final_result.status, DivergenceAction.ACCEPT)
 
     def test_debate_triggered_on_moderate_consensus(self):
-        call_idx = [0]
-        embeddings_sequence: list[list[list[float]]] = []
-
         def make_diverse_embeddings(texts):
             n = len(texts)
             vecs = []
@@ -104,7 +101,7 @@ class TestConsensusV2(unittest.TestCase):
             return "response"
 
         executor = ConsensusExecutorV2(client, config)
-        result = executor.execute("analyze this", mock_execute)
+        executor.execute("analyze this", mock_execute)
         self.assertGreater(len(debate_calls), 0)
 
     def test_dissenting_views_populated(self):

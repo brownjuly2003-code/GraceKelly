@@ -4,8 +4,8 @@ import hmac
 import logging
 import time
 from collections import defaultdict
+from collections.abc import Callable
 from threading import Lock
-from typing import Callable
 
 from fastapi import FastAPI, Request, Response
 from fastapi.responses import JSONResponse

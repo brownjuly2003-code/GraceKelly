@@ -3,8 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from gracekelly.core.contracts import MergeStrategy
-from gracekelly.core.patterns import ExecutionPattern, PatternConfig, get_pattern_config
-from gracekelly.core.reliability import ReliabilityLevel, ReliabilityConfig, get_reliability_config
+from gracekelly.core.patterns import ExecutionPattern, get_pattern_config
+from gracekelly.core.reliability import ReliabilityLevel, get_reliability_config
 from gracekelly.core.roles import RoleType
 
 

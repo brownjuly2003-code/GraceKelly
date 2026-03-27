@@ -4,7 +4,6 @@ import unittest
 
 from gracekelly.core.divergence import (
     DivergenceAction,
-    DivergenceResult,
     assess_divergence,
 )
 

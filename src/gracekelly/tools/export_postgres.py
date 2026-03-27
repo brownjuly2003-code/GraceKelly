@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 import argparse
-from dataclasses import asdict, is_dataclass
-from datetime import UTC, datetime
 import json
 import os
+from dataclasses import asdict, is_dataclass
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -17,8 +17,8 @@ from gracekelly.tools.snapshot_artifact import (
     manifest_count_status,
     manifest_status,
     missing_task_ids_status,
-    snapshot_status_consistency_status,
     selection_status,
+    snapshot_status_consistency_status,
     validate_manifest,
 )
 from gracekelly.tools.snapshot_digest import SNAPSHOT_FORMAT_VERSION, compute_snapshot_sha256

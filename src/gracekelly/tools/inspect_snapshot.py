@@ -19,8 +19,8 @@ from gracekelly.tools.snapshot_artifact import (
     migration_status,
     missing_task_ids,
     missing_task_ids_status,
-    snapshot_status_consistency_status,
     selection_status,
+    snapshot_status_consistency_status,
 )
 from gracekelly.tools.snapshot_digest import SNAPSHOT_FORMAT_VERSION
 from gracekelly.tools.snapshot_io import read_snapshot_text

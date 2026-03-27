@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import unittest
 
-from gracekelly.core.clustering_hac import HacResult, hac_cluster, _avg_linkage
+from gracekelly.core.clustering_hac import _avg_linkage, hac_cluster
 
 
 class TestHacCluster(unittest.TestCase):

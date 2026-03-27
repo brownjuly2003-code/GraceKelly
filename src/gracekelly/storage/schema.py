@@ -1,9 +1,8 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Iterable, Mapping
 from importlib.resources import files
-from typing import Iterable, Mapping
-
 
 INITIAL_MIGRATION_NAME = "0001_initial"
 

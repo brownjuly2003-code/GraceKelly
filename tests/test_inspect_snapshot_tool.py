@@ -3,8 +3,8 @@ from __future__ import annotations
 import argparse
 import gzip
 import json
-from pathlib import Path
 import unittest
+from pathlib import Path
 from unittest.mock import patch
 from uuid import uuid4
 
