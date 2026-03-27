@@ -50,7 +50,7 @@ class BaseApiAdapter(ExecutionAdapter):
                 f"{self._provider_label} API key is not configured.",
             )
 
-        payload = {
+        payload: dict[str, object] = {
             "model": request_model.step.provider_model_id,
             "messages": [{"role": "user", "content": request_model.prompt}],
         }

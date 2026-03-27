@@ -77,7 +77,7 @@ def _normalize(value: Any) -> Any:
 
 def serialize_record(record: Any) -> dict[str, Any]:
     if is_dataclass(record):
-        return _normalize(asdict(record))
+        return _normalize(asdict(record))  # type: ignore[arg-type]
     raise TypeError(f"Expected dataclass record, got {type(record).__name__}")
 
 

@@ -30,8 +30,8 @@ def execute_graph(
 
         if skip_on_dependency_failure:
             dep_blocked = any(
-                graph.get_task(dep) is not None
-                and graph.get_task(dep).status in (SubTaskStatus.FAILED, SubTaskStatus.SKIPPED)
+                (dep_task := graph.get_task(dep)) is not None
+                and dep_task.status in (SubTaskStatus.FAILED, SubTaskStatus.SKIPPED)
                 for dep in task.dependencies
             )
             if dep_blocked:

@@ -19,7 +19,6 @@ def build_execution_plan(request: OrchestrateRequest) -> ExecutionPlan:
         seen_model_ids.add(model.id)
         requested_models.append(model)
 
-    requested_models = tuple(requested_models)
     if request.reasoning:
         unsupported_reasoning_models = [
             model.display_name for model in requested_models if not model.reasoning_capable

@@ -226,6 +226,7 @@ class TaskView(OrchestrateResponse):
         task: TaskRecord,
         steps: list[TaskStepRecord] | None = None,
         events: list[TaskEventRecord] | None = None,
+        requested_models_override: list[ModelView] | None = None,
     ) -> TaskView:
         step_records = list(steps or [])
         event_records = list(events or [])

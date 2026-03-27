@@ -66,10 +66,7 @@ class CircuitBreakingExecutionAdapter(ExecutionAdapter):
         self._last_failure_code: FailureCode | None = None
         self._last_failure_message: str | None = None
         self._last_failure_at: datetime | None = None
-
-    @property
-    def name(self) -> str:
-        return getattr(self._adapter, "name", "unknown")
+        self.name: str = getattr(self._adapter, "name", "unknown")
 
     @property
     def automation(self) -> Any:

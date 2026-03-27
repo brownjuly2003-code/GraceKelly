@@ -246,14 +246,12 @@ class PostgresTaskRepository(TaskRepository):
                 return self._applied_migrations(cursor)
 
     @staticmethod
-    def _applied_migrations(cursor: Any) -> set[str]:
+    def _applied_migrations(cursor: Any) -> list[str]:
         try:
-            cursor.execute(
-                "SELECT name FROM gk_schema_migrations ORDER BY name"
-            )
-            return {row[0] for row in cursor.fetchall()}
+            cursor.execute("SELECT name FROM gk_schema_migrations ORDER BY name")
+            return [row[0] for row in cursor.fetchall()]
         except Exception:
-            return set()
+            return []
 
     def save_task_with_steps(
         self,
@@ -445,7 +443,7 @@ class PostgresTaskRepository(TaskRepository):
     def schema_report(self) -> dict[str, Any]:
         try:
             actual_columns = self._load_schema_columns()
-            diff = compute_schema_diff(actual_columns)
+            diff: Any = compute_schema_diff(actual_columns)
             missing_tables = diff["missing_tables"]
             missing_columns = diff["missing_columns"]
             if missing_tables or missing_columns:

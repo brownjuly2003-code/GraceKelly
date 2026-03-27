@@ -100,7 +100,7 @@ def _task_from_snapshot(payload: dict[str, Any]) -> TaskRecord:
     return TaskRecord(
         task_id=payload["task_id"],
         status=TaskStatus(payload["status"]),
-        accepted_at=_parse_datetime(payload["accepted_at"]),
+        accepted_at=_parse_datetime(payload["accepted_at"]),  # type: ignore[arg-type]
         completed_at=_parse_datetime(payload.get("completed_at")),
         duration_ms=payload.get("duration_ms"),
         prompt=payload["prompt"],
@@ -141,7 +141,7 @@ def _event_from_snapshot(payload: dict[str, Any]) -> TaskEventRecord:
         task_id=payload["task_id"],
         sequence_no=payload["sequence_no"],
         event_type=EventType(payload["event_type"]),
-        created_at=_parse_datetime(payload["created_at"]),
+        created_at=_parse_datetime(payload["created_at"]),  # type: ignore[arg-type]
         payload=dict(payload.get("payload", {})),
     )
 

@@ -41,7 +41,7 @@ class AnthropicApiAdapter(BaseApiAdapter):
             f"{self._base_url}{path}",
             data=body,
             headers={
-                "x-api-key": self._api_key,
+                "x-api-key": self._api_key or "",
                 "anthropic-version": self._anthropic_version,
                 "Content-Type": "application/json",
                 "Accept": "application/json",
