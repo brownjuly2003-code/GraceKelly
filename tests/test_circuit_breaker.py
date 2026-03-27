@@ -210,5 +210,208 @@ class CircuitBreakingExecutionAdapterTests(unittest.TestCase):
         self.assertEqual(breaker.healthcheck()["circuit_breaker"]["state"], "closed")
 
 
+class CircuitBreakerDisabledTests(unittest.TestCase):
+    """When enabled=False the adapter passes through without any breaker logic."""
+
+    def build_request(self) -> ExecutionRequest:
+        model = resolve_model("Kimi K2")
+        step = ExecutionStep(
+            model=model,
+            backend=ExecutionBackend.BROWSER,
+            provider=model.provider,
+            provider_model_id=model.provider_model_id,
+            step_index=0,
+        )
+        return ExecutionRequest(
+            task_id="t-disabled",
+            prompt="hi",
+            plan=ExecutionPlan(
+                steps=(step,),
+                quorum=1,
+                merge_strategy=MergeStrategy.FIRST_SUCCESS,
+                dry_run=False,
+                adapter_hint="auto",
+                cancel_on_quorum=False,
+            ),
+            step=step,
+            reasoning=False,
+        )
+
+    def build_failure(self) -> ExecutionResult:
+        model = resolve_model("Kimi K2")
+        return ExecutionResult(
+            adapter_name="browser.perplexity",
+            model_id=model.id,
+            model_display_name=model.display_name,
+            execution_mode="browser",
+            status=StepStatus.FAILED,
+            failure_code=FailureCode.PROVIDER_UNAVAILABLE,
+            failure_message="down",
+        )
+
+    def test_disabled_passes_through_even_after_threshold_failures(self) -> None:
+        adapter = _SequencedAdapter([self.build_failure()] * 5)
+        breaker = CircuitBreakingExecutionAdapter(
+            adapter,
+            config=CircuitBreakerConfig(enabled=False, failure_threshold=2),
+        )
+        request = self.build_request()
+        for _ in range(5):
+            breaker.execute(request)
+        self.assertEqual(adapter.call_count, 5)
+
+    def test_disabled_healthcheck_shows_disabled_state(self) -> None:
+        adapter = _SequencedAdapter([])
+        breaker = CircuitBreakingExecutionAdapter(
+            adapter,
+            config=CircuitBreakerConfig(enabled=False),
+        )
+        hc = breaker.healthcheck()
+        self.assertEqual(hc["circuit_breaker"]["state"], "disabled")
+
+    def test_disabled_healthcheck_enabled_false(self) -> None:
+        adapter = _SequencedAdapter([])
+        breaker = CircuitBreakingExecutionAdapter(
+            adapter,
+            config=CircuitBreakerConfig(enabled=False),
+        )
+        self.assertFalse(breaker.healthcheck()["circuit_breaker"]["enabled"])
+
+
+class CircuitBreakerHalfOpenFailureTests(unittest.TestCase):
+    """Probe request during half-open that fails → trips back to open."""
+
+    def build_request(self) -> ExecutionRequest:
+        model = resolve_model("Kimi K2")
+        step = ExecutionStep(
+            model=model,
+            backend=ExecutionBackend.BROWSER,
+            provider=model.provider,
+            provider_model_id=model.provider_model_id,
+            step_index=0,
+        )
+        return ExecutionRequest(
+            task_id="t-halfopen",
+            prompt="hi",
+            plan=ExecutionPlan(
+                steps=(step,),
+                quorum=1,
+                merge_strategy=MergeStrategy.FIRST_SUCCESS,
+                dry_run=False,
+                adapter_hint="auto",
+                cancel_on_quorum=False,
+            ),
+            step=step,
+            reasoning=False,
+        )
+
+    def build_failure(self) -> ExecutionResult:
+        model = resolve_model("Kimi K2")
+        return ExecutionResult(
+            adapter_name="browser.perplexity",
+            model_id=model.id,
+            model_display_name=model.display_name,
+            execution_mode="browser",
+            status=StepStatus.FAILED,
+            failure_code=FailureCode.PROVIDER_UNAVAILABLE,
+            failure_message="down",
+        )
+
+    def test_failed_probe_trips_back_to_open(self) -> None:
+        # 2 failures to open, then probe after cooldown also fails → stays open
+        adapter = _SequencedAdapter([
+            self.build_failure(),
+            self.build_failure(),
+            self.build_failure(),  # probe request
+        ])
+        clock = _Clock(datetime(2026, 1, 1, 0, 0, tzinfo=UTC))
+        breaker = CircuitBreakingExecutionAdapter(
+            adapter,
+            config=CircuitBreakerConfig(enabled=True, failure_threshold=2, cooldown_seconds=60),
+            now_factory=clock,
+        )
+        request = self.build_request()
+
+        breaker.execute(request)
+        breaker.execute(request)
+        # circuit now open
+        clock.now = clock.now + timedelta(seconds=61)
+        # probe allowed — but fails
+        breaker.execute(request)
+        # should be open again
+        blocked = breaker.execute(request)
+        self.assertEqual(adapter.call_count, 3)
+        self.assertEqual(blocked.failure_code, FailureCode.PROVIDER_UNAVAILABLE)
+        self.assertTrue(blocked.details.get("circuit_breaker_open"))
+
+    def test_open_count_incremented_on_each_trip(self) -> None:
+        adapter = _SequencedAdapter([self.build_failure()] * 6)
+        clock = _Clock(datetime(2026, 1, 1, tzinfo=UTC))
+        breaker = CircuitBreakingExecutionAdapter(
+            adapter,
+            config=CircuitBreakerConfig(enabled=True, failure_threshold=2, cooldown_seconds=60),
+            now_factory=clock,
+        )
+        request = self.build_request()
+
+        # First trip
+        breaker.execute(request)
+        breaker.execute(request)
+        self.assertEqual(breaker.healthcheck()["circuit_breaker"]["open_count"], 1)
+
+        # Allow probe → fails → second trip
+        clock.now = clock.now + timedelta(seconds=61)
+        breaker.execute(request)
+        self.assertEqual(breaker.healthcheck()["circuit_breaker"]["open_count"], 2)
+
+    def test_fail_fast_rejection_count_tracked(self) -> None:
+        adapter = _SequencedAdapter([
+            self.build_failure(),
+            self.build_failure(),
+        ])
+        clock = _Clock(datetime(2026, 1, 1, tzinfo=UTC))
+        breaker = CircuitBreakingExecutionAdapter(
+            adapter,
+            config=CircuitBreakerConfig(enabled=True, failure_threshold=2, cooldown_seconds=60),
+            now_factory=clock,
+        )
+        request = self.build_request()
+
+        breaker.execute(request)
+        breaker.execute(request)
+        # 3 blocked requests
+        for _ in range(3):
+            breaker.execute(request)
+
+        hc = breaker.healthcheck()
+        self.assertEqual(hc["circuit_breaker"]["fail_fast_rejections"], 3)
+
+
+class CircuitBreakerPropertyTests(unittest.TestCase):
+    """automation and session_manager properties proxy to underlying adapter."""
+
+    def test_automation_property_returns_none_when_adapter_lacks_it(self) -> None:
+        adapter = _SequencedAdapter([])
+        breaker = CircuitBreakingExecutionAdapter(adapter)
+        self.assertIsNone(breaker.automation)
+
+    def test_session_manager_property_returns_none_when_adapter_lacks_it(self) -> None:
+        adapter = _SequencedAdapter([])
+        breaker = CircuitBreakingExecutionAdapter(adapter)
+        self.assertIsNone(breaker.session_manager)
+
+    def test_automation_setter_is_no_op_when_adapter_lacks_attribute(self) -> None:
+        adapter = _SequencedAdapter([])
+        breaker = CircuitBreakingExecutionAdapter(adapter)
+        # Should not raise
+        breaker.automation = object()
+
+    def test_name_inherited_from_wrapped_adapter(self) -> None:
+        adapter = _SequencedAdapter([])
+        adapter.name = "my-adapter"
+        breaker = CircuitBreakingExecutionAdapter(adapter)
+        self.assertEqual(breaker.name, "my-adapter")
+
+
 if __name__ == "__main__":
     unittest.main()
