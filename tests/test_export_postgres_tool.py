@@ -3,8 +3,11 @@ from __future__ import annotations
 import argparse
 import gzip
 import json
+import os
 import unittest
+from dataclasses import dataclass
 from datetime import UTC, datetime
+from enum import StrEnum
 from pathlib import Path
 from unittest.mock import patch
 from uuid import uuid4
@@ -12,6 +15,106 @@ from uuid import uuid4
 from gracekelly import __version__
 from gracekelly.tools import export_postgres
 from gracekelly.tools.snapshot_digest import SNAPSHOT_FORMAT_VERSION, compute_snapshot_sha256
+
+
+class NormalizeTests(unittest.TestCase):
+    def test_datetime_converted_to_iso_z(self) -> None:
+        dt = datetime(2026, 3, 18, 17, 0, 0, tzinfo=UTC)
+        self.assertEqual(export_postgres._normalize(dt), "2026-03-18T17:00:00Z")
+
+    def test_datetime_utcoffset_replaced_with_z(self) -> None:
+        result = export_postgres._normalize(datetime(2026, 1, 1, tzinfo=UTC))
+        self.assertTrue(result.endswith("Z"))
+        self.assertNotIn("+00:00", result)
+
+    def test_dict_values_normalized_recursively(self) -> None:
+        dt = datetime(2026, 3, 18, tzinfo=UTC)
+        result = export_postgres._normalize({"ts": dt, "x": 1})
+        self.assertTrue(result["ts"].endswith("Z"))
+        self.assertEqual(result["x"], 1)
+
+    def test_list_items_normalized(self) -> None:
+        dt = datetime(2026, 3, 18, tzinfo=UTC)
+        result = export_postgres._normalize([dt, "hello"])
+        self.assertTrue(result[0].endswith("Z"))
+        self.assertEqual(result[1], "hello")
+
+    def test_tuple_items_normalized(self) -> None:
+        result = export_postgres._normalize(("a", "b"))
+        self.assertEqual(result, ["a", "b"])
+
+    def test_str_enum_returns_value(self) -> None:
+        class Status(StrEnum):
+            OK = "ok"
+
+        self.assertEqual(export_postgres._normalize(Status.OK), "ok")
+
+    def test_plain_string_unchanged(self) -> None:
+        self.assertEqual(export_postgres._normalize("hello"), "hello")
+
+    def test_integer_unchanged(self) -> None:
+        self.assertEqual(export_postgres._normalize(42), 42)
+
+    def test_none_unchanged(self) -> None:
+        self.assertIsNone(export_postgres._normalize(None))
+
+
+class SerializeRecordTests(unittest.TestCase):
+    def test_dataclass_serialized(self) -> None:
+        @dataclass
+        class Rec:
+            name: str
+            count: int
+
+        result = export_postgres.serialize_record(Rec(name="test", count=3))
+        self.assertEqual(result, {"name": "test", "count": 3})
+
+    def test_non_dataclass_raises_type_error(self) -> None:
+        with self.assertRaises(TypeError):
+            export_postgres.serialize_record({"not": "a dataclass"})
+
+    def test_datetime_field_normalized(self) -> None:
+        @dataclass
+        class Rec:
+            ts: datetime
+
+        result = export_postgres.serialize_record(Rec(ts=datetime(2026, 3, 18, tzinfo=UTC)))
+        self.assertTrue(result["ts"].endswith("Z"))
+
+
+class ResolveDsnTests(unittest.TestCase):
+    def test_cli_dsn_takes_precedence(self) -> None:
+        with patch.dict(os.environ, {"GRACEKELLY_POSTGRES_DSN": "env-dsn"}, clear=False):
+            self.assertEqual(export_postgres.resolve_dsn("cli-dsn"), "cli-dsn")
+
+    def test_falls_back_to_env_var(self) -> None:
+        with patch.dict(os.environ, {"GRACEKELLY_POSTGRES_DSN": "env-dsn"}, clear=False):
+            self.assertEqual(export_postgres.resolve_dsn(None), "env-dsn")
+
+    def test_returns_none_when_both_missing(self) -> None:
+        env = {k: v for k, v in os.environ.items() if k != "GRACEKELLY_POSTGRES_DSN"}
+        with patch.dict(os.environ, env, clear=True):
+            self.assertIsNone(export_postgres.resolve_dsn(None))
+
+
+class DefaultOutputPathTests(unittest.TestCase):
+    def test_path_includes_timestamp(self) -> None:
+        dt = datetime(2026, 3, 18, 17, 5, 30, tzinfo=UTC)
+        path = export_postgres.default_output_path(dt)
+        self.assertIn("20260318T170530Z", str(path))
+
+    def test_path_is_under_tmp_postgres_export(self) -> None:
+        dt = datetime(2026, 3, 18, tzinfo=UTC)
+        path = export_postgres.default_output_path(dt)
+        self.assertTrue(str(path).startswith(str(Path("tmp") / "postgres-export")))
+
+    def test_path_has_json_extension(self) -> None:
+        dt = datetime(2026, 3, 18, tzinfo=UTC)
+        self.assertTrue(export_postgres.default_output_path(dt).suffix == ".json")
+
+    def test_no_datetime_uses_current_time(self) -> None:
+        path = export_postgres.default_output_path()
+        self.assertIn("gracekelly-export-", path.name)
 
 
 class ExportPostgresToolTests(unittest.TestCase):
