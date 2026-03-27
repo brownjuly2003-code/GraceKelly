@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import logging
 import time
+from typing import cast
 from urllib import error, request
 
 from gracekelly.core.contracts import (
@@ -153,7 +154,7 @@ class BaseApiAdapter(ExecutionAdapter):
             method="POST",
         )
         with request.urlopen(http_request, timeout=timeout_seconds) as response:
-            return json.loads(response.read().decode("utf-8"))
+            return cast(dict[str, object], json.loads(response.read().decode("utf-8")))
 
     def _extract_output_text(self, payload: dict[str, object]) -> str:
         choices = payload.get("choices")

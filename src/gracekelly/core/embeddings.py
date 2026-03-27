@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 from threading import Lock
+from typing import cast
 from urllib import request
 
 
@@ -72,4 +73,4 @@ class EmbeddingsClient:
         )
         with request.urlopen(http_request, timeout=self._timeout_seconds) as response:
             data = json.loads(response.read().decode("utf-8"))
-        return data["data"][0]["embedding"]
+        return cast(list[float], data["data"][0]["embedding"])

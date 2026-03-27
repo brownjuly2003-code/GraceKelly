@@ -9,10 +9,10 @@ from fastapi import APIRouter, HTTPException, Path, Query, Request, Response
 from gracekelly.app_state import get_app_state
 from gracekelly.core.contracts import ExecutionMode, FailureCode, TaskStatus
 from gracekelly.core.models import resolve_model
-from gracekelly.core.orchestrator import StorageUnavailableError
+from gracekelly.core.orchestrator import OrchestratorService, StorageUnavailableError
 from gracekelly.logging_utils import log_message, trace_id_from_metadata
 from gracekelly.schemas import ModelView, OrchestrateRequest, OrchestrateResponse, TaskListItem, TaskView
-from gracekelly.storage.base import TaskRecord
+from gracekelly.storage.base import TaskEventRecord, TaskRecord, TaskStepRecord
 
 router = APIRouter(prefix="/api/v1", tags=["orchestration"])
 logger = logging.getLogger(__name__)
@@ -65,7 +65,7 @@ def _parse_before_cursor(value: str | None) -> datetime | None:
 
 
 def _load_task_list_items(
-    service,
+    service: OrchestratorService,
     *,
     limit: int,
     status: TaskStatus | None,
@@ -97,7 +97,7 @@ def _load_task_list_items(
     ]
 
 
-def _load_task_view(service, task_id: str) -> TaskView:
+def _load_task_view(service: OrchestratorService, task_id: str) -> TaskView:
     task = service.get_task(task_id)
     steps = service.list_task_steps(task_id)
     events = service.list_task_events(task_id)
@@ -323,8 +323,8 @@ async def retry_task(
 
 def _build_retry_request(
     task: TaskRecord,
-    steps: list,
-    events: list,
+    steps: list[TaskStepRecord],
+    events: list[TaskEventRecord],
 ) -> OrchestrateRequest:
     model_ids = sorted({step.model_id for step in steps}) if steps else []
     if not model_ids:
@@ -343,7 +343,7 @@ def _build_retry_request(
     )
 
 
-def _models_from_accepted_event(events: list) -> list[str]:
+def _models_from_accepted_event(events: list[TaskEventRecord]) -> list[str]:
     for event in events:
         if getattr(event, "event_type", None) == "task.accepted" or (
             hasattr(event, "event_type") and str(event.event_type) == "task.accepted"

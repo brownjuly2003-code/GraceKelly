@@ -7,6 +7,7 @@ if TYPE_CHECKING:
 
     from gracekelly.config import Settings
     from gracekelly.core.account_pool_manager import AccountPoolManager
+    from gracekelly.core.contracts import ExecutionAdapter
     from gracekelly.core.embeddings import EmbeddingsClient
     from gracekelly.core.execution_history import ExecutionHistory
     from gracekelly.core.execution_profile import ExecutionProfile
@@ -22,7 +23,7 @@ class AppState:
     task_repository: TaskRepository | None  # None in minimal test apps
     postgres_pool: Any  # None when using InMemoryTaskRepository
     dry_run_adapter: Any
-    api_adapters: dict[str, Any]
+    api_adapters: dict[str, ExecutionAdapter]
     browser_adapter: Any
     browser_session_manager: Any  # None when browser is not configured
     adapter_registry: dict[str, Any]

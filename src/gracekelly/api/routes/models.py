@@ -5,7 +5,7 @@ from datetime import datetime
 from fastapi import APIRouter, Request
 
 from gracekelly.app_state import get_app_state
-from gracekelly.core.models import list_models, models_equivalent
+from gracekelly.core.models import ModelSpec, list_models, models_equivalent
 from gracekelly.schemas import ModelCatalogItem
 
 router = APIRouter(prefix="/api/v1", tags=["models"])
@@ -63,7 +63,7 @@ def _is_newer(left: datetime | None, right: datetime | None) -> bool:
 
 
 def _model_catalog_item(
-    spec,
+    spec: ModelSpec,
     *,
     observed_browser_labels: list[str],
     observed_browser_checked_at: datetime | None,
