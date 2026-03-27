@@ -536,6 +536,7 @@ class HttpApiSmokeTests(unittest.TestCase):
                 "dry_run": True,
             },
         )
+        __import__("time").sleep(0.002)  # ensure distinct accepted_at on Windows (ms precision)
         second = self.client.post(
             "/api/v1/orchestrate",
             json={
