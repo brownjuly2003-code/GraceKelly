@@ -77,12 +77,12 @@ def _normalize(value: Any) -> Any:
 
 def serialize_record(record: Any) -> dict[str, Any]:
     if is_dataclass(record):
-        return _normalize(asdict(record))  # type: ignore[arg-type]
+        return _normalize(asdict(record))  # type: ignore[arg-type, no-any-return]
     raise TypeError(f"Expected dataclass record, got {type(record).__name__}")
 
 
 def collect_export_snapshot(
-    repository,
+    repository: PostgresTaskRepository,
     *,
     task_ids: list[str] | None = None,
     limit: int = 100,

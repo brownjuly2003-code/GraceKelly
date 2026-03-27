@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import os
 from pathlib import Path
+from typing import Any
 
 DEFAULT_PROFILE_DIR = str((Path(__file__).resolve().parents[3] / "tmp" / "browser-recon" / "perplexity-profile").resolve())
 DEFAULT_BASE_URL = "https://www.perplexity.ai"
@@ -38,9 +39,9 @@ def create_profile(
     profile_dir: str,
     base_url: str,
     channel: str,
-    sync_playwright_factory=None,
-    input_func=input,
-    print_func=print,
+    sync_playwright_factory: Any = None,
+    input_func: Any = input,
+    print_func: Any = print,
 ) -> None:
     factory = sync_playwright_factory
     if factory is None:

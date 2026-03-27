@@ -76,9 +76,9 @@ def capture_recon(
     prompt: str | None = None,
     timeout_seconds: int = 60,
     selectors: PerplexitySelectors | None = None,
-    sync_playwright_factory=None,
-    input_func=input,
-    print_func=print,
+    sync_playwright_factory: Any = None,
+    input_func: Any = input,
+    print_func: Any = print,
 ) -> dict[str, Any]:
     factory = sync_playwright_factory
     if factory is None:
@@ -269,7 +269,7 @@ def _composer_html(page: Any, *, selectors: PerplexitySelectors) -> str:
         locator = page.locator(candidate)
         if _locator_exists(locator):
             try:
-                return locator.first.inner_html()
+                return locator.first.inner_html()  # type: ignore[no-any-return]
             except Exception:
                 continue
     return ""
@@ -353,7 +353,7 @@ def _locator_exists(locator: Any) -> bool:
 
 def _body_text(page: Any) -> str:
     try:
-        return page.inner_text("body")
+        return page.inner_text("body")  # type: ignore[no-any-return]
     except Exception:
         return ""
 
@@ -411,7 +411,7 @@ def _main_html(page: Any) -> str:
     locator = page.locator("main")
     if _locator_exists(locator):
         try:
-            return locator.first.inner_html()
+            return locator.first.inner_html()  # type: ignore[no-any-return]
         except Exception:
             return ""
     return ""

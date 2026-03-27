@@ -780,6 +780,6 @@ class PlaywrightBrowserAutomation(BrowserAutomationPort):
 
     def _body_text(self, page: Any) -> str:
         try:
-            return page.inner_text("body")
+            return page.inner_text("body")  # type: ignore[no-any-return]
         except Exception:
             return ""

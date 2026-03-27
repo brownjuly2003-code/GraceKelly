@@ -3,7 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from gracekelly.storage.schema import INITIAL_MIGRATION_NAME
 from gracekelly.tools.snapshot_artifact import (
@@ -39,7 +39,7 @@ def parse_args() -> argparse.Namespace:
 
 
 def load_snapshot(path: Path) -> dict[str, Any]:
-    return json.loads(read_snapshot_text(path))
+    return cast(dict[str, Any], json.loads(read_snapshot_text(path)))
 
 
 def inspect_snapshot(snapshot: dict[str, Any]) -> dict[str, Any]:

@@ -87,7 +87,7 @@ def _parse_datetime(value: str | None) -> datetime | None:
 
 
 def _load_snapshot(path: Path) -> dict[str, Any]:
-    return json.loads(read_snapshot_text(path))
+    return json.loads(read_snapshot_text(path))  # type: ignore[no-any-return]
 
 
 def _json_default(value: object) -> str:
@@ -217,7 +217,7 @@ def _validate_task_bundle(
         )
 
 
-def import_snapshot(repository, snapshot: dict[str, Any]) -> dict[str, Any]:
+def import_snapshot(repository: PostgresTaskRepository, snapshot: dict[str, Any]) -> dict[str, Any]:
     imported_task_count = 0
     imported_step_count = 0
     imported_event_count = 0
