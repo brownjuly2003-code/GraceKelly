@@ -1146,5 +1146,96 @@ class ImportPostgresToolTests(unittest.TestCase):
                 snapshot_path.unlink()
 
 
+class ParseDatetimeTests(unittest.TestCase):
+    def test_none_returns_none(self) -> None:
+        self.assertIsNone(import_postgres._parse_datetime(None))
+
+    def test_z_suffix_parsed_as_utc(self) -> None:
+        result = import_postgres._parse_datetime("2026-03-18T17:00:00Z")
+        self.assertIsNotNone(result)
+        assert result is not None
+        self.assertEqual(result.year, 2026)
+        self.assertEqual(result.month, 3)
+        self.assertEqual(result.day, 18)
+        self.assertEqual(result.tzinfo, UTC)
+
+    def test_iso_with_offset_parsed(self) -> None:
+        result = import_postgres._parse_datetime("2026-03-18T17:00:00+00:00")
+        self.assertIsNotNone(result)
+        assert result is not None
+        self.assertEqual(result.hour, 17)
+
+
+class JsonDefaultTests(unittest.TestCase):
+    def test_datetime_returns_isoformat(self) -> None:
+        dt = datetime(2026, 3, 18, 17, 0, 0, tzinfo=UTC)
+        result = import_postgres._json_default(dt)
+        self.assertIn("2026-03-18", result)
+
+    def test_non_serializable_raises_type_error(self) -> None:
+        with self.assertRaises(TypeError):
+            import_postgres._json_default(object())
+
+    def test_type_error_message_includes_type_name(self) -> None:
+        class MyObj:
+            pass
+
+        with self.assertRaises(TypeError) as ctx:
+            import_postgres._json_default(MyObj())
+        self.assertIn("MyObj", str(ctx.exception))
+
+
+class SelectSnapshotTasksTests(unittest.TestCase):
+    def _snapshot_with_tasks(self, *task_ids: str) -> dict[str, object]:
+        return {
+            "status": "ok",
+            "tasks": [
+                {
+                    "task": {"task_id": tid},
+                    "steps": [],
+                    "events": [],
+                }
+                for tid in task_ids
+            ],
+        }
+
+    def test_no_task_ids_returns_full_snapshot(self) -> None:
+        snapshot = self._snapshot_with_tasks("t1", "t2")
+        result, missing = import_postgres.select_snapshot_tasks(snapshot)
+        self.assertIs(result, snapshot)
+        self.assertEqual(missing, [])
+
+    def test_empty_task_ids_returns_full_snapshot(self) -> None:
+        snapshot = self._snapshot_with_tasks("t1", "t2")
+        result, missing = import_postgres.select_snapshot_tasks(snapshot, task_ids=[])
+        self.assertIs(result, snapshot)
+        self.assertEqual(missing, [])
+
+    def test_filters_to_requested_task_ids(self) -> None:
+        snapshot = self._snapshot_with_tasks("t1", "t2", "t3")
+        result, missing = import_postgres.select_snapshot_tasks(snapshot, task_ids=["t1", "t3"])
+        task_ids = [item["task"]["task_id"] for item in result["tasks"]]
+        self.assertEqual(task_ids, ["t1", "t3"])
+        self.assertEqual(missing, [])
+
+    def test_missing_task_ids_reported(self) -> None:
+        snapshot = self._snapshot_with_tasks("t1")
+        result, missing = import_postgres.select_snapshot_tasks(snapshot, task_ids=["t1", "t-missing"])
+        self.assertEqual(missing, ["t-missing"])
+        self.assertEqual(len(result["tasks"]), 1)
+
+    def test_all_task_ids_missing(self) -> None:
+        snapshot = self._snapshot_with_tasks("t1")
+        result, missing = import_postgres.select_snapshot_tasks(snapshot, task_ids=["t2", "t3"])
+        self.assertEqual(missing, ["t2", "t3"])
+        self.assertEqual(result["tasks"], [])
+
+    def test_preserves_other_snapshot_fields(self) -> None:
+        snapshot = self._snapshot_with_tasks("t1")
+        snapshot["status"] = "ok"
+        result, _ = import_postgres.select_snapshot_tasks(snapshot, task_ids=["t1"])
+        self.assertEqual(result["status"], "ok")
+
+
 if __name__ == "__main__":
     unittest.main()
