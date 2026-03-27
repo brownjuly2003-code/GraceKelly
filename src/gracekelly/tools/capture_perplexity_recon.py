@@ -79,7 +79,7 @@ def capture_recon(
     sync_playwright_factory=None,
     input_func=input,
     print_func=print,
-) -> dict[str, object]:
+) -> dict[str, Any]:
     factory = sync_playwright_factory
     if factory is None:
         try:
@@ -111,7 +111,7 @@ def capture_recon(
             page.goto(base_url, wait_until="domcontentloaded")
             _wait_for_shell(page, selectors=selector_config)
 
-            manifest: dict[str, object] = {
+            manifest: dict[str, Any] = {
                 "profile_dir": profile_dir,
                 "output_dir": str(output_root),
                 "base_url": base_url,
@@ -369,7 +369,7 @@ def _capture_post_response_recon(
     prompt: str,
     timeout_seconds: int,
     output_root: Path,
-) -> dict[str, object]:
+) -> dict[str, Any]:
     prompt_input = page.locator(automation._selectors.prompt_input)
     if not automation._locator_is_visible(prompt_input):
         raise RuntimeError("Perplexity prompt input is not visible for post-response recon.")

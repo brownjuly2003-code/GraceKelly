@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
+from typing import Any
 
 from gracekelly.core.contracts import (
     AdapterHint,
@@ -27,7 +28,7 @@ class MultiModelResult:
 class MultiModelExecutor:
     def __init__(
         self,
-        adapters: dict[str, object],
+        adapters: dict[str, Any],
         model_specs: list[ModelSpec],
     ) -> None:
         self._adapters = adapters

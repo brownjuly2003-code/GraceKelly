@@ -9,6 +9,7 @@ from gracekelly.core.clustering_hac import hac_cluster
 from gracekelly.core.consensus import ClusterInfo, ConsensusResult
 from gracekelly.core.debate_round import run_debate
 from gracekelly.core.divergence import DivergenceAction, assess_divergence
+from gracekelly.core.embeddings import EmbeddingsClient
 from gracekelly.core.peer_review_reranker import build_review_prompt, parse_rankings, rerank_cluster
 from gracekelly.core.round_weighting import consensus_score_weighted
 from gracekelly.core.similarity import cosine_similarity
@@ -90,7 +91,7 @@ def _build_cluster_infos(
 
 class ConsensusExecutorV2:
     def __init__(
-        self, embeddings_client: object, config: ConsensusV2Config | None = None
+        self, embeddings_client: EmbeddingsClient, config: ConsensusV2Config | None = None
     ):
         self._embeddings = embeddings_client
         self._config = config or ConsensusV2Config()
