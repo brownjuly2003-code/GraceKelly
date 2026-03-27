@@ -91,5 +91,104 @@ class ExecutionPlanningTests(unittest.TestCase):
             )
 
 
+class ExecutionPlanningStructureTests(unittest.TestCase):
+    """Tests for the structural output of build_execution_plan."""
+
+    def test_single_model_produces_one_step(self) -> None:
+        plan = build_execution_plan(OrchestrateRequest(prompt="Q", model="Mistral"))
+        self.assertEqual(len(plan.steps), 1)
+        self.assertEqual(plan.steps[0].model.id, "mistral-small")
+
+    def test_step_indices_are_one_based(self) -> None:
+        plan = build_execution_plan(
+            OrchestrateRequest(prompt="Q", models=["Kimi K2", "Mistral"])
+        )
+        self.assertEqual(plan.steps[0].step_index, 1)
+        self.assertEqual(plan.steps[1].step_index, 2)
+
+    def test_api_model_backend_is_api(self) -> None:
+        plan = build_execution_plan(OrchestrateRequest(prompt="Q", model="Mistral"))
+        self.assertEqual(plan.steps[0].backend.value, "api")
+
+    def test_provider_copied_to_step(self) -> None:
+        plan = build_execution_plan(OrchestrateRequest(prompt="Q", model="Mistral"))
+        self.assertEqual(plan.steps[0].provider, "mistral")
+
+    def test_dry_run_passed_through_to_plan(self) -> None:
+        plan = build_execution_plan(
+            OrchestrateRequest(prompt="Q", model="Mistral", dry_run=True)
+        )
+        self.assertTrue(plan.dry_run)
+
+    def test_quorum_capped_at_step_count(self) -> None:
+        plan = build_execution_plan(
+            OrchestrateRequest(prompt="Q", models=["Kimi K2", "Mistral"], quorum=5)
+        )
+        self.assertEqual(plan.quorum, 2)
+
+    def test_cancel_on_quorum_passed_through(self) -> None:
+        plan = build_execution_plan(
+            OrchestrateRequest(prompt="Q", model="Mistral", cancel_on_quorum=False)
+        )
+        self.assertFalse(plan.cancel_on_quorum)
+
+
+class ExecutionPlanningPositiveEdgeCasesTests(unittest.TestCase):
+    """Positive edge cases that must NOT raise."""
+
+    def test_concat_with_cancel_on_quorum_false_ok(self) -> None:
+        plan = build_execution_plan(
+            OrchestrateRequest(
+                prompt="Q",
+                models=["Kimi K2", "Mistral"],
+                merge_strategy="concat",
+                cancel_on_quorum=False,
+                quorum=1,
+            )
+        )
+        self.assertEqual(plan.merge_strategy, MergeStrategy.CONCAT)
+
+    def test_concat_quorum_covers_all_steps_ok(self) -> None:
+        """CONCAT + cancel_on_quorum=True is fine when quorum == len(steps)."""
+        plan = build_execution_plan(
+            OrchestrateRequest(
+                prompt="Q",
+                models=["Kimi K2", "Mistral"],
+                merge_strategy="concat",
+                cancel_on_quorum=True,
+                quorum=2,
+            )
+        )
+        self.assertEqual(plan.merge_strategy, MergeStrategy.CONCAT)
+
+    def test_reasoning_with_reasoning_capable_model_ok(self) -> None:
+        plan = build_execution_plan(
+            OrchestrateRequest(prompt="Q", model="GPT-5.4 API", reasoning=True)
+        )
+        self.assertEqual(len(plan.steps), 1)
+
+    def test_adapter_hint_api_with_api_model_ok(self) -> None:
+        plan = build_execution_plan(
+            OrchestrateRequest(prompt="Q", model="Mistral", adapter_hint=AdapterHint.API)
+        )
+        self.assertEqual(len(plan.steps), 1)
+
+    def test_adapter_hint_browser_with_browser_model_ok(self) -> None:
+        plan = build_execution_plan(
+            OrchestrateRequest(prompt="Q", model="Kimi K2", adapter_hint=AdapterHint.BROWSER)
+        )
+        self.assertEqual(len(plan.steps), 1)
+
+    def test_adapter_hint_auto_passes_any_backend(self) -> None:
+        for model_name in ["Mistral", "Kimi K2"]:
+            with self.subTest(model=model_name):
+                plan = build_execution_plan(
+                    OrchestrateRequest(
+                        prompt="Q", model=model_name, adapter_hint=AdapterHint.AUTO
+                    )
+                )
+                self.assertEqual(len(plan.steps), 1)
+
+
 if __name__ == "__main__":
     unittest.main()
