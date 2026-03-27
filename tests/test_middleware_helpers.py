@@ -2,7 +2,76 @@ from __future__ import annotations
 
 import unittest
 
-from gracekelly.middleware import _is_protected, _normalize_endpoint
+from fastapi import FastAPI
+from fastapi.testclient import TestClient
+
+from gracekelly.middleware import _is_protected, _normalize_endpoint, setup_request_metrics
+from gracekelly.request_metrics import RequestMetrics
+
+
+def _app_with_metrics() -> tuple[FastAPI, RequestMetrics]:
+    app = FastAPI()
+    metrics = RequestMetrics()
+    app.state.request_metrics = metrics
+
+    @app.get("/health")
+    def health() -> dict[str, str]:
+        return {"status": "ok"}
+
+    @app.get("/api/v1/models")
+    def models() -> list[object]:
+        return []
+
+    setup_request_metrics(app)
+    return app, metrics
+
+
+class SetupRequestMetricsTests(unittest.TestCase):
+    def test_successful_request_recorded(self) -> None:
+        app, metrics = _app_with_metrics()
+        TestClient(app).get("/health")
+        self.assertEqual(metrics.requests_total()[("/health", 200)], 1)
+
+    def test_multiple_requests_accumulated(self) -> None:
+        app, metrics = _app_with_metrics()
+        client = TestClient(app)
+        for _ in range(3):
+            client.get("/health")
+        self.assertEqual(metrics.requests_total()[("/health", 200)], 3)
+
+    def test_different_endpoints_tracked_separately(self) -> None:
+        app, metrics = _app_with_metrics()
+        client = TestClient(app)
+        client.get("/health")
+        client.get("/api/v1/models")
+        totals = metrics.requests_total()
+        self.assertIn(("/health", 200), totals)
+        self.assertIn(("/api/v1/models", 200), totals)
+
+    def test_uuid_in_path_normalized_before_recording(self) -> None:
+        app, metrics = _app_with_metrics()
+
+        @app.get("/api/v1/tasks/{task_id}")
+        def get_task(task_id: str) -> dict[str, str]:
+            return {"task_id": task_id}
+
+        client = TestClient(app)
+        uuid = "550e8400-e29b-41d4-a716-446655440000"
+        client.get(f"/api/v1/tasks/{uuid}")
+        totals = metrics.requests_total()
+        self.assertIn(("/api/v1/tasks/{id}", 200), totals)
+        self.assertNotIn((f"/api/v1/tasks/{uuid}", 200), totals)
+
+    def test_no_metrics_state_does_not_crash(self) -> None:
+        app = FastAPI()
+
+        @app.get("/health")
+        def health() -> dict[str, str]:
+            return {"status": "ok"}
+
+        setup_request_metrics(app)
+        response = TestClient(app).get("/health")
+        self.assertEqual(response.status_code, 200)
 
 
 class IsProtectedTests(unittest.TestCase):
