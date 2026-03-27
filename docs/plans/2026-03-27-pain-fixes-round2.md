@@ -37,8 +37,8 @@
 - Modify: `src/gracekelly/api/routes/smart.py`
 - Modify: `src/gracekelly/api/routes/smart_v2.py`
 
-- [ ] EmbeddingsClient.embed() при пустом api_key должен возвращать fallback или выбрасывать понятную ошибку
-- [ ] Routes должны возвращать 503 с понятным сообщением если embeddings недоступны
+- [x] EmbeddingsClient.embed() при пустом api_key выбрасывает `RuntimeError` с понятным сообщением
+- [x] main.py: `embeddings_client = None` если mistral_api_key не задан → routes возвращают 503
 
 ## Task 4: Check and fix .gitignore
 

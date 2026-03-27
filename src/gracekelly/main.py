@@ -201,9 +201,11 @@ def create_app(app_settings: Settings | None = None) -> FastAPI:
     )
 
     app.state.request_metrics = RequestMetrics()
-    app.state.embeddings_client = EmbeddingsClient(
-        api_key=active_settings.mistral_api_key or "",
-        base_url="https://api.mistral.ai/v1",
+    _mistral_key = active_settings.mistral_api_key
+    app.state.embeddings_client = (
+        EmbeddingsClient(api_key=_mistral_key, base_url="https://api.mistral.ai/v1")
+        if _mistral_key
+        else None
     )
     app.state.execution_history = ExecutionHistory()
     app.state.account_pool_manager = AccountPoolManager()

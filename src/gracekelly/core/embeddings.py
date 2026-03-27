@@ -23,6 +23,8 @@ class EmbeddingsClient:
         self._lock = Lock()
 
     def embed(self, text: str) -> list[float]:
+        if not self._api_key:
+            raise RuntimeError("EmbeddingsClient: Mistral API key is not configured.")
         cache_key = hashlib.sha256(text.encode("utf-8")).hexdigest()
         with self._lock:
             if cache_key in self._cache:
