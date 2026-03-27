@@ -7,6 +7,7 @@ from fastapi import APIRouter, Request
 from fastapi.responses import PlainTextResponse
 
 from gracekelly import __version__
+from gracekelly.app_state import get_app_state
 from gracekelly.core.readiness import build_readiness_report
 from gracekelly.logging_utils import log_message
 
@@ -282,17 +283,15 @@ def _build_metrics_payload(
 
 @router.get("/health")
 async def health(request: Request) -> dict[str, object]:
-    settings = request.app.state.settings
-    profile = request.app.state.execution_profile
-    repository = request.app.state.task_repository
+    state = get_app_state(request)
     payload = await asyncio.to_thread(
         _build_health_summary,
-        environment=settings.env,
-        storage_backend=repository.backend_name,
-        profile=profile,
-        repository=repository,
-        adapters=request.app.state.adapter_registry,
-        execution_router=request.app.state.execution_router,
+        environment=state.settings.env,
+        storage_backend=state.task_repository.backend_name,
+        profile=state.execution_profile,
+        repository=state.task_repository,
+        adapters=state.adapter_registry,
+        execution_router=state.execution_router,
     )
     if payload["status"] != "ok" or payload["saturated_models"]:
         logger.warning(
@@ -312,16 +311,14 @@ async def health(request: Request) -> dict[str, object]:
 
 @router.get("/api/v1/readiness")
 async def readiness(request: Request) -> dict[str, object]:
-    settings = request.app.state.settings
-    profile = request.app.state.execution_profile
-    repository = request.app.state.task_repository
+    state = get_app_state(request)
     payload = await asyncio.to_thread(
         _build_readiness_payload,
-        environment=settings.env,
-        profile=profile,
-        repository=repository,
-        adapters=request.app.state.adapter_registry,
-        execution_router=request.app.state.execution_router,
+        environment=state.settings.env,
+        profile=state.execution_profile,
+        repository=state.task_repository,
+        adapters=state.adapter_registry,
+        execution_router=state.execution_router,
     )
     if payload["status"] != "ok":
         logger.warning(
@@ -337,18 +334,15 @@ async def readiness(request: Request) -> dict[str, object]:
 
 @router.get("/metrics", response_class=PlainTextResponse)
 async def metrics(request: Request) -> PlainTextResponse:
-    settings = request.app.state.settings
-    profile = request.app.state.execution_profile
-    repository = request.app.state.task_repository
-    request_metrics = getattr(request.app.state, "request_metrics", None)
+    state = get_app_state(request)
     payload = await asyncio.to_thread(
         _build_metrics_payload,
-        environment=settings.env,
-        storage_backend=repository.backend_name,
-        profile=profile,
-        repository=repository,
-        adapters=request.app.state.adapter_registry,
-        execution_router=request.app.state.execution_router,
-        request_metrics=request_metrics,
+        environment=state.settings.env,
+        storage_backend=state.task_repository.backend_name,
+        profile=state.execution_profile,
+        repository=state.task_repository,
+        adapters=state.adapter_registry,
+        execution_router=state.execution_router,
+        request_metrics=state.request_metrics,
     )
     return PlainTextResponse(payload, media_type="text/plain; version=0.0.4; charset=utf-8")

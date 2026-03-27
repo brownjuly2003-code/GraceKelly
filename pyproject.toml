@@ -65,11 +65,8 @@ warn_unused_ignores = true
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
-# These modules use app.state (typed as object) and browser automation internals.
-# Fixing them requires typing app.state which is a FastAPI limitation.
+# These modules use browser automation internals not easily typed.
 module = [
-    "gracekelly.api.routes.health",
-    "gracekelly.api.routes.orchestrate",
     "gracekelly.core.consensus_v2",
     "gracekelly.core.multi_model",
     "gracekelly.tools.capture_perplexity_recon",

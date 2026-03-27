@@ -6,6 +6,7 @@ from datetime import datetime
 
 from fastapi import APIRouter, HTTPException, Path, Query, Request, Response
 
+from gracekelly.app_state import get_app_state
 from gracekelly.core.contracts import ExecutionMode, FailureCode, TaskStatus
 from gracekelly.core.models import resolve_model
 from gracekelly.core.orchestrator import StorageUnavailableError
@@ -105,7 +106,7 @@ def _load_task_view(service, task_id: str) -> TaskView:
 
 @router.post("/orchestrate", response_model=OrchestrateResponse, status_code=202)
 async def orchestrate(payload: OrchestrateRequest, request: Request, response: Response) -> OrchestrateResponse:
-    service = request.app.state.orchestrator_service
+    service = get_app_state(request).orchestrator_service
     trace_id = trace_id_from_metadata(payload.metadata)
     if trace_id:
         response.headers["x-trace-id"] = trace_id
@@ -189,7 +190,7 @@ async def list_tasks(
     failure_code: FailureCode | None = Query(default=None),
     before: str | None = Query(default=None, description="Cursor: accepted_at ISO timestamp for pagination"),
 ) -> list[TaskListItem]:
-    service = request.app.state.orchestrator_service
+    service = get_app_state(request).orchestrator_service
     before_dt = _parse_before_cursor(before)
     try:
         items = await asyncio.to_thread(
@@ -238,7 +239,7 @@ async def get_task(
     task_id: str = Path(pattern=_UUID_PATTERN),
     request: Request = None,
 ) -> TaskView:
-    service = request.app.state.orchestrator_service
+    service = get_app_state(request).orchestrator_service
     try:
         view = await asyncio.to_thread(_load_task_view, service, task_id)
         logger.info(
@@ -272,7 +273,7 @@ async def retry_task(
     task_id: str = Path(pattern=_UUID_PATTERN),
     request: Request = None,
 ) -> OrchestrateResponse:
-    service = request.app.state.orchestrator_service
+    service = get_app_state(request).orchestrator_service
     try:
         original = await asyncio.to_thread(service.get_task, task_id)
         original_steps = await asyncio.to_thread(service.list_task_steps, task_id)

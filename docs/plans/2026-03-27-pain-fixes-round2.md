@@ -25,9 +25,9 @@
 - Modify: `src/gracekelly/main.py`
 - Modify: `pyproject.toml` (убрать per-module ignores для routes)
 
-- [ ] Создать `AppState` dataclass с типами для всех атрибутов app.state
-- [ ] Подключить в `create_app()` через `app.state` присвоение
-- [ ] Обновить routes для доступа через типизированный state
+- [x] Создать `src/gracekelly/app_state.py`: класс `AppState` с типами + `get_app_state(request)` хелпер через `cast`
+- [x] Обновить `health.py` и `orchestrate.py`: `get_app_state(request).xxx` вместо `request.app.state.xxx`
+- [x] Убрать `gracekelly.api.routes.health` и `gracekelly.api.routes.orchestrate` из `ignore_errors` в pyproject.toml
 
 ## Task 3: EmbeddingsClient graceful degradation
 
