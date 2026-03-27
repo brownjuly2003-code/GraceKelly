@@ -198,6 +198,8 @@ Delivered:
 - docker-compose (standalone + postgres-backed configurations)
 - .dockerignore
 - Security audit: no hardcoded keys, all 44 core modules importable, no silent exception swallowing in routes
+- mypy strict mode: 0 errors across all 98 source files; CI enforces --strict on every push
+- Typed AppState, typed route helpers, cast() for all json.loads returns, typed middleware
 
 Remaining:
 - Live testing with real multi-model consensus (multiple API keys)
