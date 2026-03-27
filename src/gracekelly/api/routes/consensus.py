@@ -5,6 +5,7 @@ import logging
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
 
+from gracekelly.app_state import get_app_state
 from gracekelly.core.consensus import ConsensusConfig
 from gracekelly.core.consensus_execution import ConsensusExecutionConfig, ConsensusExecutor
 from gracekelly.core.contracts import (
@@ -45,11 +46,12 @@ class ConsensusResponse(BaseModel):
 
 @router.post("/consensus", response_model=ConsensusResponse)
 def run_consensus(payload: ConsensusRequest, request: Request) -> ConsensusResponse:
-    embeddings_client = getattr(request.app.state, "embeddings_client", None)
+    state = get_app_state(request)
+    embeddings_client = state.embeddings_client
     if embeddings_client is None:
         raise HTTPException(status_code=503, detail="Embeddings client is not configured.")
 
-    api_adapters = getattr(request.app.state, "api_adapters", {})
+    api_adapters = state.api_adapters
 
     try:
         model_spec = resolve_model(payload.model)

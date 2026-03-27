@@ -5,6 +5,7 @@ import logging
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
 
+from gracekelly.app_state import get_app_state
 from gracekelly.core.complexity import assess_complexity
 from gracekelly.core.contracts import (
     AdapterHint,
@@ -44,7 +45,7 @@ class PipelineResponse(BaseModel):
 
 @router.post("/pipeline", response_model=PipelineResponse)
 def run_pipeline(payload: PipelineRequest, request: Request) -> PipelineResponse:
-    api_adapters = getattr(request.app.state, "api_adapters", {})
+    api_adapters = get_app_state(request).api_adapters
 
     try:
         model_spec = resolve_model(payload.model)

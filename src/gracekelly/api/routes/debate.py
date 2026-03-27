@@ -5,6 +5,7 @@ import logging
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
 
+from gracekelly.app_state import get_app_state
 from gracekelly.core.contracts import (
     AdapterHint,
     ExecutionBackend,
@@ -38,7 +39,7 @@ class DebateResponse(BaseModel):
 
 @router.post("/debate", response_model=DebateResponse)
 def run_debate_endpoint(payload: DebateRequest, request: Request) -> DebateResponse:
-    api_adapters = getattr(request.app.state, "api_adapters", {})
+    api_adapters = get_app_state(request).api_adapters
 
     try:
         model_spec = resolve_model(payload.model)

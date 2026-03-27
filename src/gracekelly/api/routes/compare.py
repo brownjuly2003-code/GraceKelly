@@ -5,6 +5,7 @@ import logging
 from fastapi import APIRouter, Request
 from pydantic import BaseModel, Field
 
+from gracekelly.app_state import get_app_state
 from gracekelly.core.contracts import (
     AdapterHint,
     ExecutionBackend,
@@ -42,7 +43,7 @@ class CompareResponse(BaseModel):
 
 @router.post("/compare", response_model=CompareResponse)
 def run_compare(payload: CompareRequest, request: Request) -> CompareResponse:
-    api_adapters = getattr(request.app.state, "api_adapters", {})
+    api_adapters = get_app_state(request).api_adapters
 
     answers: list[ModelAnswer] = []
     succeeded = 0

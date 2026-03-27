@@ -5,6 +5,8 @@ import time
 from fastapi import APIRouter, Request
 from pydantic import BaseModel
 
+from gracekelly.app_state import get_app_state
+
 router = APIRouter(prefix="/api/v1", tags=["health"])
 _start_time = time.time()
 
@@ -29,8 +31,9 @@ class DetailedHealthResponse(BaseModel):
 
 @router.get("/health/detailed", response_model=DetailedHealthResponse)
 def health_detailed(request: Request) -> DetailedHealthResponse:
-    api_adapters = getattr(request.app.state, "api_adapters", {})
-    embeddings_client = getattr(request.app.state, "embeddings_client", None)
+    state = get_app_state(request)
+    api_adapters = state.api_adapters
+    embeddings_client = state.embeddings_client
 
     adapter_statuses: list[AdapterStatus] = []
     for name, adapter in api_adapters.items():

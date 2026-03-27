@@ -5,6 +5,7 @@ import logging
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 
+from gracekelly.app_state import get_app_state
 from gracekelly.core.model_stats import aggregate_model_stats, rank_models_by_success_rate
 
 router = APIRouter(prefix="/api/v1", tags=["analytics"])
@@ -29,7 +30,8 @@ class AnalyticsResponse(BaseModel):
 
 @router.get("/analytics", response_model=AnalyticsResponse)
 def get_analytics(request: Request) -> AnalyticsResponse:
-    repository = getattr(request.app.state, "task_repository", None)
+    state = get_app_state(request)
+    repository = state.task_repository
     step_records: list[dict[str, object]] = []
 
     if repository is not None:
@@ -48,7 +50,7 @@ def get_analytics(request: Request) -> AnalyticsResponse:
             raise HTTPException(status_code=503, detail="Storage unavailable.")
 
     if not step_records:
-        history = getattr(request.app.state, "execution_history", None)
+        history = getattr(state, "execution_history", None)
         if history is not None:
             for rec in history.list_recent(limit=100):
                 step_records.append({

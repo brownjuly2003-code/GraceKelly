@@ -5,6 +5,7 @@ import logging
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
 
+from gracekelly.app_state import get_app_state
 from gracekelly.core.contracts import (
     AdapterHint,
     ExecutionBackend,
@@ -40,7 +41,7 @@ class BatchResponse(BaseModel):
 
 @router.post("/batch", response_model=BatchResponse)
 def run_batch(payload: BatchRequest, request: Request) -> BatchResponse:
-    api_adapters = getattr(request.app.state, "api_adapters", {})
+    api_adapters = get_app_state(request).api_adapters
 
     try:
         model_spec = resolve_model(payload.model)

@@ -4,6 +4,7 @@ from datetime import datetime
 
 from fastapi import APIRouter, Request
 
+from gracekelly.app_state import get_app_state
 from gracekelly.core.models import list_models, models_equivalent
 from gracekelly.schemas import ModelCatalogItem
 
@@ -122,7 +123,7 @@ async def models(request: Request) -> list[ModelCatalogItem]:
         observed_browser_source,
         verified_browser_labels_at,
         last_model_picker_unavailable_at,
-    ) = _browser_menu_observation(getattr(request.app.state, "browser_adapter", None))
+    ) = _browser_menu_observation(get_app_state(request).browser_adapter)
     return [
         _model_catalog_item(
             spec,

@@ -5,6 +5,7 @@ import logging
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
 
+from gracekelly.app_state import get_app_state
 from gracekelly.core.complexity import assess_complexity
 from gracekelly.core.consensus_v2 import ConsensusExecutorV2, ConsensusV2Config
 from gracekelly.core.contracts import (
@@ -59,8 +60,9 @@ class SmartV2Response(BaseModel):
 
 @router.post("/smart/v2", response_model=SmartV2Response)
 def run_smart_v2(payload: SmartV2Request, request: Request) -> SmartV2Response:
-    api_adapters = getattr(request.app.state, "api_adapters", {})
-    embeddings_client = getattr(request.app.state, "embeddings_client", None)
+    state = get_app_state(request)
+    api_adapters = state.api_adapters
+    embeddings_client = state.embeddings_client
 
     try:
         model_spec = resolve_model(payload.model)
