@@ -19,17 +19,17 @@ if TYPE_CHECKING:
 class AppState:
     settings: Settings
     execution_profile: ExecutionProfile
-    task_repository: TaskRepository
-    postgres_pool: Any
+    task_repository: TaskRepository | None  # None in minimal test apps
+    postgres_pool: Any  # None when using InMemoryTaskRepository
     dry_run_adapter: Any
     api_adapters: dict[str, Any]
     browser_adapter: Any
-    browser_session_manager: Any
+    browser_session_manager: Any  # None when browser is not configured
     adapter_registry: dict[str, Any]
     execution_router: ExecutionRouter
     orchestrator_service: OrchestratorService
     request_metrics: RequestMetrics
-    embeddings_client: EmbeddingsClient | None
+    embeddings_client: EmbeddingsClient | None  # None when MISTRAL_API_KEY unset
     execution_history: ExecutionHistory
     account_pool_manager: AccountPoolManager
 

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
@@ -20,9 +21,11 @@ from gracekelly.core.models import resolve_model
 router = APIRouter(prefix="/api/v1", tags=["batch"])
 logger = logging.getLogger(__name__)
 
+_Prompt = Annotated[str, Field(min_length=1, max_length=40000)]
+
 
 class BatchRequest(BaseModel):
-    prompts: list[str] = Field(min_length=1, max_length=20)
+    prompts: list[_Prompt] = Field(min_length=1, max_length=20)
     model: str = Field(default="mistral-small", min_length=1, max_length=120)
 
 
