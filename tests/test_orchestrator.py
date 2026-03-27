@@ -305,6 +305,100 @@ class OrchestratorServiceTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.service._build_step_records("task-mismatch", plan, (result,))
 
+    def test_get_task_raises_key_error_for_missing_task(self) -> None:
+        with self.assertRaises(KeyError):
+            self.service.get_task("nonexistent-id")
+
+    def test_get_task_raises_storage_unavailable_on_exception(self) -> None:
+        class FailingRepository(InMemoryTaskRepository):
+            def get(self, task_id: str) -> None:  # type: ignore[override]
+                raise RuntimeError("db down")
+
+        service = OrchestratorService(
+            FailingRepository(),
+            execution_router=ExecutionRouter(dry_run_adapter=DryRunExecutionAdapter()),
+        )
+        with self.assertRaises(StorageUnavailableError) as ctx:
+            service.get_task("t1")
+        self.assertIn("get_task", str(ctx.exception))
+
+    def test_list_task_steps_raises_storage_unavailable_on_exception(self) -> None:
+        class FailingRepository(InMemoryTaskRepository):
+            def list_steps(self, task_id: str) -> list:  # type: ignore[override]
+                raise RuntimeError("db down")
+
+        service = OrchestratorService(
+            FailingRepository(),
+            execution_router=ExecutionRouter(dry_run_adapter=DryRunExecutionAdapter()),
+        )
+        with self.assertRaises(StorageUnavailableError) as ctx:
+            service.list_task_steps("t1")
+        self.assertIn("list_task_steps", str(ctx.exception))
+
+    def test_list_recent_tasks_raises_storage_unavailable_on_exception(self) -> None:
+        class FailingRepository(InMemoryTaskRepository):
+            def list_recent(self, *args, **kwargs) -> list:  # type: ignore[override]
+                raise RuntimeError("db down")
+
+        service = OrchestratorService(
+            FailingRepository(),
+            execution_router=ExecutionRouter(dry_run_adapter=DryRunExecutionAdapter()),
+        )
+        with self.assertRaises(StorageUnavailableError) as ctx:
+            service.list_recent_tasks()
+        self.assertIn("list_recent_tasks", str(ctx.exception))
+
+    def test_list_task_events_raises_storage_unavailable_on_exception(self) -> None:
+        class FailingRepository(InMemoryTaskRepository):
+            def list_events(self, task_id: str) -> list:  # type: ignore[override]
+                raise RuntimeError("db down")
+
+        service = OrchestratorService(
+            FailingRepository(),
+            execution_router=ExecutionRouter(dry_run_adapter=DryRunExecutionAdapter()),
+        )
+        with self.assertRaises(StorageUnavailableError) as ctx:
+            service.list_task_events("t1")
+        self.assertIn("list_task_events", str(ctx.exception))
+
+    def test_list_steps_batch_raises_storage_unavailable_on_exception(self) -> None:
+        class FailingRepository(InMemoryTaskRepository):
+            def list_steps_batch(self, task_ids: list) -> dict:  # type: ignore[override]
+                raise RuntimeError("db down")
+
+        service = OrchestratorService(
+            FailingRepository(),
+            execution_router=ExecutionRouter(dry_run_adapter=DryRunExecutionAdapter()),
+        )
+        with self.assertRaises(StorageUnavailableError) as ctx:
+            service.list_steps_batch(["t1"])
+        self.assertIn("list_steps_batch", str(ctx.exception))
+
+    def test_list_events_batch_raises_storage_unavailable_on_exception(self) -> None:
+        class FailingRepository(InMemoryTaskRepository):
+            def list_events_batch(self, task_ids: list) -> dict:  # type: ignore[override]
+                raise RuntimeError("db down")
+
+        service = OrchestratorService(
+            FailingRepository(),
+            execution_router=ExecutionRouter(dry_run_adapter=DryRunExecutionAdapter()),
+        )
+        with self.assertRaises(StorageUnavailableError) as ctx:
+            service.list_events_batch(["t1"])
+        self.assertIn("list_events_batch", str(ctx.exception))
+
+    def test_submit_snapshot_records_retry_of_task_id(self) -> None:
+        snapshot = self.service.submit_snapshot(
+            OrchestrateRequest(prompt="retry", model="Kimi K2", dry_run=True),
+            retry_of_task_id="original-task-id",
+        )
+        self.assertEqual(snapshot.task.retry_of_task_id, "original-task-id")
+
+    def test_storage_unavailable_error_message_includes_operation(self) -> None:
+        err = StorageUnavailableError("my_op", "something broke")
+        self.assertIn("my_op", str(err))
+        self.assertEqual(err.operation, "my_op")
+
     def test_build_events_raises_on_plan_result_count_mismatch(self) -> None:
         plan = build_execution_plan(
             OrchestrateRequest(
