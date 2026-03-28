@@ -82,6 +82,46 @@ class MainWiringTests(unittest.TestCase):
         self.assertEqual(health["circuit_breaker"]["failure_threshold"], 4)
         self.assertEqual(health["circuit_breaker"]["cooldown_seconds"], 90)
 
+    def test_build_task_repository_memory_backend(self) -> None:
+        from gracekelly.storage.memory import InMemoryTaskRepository
+        repo = build_task_repository(Settings(storage_backend="memory"))
+        self.assertIsInstance(repo, InMemoryTaskRepository)
+
+    def test_build_task_repository_postgres_missing_dsn_raises(self) -> None:
+        with self.assertRaises(ValueError) as ctx:
+            build_task_repository(Settings(storage_backend="postgres", postgres_dsn=None))
+        self.assertIn("GRACEKELLY_POSTGRES_DSN", str(ctx.exception))
+
+    def test_build_task_repository_unknown_backend_raises(self) -> None:
+        with self.assertRaises(ValueError) as ctx:
+            build_task_repository(Settings(storage_backend="sqlite"))  # type: ignore[arg-type]
+        self.assertIn("sqlite", str(ctx.exception))
+
+    def test_build_browser_automation_null_backend(self) -> None:
+        from gracekelly.adapters.browser.automation import NullBrowserAutomation
+        automation = build_browser_automation(
+            Settings(storage_backend="memory", browser_automation_backend="null")
+        )
+        self.assertIsInstance(automation, NullBrowserAutomation)
+
+    def test_build_browser_automation_scripted_backend(self) -> None:
+        from gracekelly.adapters.browser.scripted import ScriptedBrowserAutomation
+        automation = build_browser_automation(
+            Settings(
+                storage_backend="memory",
+                browser_automation_backend="scripted",
+                browser_scripted_logged_in=True,
+                browser_scripted_model_label="GPT-5.4",
+                browser_scripted_output_text="scripted response",
+            )
+        )
+        self.assertIsInstance(automation, ScriptedBrowserAutomation)
+
+    def test_build_browser_automation_unknown_backend_raises(self) -> None:
+        with self.assertRaises(ValueError) as ctx:
+            build_browser_automation(Settings(storage_backend="memory", browser_automation_backend="selenium"))  # type: ignore[arg-type]
+        self.assertIn("selenium", str(ctx.exception))
+
     def test_app_lifespan_closes_browser_automation(self) -> None:
         closed = {"value": False}
 
