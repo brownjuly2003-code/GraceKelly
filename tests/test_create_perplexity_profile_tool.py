@@ -126,6 +126,42 @@ class CreatePerplexityProfileToolTests(unittest.TestCase):
         self.assertEqual(code, 0)
         self.assertEqual(print_mock.call_args.args[0], "Perplexity profile is ready at D:\\Profiles\\Perplexity")
 
+    def test_create_profile_uses_new_page_when_pages_is_empty(self) -> None:
+        context = _FakeContext()
+        context.pages = []  # force new_page() path
+        chromium = _FakeChromium(context)
+        manager = _FakePlaywrightManager(_FakePlaywright(chromium))
+        with patch("pathlib.Path.mkdir"):
+            create_perplexity_profile.create_profile(
+                profile_dir=r"D:\tmp\profile",
+                base_url="https://www.perplexity.ai",
+                channel="chrome",
+                sync_playwright_factory=lambda: manager,
+                input_func=lambda _: "",
+                print_func=lambda _: None,
+            )
+        self.assertEqual(context.page.goto_calls, [("https://www.perplexity.ai", "domcontentloaded")])
+
+    def test_create_profile_closes_context_even_on_exception(self) -> None:
+        context = _FakeContext()
+        chromium = _FakeChromium(context)
+        manager = _FakePlaywrightManager(_FakePlaywright(chromium))
+
+        def _raise(_: str) -> str:
+            raise RuntimeError("input interrupted")
+
+        with patch("pathlib.Path.mkdir"):
+            with self.assertRaises(RuntimeError):
+                create_perplexity_profile.create_profile(
+                    profile_dir=r"D:\tmp\profile",
+                    base_url="https://www.perplexity.ai",
+                    channel="chrome",
+                    sync_playwright_factory=lambda: manager,
+                    input_func=_raise,
+                    print_func=lambda _: None,
+                )
+        self.assertTrue(context.closed)
+
 
 if __name__ == "__main__":
     unittest.main()

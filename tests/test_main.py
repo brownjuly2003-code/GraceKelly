@@ -135,3 +135,40 @@ class MainWiringTests(unittest.TestCase):
                 self.assertFalse(closed["value"])
 
         self.assertTrue(closed["value"])
+
+    def test_app_lifespan_closes_postgres_pool_on_shutdown(self) -> None:
+        closed = {"value": False}
+
+        class FakePool:
+            def close(self) -> None:
+                closed["value"] = True
+
+        fake_pool = FakePool()
+        app = create_app(Settings(storage_backend="memory"))
+        app.state.postgres_pool = fake_pool
+
+        with TestClient(app):
+            self.assertFalse(closed["value"])
+
+        self.assertTrue(closed["value"])
+
+    def test_create_app_embeddings_client_absent_when_no_mistral_key(self) -> None:
+        app = create_app(Settings(storage_backend="memory", mistral_api_key=None))
+        self.assertIsNone(app.state.embeddings_client)
+
+    def test_create_app_embeddings_client_present_when_mistral_key_set(self) -> None:
+        app = create_app(Settings(storage_backend="memory", mistral_api_key="test-mistral-key"))
+        self.assertIsNotNone(app.state.embeddings_client)
+
+    def test_create_app_registers_anthropic_adapter(self) -> None:
+        app = create_app(
+            Settings(
+                storage_backend="memory",
+                anthropic_api_key="test-ant-key",
+                anthropic_base_url="https://api.anthropic.com",
+                anthropic_timeout_seconds=30.0,
+            )
+        )
+        self.assertIn("anthropic", app.state.api_adapters)
+        self.assertEqual(app.state.api_adapters["anthropic"].name, "api.anthropic")
+        self.assertIn("api.anthropic", app.state.adapter_registry)
