@@ -14,7 +14,7 @@ from fastapi.responses import JSONResponse
 
 logger = logging.getLogger(__name__)
 
-_PUBLIC_PATHS = frozenset({"/health", "/docs", "/openapi.json", "/redoc"})
+_PUBLIC_PATHS = frozenset({"/health", "/healthz/live", "/healthz/ready", "/docs", "/openapi.json", "/redoc"})
 
 
 def _is_protected(path: str) -> bool:
@@ -23,8 +23,21 @@ def _is_protected(path: str) -> bool:
     return True
 
 
-def setup_api_key_auth(app: FastAPI, *, api_key: str | None) -> None:
+def setup_api_key_auth(app: FastAPI, *, api_key: str | None, require_auth: bool = False) -> None:
     if not api_key:
+        if require_auth:
+            @app.middleware("http")
+            async def require_auth_middleware(
+                request: Request, call_next: Callable[[Request], Awaitable[Response]]
+            ) -> Response:
+                if _is_protected(request.url.path):
+                    return JSONResponse(
+                        status_code=503,
+                        content={"detail": "Service not available: authentication not configured."},
+                    )
+                return await call_next(request)
+
+            return
         logger.warning("API key authentication is not configured — all endpoints are open")
         return
 

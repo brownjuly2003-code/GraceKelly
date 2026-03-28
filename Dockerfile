@@ -1,20 +1,26 @@
-# python:3.12-slim — pinned to 3.12 for reproducibility; upgrade intentionally
+FROM python:3.12-slim AS builder
+WORKDIR /app
+
+RUN pip install --upgrade pip wheel
+
+COPY pyproject.toml ./
+COPY src/ ./src/
+RUN pip install --no-cache-dir --target /install .
+
 FROM python:3.12-slim
+
+RUN groupadd -r gracekelly && useradd -r -g gracekelly gracekelly
 
 WORKDIR /app
 
-COPY pyproject.toml .
-COPY src/ src/
+COPY --from=builder /install /usr/local/lib/python3.12/dist-packages/
+COPY --from=builder /app/src ./src/
 
-RUN pip install --no-cache-dir -e .
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+  CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8011/health')"
 
-# Non-root user for security hardening — must come after pip install
-RUN addgroup --system gracekelly && adduser --system --ingroup gracekelly --no-create-home gracekelly
 USER gracekelly
 
 EXPOSE 8011
 
-HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
-    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8011/health')" || exit 1
-
-CMD ["uvicorn", "gracekelly.main:app_factory", "--host", "0.0.0.0", "--port", "8011", "--factory"]
+CMD ["python", "-m", "uvicorn", "gracekelly.main:create_app", "--factory", "--host", "0.0.0.0", "--port", "8011"]

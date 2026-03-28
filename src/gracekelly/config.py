@@ -25,6 +25,15 @@ def _env_float(name: str, default: str) -> float:
         return float(default)
 
 
+def _env_bool(name: str, default: bool) -> bool:
+    val = os.environ.get(name, "").lower()
+    if val in ("true", "1", "yes"):
+        return True
+    if val in ("false", "0", "no"):
+        return False
+    return default
+
+
 @dataclass(slots=True, frozen=True)
 class Settings:
     env: str = "development"
@@ -32,6 +41,7 @@ class Settings:
     port: int = 8011
     log_level: str = "INFO"
     api_key: str | None = None
+    require_auth: bool = False
     rate_limit_per_minute: int | None = None
     storage_backend: str = "memory"
     postgres_dsn: str | None = None
@@ -76,6 +86,17 @@ class Settings:
     # Graceful shutdown
     graceful_shutdown_timeout_seconds: float = 30.0
 
+    def validate(self) -> None:
+        """Raise ValueError for invalid configuration combinations."""
+        if self.storage_backend == "postgres" and not self.postgres_dsn:
+            raise ValueError(
+                "GRACEKELLY_POSTGRES_DSN is required when GRACEKELLY_STORAGE_BACKEND=postgres"
+            )
+        if self.orchestrate_timeout_seconds is not None and self.orchestrate_timeout_seconds <= 0.0:
+            raise ValueError(
+                f"GRACEKELLY_ORCHESTRATE_TIMEOUT_SECONDS must be > 0.0, got {self.orchestrate_timeout_seconds}"
+            )
+
     @classmethod
     def from_env(cls) -> Settings:
         return cls(
@@ -84,6 +105,7 @@ class Settings:
             port=_env_int("GRACEKELLY_PORT", "8011"),
             log_level=os.getenv("GRACEKELLY_LOG_LEVEL", "INFO"),
             api_key=os.getenv("GRACEKELLY_API_KEY"),
+            require_auth=_env_bool("GRACEKELLY_REQUIRE_AUTH", False),
             rate_limit_per_minute=_env_int("GRACEKELLY_RATE_LIMIT_PER_MINUTE", "0") or None,
             storage_backend=os.getenv("GRACEKELLY_STORAGE_BACKEND", "memory"),
             postgres_dsn=os.getenv("GRACEKELLY_POSTGRES_DSN"),

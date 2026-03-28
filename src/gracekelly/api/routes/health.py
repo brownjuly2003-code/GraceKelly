@@ -4,7 +4,7 @@ import asyncio
 import logging
 from typing import Any
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import PlainTextResponse
 
 from gracekelly import __version__
@@ -408,3 +408,18 @@ async def metrics(request: Request) -> PlainTextResponse:
         request_metrics=state.request_metrics,
     )
     return PlainTextResponse(payload, media_type="text/plain; version=0.0.4; charset=utf-8")
+
+
+@router.get("/healthz/live", tags=["health"], summary="Liveness probe â€” always 200 if process is running")
+async def liveness() -> dict[str, str]:
+    """Kubernetes liveness probe. Returns 200 if the process is alive."""
+    return {"status": "ok"}
+
+
+@router.get("/healthz/ready", tags=["health"], summary="Readiness probe â€” 503 if storage is unavailable")
+async def readiness_probe(request: Request) -> dict[str, object]:
+    """Kubernetes readiness probe. Returns 200 if ready to serve, 503 if not."""
+    state = get_app_state(request)
+    if state.task_repository is None:
+        raise HTTPException(status_code=503, detail="Storage unavailable")
+    return {"status": "ok", "storage": state.task_repository.backend_name}

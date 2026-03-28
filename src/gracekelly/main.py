@@ -179,6 +179,7 @@ async def app_lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
 def create_app(app_settings: Settings | None = None) -> FastAPI:
     active_settings = app_settings or settings
+    active_settings.validate()
 
     app = FastAPI(
         title="GraceKelly",
@@ -281,7 +282,7 @@ def create_app(app_settings: Settings | None = None) -> FastAPI:
         )
 
     setup_security_headers(app)
-    setup_api_key_auth(app, api_key=active_settings.api_key)
+    setup_api_key_auth(app, api_key=active_settings.api_key, require_auth=active_settings.require_auth)
     setup_rate_limiting(app, requests_per_minute=active_settings.rate_limit_per_minute)
     setup_request_metrics(app)
     setup_correlation_id(app)
