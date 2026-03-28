@@ -352,5 +352,84 @@ class ModelMatchesExpectedTests(unittest.TestCase):
         self.assertFalse(adapter._model_matches_expected("sonar", "sonar-pro"))
 
 
+class EnsureAuthTests(unittest.TestCase):
+    """Direct tests for _ensure_auth branches."""
+
+    def _session_manager(self) -> BrowserSessionManager:
+        return BrowserSessionManager(
+            BrowserSessionConfig(
+                enabled=True,
+                provider="perplexity",
+                base_url="https://www.perplexity.ai",
+                profile_dir="D:\\Profiles\\GraceKelly",
+            )
+        )
+
+    def test_ensure_auth_returns_status_when_already_logged_in(self) -> None:
+        """_ensure_auth should return immediately when auth_status reports logged_in=True."""
+        class LoggedInAutomation(FakeBrowserAutomation):
+            def auth_status(self, policy) -> BrowserAuthStatus:
+                return BrowserAuthStatus(logged_in=True)
+
+        adapter = PerplexityBrowserAdapter(
+            session_manager=self._session_manager(),
+            automation=LoggedInAutomation(),
+        )
+        status = adapter._ensure_auth()
+        self.assertTrue(status.logged_in)
+
+    def test_ensure_auth_calls_recover_when_not_logged_in_and_relogin_allowed(self) -> None:
+        """When not logged in and allow_relogin=True, recover_auth should be called."""
+        recovered: list[bool] = []
+
+        class RecoverableAutomation(FakeBrowserAutomation):
+            def auth_status(self, policy) -> BrowserAuthStatus:
+                return BrowserAuthStatus(logged_in=False)
+
+            def recover_auth(self, policy) -> BrowserAuthStatus:
+                recovered.append(True)
+                return BrowserAuthStatus(logged_in=True)
+
+        adapter = PerplexityBrowserAdapter(
+            session_manager=self._session_manager(),
+            automation=RecoverableAutomation(),
+            auth_recovery_policy=AuthRecoveryPolicy(allow_relogin=True),
+        )
+        status = adapter._ensure_auth()
+        self.assertTrue(recovered, "recover_auth was not called")
+        self.assertTrue(status.logged_in)
+
+    def test_ensure_auth_returns_failed_status_when_relogin_not_allowed(self) -> None:
+        """When not logged in and allow_relogin=False, auth status returned without recovery."""
+        adapter = PerplexityBrowserAdapter(
+            session_manager=self._session_manager(),
+            automation=FakeBrowserAutomation(logged_in=False),
+            auth_recovery_policy=AuthRecoveryPolicy(allow_relogin=False),
+        )
+        status = adapter._ensure_auth()
+        self.assertFalse(status.logged_in)
+
+
+class CancelledResultTests(unittest.TestCase):
+    """Direct tests for _cancelled helper."""
+
+    def test_cancelled_returns_cancelled_status(self) -> None:
+        session_manager = BrowserSessionManager(
+            BrowserSessionConfig(
+                enabled=True,
+                provider="perplexity",
+                base_url="https://www.perplexity.ai",
+                profile_dir="D:\\Profiles\\GraceKelly",
+            )
+        )
+        adapter = PerplexityBrowserAdapter(session_manager=session_manager)
+        result = adapter._cancelled("kimi-k2-5", "Kimi K2.5")
+        self.assertEqual(result.status, StepStatus.CANCELLED)
+        self.assertEqual(result.model_id, "kimi-k2-5")
+        self.assertEqual(result.model_display_name, "Kimi K2.5")
+        self.assertTrue(result.details["cancelled"])
+        self.assertEqual(result.execution_mode, "browser")
+
+
 if __name__ == "__main__":
     unittest.main()
