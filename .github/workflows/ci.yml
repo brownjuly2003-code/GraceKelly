@@ -57,6 +57,11 @@ jobs:
           pip install pip-audit
           pip-audit --ignore-vuln PYSEC-2022-42969 || true
 
+      - name: SAST with bandit
+        run: |
+          pip install bandit[toml]
+          bandit -r src/gracekelly/ -ll -x src/gracekelly/adapters/browser/ || true
+
       - name: Run PostgreSQL integration tests
         env:
           GRACEKELLY_POSTGRES_TEST_DSN: postgresql://gracekelly:gracekelly@localhost:5432/gracekelly_test

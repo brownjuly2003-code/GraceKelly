@@ -20,7 +20,7 @@ class OrchestrateRequest(BaseModel):
     cancel_on_quorum: bool = True
     reasoning: bool = False
     metadata: dict[str, Any] = Field(default_factory=dict)
-    dry_run: bool = True
+    dry_run: bool = False
 
     @model_validator(mode="after")
     def validate_model_selection(self) -> OrchestrateRequest:
