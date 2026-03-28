@@ -1,14 +1,89 @@
 from __future__ import annotations
 
 import unittest
+from unittest.mock import MagicMock, patch
 
 from gracekelly.api.routes.health import (
+    _build_metrics_payload,
     _emit_gauge,
     _emit_help,
     _emit_one_hot,
     _prometheus_labels,
     _prometheus_value,
 )
+from gracekelly.request_metrics import RequestMetrics
+
+
+def _mock_readiness() -> dict:
+    return {
+        "status": "ok",
+        "environment": "test",
+        "execution_profile": "dry-run",
+        "components": [
+            {
+                "name": "memory",
+                "kind": "storage",
+                "status": "ok",
+                "required": True,
+                "details": {},
+            },
+            {
+                "name": "execution",
+                "kind": "execution",
+                "status": "ok",
+                "required": True,
+                "details": {
+                    "active_model_executions": 0,
+                    "active_by_model": {},
+                    "model_limits": {},
+                    "saturated_models": [],
+                },
+            },
+        ],
+    }
+
+
+class BuildMetricsPayloadRequestMetricsTests(unittest.TestCase):
+    def _call(self, request_metrics: RequestMetrics) -> str:
+        profile = MagicMock()
+        profile.name = "dry-run"
+        with patch(
+            "gracekelly.api.routes.health._build_readiness_payload",
+            return_value=_mock_readiness(),
+        ):
+            return _build_metrics_payload(
+                environment="test",
+                storage_backend="memory",
+                profile=profile,
+                repository=None,
+                adapters={},
+                execution_router=None,
+                request_metrics=request_metrics,
+            )
+
+    def test_recorded_requests_emit_http_requests_total(self) -> None:
+        rm = RequestMetrics()
+        rm.record_request("/api/v1/smart", 200)
+        output = self._call(rm)
+        self.assertIn("gracekelly_http_requests_total", output)
+        self.assertIn("/api/v1/smart", output)
+
+    def test_recorded_adapter_errors_emit_adapter_errors_total(self) -> None:
+        rm = RequestMetrics()
+        rm.record_adapter_error("api.mistral", "rate_limited")
+        output = self._call(rm)
+        self.assertIn("gracekelly_adapter_errors_total", output)
+        self.assertIn("rate_limited", output)
+
+    def test_empty_request_metrics_emits_no_http_requests_total(self) -> None:
+        rm = RequestMetrics()
+        output = self._call(rm)
+        self.assertNotIn("gracekelly_http_requests_total", output)
+
+    def test_empty_adapter_errors_emits_no_adapter_errors_total(self) -> None:
+        rm = RequestMetrics()
+        output = self._call(rm)
+        self.assertNotIn("gracekelly_adapter_errors_total", output)
 
 
 class PrometheusValueTests(unittest.TestCase):
