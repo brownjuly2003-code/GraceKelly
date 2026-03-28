@@ -133,6 +133,51 @@ class CompareRouteTests(unittest.TestCase):
         })
         self.assertEqual(422, resp.status_code)
 
+    def test_missing_adapter_returns_no_adapter_status(self) -> None:
+        # "Claude Sonnet 4.6 API" uses provider "anthropic"; only "mistral" is registered
+        client = TestClient(_create_test_app())
+        resp = client.post("/api/v1/compare", json={
+            "prompt": "Hello",
+            "models": ["Claude Sonnet 4.6 API"],
+        })
+        self.assertEqual(200, resp.status_code)
+        body = resp.json()
+        self.assertEqual("no_adapter", body["answers"][0]["status"])
+        self.assertEqual(0, body["succeeded"])
+        self.assertEqual(1, body["failed"])
+
+    def test_adapter_exception_returns_error_status(self) -> None:
+        adapter = MagicMock()
+        adapter.execute.side_effect = RuntimeError("boom")
+        client = TestClient(_create_test_app({"mistral": adapter}))
+        resp = client.post("/api/v1/compare", json={
+            "prompt": "Hello",
+            "models": ["mistral-small"],
+        })
+        body = resp.json()
+        self.assertEqual("error", body["answers"][0]["status"])
+        self.assertEqual(0, body["succeeded"])
+        self.assertEqual(1, body["failed"])
+
+    def test_analysis_exception_leaves_analysis_none(self) -> None:
+        good_result = MagicMock(
+            status=StepStatus.COMPLETED, output_text="answer", failure_code=None
+        )
+        adapter = MagicMock()
+        adapter.execute.side_effect = [good_result, good_result, RuntimeError("analysis boom")]
+        client = TestClient(_create_test_app({"mistral": adapter}))
+
+        resp = client.post("/api/v1/compare", json={
+            "prompt": "Hello",
+            "models": ["mistral-small", "mistral-small"],
+            "analyze": True,
+        })
+        body = resp.json()
+
+        self.assertEqual(200, resp.status_code)
+        self.assertIsNone(body["analysis"])
+        self.assertEqual(2, body["succeeded"])
+
 
 if __name__ == "__main__":
     unittest.main()
