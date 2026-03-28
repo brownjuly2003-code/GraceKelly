@@ -325,7 +325,7 @@ class PostgresTaskRepository(TaskRepository):
         {where_sql}
         ORDER BY accepted_at DESC, task_id DESC
         LIMIT %s
-        """
+        """  # nosec B608 — where_sql is built from hardcoded clause strings ("status = %s" etc.); all values use %s placeholders
         params.append(limit)
         with self._connect(row_factory=dict_row) as conn:
             with conn.cursor() as cursor:

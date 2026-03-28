@@ -39,7 +39,7 @@ class BaseApiAdapter(ExecutionAdapter):
         self._max_retries = max(0, max_retries)
         self._retry_backoff_seconds = retry_backoff_seconds
         self._http_client = httpx.Client(
-            timeout=None,  # We handle timeouts per-request
+            timeout=None,  # nosec B113 — timeout is set per-request in _post_json
             follow_redirects=True,
         )
 

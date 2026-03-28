@@ -71,6 +71,6 @@ class EmbeddingsClient:
             },
             method="POST",
         )
-        with request.urlopen(http_request, timeout=self._timeout_seconds) as response:
+        with request.urlopen(http_request, timeout=self._timeout_seconds) as response:  # nosec B310 — URL is always self._base_url (api.mistral.ai), never user-controlled
             data = json.loads(response.read().decode("utf-8"))
         return cast(list[float], data["data"][0]["embedding"])

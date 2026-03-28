@@ -36,6 +36,7 @@ class AnthropicApiAdapter(BaseApiAdapter):
         payload: dict[str, object],
         *,
         timeout_seconds: float,
+        extra_headers: dict[str, str] | None = None,
     ) -> dict[str, object]:
         body = json.dumps(payload).encode("utf-8")
         http_request = urllib_request.Request(
@@ -49,7 +50,7 @@ class AnthropicApiAdapter(BaseApiAdapter):
             },
             method="POST",
         )
-        with urllib_request.urlopen(http_request, timeout=timeout_seconds) as response:
+        with urllib_request.urlopen(http_request, timeout=timeout_seconds) as response:  # nosec B310 — URL is always self._base_url (anthropic.com), never user-controlled
             return cast(dict[str, object], json.loads(response.read().decode("utf-8")))
 
     def _extract_output_text(self, payload: dict[str, object]) -> str:
