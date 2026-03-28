@@ -140,6 +140,16 @@ class SmartV2RouteTests(unittest.TestCase):
         )
         self.assertEqual(200, response.status_code)
 
+    def test_smart_v2_missing_adapter_returns_400(self) -> None:
+        # "Claude Sonnet 4.6 API" uses provider "anthropic"; only "mistral" is registered
+        client = TestClient(_create_test_app())
+        response = client.post(
+            "/api/v1/smart/v2",
+            json={"prompt": "Hello", "model": "Claude Sonnet 4.6 API"},
+        )
+        self.assertEqual(400, response.status_code)
+        self.assertIn("No API adapter", response.json()["detail"])
+
 
 if __name__ == "__main__":
     unittest.main()
