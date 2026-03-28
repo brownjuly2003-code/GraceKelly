@@ -207,6 +207,12 @@ Delivered:
 - ✅ Analytics N+1 query fix: batch step loading via list_steps_batch
 - ✅ Event pagination for GET /tasks/{id}: events_limit / events_offset query params
 - ✅ httpx migration for API adapter (replaces requests)
+- ✅ Prometheus latency histogram: gracekelly_http_request_duration_seconds (buckets, sum, count)
+- ✅ SAST with bandit added to CI pipeline (|| true); nosec annotations for false positives
+- ✅ dry_run default changed from True to False (HIGH audit finding — prevents silent DryRunAdapter in production)
+- ✅ AnthropicApiAdapter._post_json signature aligned with BaseApiAdapter (extra_headers param)
+- ✅ app_state.py: added test coverage
+- ✅ 2309 tests passing (from 2229 start of session)
 
 Remaining:
 - Async adapters (async httpx / async playwright) — sync adapters currently block the event loop
@@ -214,3 +220,4 @@ Remaining:
 - OpenTelemetry distributed tracing
 - Error tracking integration (Sentry)
 - Load testing framework
+- Event buffering for storage failures (in-memory retry queue)
