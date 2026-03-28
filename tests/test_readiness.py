@@ -156,6 +156,53 @@ class ReadinessTests(unittest.TestCase):
         dry_run_component = next(item for item in report["components"] if item["name"] == "dry-run")
         self.assertEqual(dry_run_component["status"], "unknown")
 
+    def test_build_readiness_report_fails_when_storage_health_fails(self) -> None:
+        class FailedHealthRepository(InMemoryTaskRepository):
+            def healthcheck(self) -> dict[str, object]:
+                return {"status": "failed", "backend": self.backend_name}
+
+        report = build_readiness_report(
+            environment="test",
+            profile=resolve_execution_profile("dry-run"),
+            repository=FailedHealthRepository(),
+            adapters={"dry-run": DryRunExecutionAdapter()},
+        )
+
+        self.assertEqual(report["status"], "failed")
+        storage = next(item for item in report["components"] if item["kind"] == "storage")
+        self.assertEqual(storage["status"], "failed")
+
+    def test_build_readiness_report_fails_when_storage_schema_fails(self) -> None:
+        class FailedSchemaRepository(InMemoryTaskRepository):
+            def schema_report(self) -> dict[str, object]:
+                return {"status": "failed", "backend": self.backend_name}
+
+        report = build_readiness_report(
+            environment="test",
+            profile=resolve_execution_profile("dry-run"),
+            repository=FailedSchemaRepository(),
+            adapters={"dry-run": DryRunExecutionAdapter()},
+        )
+
+        self.assertEqual(report["status"], "failed")
+        storage = next(item for item in report["components"] if item["kind"] == "storage")
+        self.assertEqual(storage["status"], "failed")
+
+    def test_build_readiness_report_skips_unknown_adapters(self) -> None:
+        report = build_readiness_report(
+            environment="test",
+            profile=resolve_execution_profile("dry-run"),
+            repository=InMemoryTaskRepository(),
+            adapters={
+                "dry-run": DryRunExecutionAdapter(),
+                "custom-unknown": DryRunExecutionAdapter(),
+            },
+        )
+
+        component_names = [c["name"] for c in report["components"]]
+        self.assertIn("dry-run", component_names)
+        self.assertNotIn("custom-unknown", component_names)
+
 
 if __name__ == "__main__":
     unittest.main()
