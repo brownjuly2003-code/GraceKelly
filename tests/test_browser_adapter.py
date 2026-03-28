@@ -11,7 +11,7 @@ from gracekelly.adapters.browser.automation import (
     BrowserProfileBusyError,
 )
 from gracekelly.adapters.browser.perplexity import PerplexityBrowserAdapter
-from gracekelly.adapters.browser.policy import AuthRecoveryPolicy
+from gracekelly.adapters.browser.policy import AuthRecoveryPolicy, ModelVerificationPolicy
 from gracekelly.adapters.browser.session import BrowserSessionConfig, BrowserSessionManager
 from gracekelly.core.contracts import (
     CancellationToken,
@@ -315,6 +315,41 @@ class BrowserAdapterTests(unittest.TestCase):
 
         self.assertEqual(health["status"], "degraded")
         self.assertFalse(health["runtime_consistent"])
+
+
+class ModelMatchesExpectedTests(unittest.TestCase):
+    def _make_adapter(self, *, allow_alias_match: bool = True) -> PerplexityBrowserAdapter:
+        session_manager = BrowserSessionManager(
+            BrowserSessionConfig(
+                enabled=True,
+                provider="perplexity",
+                base_url="https://www.perplexity.ai",
+                profile_dir="D:\\Profiles\\GraceKelly",
+            )
+        )
+        return PerplexityBrowserAdapter(
+            session_manager=session_manager,
+            model_verification_policy=ModelVerificationPolicy(allow_alias_match=allow_alias_match),
+        )
+
+    def test_exact_match_returns_true(self) -> None:
+        adapter = self._make_adapter()
+        self.assertTrue(adapter._model_matches_expected("sonar", "sonar"))
+
+    def test_different_labels_without_alias_match_returns_false(self) -> None:
+        adapter = self._make_adapter(allow_alias_match=False)
+        self.assertFalse(adapter._model_matches_expected("sonar-pro", "sonar"))
+
+    def test_alias_match_enabled_equivalent_models_returns_true(self) -> None:
+        adapter = self._make_adapter(allow_alias_match=True)
+        # "Claude Sonnet 4.6" and "Claude 4.6" are aliases of the same model id →
+        # exact match fails, but models_equivalent returns True → method returns True
+        self.assertTrue(adapter._model_matches_expected("Claude Sonnet 4.6", "Claude 4.6"))
+
+    def test_alias_match_disabled_even_when_models_are_equivalent(self) -> None:
+        adapter = self._make_adapter(allow_alias_match=False)
+        # Even if labels would be equivalent, alias match is disabled → False
+        self.assertFalse(adapter._model_matches_expected("sonar", "sonar-pro"))
 
 
 if __name__ == "__main__":
