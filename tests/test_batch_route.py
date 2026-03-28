@@ -108,6 +108,36 @@ class BatchRouteTests(unittest.TestCase):
         self.assertEqual("error", body["results"][0]["status"])
         self.assertEqual(1, body["failed"])
 
+    def test_missing_adapter_for_provider_returns_400(self) -> None:
+        # "Claude Sonnet 4.6 API" uses provider "anthropic"; app only has "mistral"
+        client = TestClient(_create_test_app())
+        response = client.post(
+            "/api/v1/batch",
+            json={"prompts": ["Hello"], "model": "Claude Sonnet 4.6 API"},
+        )
+        self.assertEqual(400, response.status_code)
+        self.assertIn("No adapter", response.json()["detail"])
+
+    def test_completed_with_no_output_text_counts_as_failed(self) -> None:
+        app = FastAPI()
+        app.include_router(router)
+        adapter = MagicMock()
+        adapter.execute.return_value = MagicMock(
+            status=StepStatus.COMPLETED,
+            output_text=None,
+            failure_code=None,
+            failure_message=None,
+        )
+        app.state.api_adapters = {"mistral": adapter}
+        client = TestClient(app)
+
+        response = client.post("/api/v1/batch", json={"prompts": ["Hello"]})
+        body = response.json()
+
+        self.assertEqual(0, body["succeeded"])
+        self.assertEqual(1, body["failed"])
+        self.assertEqual("failed", body["results"][0]["status"])
+
 
 if __name__ == "__main__":
     unittest.main()
