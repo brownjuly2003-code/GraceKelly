@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-import io
 import json
 import unittest
 from unittest.mock import MagicMock, patch
-from urllib import error
+
+import httpx
 
 from gracekelly.adapters.api.anthropic import AnthropicApiAdapter
 from gracekelly.adapters.api.mistral import MistralApiAdapter
@@ -53,18 +53,37 @@ def _execution_request(model_spec) -> ExecutionRequest:
     return ExecutionRequest(task_id="t1", prompt="Hello", plan=plan, step=step, reasoning=False)
 
 
-def _make_http_error(code: int) -> error.HTTPError:
-    return error.HTTPError(
-        url="https://api.test/v1/chat/completions",
-        code=code,
-        msg=f"HTTP {code}",
-        hdrs={},  # type: ignore[arg-type]
-        fp=io.BytesIO(b"{}"),
+def _make_http_status_error(code: int) -> httpx.HTTPStatusError:
+    response = MagicMock(spec=httpx.Response)
+    response.status_code = code
+    response.text = f"HTTP {code}"
+    return httpx.HTTPStatusError(
+        message=f"HTTP {code}",
+        request=MagicMock(spec=httpx.Request),
+        response=response,
     )
 
 
 def _api_response(content: str = "OK") -> dict:
     return {"choices": [{"message": {"content": content}}]}
+
+
+def _mock_httpx_response(data: dict) -> MagicMock:
+    mock = MagicMock(spec=httpx.Response)
+    mock.status_code = 200
+    mock.json.return_value = data
+    mock.raise_for_status.return_value = None
+    return mock
+
+
+# urllib mock for Anthropic adapter (still uses urllib internally)
+def _mock_urllib_response(data: dict) -> MagicMock:
+    body = json.dumps(data).encode("utf-8")
+    mock = MagicMock()
+    mock.__enter__ = lambda s: s
+    mock.__exit__ = MagicMock(return_value=False)
+    mock.read.return_value = body
+    return mock
 
 
 class MistralErrorPathTests(unittest.TestCase):
@@ -77,53 +96,53 @@ class MistralErrorPathTests(unittest.TestCase):
         self.assertEqual(result.failure_code, FailureCode.PROVIDER_UNAVAILABLE)
         self.assertIn("not configured", result.failure_message)
 
-    @patch("gracekelly.adapters.api.base.request.urlopen")
-    def test_timeout(self, mock_urlopen: MagicMock) -> None:
-        mock_urlopen.side_effect = TimeoutError()
+    @patch("httpx.Client.post")
+    def test_timeout(self, mock_post: MagicMock) -> None:
+        mock_post.side_effect = httpx.TimeoutException("timed out")
         result = self._adapter().execute(_execution_request(_mistral_spec()))
         self.assertEqual(result.failure_code, FailureCode.TIMEOUT)
 
-    @patch("gracekelly.adapters.api.base.request.urlopen")
-    def test_rate_limit_429(self, mock_urlopen: MagicMock) -> None:
-        mock_urlopen.side_effect = _make_http_error(429)
+    @patch("httpx.Client.post")
+    def test_rate_limit_429(self, mock_post: MagicMock) -> None:
+        mock_post.side_effect = _make_http_status_error(429)
         result = self._adapter().execute(_execution_request(_mistral_spec()))
         self.assertEqual(result.failure_code, FailureCode.RATE_LIMITED)
 
-    @patch("gracekelly.adapters.api.base.request.urlopen")
-    def test_server_error_500(self, mock_urlopen: MagicMock) -> None:
-        mock_urlopen.side_effect = _make_http_error(500)
+    @patch("httpx.Client.post")
+    def test_server_error_500(self, mock_post: MagicMock) -> None:
+        mock_post.side_effect = _make_http_status_error(500)
         result = self._adapter().execute(_execution_request(_mistral_spec()))
         self.assertEqual(result.failure_code, FailureCode.PROVIDER_UNAVAILABLE)
         self.assertIn("500", result.failure_message)
 
-    @patch("gracekelly.adapters.api.base.request.urlopen")
-    def test_network_error(self, mock_urlopen: MagicMock) -> None:
-        mock_urlopen.side_effect = error.URLError("Connection refused")
+    @patch("httpx.Client.post")
+    def test_network_error(self, mock_post: MagicMock) -> None:
+        mock_post.side_effect = httpx.ConnectError("Connection refused")
         result = self._adapter().execute(_execution_request(_mistral_spec()))
         self.assertEqual(result.failure_code, FailureCode.PROVIDER_UNAVAILABLE)
         self.assertIn("network error", result.failure_message)
 
-    @patch("gracekelly.adapters.api.base.request.urlopen")
-    def test_empty_choices(self, mock_urlopen: MagicMock) -> None:
-        mock_urlopen.return_value = _mock_response({"choices": []})
+    @patch("httpx.Client.post")
+    def test_empty_choices(self, mock_post: MagicMock) -> None:
+        mock_post.return_value = _mock_httpx_response({"choices": []})
         result = self._adapter().execute(_execution_request(_mistral_spec()))
         self.assertEqual(result.failure_code, FailureCode.UNKNOWN_ERROR)
 
-    @patch("gracekelly.adapters.api.base.request.urlopen")
-    def test_missing_message(self, mock_urlopen: MagicMock) -> None:
-        mock_urlopen.return_value = _mock_response({"choices": [{"index": 0}]})
+    @patch("httpx.Client.post")
+    def test_missing_message(self, mock_post: MagicMock) -> None:
+        mock_post.return_value = _mock_httpx_response({"choices": [{"index": 0}]})
         result = self._adapter().execute(_execution_request(_mistral_spec()))
         self.assertEqual(result.failure_code, FailureCode.UNKNOWN_ERROR)
 
-    @patch("gracekelly.adapters.api.base.request.urlopen")
-    def test_empty_content(self, mock_urlopen: MagicMock) -> None:
-        mock_urlopen.return_value = _mock_response({"choices": [{"message": {"content": ""}}]})
+    @patch("httpx.Client.post")
+    def test_empty_content(self, mock_post: MagicMock) -> None:
+        mock_post.return_value = _mock_httpx_response({"choices": [{"message": {"content": ""}}]})
         result = self._adapter().execute(_execution_request(_mistral_spec()))
         self.assertEqual(result.failure_code, FailureCode.UNKNOWN_ERROR)
 
-    @patch("gracekelly.adapters.api.base.request.urlopen")
-    def test_success(self, mock_urlopen: MagicMock) -> None:
-        mock_urlopen.return_value = _mock_response(_api_response("Hello world"))
+    @patch("httpx.Client.post")
+    def test_success(self, mock_post: MagicMock) -> None:
+        mock_post.return_value = _mock_httpx_response(_api_response("Hello world"))
         result = self._adapter().execute(_execution_request(_mistral_spec()))
         self.assertEqual(result.status, StepStatus.COMPLETED)
         self.assertEqual(result.output_text, "Hello world")
@@ -143,20 +162,20 @@ class OpenAIErrorPathTests(unittest.TestCase):
     def _adapter(self, api_key: str | None = "test-key") -> OpenAICompatibleApiAdapter:
         return OpenAICompatibleApiAdapter(api_key=api_key, base_url="https://api.openai.com/v1")
 
-    @patch("gracekelly.adapters.api.base.request.urlopen")
-    def test_timeout(self, mock_urlopen: MagicMock) -> None:
-        mock_urlopen.side_effect = TimeoutError()
+    @patch("httpx.Client.post")
+    def test_timeout(self, mock_post: MagicMock) -> None:
+        mock_post.side_effect = httpx.TimeoutException("timed out")
         result = self._adapter().execute(_execution_request(_openai_spec()))
         self.assertEqual(result.failure_code, FailureCode.TIMEOUT)
 
-    @patch("gracekelly.adapters.api.base.request.urlopen")
-    def test_rate_limit_429(self, mock_urlopen: MagicMock) -> None:
-        mock_urlopen.side_effect = _make_http_error(429)
+    @patch("httpx.Client.post")
+    def test_rate_limit_429(self, mock_post: MagicMock) -> None:
+        mock_post.side_effect = _make_http_status_error(429)
         result = self._adapter().execute(_execution_request(_openai_spec()))
         self.assertEqual(result.failure_code, FailureCode.RATE_LIMITED)
 
-    @patch("gracekelly.adapters.api.base.request.urlopen")
-    def test_list_content_extracted(self, mock_urlopen: MagicMock) -> None:
+    @patch("httpx.Client.post")
+    def test_list_content_extracted(self, mock_post: MagicMock) -> None:
         payload = {
             "choices": [{
                 "message": {
@@ -167,13 +186,13 @@ class OpenAIErrorPathTests(unittest.TestCase):
                 }
             }]
         }
-        mock_urlopen.return_value = _mock_response(payload)
+        mock_post.return_value = _mock_httpx_response(payload)
         result = self._adapter().execute(_execution_request(_openai_spec()))
         self.assertEqual(result.status, StepStatus.COMPLETED)
         self.assertEqual(result.output_text, "Part 1\nPart 2")
 
-    @patch("gracekelly.adapters.api.base.request.urlopen")
-    def test_list_content_empty_parts(self, mock_urlopen: MagicMock) -> None:
+    @patch("httpx.Client.post")
+    def test_list_content_empty_parts(self, mock_post: MagicMock) -> None:
         payload = {
             "choices": [{
                 "message": {
@@ -181,13 +200,13 @@ class OpenAIErrorPathTests(unittest.TestCase):
                 }
             }]
         }
-        mock_urlopen.return_value = _mock_response(payload)
+        mock_post.return_value = _mock_httpx_response(payload)
         result = self._adapter().execute(_execution_request(_openai_spec()))
         self.assertEqual(result.failure_code, FailureCode.UNKNOWN_ERROR)
 
-    @patch("gracekelly.adapters.api.base.request.urlopen")
-    def test_non_json_response(self, mock_urlopen: MagicMock) -> None:
-        mock_urlopen.side_effect = Exception("Unexpected error")
+    @patch("httpx.Client.post")
+    def test_non_json_response(self, mock_post: MagicMock) -> None:
+        mock_post.side_effect = Exception("Unexpected error")
         result = self._adapter().execute(_execution_request(_openai_spec()))
         self.assertEqual(result.failure_code, FailureCode.UNKNOWN_ERROR)
 
@@ -213,7 +232,7 @@ class AnthropicErrorPathTests(unittest.TestCase):
     @patch("gracekelly.adapters.api.anthropic.urllib_request.urlopen")
     def test_success_with_text_content(self, mock_urlopen: MagicMock) -> None:
         payload = {"content": [{"type": "text", "text": "Hello from Claude"}]}
-        mock_urlopen.return_value = _mock_response(payload)
+        mock_urlopen.return_value = _mock_urllib_response(payload)
         result = self._adapter().execute(_execution_request(_anthropic_spec()))
         self.assertEqual(result.status, StepStatus.COMPLETED)
         self.assertEqual(result.output_text, "Hello from Claude")
@@ -226,19 +245,28 @@ class AnthropicErrorPathTests(unittest.TestCase):
                 {"type": "text", "text": "Part B"},
             ]
         }
-        mock_urlopen.return_value = _mock_response(payload)
+        mock_urlopen.return_value = _mock_urllib_response(payload)
         result = self._adapter().execute(_execution_request(_anthropic_spec()))
         self.assertEqual(result.output_text, "Part A\nPart B")
 
     @patch("gracekelly.adapters.api.anthropic.urllib_request.urlopen")
     def test_empty_content_fails(self, mock_urlopen: MagicMock) -> None:
-        mock_urlopen.return_value = _mock_response({"content": []})
+        mock_urlopen.return_value = _mock_urllib_response({"content": []})
         result = self._adapter().execute(_execution_request(_anthropic_spec()))
         self.assertEqual(result.failure_code, FailureCode.UNKNOWN_ERROR)
 
     @patch("gracekelly.adapters.api.anthropic.urllib_request.urlopen")
     def test_rate_limit_429(self, mock_urlopen: MagicMock) -> None:
-        mock_urlopen.side_effect = _make_http_error(429)
+        from io import BytesIO
+        from urllib import error as urllib_error
+        exc = urllib_error.HTTPError(
+            url="https://api.anthropic.com/v1/messages",
+            code=429,
+            msg="Too Many Requests",
+            hdrs={},  # type: ignore[arg-type]
+            fp=BytesIO(b"{}"),
+        )
+        mock_urlopen.side_effect = exc
         result = self._adapter().execute(_execution_request(_anthropic_spec()))
         self.assertEqual(result.failure_code, FailureCode.RATE_LIMITED)
 
@@ -254,7 +282,7 @@ class AnthropicErrorPathTests(unittest.TestCase):
 
     @patch("gracekelly.adapters.api.anthropic.urllib_request.urlopen")
     def test_uses_x_api_key_header(self, mock_urlopen: MagicMock) -> None:
-        mock_urlopen.return_value = _mock_response({"content": [{"type": "text", "text": "ok"}]})
+        mock_urlopen.return_value = _mock_urllib_response({"content": [{"type": "text", "text": "ok"}]})
         self._adapter().execute(_execution_request(_anthropic_spec()))
         call_args = mock_urlopen.call_args
         req = call_args[0][0]
@@ -271,71 +299,71 @@ class RetryTests(unittest.TestCase):
             retry_backoff_seconds=0.0,
         )
 
-    @patch("gracekelly.adapters.api.base.request.urlopen")
-    def test_retry_on_429_then_success(self, mock_urlopen: MagicMock) -> None:
-        mock_urlopen.side_effect = [
-            _make_http_error(429),
-            _mock_response(_api_response("OK")),
+    @patch("httpx.Client.post")
+    def test_retry_on_429_then_success(self, mock_post: MagicMock) -> None:
+        mock_post.side_effect = [
+            _make_http_status_error(429),
+            _mock_httpx_response(_api_response("OK")),
         ]
         result = self._adapter(max_retries=1).execute(_execution_request(_mistral_spec()))
         self.assertEqual(result.status, StepStatus.COMPLETED)
         self.assertEqual(result.output_text, "OK")
         self.assertEqual(result.details["attempts"], 2)
 
-    @patch("gracekelly.adapters.api.base.request.urlopen")
-    def test_retry_on_500_then_success(self, mock_urlopen: MagicMock) -> None:
-        mock_urlopen.side_effect = [
-            _make_http_error(500),
-            _make_http_error(502),
-            _mock_response(_api_response("recovered")),
+    @patch("httpx.Client.post")
+    def test_retry_on_500_then_success(self, mock_post: MagicMock) -> None:
+        mock_post.side_effect = [
+            _make_http_status_error(500),
+            _make_http_status_error(502),
+            _mock_httpx_response(_api_response("recovered")),
         ]
         result = self._adapter(max_retries=2).execute(_execution_request(_mistral_spec()))
         self.assertEqual(result.status, StepStatus.COMPLETED)
         self.assertEqual(result.output_text, "recovered")
 
-    @patch("gracekelly.adapters.api.base.request.urlopen")
-    def test_retry_exhausted_returns_last_error(self, mock_urlopen: MagicMock) -> None:
-        mock_urlopen.side_effect = [
-            _make_http_error(503),
-            _make_http_error(503),
-            _make_http_error(503),
+    @patch("httpx.Client.post")
+    def test_retry_exhausted_returns_last_error(self, mock_post: MagicMock) -> None:
+        mock_post.side_effect = [
+            _make_http_status_error(503),
+            _make_http_status_error(503),
+            _make_http_status_error(503),
         ]
         result = self._adapter(max_retries=2).execute(_execution_request(_mistral_spec()))
         self.assertEqual(result.status, StepStatus.FAILED)
         self.assertEqual(result.failure_code, FailureCode.PROVIDER_UNAVAILABLE)
 
-    @patch("gracekelly.adapters.api.base.request.urlopen")
-    def test_retry_on_timeout_then_success(self, mock_urlopen: MagicMock) -> None:
-        mock_urlopen.side_effect = [
-            TimeoutError(),
-            _mock_response(_api_response("OK")),
+    @patch("httpx.Client.post")
+    def test_retry_on_timeout_then_success(self, mock_post: MagicMock) -> None:
+        mock_post.side_effect = [
+            httpx.TimeoutException("timed out"),
+            _mock_httpx_response(_api_response("OK")),
         ]
         result = self._adapter(max_retries=1).execute(_execution_request(_mistral_spec()))
         self.assertEqual(result.status, StepStatus.COMPLETED)
 
-    @patch("gracekelly.adapters.api.base.request.urlopen")
-    def test_retry_on_network_error_then_success(self, mock_urlopen: MagicMock) -> None:
-        mock_urlopen.side_effect = [
-            error.URLError("Connection refused"),
-            _mock_response(_api_response("OK")),
+    @patch("httpx.Client.post")
+    def test_retry_on_network_error_then_success(self, mock_post: MagicMock) -> None:
+        mock_post.side_effect = [
+            httpx.ConnectError("Connection refused"),
+            _mock_httpx_response(_api_response("OK")),
         ]
         result = self._adapter(max_retries=1).execute(_execution_request(_mistral_spec()))
         self.assertEqual(result.status, StepStatus.COMPLETED)
 
-    @patch("gracekelly.adapters.api.base.request.urlopen")
-    def test_no_retry_on_400(self, mock_urlopen: MagicMock) -> None:
-        mock_urlopen.side_effect = _make_http_error(400)
+    @patch("httpx.Client.post")
+    def test_no_retry_on_400(self, mock_post: MagicMock) -> None:
+        mock_post.side_effect = _make_http_status_error(400)
         result = self._adapter(max_retries=2).execute(_execution_request(_mistral_spec()))
         self.assertEqual(result.status, StepStatus.FAILED)
-        self.assertEqual(mock_urlopen.call_count, 1)
+        self.assertEqual(mock_post.call_count, 1)
 
-    @patch("gracekelly.adapters.api.base.request.urlopen")
-    def test_no_retry_on_non_retryable_exception(self, mock_urlopen: MagicMock) -> None:
-        mock_urlopen.side_effect = ValueError("bad")
+    @patch("httpx.Client.post")
+    def test_no_retry_on_non_retryable_exception(self, mock_post: MagicMock) -> None:
+        mock_post.side_effect = ValueError("bad")
         result = self._adapter(max_retries=2).execute(_execution_request(_mistral_spec()))
         self.assertEqual(result.status, StepStatus.FAILED)
         self.assertEqual(result.failure_code, FailureCode.UNKNOWN_ERROR)
-        self.assertEqual(mock_urlopen.call_count, 1)
+        self.assertEqual(mock_post.call_count, 1)
 
     def test_zero_retries_is_single_attempt(self) -> None:
         adapter = MistralApiAdapter(
@@ -350,12 +378,3 @@ class RetryTests(unittest.TestCase):
         health = adapter.healthcheck()
         self.assertEqual(health["max_retries"], 3)
         self.assertEqual(health["retry_backoff_seconds"], 0.0)
-
-
-def _mock_response(data: dict) -> MagicMock:
-    body = json.dumps(data).encode("utf-8")
-    mock = MagicMock()
-    mock.__enter__ = lambda s: s
-    mock.__exit__ = MagicMock(return_value=False)
-    mock.read.return_value = body
-    return mock

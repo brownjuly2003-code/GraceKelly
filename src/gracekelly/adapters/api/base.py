@@ -1,10 +1,9 @@
 from __future__ import annotations
 
-import json
 import logging
 import time
-from typing import cast
-from urllib import error, request
+
+import httpx
 
 from gracekelly.core.contracts import (
     ExecutionAdapter,
@@ -39,6 +38,13 @@ class BaseApiAdapter(ExecutionAdapter):
         self._provider_label = provider_label
         self._max_retries = max(0, max_retries)
         self._retry_backoff_seconds = retry_backoff_seconds
+        self._http_client = httpx.Client(
+            timeout=None,  # We handle timeouts per-request
+            follow_redirects=True,
+        )
+
+    def close(self) -> None:
+        self._http_client.close()
 
     @property
     def has_api_key(self) -> bool:
@@ -82,33 +88,73 @@ class BaseApiAdapter(ExecutionAdapter):
                         "attempts": attempt,
                     },
                 )
-            except error.HTTPError as exc:
+            except httpx.HTTPStatusError as exc:
                 last_error = exc
-                if exc.code in _RETRYABLE_HTTP_CODES and attempt < attempts:
+                status_code = exc.response.status_code
+                if status_code in _RETRYABLE_HTTP_CODES and attempt < attempts:
                     self._sleep_before_retry(attempt)
                     continue
-                if exc.code == 429:
+                if status_code == 429:
                     return self._failure(
                         model.id, model.display_name, FailureCode.RATE_LIMITED,
                         f"{self._provider_label} rate limit reached.",
                     )
                 return self._failure(
                     model.id, model.display_name, FailureCode.PROVIDER_UNAVAILABLE,
-                    f"{self._provider_label} HTTP error: {exc.code}",
+                    f"{self._provider_label} HTTP error: {status_code}",
                 )
-            except (TimeoutError, error.URLError) as exc:
+            except httpx.TimeoutException as exc:
                 last_error = exc
                 if attempt < attempts:
                     self._sleep_before_retry(attempt)
                     continue
-                if isinstance(exc, TimeoutError):
-                    return self._failure(
-                        model.id, model.display_name, FailureCode.TIMEOUT,
-                        f"{self._provider_label} request timed out.",
-                    )
+                return self._failure(
+                    model.id, model.display_name, FailureCode.TIMEOUT,
+                    f"{self._provider_label} request timed out.",
+                )
+            except httpx.RequestError as exc:
+                last_error = exc
+                if attempt < attempts:
+                    self._sleep_before_retry(attempt)
+                    continue
                 return self._failure(
                     model.id, model.display_name, FailureCode.PROVIDER_UNAVAILABLE,
-                    f"{self._provider_label} network error: {exc.reason}",
+                    f"{self._provider_label} network error: {exc}",
+                )
+            except TimeoutError as exc:
+                # Covers built-in TimeoutError raised by subclass adapters (e.g. urllib-based)
+                last_error = exc
+                if attempt < attempts:
+                    self._sleep_before_retry(attempt)
+                    continue
+                return self._failure(
+                    model.id, model.display_name, FailureCode.TIMEOUT,
+                    f"{self._provider_label} request timed out.",
+                )
+            except OSError as exc:
+                # Covers urllib.error.HTTPError / urllib.error.URLError from subclass adapters
+                last_error = exc
+                code = getattr(exc, "code", None)
+                reason = getattr(exc, "reason", None)
+                if isinstance(code, int):
+                    if code in _RETRYABLE_HTTP_CODES and attempt < attempts:
+                        self._sleep_before_retry(attempt)
+                        continue
+                    if code == 429:
+                        return self._failure(
+                            model.id, model.display_name, FailureCode.RATE_LIMITED,
+                            f"{self._provider_label} rate limit reached.",
+                        )
+                    return self._failure(
+                        model.id, model.display_name, FailureCode.PROVIDER_UNAVAILABLE,
+                        f"{self._provider_label} HTTP error: {code}",
+                    )
+                if attempt < attempts:
+                    self._sleep_before_retry(attempt)
+                    continue
+                return self._failure(
+                    model.id, model.display_name, FailureCode.PROVIDER_UNAVAILABLE,
+                    f"{self._provider_label} network error: {reason or exc}",
                 )
             except Exception as exc:
                 return self._failure(
@@ -141,20 +187,25 @@ class BaseApiAdapter(ExecutionAdapter):
         payload: dict[str, object],
         *,
         timeout_seconds: float,
+        extra_headers: dict[str, str] | None = None,
     ) -> dict[str, object]:
-        body = json.dumps(payload).encode("utf-8")
-        http_request = request.Request(
+        headers: dict[str, str] = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {self._api_key}",
+        }
+        if extra_headers:
+            headers.update(extra_headers)
+        response = self._http_client.post(
             f"{self._base_url}{path}",
-            data=body,
-            headers={
-                "Authorization": f"Bearer {self._api_key}",
-                "Content-Type": "application/json",
-                "Accept": "application/json",
-            },
-            method="POST",
+            json=payload,
+            headers=headers,
+            timeout=timeout_seconds,
         )
-        with request.urlopen(http_request, timeout=timeout_seconds) as response:
-            return cast(dict[str, object], json.loads(response.read().decode("utf-8")))
+        response.raise_for_status()
+        result = response.json()
+        if not isinstance(result, dict):
+            raise ValueError(f"Expected dict response, got {type(result).__name__}")
+        return result
 
     def _extract_output_text(self, payload: dict[str, object]) -> str:
         choices = payload.get("choices")
