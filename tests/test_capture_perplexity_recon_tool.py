@@ -328,5 +328,100 @@ class CapturePerplexityReconToolTests(unittest.TestCase):
         self.assertEqual(print_mock.call_args.args[0], "Perplexity DOM recon is ready at D:\\Recon\\Today")
 
 
+class LocatorIsVisibleTests(unittest.TestCase):
+    def test_visible_locator_returns_true(self) -> None:
+        locator = _FakeLocator(visible=True)
+        self.assertTrue(capture_perplexity_recon._locator_is_visible(locator))
+
+    def test_invisible_locator_returns_false(self) -> None:
+        locator = _FakeLocator(visible=False)
+        self.assertFalse(capture_perplexity_recon._locator_is_visible(locator))
+
+    def test_locator_without_is_visible_falls_back_to_count(self) -> None:
+        class _CountLocator:
+            first = None
+
+            def count(self) -> int:
+                return 1
+
+        locator = _CountLocator()
+        locator.first = locator  # type: ignore[assignment]
+        self.assertTrue(capture_perplexity_recon._locator_is_visible(locator))
+
+    def test_locator_is_visible_raises_returns_false(self) -> None:
+        class _RaisingLocator:
+            first = None
+
+            def is_visible(self) -> bool:
+                raise RuntimeError("not connected")
+
+        locator = _RaisingLocator()
+        locator.first = locator  # type: ignore[assignment]
+        self.assertFalse(capture_perplexity_recon._locator_is_visible(locator))
+
+    def test_locator_with_no_methods_returns_false(self) -> None:
+        class _BareLoc:
+            first = None
+        locator = _BareLoc()
+        locator.first = locator  # type: ignore[assignment]
+        self.assertFalse(capture_perplexity_recon._locator_is_visible(locator))
+
+
+class LocatorExistsTests(unittest.TestCase):
+    def test_count_positive_returns_true(self) -> None:
+        locator = _FakeLocator(visible=True)
+        self.assertTrue(capture_perplexity_recon._locator_exists(locator))
+
+    def test_count_zero_returns_false(self) -> None:
+        locator = _FakeLocator(visible=False)
+        self.assertFalse(capture_perplexity_recon._locator_exists(locator))
+
+    def test_count_raises_returns_false(self) -> None:
+        class _RaisingCount:
+            first = None
+
+            def count(self) -> int:
+                raise RuntimeError("boom")
+
+        locator = _RaisingCount()
+        locator.first = locator  # type: ignore[assignment]
+        self.assertFalse(capture_perplexity_recon._locator_exists(locator))
+
+
+class BodyTextTests(unittest.TestCase):
+    def test_returns_inner_text_from_body(self) -> None:
+        class _FakePage:
+            def inner_text(self, selector: str) -> str:
+                return "page content"
+
+        self.assertEqual(capture_perplexity_recon._body_text(_FakePage()), "page content")
+
+    def test_returns_empty_string_on_exception(self) -> None:
+        class _FailingPage:
+            def inner_text(self, selector: str) -> str:
+                raise RuntimeError("not loaded")
+
+        self.assertEqual(capture_perplexity_recon._body_text(_FailingPage()), "")
+
+
+class WriteJsonTests(unittest.TestCase):
+    def test_writes_valid_json(self) -> None:
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = Path(tmpdir) / "out.json"
+            capture_perplexity_recon._write_json(path, {"key": "value", "num": 42})
+            loaded = json.loads(path.read_text(encoding="utf-8"))
+            self.assertEqual(loaded["key"], "value")
+            self.assertEqual(loaded["num"], 42)
+
+    def test_writes_unicode_content(self) -> None:
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = Path(tmpdir) / "out.json"
+            capture_perplexity_recon._write_json(path, {"text": "Юникод 🌍"})
+            content = path.read_text(encoding="utf-8")
+            self.assertIn("Юникод", content)
+
+
 if __name__ == "__main__":
     unittest.main()
