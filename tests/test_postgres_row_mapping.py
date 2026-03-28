@@ -186,10 +186,9 @@ class TaskParamsTests(unittest.TestCase):
         repo._connect_timeout_seconds = 5
         return repo
 
-    def test_task_params_serializes_metadata(self) -> None:
+    def _base_task(self, **overrides):  # type: ignore[return]
         from gracekelly.storage.base import TaskRecord
-        repo = self._repo()
-        task = TaskRecord(
+        base = dict(
             task_id="t1",
             status=TaskStatus.COMPLETED,
             accepted_at=datetime(2026, 3, 19, tzinfo=UTC),
@@ -204,9 +203,112 @@ class TaskParamsTests(unittest.TestCase):
             merge_strategy=MergeStrategy.FIRST_SUCCESS,
             adapter_hint=AdapterHint.AUTO,
             cancel_on_quorum=True,
-            metadata={"trace_id": "abc"},
         )
+        base.update(overrides)
+        return TaskRecord(**base)
+
+    def test_task_params_serializes_metadata(self) -> None:
+        repo = self._repo()
+        task = self._base_task(metadata={"trace_id": "abc"})
         params = repo._task_params(task)
         self.assertEqual(params["task_id"], "t1")
         self.assertEqual(params["metadata"], '{"trace_id": "abc"}')
         self.assertIsInstance(params["metadata"], str)
+
+    def test_task_params_failure_fields_passed_through(self) -> None:
+        repo = self._repo()
+        task = self._base_task(
+            status=TaskStatus.FAILED,
+            failure_code=FailureCode.TIMEOUT,
+            failure_message="timed out",
+        )
+        params = repo._task_params(task)
+        self.assertEqual(params["failure_code"], FailureCode.TIMEOUT)
+        self.assertEqual(params["failure_message"], "timed out")
+
+    def test_task_params_retry_of_task_id_included(self) -> None:
+        repo = self._repo()
+        task = self._base_task(retry_of_task_id="original-task")
+        params = repo._task_params(task)
+        self.assertEqual(params["retry_of_task_id"], "original-task")
+
+    def test_task_params_retry_of_task_id_none_by_default(self) -> None:
+        repo = self._repo()
+        task = self._base_task()
+        params = repo._task_params(task)
+        self.assertIsNone(params["retry_of_task_id"])
+
+    def test_task_from_row_retry_of_task_id_populated(self) -> None:
+        repo = self._repo()
+        row = {
+            "task_id": "t2",
+            "status": "completed",
+            "accepted_at": datetime(2026, 3, 19, tzinfo=UTC),
+            "completed_at": datetime(2026, 3, 19, 0, 1, tzinfo=UTC),
+            "duration_ms": 100,
+            "prompt": "retry",
+            "reasoning": False,
+            "execution_mode": "api",
+            "dry_run": False,
+            "model_count": 1,
+            "quorum": 1,
+            "merge_strategy": "first_success",
+            "adapter_hint": "auto",
+            "cancel_on_quorum": False,
+            "failure_code": None,
+            "failure_message": None,
+            "output_text": None,
+            "metadata": {},
+            "retry_of_task_id": "orig-task-id",
+        }
+        task = repo._task_from_row(row)
+        self.assertEqual(task.retry_of_task_id, "orig-task-id")
+
+
+class StepParamsTests(unittest.TestCase):
+    def _repo(self) -> PostgresTaskRepository:
+        repo = object.__new__(PostgresTaskRepository)
+        repo._dsn = "postgresql://test:test@localhost/test"
+        repo._connect_timeout_seconds = 5
+        return repo
+
+    def test_step_params_basic_fields(self) -> None:
+        from gracekelly.storage.base import TaskStepRecord
+        repo = self._repo()
+        step = TaskStepRecord(
+            task_id="t1",
+            step_index=2,
+            model_id="mistral-small",
+            model_display_name="Mistral Small",
+            backend="api",
+            provider="mistral",
+            status="completed",
+            output_text="result",
+            duration_ms=300,
+        )
+        params = repo._step_params(step)
+        self.assertEqual(params["task_id"], "t1")
+        self.assertEqual(params["step_index"], 2)
+        self.assertEqual(params["model_id"], "mistral-small")
+        self.assertEqual(params["backend"], "api")
+        self.assertEqual(params["status"], "completed")
+        self.assertEqual(params["output_text"], "result")
+        self.assertEqual(params["duration_ms"], 300)
+
+    def test_step_params_failure_fields(self) -> None:
+        from gracekelly.storage.base import TaskStepRecord
+        repo = self._repo()
+        step = TaskStepRecord(
+            task_id="t1",
+            step_index=1,
+            model_id="kimi-k2-5",
+            model_display_name="Kimi K2.5",
+            backend="browser",
+            provider="perplexity",
+            status="failed",
+            failure_code=FailureCode.AUTH_FAILED,
+            failure_message="login failed",
+        )
+        params = repo._step_params(step)
+        self.assertEqual(params["failure_code"], FailureCode.AUTH_FAILED)
+        self.assertEqual(params["failure_message"], "login failed")
