@@ -4,6 +4,7 @@ import hmac
 import logging
 import re
 import time
+import uuid
 from collections import defaultdict
 from collections.abc import Awaitable, Callable
 from threading import Lock
@@ -127,6 +128,17 @@ def setup_request_metrics(app: FastAPI) -> None:
             endpoint = _normalize_endpoint(request.url.path)
             metrics.record_request(endpoint, response.status_code)
             metrics.record_request_latency(endpoint, duration)
+        return response
+
+
+def setup_correlation_id(app: FastAPI) -> None:
+    @app.middleware("http")
+    async def correlation_id_middleware(
+        request: Request, call_next: Callable[[Request], Awaitable[Response]]
+    ) -> Response:
+        req_id = request.headers.get("x-request-id") or str(uuid.uuid4())
+        response = await call_next(request)
+        response.headers["X-Request-ID"] = req_id
         return response
 
 

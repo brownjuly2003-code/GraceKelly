@@ -6,8 +6,11 @@ import logging
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from gracekelly.adapters.api.anthropic import AnthropicApiAdapter
 from gracekelly.adapters.api.mistral import MistralApiAdapter
@@ -47,6 +50,7 @@ from gracekelly.core.orchestrator import OrchestratorService
 from gracekelly.core.router import ExecutionRouter
 from gracekelly.middleware import (
     setup_api_key_auth,
+    setup_correlation_id,
     setup_rate_limiting,
     setup_request_metrics,
     setup_request_tracking,
@@ -182,6 +186,33 @@ def create_app(app_settings: Settings | None = None) -> FastAPI:
         version=_get_version(),
         lifespan=app_lifespan,
     )
+
+    @app.exception_handler(StarletteHTTPException)
+    async def http_exception_handler(request: Request, exc: StarletteHTTPException) -> JSONResponse:
+        return JSONResponse(
+            status_code=exc.status_code,
+            content={
+                "type": f"https://httpstatuses.com/{exc.status_code}",
+                "title": exc.detail if isinstance(exc.detail, str) else "HTTP Error",
+                "status": exc.status_code,
+                "detail": exc.detail,
+            },
+        )
+
+    @app.exception_handler(RequestValidationError)
+    async def validation_exception_handler(request: Request, exc: RequestValidationError) -> JSONResponse:
+        errors = exc.errors()
+        detail = "; ".join(f"{'.'.join(str(loc) for loc in error['loc'])}: {error['msg']}" for error in errors)
+        return JSONResponse(
+            status_code=422,
+            content={
+                "type": "https://httpstatuses.com/422",
+                "title": "Validation Error",
+                "status": 422,
+                "detail": detail,
+            },
+        )
+
     app.state.settings = active_settings
     app.state.execution_profile = resolve_execution_profile(active_settings.execution_profile)
     app.state.task_repository = build_task_repository(active_settings)
@@ -253,6 +284,7 @@ def create_app(app_settings: Settings | None = None) -> FastAPI:
     setup_api_key_auth(app, api_key=active_settings.api_key)
     setup_rate_limiting(app, requests_per_minute=active_settings.rate_limit_per_minute)
     setup_request_metrics(app)
+    setup_correlation_id(app)
     setup_request_tracking(app)
 
     app.include_router(health_router)
