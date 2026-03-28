@@ -17,9 +17,15 @@ from gracekelly.core.contracts import (
 from gracekelly.schemas import (
     OrchestrateRequest,
     OrchestrateResponse,
+    TaskEventView,
     TaskListItem,
     TaskStepView,
     TaskView,
+    _resolve_adapter_name,
+    _resolve_cancel_summary,
+    _resolve_requested_models,
+    _resolve_terminal_summary,
+    _resolve_winning_model,
 )
 from gracekelly.storage.base import TaskEventRecord, TaskRecord, TaskStepRecord
 
@@ -356,3 +362,214 @@ class TaskViewFromTaskTests(unittest.TestCase):
         self.assertEqual(view.cancelled_steps, [])
         self.assertIsNone(view.cancel_reason)
         self.assertEqual(view.execution_details, {})
+
+
+class TaskEventViewFromRecordTests(unittest.TestCase):
+    def test_event_view_fields_match_record(self) -> None:
+        ts = _now()
+        record = TaskEventRecord(
+            event_id="ev-1",
+            task_id="t1",
+            sequence_no=1,
+            event_type=EventType.TASK_ACCEPTED,
+            created_at=ts,
+            payload={"key": "value"},
+        )
+        view = TaskEventView.from_record(record)
+        self.assertEqual(view.event_id, "ev-1")
+        self.assertEqual(view.sequence_no, 1)
+        self.assertEqual(view.event_type, EventType.TASK_ACCEPTED)
+
+    def test_event_view_payload_preserved(self) -> None:
+        record = TaskEventRecord(
+            event_id="ev-2",
+            task_id="t1",
+            sequence_no=2,
+            event_type=EventType.TASK_COMPLETED,
+            created_at=_now(),
+            payload={"winning_step_index": 1},
+        )
+        view = TaskEventView.from_record(record)
+        self.assertEqual(view.payload["winning_step_index"], 1)
+
+
+class ResolveAdapterNameTests(unittest.TestCase):
+    def test_dry_run_returns_dry_run(self) -> None:
+        task = _task(dry_run=True, output_text=None)
+        result = _resolve_adapter_name(task, [])
+        self.assertEqual(result, "dry-run")
+
+    def test_no_steps_returns_unknown(self) -> None:
+        task = _task(dry_run=False)
+        self.assertEqual(_resolve_adapter_name(task, []), "unknown")
+
+    def test_single_completed_step_uses_backend_provider(self) -> None:
+        task = _task()
+        result = _resolve_adapter_name(task, [_step(backend="api", provider="mistral")])
+        self.assertEqual(result, "api.mistral")
+
+    def test_all_failed_steps_uses_failed_for_candidate(self) -> None:
+        task = _task(status=TaskStatus.FAILED, output_text=None)
+        step = _step(status=StepStatus.FAILED, backend="browser", provider="perplexity")
+        result = _resolve_adapter_name(task, [step])
+        self.assertEqual(result, "browser.perplexity")
+
+    def test_mixed_backends_returns_multi(self) -> None:
+        task = _task(model_count=2)
+        steps = [
+            _step(step_index=1, backend="api", provider="mistral", status=StepStatus.COMPLETED),
+            _step(step_index=2, backend="browser", provider="perplexity", status=StepStatus.COMPLETED),
+        ]
+        self.assertEqual(_resolve_adapter_name(task, steps), "multi")
+
+
+class ResolveTerminalSummaryTests(unittest.TestCase):
+    def test_no_events_returns_defaults(self) -> None:
+        result = _resolve_terminal_summary([])
+        self.assertIsNone(result["winning_step_index"])
+        self.assertEqual(result["cancelled_steps"], [])
+        self.assertIsNone(result["cancel_reason"])
+        self.assertEqual(result["execution_details"], {})
+
+    def test_completed_event_extracts_fields(self) -> None:
+        event = _event(
+            event_type=EventType.TASK_COMPLETED,
+            seq=1,
+            payload={"winning_step_index": 2, "cancelled_steps": [3], "cancel_reason": "quorum_reached"},
+        )
+        result = _resolve_terminal_summary([event])
+        self.assertEqual(result["winning_step_index"], 2)
+        self.assertEqual(result["cancelled_steps"], [3])
+        self.assertEqual(result["cancel_reason"], "quorum_reached")
+
+    def test_failed_event_is_terminal(self) -> None:
+        event = _event(event_type=EventType.TASK_FAILED, seq=1, payload={})
+        result = _resolve_terminal_summary([event])
+        self.assertIsNone(result["winning_step_index"])
+
+    def test_non_list_cancelled_steps_normalized_to_empty(self) -> None:
+        event = _event(
+            event_type=EventType.TASK_COMPLETED,
+            seq=1,
+            payload={"cancelled_steps": "not-a-list"},
+        )
+        result = _resolve_terminal_summary([event])
+        self.assertEqual(result["cancelled_steps"], [])
+
+    def test_non_string_cancel_reason_normalized_to_none(self) -> None:
+        event = _event(
+            event_type=EventType.TASK_COMPLETED,
+            seq=1,
+            payload={"cancel_reason": 42},
+        )
+        result = _resolve_terminal_summary([event])
+        self.assertIsNone(result["cancel_reason"])
+
+    def test_non_dict_execution_details_normalized_to_empty(self) -> None:
+        event = _event(
+            event_type=EventType.TASK_COMPLETED,
+            seq=1,
+            payload={"details": ["not", "a", "dict"]},
+        )
+        result = _resolve_terminal_summary([event])
+        self.assertEqual(result["execution_details"], {})
+
+
+class ResolveCancelSummaryTests(unittest.TestCase):
+    def test_dry_run_returns_zero_and_none(self) -> None:
+        task = _task(dry_run=True, output_text=None)
+        count, reason = _resolve_cancel_summary(task, [], [])
+        self.assertEqual(count, 0)
+        self.assertIsNone(reason)
+
+    def test_terminal_event_provides_cancel_info(self) -> None:
+        task = _task(status=TaskStatus.COMPLETED)
+        event = _event(
+            event_type=EventType.TASK_COMPLETED,
+            seq=1,
+            payload={"cancelled_steps": [2, 3], "cancel_reason": "quorum_reached"},
+        )
+        count, reason = _resolve_cancel_summary(task, [], [event])
+        self.assertEqual(count, 2)
+        self.assertEqual(reason, "quorum_reached")
+
+    def test_fallback_counts_cancelled_steps_directly(self) -> None:
+        task = _task(status=TaskStatus.COMPLETED, model_count=2)
+        steps = [
+            _step(step_index=1, status=StepStatus.COMPLETED),
+            _step(step_index=2, status=StepStatus.CANCELLED),
+        ]
+        count, reason = _resolve_cancel_summary(task, steps, [])
+        self.assertEqual(count, 1)
+        self.assertEqual(reason, "quorum_reached")
+
+    def test_cancelled_task_uses_cancelled_event_type(self) -> None:
+        task = _task(status=TaskStatus.CANCELLED, output_text=None)
+        event = _event(
+            event_type=EventType.TASK_CANCELLED,
+            seq=1,
+            payload={"cancelled_steps": [1, 2], "cancel_reason": "user_cancel"},
+        )
+        count, reason = _resolve_cancel_summary(task, [], [event])
+        self.assertEqual(count, 2)
+        self.assertEqual(reason, "user_cancel")
+
+
+class ResolveRequestedModelsTests(unittest.TestCase):
+    def test_steps_take_priority_over_events(self) -> None:
+        models = _resolve_requested_models([_step()], [])
+        self.assertEqual(len(models), 1)
+        self.assertEqual(models[0].id, "mistral-small")
+
+    def test_no_steps_falls_back_to_accepted_event(self) -> None:
+        event = _event(
+            event_type=EventType.TASK_ACCEPTED,
+            seq=1,
+            payload={"execution_plan": {"steps": [{"model_id": "m1", "display_name": "Model 1"}]}},
+        )
+        models = _resolve_requested_models([], [event])
+        self.assertEqual(len(models), 1)
+        self.assertEqual(models[0].id, "m1")
+
+    def test_no_steps_no_events_returns_empty(self) -> None:
+        self.assertEqual(_resolve_requested_models([], []), [])
+
+    def test_malformed_steps_in_plan_skipped(self) -> None:
+        event = _event(
+            event_type=EventType.TASK_ACCEPTED,
+            seq=1,
+            payload={"execution_plan": {"steps": [{"model_id": "m1"}, "not-a-dict"]}},
+        )
+        models = _resolve_requested_models([], [event])
+        # only item with both model_id and display_name is valid
+        self.assertEqual(len(models), 0)
+
+    def test_non_list_steps_in_plan_returns_empty(self) -> None:
+        event = _event(
+            event_type=EventType.TASK_ACCEPTED,
+            seq=1,
+            payload={"execution_plan": {"steps": "not-a-list"}},
+        )
+        models = _resolve_requested_models([], [event])
+        self.assertEqual(models, [])
+
+
+class ResolveWinningModelTests(unittest.TestCase):
+    def test_dry_run_returns_none(self) -> None:
+        task = _task(dry_run=True, output_text=None)
+        self.assertIsNone(_resolve_winning_model(task, [_step()]))
+
+    def test_failed_task_returns_none(self) -> None:
+        task = _task(status=TaskStatus.FAILED, output_text=None, failure_code=FailureCode.TIMEOUT)
+        self.assertIsNone(_resolve_winning_model(task, [_step(status=StepStatus.FAILED)]))
+
+    def test_concat_multi_model_returns_none(self) -> None:
+        task = _task(merge_strategy=MergeStrategy.CONCAT, model_count=2)
+        self.assertIsNone(_resolve_winning_model(task, [_step(), _step(step_index=2)]))
+
+    def test_first_success_single_model_returns_winner(self) -> None:
+        task = _task()
+        model = _resolve_winning_model(task, [_step()])
+        self.assertIsNotNone(model)
+        assert model is not None
+        self.assertEqual(model.id, "mistral-small")
