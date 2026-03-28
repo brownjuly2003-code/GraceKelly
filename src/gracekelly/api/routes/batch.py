@@ -42,7 +42,20 @@ class BatchResponse(BaseModel):
     failed: int
 
 
-@router.post("/batch", response_model=BatchResponse)
+@router.post(
+    "/batch",
+    response_model=BatchResponse,
+    summary="Execute multiple prompts in parallel",
+    description=(
+        "Runs a single model on up to 20 prompts concurrently. "
+        "Returns per-prompt results with individual success/failure status."
+    ),
+    response_description="Batch execution results with per-prompt status and aggregate counts",
+    responses={
+        400: {"description": "Invalid model or no adapter available for the requested provider"},
+        422: {"description": "Validation error (empty prompts list, prompt too long, or too many prompts)"},
+    },
+)
 def run_batch(payload: BatchRequest, request: Request) -> BatchResponse:
     api_adapters = get_app_state(request).api_adapters
 

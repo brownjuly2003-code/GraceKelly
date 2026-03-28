@@ -37,7 +37,20 @@ class DebateResponse(BaseModel):
     total_llm_calls: int
 
 
-@router.post("/debate", response_model=DebateResponse)
+@router.post(
+    "/debate",
+    response_model=DebateResponse,
+    summary="Run a Devil's Advocate debate round",
+    description=(
+        "Generates an initial position on the topic, then runs a structured debate: "
+        "challenge (Devil's Advocate), defense, and improved final response. "
+        "Optionally supply your own `initial_position` to skip the first LLM call."
+    ),
+    response_description="Debate transcript: initial position, challenge, defense, improved response, and call count",
+    responses={
+        400: {"description": "Invalid model or no adapter available for the requested provider"},
+    },
+)
 def run_debate_endpoint(payload: DebateRequest, request: Request) -> DebateResponse:
     api_adapters = get_app_state(request).api_adapters
 

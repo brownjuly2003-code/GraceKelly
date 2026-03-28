@@ -29,7 +29,17 @@ class DetailedHealthResponse(BaseModel):
     total_adapters: int
 
 
-@router.get("/health/detailed", response_model=DetailedHealthResponse)
+@router.get(
+    "/health/detailed",
+    response_model=DetailedHealthResponse,
+    summary="Detailed adapter and embeddings health",
+    description=(
+        "Returns per-adapter status (ok / no_key) and embeddings client state. "
+        "Overall status is 'healthy' only when all adapters and the embeddings client report ok. "
+        "Protect this endpoint with GRACEKELLY_API_KEY in internet-facing deployments."
+    ),
+    response_description="Detailed health with adapter list, embeddings status, and uptime",
+)
 def health_detailed(request: Request) -> DetailedHealthResponse:
     state = get_app_state(request)
     api_adapters = state.api_adapters

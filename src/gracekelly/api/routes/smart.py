@@ -50,7 +50,20 @@ class SmartResponse(BaseModel):
     model_id: str
 
 
-@router.post("/smart", response_model=SmartResponse)
+@router.post(
+    "/smart",
+    response_model=SmartResponse,
+    summary="Auto-routing smart execution",
+    description=(
+        "Classifies the prompt, assesses complexity, and selects the optimal execution pattern "
+        "(single call, consensus V1, role-based, or decomposition) automatically. "
+        "Override via `reliability_level` (quick/standard/high) or an explicit `pattern` name."
+    ),
+    response_description="Answer with routing metadata: pattern used, complexity level, LLM call count",
+    responses={
+        400: {"description": "Invalid model, unknown pattern/reliability level, or conflicting options"},
+    },
+)
 def run_smart(payload: SmartRequest, request: Request) -> SmartResponse:
     state = get_app_state(request)
     api_adapters = state.api_adapters

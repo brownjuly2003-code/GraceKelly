@@ -41,7 +41,20 @@ class CompareResponse(BaseModel):
     failed: int
 
 
-@router.post("/compare", response_model=CompareResponse)
+@router.post(
+    "/compare",
+    response_model=CompareResponse,
+    summary="Compare answers from multiple models",
+    description=(
+        "Runs the same prompt on each requested model concurrently. "
+        "When `analyze=true` and at least two models succeed, an additional LLM call "
+        "summarizes differences, strengths, and the best answer."
+    ),
+    response_description="Per-model answers with optional comparative analysis and aggregate success counts",
+    responses={
+        422: {"description": "Validation error (empty models list or prompt too long)"},
+    },
+)
 def run_compare(payload: CompareRequest, request: Request) -> CompareResponse:
     api_adapters = get_app_state(request).api_adapters
 

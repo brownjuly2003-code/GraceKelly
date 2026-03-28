@@ -44,7 +44,22 @@ class ConsensusResponse(BaseModel):
     top_cluster_size: int
 
 
-@router.post("/consensus", response_model=ConsensusResponse)
+@router.post(
+    "/consensus",
+    response_model=ConsensusResponse,
+    summary="Run iterative consensus V1",
+    description=(
+        "Generates multiple response variations per round, clusters them by semantic similarity, "
+        "and iterates until the top cluster reaches the consensus target. "
+        "Requires an embeddings client to be configured."
+    ),
+    response_description="Consensus result with score, cluster count, best response, and round statistics",
+    responses={
+        400: {"description": "Invalid model or no adapter available for the requested provider"},
+        503: {"description": "Embeddings client is not configured"},
+        500: {"description": "Consensus execution failed (internal error)"},
+    },
+)
 def run_consensus(payload: ConsensusRequest, request: Request) -> ConsensusResponse:
     state = get_app_state(request)
     embeddings_client = state.embeddings_client

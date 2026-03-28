@@ -28,7 +28,20 @@ class AnalyticsResponse(BaseModel):
     top_models: list[ModelStatsView]
 
 
-@router.get("/analytics", response_model=AnalyticsResponse)
+@router.get(
+    "/analytics",
+    response_model=AnalyticsResponse,
+    summary="Model performance analytics",
+    description=(
+        "Aggregates execution statistics from the last 100 tasks: success rate, "
+        "average duration, and failure counts per model. "
+        "Returns a ranked top-5 list by success rate alongside full per-model stats."
+    ),
+    response_description="Aggregate model performance stats with top-5 ranking",
+    responses={
+        503: {"description": "Storage unavailable while reading task/step records"},
+    },
+)
 def get_analytics(request: Request) -> AnalyticsResponse:
     state = get_app_state(request)
     repository = state.task_repository

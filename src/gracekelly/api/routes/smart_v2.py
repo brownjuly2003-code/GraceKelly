@@ -58,7 +58,20 @@ class SmartV2Response(BaseModel):
     dissenting_views: list[DissentingViewResponse]
 
 
-@router.post("/smart/v2", response_model=SmartV2Response)
+@router.post(
+    "/smart/v2",
+    response_model=SmartV2Response,
+    summary="Auto-routing smart execution with Consensus V2",
+    description=(
+        "Like /smart but uses the Consensus V2 engine when consensus is required: "
+        "HAC clustering, cross-pollination, debate rounds, divergence handling, and dissenting-view extraction. "
+        "Returns cluster confidence and dissenting perspectives alongside the best answer."
+    ),
+    response_description="Answer with V2 consensus metadata: cluster confidence, dissenting views, consensus score",
+    responses={
+        400: {"description": "Invalid model, unknown pattern/reliability level, or conflicting options"},
+    },
+)
 def run_smart_v2(payload: SmartV2Request, request: Request) -> SmartV2Response:
     state = get_app_state(request)
     api_adapters = state.api_adapters

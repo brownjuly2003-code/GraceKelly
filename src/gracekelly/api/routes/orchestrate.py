@@ -112,7 +112,24 @@ def _load_task_view(
     return TaskView.from_task(task, steps, events, events_total=events_total)
 
 
-@router.post("/orchestrate", response_model=OrchestrateResponse, status_code=202)
+@router.post(
+    "/orchestrate",
+    response_model=OrchestrateResponse,
+    status_code=202,
+    summary="Submit a prompt for orchestrated execution",
+    description=(
+        "Submits a prompt to one or more models according to the specified execution plan. "
+        "Supports dry-run, quorum, merge strategies, reasoning mode, and optional trace correlation. "
+        "Returns the accepted task snapshot immediately (async execution)."
+    ),
+    response_description="Accepted task snapshot with execution plan, steps, and initial status",
+    responses={
+        422: {"description": "Validation error (unsupported model, invalid merge strategy, quorum conflict)"},
+        501: {"description": "Requested capability is not implemented"},
+        503: {"description": "Storage temporarily unavailable"},
+        504: {"description": "Orchestration timed out (GRACEKELLY_ORCHESTRATE_TIMEOUT_SECONDS exceeded)"},
+    },
+)
 async def orchestrate(payload: OrchestrateRequest, request: Request, response: Response) -> OrchestrateResponse:
     service = get_app_state(request).orchestrator_service
     _timeout = get_app_state(request).settings.orchestrate_timeout_seconds
@@ -200,7 +217,20 @@ async def orchestrate(payload: OrchestrateRequest, request: Request, response: R
     )
 
 
-@router.get("/tasks", response_model=list[TaskListItem])
+@router.get(
+    "/tasks",
+    response_model=list[TaskListItem],
+    summary="List recent tasks",
+    description=(
+        "Returns a paginated list of recent tasks with step and event summaries. "
+        "Supports filtering by status, execution mode, dry_run flag, and failure code. "
+        "Use the `before` cursor (ISO timestamp) for keyset pagination."
+    ),
+    response_description="List of task summaries ordered by accepted_at descending",
+    responses={
+        503: {"description": "Storage temporarily unavailable"},
+    },
+)
 async def list_tasks(
     request: Request,
     limit: int = Query(default=20, ge=1, le=100),
@@ -254,7 +284,20 @@ async def list_tasks(
 _UUID_PATTERN = r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
 
 
-@router.get("/tasks/{task_id}", response_model=TaskView)
+@router.get(
+    "/tasks/{task_id}",
+    response_model=TaskView,
+    summary="Get full task detail",
+    description=(
+        "Returns the complete execution context for a task: plan scalars, all steps, and events. "
+        "Events are paginated via `events_limit` / `events_offset` query parameters."
+    ),
+    response_description="Full task view including steps and paginated events",
+    responses={
+        404: {"description": "Task not found"},
+        503: {"description": "Storage temporarily unavailable"},
+    },
+)
 async def get_task(
     request: Request,
     task_id: str = Path(pattern=_UUID_PATTERN),
@@ -293,7 +336,24 @@ async def get_task(
         raise HTTPException(status_code=404, detail="Task not found") from exc
 
 
-@router.post("/tasks/{task_id}/retry", response_model=OrchestrateResponse, status_code=202)
+@router.post(
+    "/tasks/{task_id}/retry",
+    response_model=OrchestrateResponse,
+    status_code=202,
+    summary="Retry a failed or cancelled task",
+    description=(
+        "Creates a new task that replays the original prompt and execution plan. "
+        "Only tasks with status `failed` or `cancelled` can be retried. "
+        "The new task carries a `retry_of_task_id` link back to the original."
+    ),
+    response_description="New accepted task snapshot linked to the original task",
+    responses={
+        404: {"description": "Original task not found"},
+        409: {"description": "Task status does not allow retry (not failed or cancelled)"},
+        422: {"description": "Validation error reconstructing the retry request"},
+        503: {"description": "Storage temporarily unavailable"},
+    },
+)
 async def retry_task(
     request: Request,
     task_id: str = Path(pattern=_UUID_PATTERN),

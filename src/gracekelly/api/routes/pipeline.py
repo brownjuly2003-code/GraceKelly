@@ -43,7 +43,19 @@ class PipelineResponse(BaseModel):
     models_used: list[str] = Field(default_factory=list)
 
 
-@router.post("/pipeline", response_model=PipelineResponse)
+@router.post(
+    "/pipeline",
+    response_model=PipelineResponse,
+    summary="Execute a reliability-level pipeline",
+    description=(
+        "Runs a prompt through a reliability-level-selected execution pattern. "
+        "Set `multi_model=true` to fan out across all configured API providers and aggregate results."
+    ),
+    response_description="Pipeline answer with pattern, reliability level, model list, and LLM call count",
+    responses={
+        400: {"description": "Invalid model, unknown reliability level, or no adapter available"},
+    },
+)
 def run_pipeline(payload: PipelineRequest, request: Request) -> PipelineResponse:
     api_adapters = get_app_state(request).api_adapters
 

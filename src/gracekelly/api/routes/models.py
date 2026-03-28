@@ -115,7 +115,17 @@ def _model_catalog_item(
     )
 
 
-@router.get("/models", response_model=list[ModelCatalogItem])
+@router.get(
+    "/models",
+    response_model=list[ModelCatalogItem],
+    summary="List all registered models",
+    description=(
+        "Returns the full model catalog with availability status. "
+        "Browser-backed models include live observation metadata: "
+        "when the model menu was last checked and whether the model label was confirmed."
+    ),
+    response_description="Model catalog with adapter kind, provider, availability status, and observation timestamps",
+)
 async def models(request: Request) -> list[ModelCatalogItem]:
     (
         observed_browser_labels,
