@@ -108,6 +108,47 @@ class PipelineRouteTests(unittest.TestCase):
         body = response.json()
         self.assertEqual("general", body["task_type"])
 
+    def test_pipeline_missing_adapter_returns_400(self) -> None:
+        # "Claude Sonnet 4.6 API" uses provider "anthropic"; only "mistral" is registered
+        client = TestClient(_create_test_app())
+        response = client.post(
+            "/api/v1/pipeline",
+            json={"prompt": "Hello", "model": "Claude Sonnet 4.6 API"},
+        )
+        self.assertEqual(400, response.status_code)
+        self.assertIn("No adapter", response.json()["detail"])
+
+    def test_pipeline_complex_prompt_resolves_standard_reliability(self) -> None:
+        # Prompt with many complexity indicators scores >= 0.6 → COMPLEX → STANDARD reliability
+        complex_prompt = (
+            "compare analyze evaluate comprehensive step by step different perspectives "
+            "detailed analysis implications consequences advantages and disadvantages critically assess"
+        )
+        client = TestClient(_create_test_app())
+        response = client.post("/api/v1/pipeline", json={"prompt": complex_prompt})
+        body = response.json()
+        self.assertEqual(200, response.status_code)
+        self.assertEqual("standard", body["reliability_level"])
+
+    def test_pipeline_failed_result_uses_error_fallback(self) -> None:
+        app = FastAPI()
+        app.include_router(router)
+        adapter = MagicMock()
+        adapter.execute.return_value = MagicMock(
+            status=StepStatus.FAILED,
+            output_text=None,
+            failure_code="timeout",
+            failure_message="Request timed out",
+        )
+        app.state.api_adapters = {"mistral": adapter}
+        client = TestClient(app)
+
+        response = client.post("/api/v1/pipeline", json={"prompt": "Hello"})
+        body = response.json()
+
+        self.assertEqual(200, response.status_code)
+        self.assertIn("[timeout]", body["answer"])
+
 
 if __name__ == "__main__":
     unittest.main()
