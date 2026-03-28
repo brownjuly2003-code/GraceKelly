@@ -3,7 +3,55 @@ from __future__ import annotations
 import unittest
 from dataclasses import FrozenInstanceError
 
-from gracekelly.core.adaptive_selector import ModelRecommendation, select_models
+from gracekelly.core.adaptive_selector import ModelRecommendation, _build_reason, select_models
+from gracekelly.core.model_stats import ModelPerformance
+from gracekelly.core.task_classifier import TaskType
+
+
+def _make_perf(
+    model_id: str = "m",
+    total: int = 10,
+    successful: int = 9,
+    failed: int = 1,
+    success_rate: float = 0.9,
+    avg_duration_ms: float = 150.0,
+    total_duration_ms: int = 1500,
+) -> ModelPerformance:
+    return ModelPerformance(
+        model_id=model_id,
+        total_executions=total,
+        successful=successful,
+        failed=failed,
+        success_rate=success_rate,
+        avg_duration_ms=avg_duration_ms,
+        total_duration_ms=total_duration_ms,
+    )
+
+
+class BuildReasonTests(unittest.TestCase):
+    def test_includes_success_rate_as_percentage(self) -> None:
+        reason = _build_reason(_make_perf(success_rate=0.9), TaskType.GENERAL)
+        self.assertIn("90% success rate", reason)
+
+    def test_includes_total_executions(self) -> None:
+        reason = _build_reason(_make_perf(total=42), TaskType.GENERAL)
+        self.assertIn("42 executions", reason)
+
+    def test_includes_avg_duration_when_positive(self) -> None:
+        reason = _build_reason(_make_perf(avg_duration_ms=250.0), TaskType.CODING)
+        self.assertIn("250ms avg", reason)
+
+    def test_omits_avg_duration_when_zero(self) -> None:
+        reason = _build_reason(_make_perf(avg_duration_ms=0.0), TaskType.GENERAL)
+        self.assertNotIn("ms avg", reason)
+
+    def test_includes_task_type(self) -> None:
+        reason = _build_reason(_make_perf(), TaskType.MATH)
+        self.assertIn("task type: math", reason)
+
+    def test_parts_joined_by_comma(self) -> None:
+        reason = _build_reason(_make_perf(), TaskType.GENERAL)
+        self.assertIn(", ", reason)
 
 
 def _record(
