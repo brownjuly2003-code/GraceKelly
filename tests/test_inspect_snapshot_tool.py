@@ -363,5 +363,67 @@ class InspectSnapshotToolTests(unittest.TestCase):
                 snapshot_path.unlink()
 
 
+class InspectSnapshotFunctionTests(unittest.TestCase):
+    """Direct unit tests for inspect_snapshot() without going through the filesystem."""
+
+    def _valid_snapshot(self) -> dict[str, object]:
+        snapshot: dict[str, object] = {
+            "status": "ok",
+            "snapshot_format_version": SNAPSHOT_FORMAT_VERSION,
+            "gracekelly_version": __version__,
+            "migration": "0001_initial",
+            "generated_at": "2026-03-18T17:00:00Z",
+            "backend": "postgres",
+            "selection": {"task_ids": [], "limit": 10},
+            "task_count": 1,
+            "step_count": 0,
+            "event_count": 0,
+            "exported_task_ids": ["t1"],
+            "missing_task_ids": [],
+            "tasks": [{"task": {"task_id": "t1"}, "steps": [], "events": []}],
+        }
+        snapshot["snapshot_sha256"] = compute_snapshot_sha256(snapshot)
+        return snapshot
+
+    def test_valid_snapshot_is_import_ready(self) -> None:
+        result = inspect_snapshot.inspect_snapshot(self._valid_snapshot())
+        self.assertTrue(result["import_ready"])
+        self.assertEqual(result["status"], "ok")
+
+    def test_result_includes_all_expected_fields(self) -> None:
+        result = inspect_snapshot.inspect_snapshot(self._valid_snapshot())
+        for field in (
+            "status", "snapshot_status", "format_status", "migration_status",
+            "manifest_status", "checksum_status", "import_ready",
+            "task_count", "step_count", "event_count",
+        ):
+            self.assertIn(field, result)
+
+    def test_checksum_mismatch_not_import_ready(self) -> None:
+        snapshot = self._valid_snapshot()
+        snapshot["snapshot_sha256"] = "0" * 64  # wrong hash
+        result = inspect_snapshot.inspect_snapshot(snapshot)
+        self.assertEqual(result["checksum_status"], "mismatch")
+        self.assertFalse(result["import_ready"])
+
+    def test_wrong_format_version_not_import_ready(self) -> None:
+        snapshot = self._valid_snapshot()
+        snapshot["snapshot_format_version"] = "0.0.0"
+        snapshot["snapshot_sha256"] = compute_snapshot_sha256(snapshot)
+        result = inspect_snapshot.inspect_snapshot(snapshot)
+        self.assertEqual(result["format_status"], "mismatch")
+        self.assertFalse(result["import_ready"])
+
+    def test_counts_reported_correctly(self) -> None:
+        result = inspect_snapshot.inspect_snapshot(self._valid_snapshot())
+        self.assertEqual(result["task_count"], 1)
+        self.assertEqual(result["step_count"], 0)
+        self.assertEqual(result["event_count"], 0)
+
+    def test_exported_task_ids_included(self) -> None:
+        result = inspect_snapshot.inspect_snapshot(self._valid_snapshot())
+        self.assertEqual(result["exported_task_ids"], ["t1"])
+
+
 if __name__ == "__main__":
     unittest.main()
