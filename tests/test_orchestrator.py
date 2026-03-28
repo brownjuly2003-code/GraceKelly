@@ -4,8 +4,15 @@ import unittest
 from datetime import UTC, datetime
 
 from gracekelly.adapters.dry_run import DryRunExecutionAdapter
-from gracekelly.core.contracts import ExecutionBatchResult, ExecutionMode, ExecutionResult, StepStatus, TaskStatus
-from gracekelly.core.orchestrator import OrchestratorService, StorageUnavailableError
+from gracekelly.core.contracts import (
+    EventType,
+    ExecutionBatchResult,
+    ExecutionMode,
+    ExecutionResult,
+    StepStatus,
+    TaskStatus,
+)
+from gracekelly.core.orchestrator import OrchestratorService, StorageUnavailableError, _EventSequence
 from gracekelly.core.planning import build_execution_plan
 from gracekelly.core.router import ExecutionRouter
 from gracekelly.schemas import OrchestrateRequest
@@ -525,6 +532,54 @@ class OrchestratorServiceTests(unittest.TestCase):
         out = self.service._event_batch_details(batch_result)
         self.assertIn("details", out)
         self.assertTrue(out["details"]["quorum_hit"])
+
+
+class EventSequenceTests(unittest.TestCase):
+    def test_starts_with_no_events(self) -> None:
+        seq = _EventSequence("task-1")
+        self.assertEqual(seq.events, [])
+
+    def test_append_adds_event(self) -> None:
+        seq = _EventSequence("task-1")
+        now = datetime.now(UTC)
+        seq.append(EventType.TASK_ACCEPTED, now, {"key": "val"})
+        self.assertEqual(len(seq.events), 1)
+
+    def test_sequence_no_increments_on_each_append(self) -> None:
+        seq = _EventSequence("task-1")
+        now = datetime.now(UTC)
+        seq.append(EventType.TASK_ACCEPTED, now, {})
+        seq.append(EventType.TASK_COMPLETED, now, {})
+        self.assertEqual(seq.events[0].sequence_no, 1)
+        self.assertEqual(seq.events[1].sequence_no, 2)
+
+    def test_task_id_propagated_to_all_events(self) -> None:
+        seq = _EventSequence("task-xyz")
+        now = datetime.now(UTC)
+        seq.append(EventType.TASK_ACCEPTED, now, {})
+        seq.append(EventType.STEP_COMPLETED, now, {})
+        for event in seq.events:
+            self.assertEqual(event.task_id, "task-xyz")
+
+    def test_payload_stored_on_event(self) -> None:
+        seq = _EventSequence("task-1")
+        now = datetime.now(UTC)
+        seq.append(EventType.TASK_ACCEPTED, now, {"execution_plan": {"steps": []}})
+        self.assertEqual(seq.events[0].payload["execution_plan"], {"steps": []})
+
+    def test_event_type_stored(self) -> None:
+        seq = _EventSequence("task-1")
+        now = datetime.now(UTC)
+        seq.append(EventType.TASK_FAILED, now, {})
+        self.assertEqual(seq.events[0].event_type, EventType.TASK_FAILED)
+
+    def test_event_ids_are_unique(self) -> None:
+        seq = _EventSequence("task-1")
+        now = datetime.now(UTC)
+        seq.append(EventType.TASK_ACCEPTED, now, {})
+        seq.append(EventType.TASK_COMPLETED, now, {})
+        ids = {e.event_id for e in seq.events}
+        self.assertEqual(len(ids), 2)
 
 
 if __name__ == "__main__":
