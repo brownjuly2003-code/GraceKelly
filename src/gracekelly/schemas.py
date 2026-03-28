@@ -219,6 +219,7 @@ class TaskView(OrchestrateResponse):
     execution_details: dict[str, Any] = Field(default_factory=dict)
     steps: list[TaskStepView] = Field(default_factory=list)
     events: list[TaskEventView] = Field(default_factory=list)
+    events_total: int | None = None
 
     @classmethod
     def from_task(
@@ -227,6 +228,8 @@ class TaskView(OrchestrateResponse):
         steps: list[TaskStepRecord] | None = None,
         events: list[TaskEventRecord] | None = None,
         requested_models_override: list[ModelView] | None = None,
+        *,
+        events_total: int | None = None,
     ) -> TaskView:
         step_records = list(steps or [])
         event_records = list(events or [])
@@ -258,6 +261,7 @@ class TaskView(OrchestrateResponse):
             execution_details=terminal_summary["execution_details"],
             steps=[TaskStepView.from_record(item) for item in step_records],
             events=[TaskEventView.from_record(item) for item in event_records],
+            events_total=events_total,
         )
 
 

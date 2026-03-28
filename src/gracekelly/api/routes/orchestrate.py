@@ -97,11 +97,19 @@ def _load_task_list_items(
     ]
 
 
-def _load_task_view(service: OrchestratorService, task_id: str) -> TaskView:
+def _load_task_view(
+    service: OrchestratorService,
+    task_id: str,
+    *,
+    events_limit: int | None = None,
+    events_offset: int = 0,
+) -> TaskView:
     task = service.get_task(task_id)
     steps = service.list_task_steps(task_id)
-    events = service.list_task_events(task_id)
-    return TaskView.from_task(task, steps, events)
+    events, events_total = service.list_task_events_paginated(
+        task_id, limit=events_limit, offset=events_offset
+    )
+    return TaskView.from_task(task, steps, events, events_total=events_total)
 
 
 @router.post("/orchestrate", response_model=OrchestrateResponse, status_code=202)
@@ -250,10 +258,15 @@ _UUID_PATTERN = r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$
 async def get_task(
     request: Request,
     task_id: str = Path(pattern=_UUID_PATTERN),
+    events_limit: int | None = Query(default=None, ge=1, le=1000),
+    events_offset: int = Query(default=0, ge=0),
 ) -> TaskView:
     service = get_app_state(request).orchestrator_service
     try:
-        view = await asyncio.to_thread(_load_task_view, service, task_id)
+        view = await asyncio.to_thread(
+            _load_task_view, service, task_id,
+            events_limit=events_limit, events_offset=events_offset,
+        )
         logger.info(
             log_message(
                 "task.get",

@@ -110,6 +110,20 @@ class TaskRepository(ABC):
     def list_events_batch(self, task_ids: list[str]) -> dict[str, list[TaskEventRecord]]:
         return {tid: self.list_events(tid) for tid in task_ids}
 
+    def list_events_paginated(
+        self,
+        task_id: str,
+        *,
+        limit: int | None = None,
+        offset: int = 0,
+    ) -> tuple[list[TaskEventRecord], int]:
+        """Return (page, total_count). Default impl loads all then slices."""
+        all_events = self.list_events(task_id)
+        total = len(all_events)
+        if limit is None:
+            return all_events[offset:], total
+        return all_events[offset : offset + limit], total
+
     @abstractmethod
     def replace_task_snapshot(
         self,

@@ -415,6 +415,37 @@ class PostgresTaskRepository(TaskRepository):
                 rows = cursor.fetchall()
         return [self._event_from_row(row) for row in rows]
 
+    def list_events_paginated(
+        self,
+        task_id: str,
+        *,
+        limit: int | None = None,
+        offset: int = 0,
+    ) -> tuple[list[TaskEventRecord], int]:
+        count_query = "SELECT COUNT(*) FROM gk_task_events WHERE task_id = %s"
+        if limit is None:
+            data_query = """
+            SELECT event_id, task_id, sequence_no, event_type, created_at, payload
+            FROM gk_task_events WHERE task_id = %s
+            ORDER BY sequence_no ASC OFFSET %s
+            """
+            data_params: tuple[object, ...] = (task_id, offset)
+        else:
+            data_query = """
+            SELECT event_id, task_id, sequence_no, event_type, created_at, payload
+            FROM gk_task_events WHERE task_id = %s
+            ORDER BY sequence_no ASC LIMIT %s OFFSET %s
+            """
+            data_params = (task_id, limit, offset)
+
+        with self._connect(row_factory=dict_row) as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(count_query, (task_id,))
+                total = cursor.fetchone()[0]
+                cursor.execute(data_query, data_params)
+                rows = cursor.fetchall()
+        return [self._event_from_row(row) for row in rows], total
+
     def healthcheck(self) -> dict[str, Any]:
         try:
             row = self._load_health_ping()

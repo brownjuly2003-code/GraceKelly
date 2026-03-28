@@ -199,6 +199,18 @@ class OrchestratorService:
         except Exception as exc:
             raise StorageUnavailableError("list_task_events", str(exc)) from exc
 
+    def list_task_events_paginated(
+        self,
+        task_id: str,
+        *,
+        limit: int | None = None,
+        offset: int = 0,
+    ) -> tuple[list[TaskEventRecord], int]:
+        try:
+            return self._repository.list_events_paginated(task_id, limit=limit, offset=offset)
+        except Exception as exc:
+            raise StorageUnavailableError("list_task_events_paginated", str(exc)) from exc
+
     def list_steps_batch(self, task_ids: list[str]) -> dict[str, list[TaskStepRecord]]:
         try:
             return self._repository.list_steps_batch(task_ids)
