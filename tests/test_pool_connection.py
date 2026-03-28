@@ -45,6 +45,30 @@ class PoolConnectionWithRowFactoryTests(unittest.TestCase):
             cursor = conn.cursor()
             self.assertIsNotNone(cursor)
 
+    def test_exit_propagates_exception_when_pool_returns_false(self) -> None:
+        mock_conn = MagicMock()
+        mock_pool_ctx = MagicMock()
+        mock_pool_ctx.__enter__ = MagicMock(return_value=mock_conn)
+        mock_pool_ctx.__exit__ = MagicMock(return_value=False)
+
+        wrapper = _PoolConnectionWithRowFactory(mock_pool_ctx, MagicMock())
+
+        with self.assertRaises(RuntimeError):
+            with wrapper:
+                raise RuntimeError("expected")
+
+    def test_exit_suppresses_exception_when_pool_returns_true(self) -> None:
+        mock_conn = MagicMock()
+        mock_pool_ctx = MagicMock()
+        mock_pool_ctx.__enter__ = MagicMock(return_value=mock_conn)
+        mock_pool_ctx.__exit__ = MagicMock(return_value=True)
+
+        wrapper = _PoolConnectionWithRowFactory(mock_pool_ctx, MagicMock())
+
+        # Should NOT raise because __exit__ returns True (suppress)
+        with wrapper:
+            raise RuntimeError("suppressed")
+
 
 if __name__ == "__main__":
     unittest.main()
