@@ -124,6 +124,14 @@ class ConsensusRouteTests(unittest.TestCase):
         response = client.post("/api/v1/consensus", json={"prompt": "Hello"})
         self.assertEqual(response.status_code, 400)
 
+    def test_executor_exception_returns_500(self) -> None:
+        app = _create_test_app()
+        app.state.embeddings_client.embed_batch.side_effect = RuntimeError("embedding failure")
+        client = TestClient(app, raise_server_exceptions=False)
+        response = client.post("/api/v1/consensus", json={"prompt": "Hello"})
+        self.assertEqual(500, response.status_code)
+        self.assertIn("Consensus execution failed", response.json()["detail"])
+
 
 if __name__ == "__main__":
     unittest.main()
