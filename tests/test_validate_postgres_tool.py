@@ -126,6 +126,58 @@ class ValidatePostgresToolTests(unittest.TestCase):
         self.assertEqual(payload["status"], "ok")
         self.assertTrue(payload["bootstrapped"])
 
+    def test_main_returns_2_when_repository_raises_on_connect(self) -> None:
+        with (
+            patch.object(
+                validate_postgres,
+                "parse_args",
+                return_value=argparse.Namespace(dsn="postgresql://example", no_bootstrap=False),
+            ),
+            patch.object(validate_postgres, "resolve_dsn", return_value="postgresql://example"),
+            patch.object(
+                validate_postgres,
+                "PostgresTaskRepository",
+                side_effect=RuntimeError("connection refused"),
+            ),
+            patch("builtins.print") as print_mock,
+        ):
+            code = validate_postgres.main()
+
+        self.assertEqual(code, 2)
+        payload = json.loads(print_mock.call_args.args[0])
+        self.assertEqual(payload["status"], "error")
+        self.assertIn("connection refused", payload["error"])
+
+    def test_main_returns_1_when_health_degraded(self) -> None:
+        class FakeRepository:
+            def __init__(self, dsn: str, *, bootstrap: bool) -> None:
+                pass
+
+            def bootstrap(self) -> None:
+                pass
+
+            def healthcheck(self) -> dict[str, object]:
+                return {"status": "degraded", "backend": "postgres"}
+
+            def schema_report(self) -> dict[str, object]:
+                return {"status": "ok", "backend": "postgres"}
+
+        with (
+            patch.object(
+                validate_postgres,
+                "parse_args",
+                return_value=argparse.Namespace(dsn="postgresql://example", no_bootstrap=False),
+            ),
+            patch.object(validate_postgres, "resolve_dsn", return_value="postgresql://example"),
+            patch.object(validate_postgres, "PostgresTaskRepository", FakeRepository),
+            patch("builtins.print") as print_mock,
+        ):
+            code = validate_postgres.main()
+
+        self.assertEqual(code, 1)
+        payload = json.loads(print_mock.call_args.args[0])
+        self.assertEqual(payload["status"], "degraded")
+
 
 if __name__ == "__main__":
     unittest.main()
