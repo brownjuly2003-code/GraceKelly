@@ -127,10 +127,7 @@ class MistralAdapterTests(unittest.TestCase):
 
     def test_success_execute(self) -> None:
         adapter = MistralApiAdapter(api_key="key", base_url="https://api.mistral.ai")
-        with patch(
-            "gracekelly.adapters.api.base.request.urlopen",
-            return_value=_mock_response(_OPENAI_OK),
-        ):
+        with patch.object(adapter, "_post_json", return_value=_OPENAI_OK):
             result = adapter.execute(_make_request())
         self.assertEqual(result.status, StepStatus.COMPLETED)
 
@@ -151,10 +148,7 @@ class OpenAICompatAdapterTests(unittest.TestCase):
 
     def test_success_execute(self) -> None:
         adapter = OpenAICompatibleApiAdapter(api_key="key", base_url="https://api.openai.com")
-        with patch(
-            "gracekelly.adapters.api.base.request.urlopen",
-            return_value=_mock_response(_OPENAI_OK),
-        ):
+        with patch.object(adapter, "_post_json", return_value=_OPENAI_OK):
             result = adapter.execute(_make_request())
         self.assertEqual(result.status, StepStatus.COMPLETED)
 
