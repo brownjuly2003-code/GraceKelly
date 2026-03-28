@@ -124,6 +124,33 @@ class SettingsMistralRetryTests(unittest.TestCase):
         self.assertEqual(s.mistral_max_retries, 3)
         self.assertAlmostEqual(s.mistral_retry_backoff_seconds, 0.5)
 
+    def test_mistral_retry_defaults(self) -> None:
+        with patch.dict(os.environ, {}, clear=True):
+            s = Settings.from_env()
+        self.assertEqual(s.mistral_max_retries, 0)
+        self.assertAlmostEqual(s.mistral_retry_backoff_seconds, 1.0)
+
+
+class SettingsOpenAIRetryTests(unittest.TestCase):
+    def test_openai_retry_settings(self) -> None:
+        with patch.dict(
+            os.environ,
+            {
+                "GRACEKELLY_OPENAI_MAX_RETRIES": "2",
+                "GRACEKELLY_OPENAI_RETRY_BACKOFF_SECONDS": "3.0",
+            },
+            clear=True,
+        ):
+            s = Settings.from_env()
+        self.assertEqual(s.openai_max_retries, 2)
+        self.assertAlmostEqual(s.openai_retry_backoff_seconds, 3.0)
+
+    def test_openai_retry_defaults(self) -> None:
+        with patch.dict(os.environ, {}, clear=True):
+            s = Settings.from_env()
+        self.assertEqual(s.openai_max_retries, 0)
+        self.assertAlmostEqual(s.openai_retry_backoff_seconds, 1.0)
+
 
 class SettingsBrowserScriptedTests(unittest.TestCase):
     def test_browser_scripted_model_label(self) -> None:
