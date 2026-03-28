@@ -132,6 +132,19 @@ class ConsensusRouteTests(unittest.TestCase):
         self.assertEqual(500, response.status_code)
         self.assertIn("Consensus execution failed", response.json()["detail"])
 
+    def test_failed_adapter_result_still_returns_200_with_error_text(self) -> None:
+        app = _create_test_app()
+        app.state.api_adapters["mistral"].execute.return_value = MagicMock(
+            status=StepStatus.FAILED,
+            output_text=None,
+            failure_code="timeout",
+            failure_message="Request timed out",
+        )
+        client = TestClient(app)
+        response = client.post("/api/v1/consensus", json={"prompt": "Hello"})
+        self.assertEqual(200, response.status_code)
+        self.assertIn("[timeout]", response.json()["best_response"])
+
 
 if __name__ == "__main__":
     unittest.main()
