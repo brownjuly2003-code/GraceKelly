@@ -109,6 +109,38 @@ class DebateRouteTests(unittest.TestCase):
         response = client.post("/api/v1/debate", json={"topic": ""})
         self.assertEqual(422, response.status_code)
 
+    def test_debate_missing_adapter_returns_400(self) -> None:
+        # "Claude Sonnet 4.6 API" uses provider "anthropic"; only "mistral" is registered
+        client = TestClient(_create_test_app())
+        response = client.post(
+            "/api/v1/debate",
+            json={"topic": "AI safety", "model": "Claude Sonnet 4.6 API"},
+        )
+        self.assertEqual(400, response.status_code)
+        self.assertIn("No API adapter", response.json()["detail"])
+
+    def test_debate_failed_adapter_result_uses_error_fallback(self) -> None:
+        app = FastAPI()
+        app.include_router(router)
+        adapter = MagicMock()
+        adapter.execute.return_value = MagicMock(
+            status=StepStatus.FAILED,
+            output_text=None,
+            failure_code="rate_limited",
+            failure_message="Rate limit reached",
+        )
+        app.state.api_adapters = {"mistral": adapter}
+        client = TestClient(app)
+
+        response = client.post("/api/v1/debate", json={
+            "topic": "AI safety",
+            "initial_position": "AI is dangerous",
+        })
+        body = response.json()
+
+        self.assertEqual(200, response.status_code)
+        self.assertIn("[rate_limited]", body["challenge"])
+
 
 if __name__ == "__main__":
     unittest.main()
