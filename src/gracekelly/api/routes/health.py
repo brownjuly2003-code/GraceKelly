@@ -279,6 +279,37 @@ def _build_metrics_payload(
             for (adapter, failure_code), count in sorted(adapter_errors.items()):
                 _emit_gauge(lines, "gracekelly_adapter_errors_total", count, labels={"adapter": adapter, "failure_code": failure_code})
 
+        from gracekelly.request_metrics import LATENCY_BUCKETS  # noqa: PLC0415
+        durations = request_metrics.request_duration_seconds()
+        if durations:
+            _emit_help(
+                lines,
+                "gracekelly_http_request_duration_seconds",
+                "HTTP request latency in seconds.",
+                metric_type="histogram",
+            )
+            for endpoint, (bucket_counts, sum_val, total) in sorted(durations.items()):
+                ep_labels: dict[str, object] = {"endpoint": endpoint}
+                # Cumulative counts per upper bound
+                cumulative = 0
+                for bound, bcount in zip(LATENCY_BUCKETS, bucket_counts):
+                    cumulative += bcount
+                    _emit_gauge(
+                        lines,
+                        "gracekelly_http_request_duration_seconds_bucket",
+                        cumulative,
+                        labels={**ep_labels, "le": str(bound)},
+                    )
+                # +Inf bucket = total observation count
+                _emit_gauge(
+                    lines,
+                    "gracekelly_http_request_duration_seconds_bucket",
+                    total,
+                    labels={**ep_labels, "le": "+Inf"},
+                )
+                _emit_gauge(lines, "gracekelly_http_request_duration_seconds_sum", sum_val, labels=ep_labels)
+                _emit_gauge(lines, "gracekelly_http_request_duration_seconds_count", total, labels=ep_labels)
+
     return "\n".join(lines) + "\n"
 
 

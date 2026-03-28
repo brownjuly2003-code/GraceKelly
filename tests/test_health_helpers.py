@@ -89,6 +89,33 @@ class BuildMetricsPayloadRequestMetricsTests(unittest.TestCase):
         output = self._call(rm)
         self.assertNotIn("gracekelly_adapter_errors_total", output)
 
+    def test_latency_recorded_emits_histogram(self) -> None:
+        rm = RequestMetrics()
+        rm.record_request_latency("/api/v1/orchestrate", 0.05)
+        output = self._call(rm)
+        self.assertIn("gracekelly_http_request_duration_seconds", output)
+        self.assertIn("+Inf", output)
+        self.assertIn("/api/v1/orchestrate", output)
+
+    def test_latency_histogram_emits_sum_and_count(self) -> None:
+        rm = RequestMetrics()
+        rm.record_request_latency("/x", 0.1)
+        rm.record_request_latency("/x", 0.2)
+        output = self._call(rm)
+        self.assertIn("gracekelly_http_request_duration_seconds_sum", output)
+        self.assertIn("gracekelly_http_request_duration_seconds_count", output)
+
+    def test_no_latency_emits_no_histogram(self) -> None:
+        rm = RequestMetrics()
+        output = self._call(rm)
+        self.assertNotIn("gracekelly_http_request_duration_seconds", output)
+
+    def test_latency_histogram_type_is_histogram(self) -> None:
+        rm = RequestMetrics()
+        rm.record_request_latency("/api/v1/smart", 0.25)
+        output = self._call(rm)
+        self.assertIn("# TYPE gracekelly_http_request_duration_seconds histogram", output)
+
 
 class BuildMetricsPayloadStorageCountsTests(unittest.TestCase):
     def _readiness_with_storage_details(self, details: dict) -> dict:

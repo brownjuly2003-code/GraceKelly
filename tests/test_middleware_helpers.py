@@ -73,6 +73,20 @@ class SetupRequestMetricsTests(unittest.TestCase):
         response = TestClient(app).get("/health")
         self.assertEqual(response.status_code, 200)
 
+    def test_latency_recorded_after_request(self) -> None:
+        app, metrics = _app_with_metrics()
+        TestClient(app).get("/health")
+        snap = metrics.request_duration_seconds()
+        self.assertIn("/health", snap)
+        _, _, count = snap["/health"]
+        self.assertEqual(count, 1)
+
+    def test_latency_sum_is_positive(self) -> None:
+        app, metrics = _app_with_metrics()
+        TestClient(app).get("/health")
+        _, total_sum, _ = metrics.request_duration_seconds()["/health"]
+        self.assertGreater(total_sum, 0.0)
+
 
 class IsProtectedTests(unittest.TestCase):
     def test_health_is_not_protected(self) -> None:

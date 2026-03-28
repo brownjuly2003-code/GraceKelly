@@ -119,11 +119,14 @@ def setup_security_headers(app: FastAPI) -> None:
 def setup_request_metrics(app: FastAPI) -> None:
     @app.middleware("http")
     async def metrics_middleware(request: Request, call_next: Callable[[Request], Awaitable[Response]]) -> Response:
+        start = time.monotonic()
         response = await call_next(request)
+        duration = time.monotonic() - start
         metrics = getattr(request.app.state, "request_metrics", None)
         if metrics is not None:
             endpoint = _normalize_endpoint(request.url.path)
             metrics.record_request(endpoint, response.status_code)
+            metrics.record_request_latency(endpoint, duration)
         return response
 
 
