@@ -17,7 +17,7 @@ def _create_test_app(*, has_repository: bool = True, tasks_data: list | None = N
         repo = MagicMock()
         mock_tasks = tasks_data or []
         repo.list_recent.return_value = mock_tasks
-        repo.list_steps.return_value = []
+        repo.list_steps_batch.return_value = {}
         app.state.task_repository = repo
     else:
         app.state.task_repository = None
@@ -89,10 +89,12 @@ class AnalyticsRouteTests(unittest.TestCase):
         task = MagicMock()
         task.task_id = "task-1"
         app = _create_test_app(tasks_data=[task])
-        app.state.task_repository.list_steps.return_value = [
-            MagicMock(model_id="model-a", status="completed", duration_ms=100),
-            MagicMock(model_id="model-b", status="failed", duration_ms=200),
-        ]
+        app.state.task_repository.list_steps_batch.return_value = {
+            "task-1": [
+                MagicMock(model_id="model-a", status="completed", duration_ms=100),
+                MagicMock(model_id="model-b", status="failed", duration_ms=200),
+            ]
+        }
         client = TestClient(app)
 
         response = client.get("/api/v1/analytics")
@@ -104,9 +106,11 @@ class AnalyticsRouteTests(unittest.TestCase):
         task = MagicMock()
         task.task_id = "task-1"
         app = _create_test_app(tasks_data=[task])
-        app.state.task_repository.list_steps.return_value = [
-            MagicMock(model_id="model-a", status="completed", duration_ms=100),
-        ]
+        app.state.task_repository.list_steps_batch.return_value = {
+            "task-1": [
+                MagicMock(model_id="model-a", status="completed", duration_ms=100),
+            ]
+        }
         client = TestClient(app)
 
         response = client.get("/api/v1/analytics")
@@ -129,6 +133,24 @@ class AnalyticsRouteTests(unittest.TestCase):
 
         self.assertEqual(503, response.status_code)
         self.assertIn("Storage unavailable", response.json()["detail"])
+
+    def test_analytics_uses_batch_loading(self) -> None:
+        task = MagicMock()
+        task.task_id = "task-42"
+        app = _create_test_app(tasks_data=[task])
+        app.state.task_repository.list_steps_batch.return_value = {
+            "task-42": [
+                MagicMock(model_id="model-x", status="completed", duration_ms=75),
+            ]
+        }
+        client = TestClient(app)
+
+        response = client.get("/api/v1/analytics")
+
+        self.assertEqual(200, response.status_code)
+        repo = app.state.task_repository
+        repo.list_steps_batch.assert_called_once_with(["task-42"])
+        repo.list_steps.assert_not_called()
 
     def test_analytics_uses_execution_history_when_no_repository(self) -> None:
         app = _create_test_app(has_repository=False)

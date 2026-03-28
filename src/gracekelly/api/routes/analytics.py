@@ -37,14 +37,16 @@ def get_analytics(request: Request) -> AnalyticsResponse:
     if repository is not None:
         try:
             tasks = repository.list_recent(limit=100)
-            for task in tasks:
-                steps = repository.list_steps(task.task_id)
-                for step in steps:
-                    step_records.append({
-                        "model_id": step.model_id,
-                        "status": step.status,
-                        "duration_ms": step.duration_ms,
-                    })
+            if tasks:
+                task_ids = [task.task_id for task in tasks]
+                steps_by_task = repository.list_steps_batch(task_ids)
+                for steps in steps_by_task.values():
+                    for step in steps:
+                        step_records.append({
+                            "model_id": step.model_id,
+                            "status": step.status,
+                            "duration_ms": step.duration_ms,
+                        })
         except Exception as exc:
             logger.error("Analytics storage read failed: %s", exc)
             raise HTTPException(status_code=503, detail="Storage unavailable.")
