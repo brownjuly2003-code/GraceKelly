@@ -107,6 +107,7 @@ def _load_task_view(service: OrchestratorService, task_id: str) -> TaskView:
 @router.post("/orchestrate", response_model=OrchestrateResponse, status_code=202)
 async def orchestrate(payload: OrchestrateRequest, request: Request, response: Response) -> OrchestrateResponse:
     service = get_app_state(request).orchestrator_service
+    _timeout = get_app_state(request).settings.orchestrate_timeout_seconds
     trace_id = trace_id_from_metadata(payload.metadata)
     if trace_id:
         response.headers["x-trace-id"] = trace_id
@@ -125,7 +126,18 @@ async def orchestrate(payload: OrchestrateRequest, request: Request, response: R
         )
     )
     try:
-        snapshot = await asyncio.to_thread(service.submit_snapshot, payload)
+        _coro = asyncio.to_thread(service.submit_snapshot, payload)
+        try:
+            snapshot = await (asyncio.wait_for(_coro, timeout=_timeout) if _timeout else _coro)
+        except TimeoutError as exc:
+            logger.warning(
+                log_message(
+                    "orchestrate.timeout",
+                    timeout_seconds=_timeout,
+                    trace_id=trace_id,
+                )
+            )
+            raise HTTPException(status_code=504, detail="Orchestration request timed out.") from exc
     except StorageUnavailableError as exc:
         logger.warning(
             log_message(

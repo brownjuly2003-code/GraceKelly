@@ -67,6 +67,7 @@ class Settings:
     browser_scripted_logged_in: bool = True
     browser_scripted_model_label: str | None = None
     browser_scripted_output_text: str = "scripted browser result"
+    orchestrate_timeout_seconds: float | None = None
 
     @classmethod
     def from_env(cls) -> Settings:
@@ -127,6 +128,7 @@ class Settings:
                 "GRACEKELLY_BROWSER_SCRIPTED_OUTPUT_TEXT",
                 "scripted browser result",
             ),
+            orchestrate_timeout_seconds=_env_float("GRACEKELLY_ORCHESTRATE_TIMEOUT_SECONDS", "0") or None,
         )
 
 
