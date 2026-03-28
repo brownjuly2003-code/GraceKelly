@@ -445,6 +445,87 @@ class OrchestratorServiceTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.service._build_events(task, plan, batch_result)
 
+    def test_event_result_details_empty_returns_empty_dict(self) -> None:
+        result = ExecutionResult(
+            adapter_name="browser.perplexity",
+            model_id="kimi-k2-5",
+            model_display_name="Kimi K2.5",
+            execution_mode=ExecutionMode.BROWSER,
+            status=StepStatus.COMPLETED,
+            details={},
+        )
+        self.assertEqual(self.service._event_result_details(result), {})
+
+    def test_event_result_details_none_returns_empty_dict(self) -> None:
+        result = ExecutionResult(
+            adapter_name="browser.perplexity",
+            model_id="kimi-k2-5",
+            model_display_name="Kimi K2.5",
+            execution_mode=ExecutionMode.BROWSER,
+            status=StepStatus.COMPLETED,
+        )
+        self.assertEqual(self.service._event_result_details(result), {})
+
+    def test_event_result_details_non_empty_returns_details_key(self) -> None:
+        result = ExecutionResult(
+            adapter_name="browser.perplexity",
+            model_id="kimi-k2-5",
+            model_display_name="Kimi K2.5",
+            execution_mode=ExecutionMode.BROWSER,
+            status=StepStatus.COMPLETED,
+            details={"tokens": 42, "model": "gpt-4"},
+        )
+        out = self.service._event_result_details(result)
+        self.assertIn("details", out)
+        self.assertEqual(out["details"]["tokens"], 42)
+
+    def test_event_result_details_non_serializable_coerced_to_string(self) -> None:
+        class _Custom:
+            def __repr__(self) -> str:
+                return "custom-obj"
+
+        result = ExecutionResult(
+            adapter_name="browser.perplexity",
+            model_id="kimi-k2-5",
+            model_display_name="Kimi K2.5",
+            execution_mode=ExecutionMode.BROWSER,
+            status=StepStatus.COMPLETED,
+            details={"obj": _Custom()},
+        )
+        out = self.service._event_result_details(result)
+        self.assertIsInstance(out["details"]["obj"], str)
+
+    def test_event_batch_details_empty_returns_empty_dict(self) -> None:
+        batch_result = ExecutionBatchResult(
+            execution_mode=ExecutionMode.BROWSER,
+            task_status=TaskStatus.COMPLETED,
+            results=(),
+            output_text="",
+            details={},
+        )
+        self.assertEqual(self.service._event_batch_details(batch_result), {})
+
+    def test_event_batch_details_none_returns_empty_dict(self) -> None:
+        batch_result = ExecutionBatchResult(
+            execution_mode=ExecutionMode.BROWSER,
+            task_status=TaskStatus.COMPLETED,
+            results=(),
+            output_text="",
+        )
+        self.assertEqual(self.service._event_batch_details(batch_result), {})
+
+    def test_event_batch_details_non_empty_returns_details_key(self) -> None:
+        batch_result = ExecutionBatchResult(
+            execution_mode=ExecutionMode.BROWSER,
+            task_status=TaskStatus.COMPLETED,
+            results=(),
+            output_text="",
+            details={"quorum_hit": True, "winner_index": 0},
+        )
+        out = self.service._event_batch_details(batch_result)
+        self.assertIn("details", out)
+        self.assertTrue(out["details"]["quorum_hit"])
+
 
 if __name__ == "__main__":
     unittest.main()
