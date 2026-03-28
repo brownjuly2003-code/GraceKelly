@@ -2,10 +2,52 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import unittest
+import unittest.mock
+from datetime import UTC, datetime
 from unittest.mock import patch
 
 from gracekelly.tools import validate_postgres
+from gracekelly.tools.validate_postgres import _json_default, resolve_dsn
+
+
+class ResolveDsnTests(unittest.TestCase):
+    def test_cli_dsn_returned_directly(self) -> None:
+        self.assertEqual(resolve_dsn("postgresql://host/db"), "postgresql://host/db")
+
+    def test_env_fallback_when_cli_none(self) -> None:
+        with unittest.mock.patch.dict(os.environ, {"GRACEKELLY_POSTGRES_DSN": "env-dsn"}):
+            self.assertEqual(resolve_dsn(None), "env-dsn")
+
+    def test_both_missing_returns_none(self) -> None:
+        clean = {k: v for k, v in os.environ.items() if k != "GRACEKELLY_POSTGRES_DSN"}
+        with unittest.mock.patch.dict(os.environ, clean, clear=True):
+            self.assertIsNone(resolve_dsn(None))
+
+    def test_cli_takes_precedence_over_env(self) -> None:
+        with unittest.mock.patch.dict(os.environ, {"GRACEKELLY_POSTGRES_DSN": "env-dsn"}):
+            self.assertEqual(resolve_dsn("cli-dsn"), "cli-dsn")
+
+
+class JsonDefaultTests(unittest.TestCase):
+    def test_datetime_returns_isoformat(self) -> None:
+        dt = datetime(2024, 6, 15, 12, 0, 0, tzinfo=UTC)
+        self.assertEqual(_json_default(dt), dt.isoformat())
+
+    def test_non_serializable_raises_type_error(self) -> None:
+        with self.assertRaises(TypeError) as ctx:
+            _json_default(object())
+        self.assertIn("object", str(ctx.exception))
+
+    def test_integer_raises_type_error(self) -> None:
+        with self.assertRaises(TypeError) as ctx:
+            _json_default(42)
+        self.assertIn("int", str(ctx.exception))
+
+    def test_none_raises_type_error(self) -> None:
+        with self.assertRaises(TypeError):
+            _json_default(None)
 
 
 class ValidatePostgresToolTests(unittest.TestCase):

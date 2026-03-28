@@ -3,7 +3,22 @@ from __future__ import annotations
 import unittest
 from datetime import UTC, datetime
 
-from gracekelly.core.contracts import FailureCode, MergeStrategy, StepStatus, TaskStatus
+from gracekelly.core.contracts import (
+    AdapterHint,
+    CancellationToken,
+    ExecutionAdapter,
+    ExecutionBackend,
+    ExecutionMode,
+    ExecutionPlan,
+    ExecutionRequest,
+    ExecutionResult,
+    ExecutionStep,
+    FailureCode,
+    MergeStrategy,
+    StepStatus,
+    TaskStatus,
+)
+from gracekelly.core.models import resolve_model
 from gracekelly.schemas import OrchestrateResponse, TaskStepView
 from gracekelly.storage.base import TaskRecord, TaskStepRecord
 from gracekelly.storage.memory import InMemoryTaskRepository
@@ -88,6 +103,105 @@ class FailureCodeTests(unittest.TestCase):
         response = OrchestrateResponse.from_task(task, steps, [])
 
         self.assertEqual(response.adapter_name, "browser.perplexity")
+
+
+class CancellationTokenTests(unittest.TestCase):
+    def test_initial_state_not_cancelled(self) -> None:
+        token = CancellationToken()
+        self.assertFalse(token.is_cancelled)
+
+    def test_request_cancel_sets_cancelled(self) -> None:
+        token = CancellationToken()
+        token.request_cancel()
+        self.assertTrue(token.is_cancelled)
+
+    def test_request_cancel_idempotent(self) -> None:
+        token = CancellationToken()
+        token.request_cancel()
+        token.request_cancel()
+        self.assertTrue(token.is_cancelled)
+
+
+class ExecutionResultIsFailureTests(unittest.TestCase):
+    def _make_step(self) -> ExecutionStep:
+        return ExecutionStep(
+            model=resolve_model("mistral-small"),
+            backend=ExecutionBackend.API,
+            provider="mistral",
+            provider_model_id="mistral-small-latest",
+            step_index=0,
+        )
+
+    def test_no_failure_code_is_not_failure(self) -> None:
+        result = ExecutionResult(
+            adapter_name="api.mistral",
+            model_id="mistral-small",
+            model_display_name="Mistral Small",
+            execution_mode=ExecutionMode.API,
+            status=StepStatus.COMPLETED,
+        )
+        self.assertFalse(result.is_failure)
+
+    def test_with_failure_code_is_failure(self) -> None:
+        result = ExecutionResult(
+            adapter_name="api.mistral",
+            model_id="mistral-small",
+            model_display_name="Mistral Small",
+            execution_mode=ExecutionMode.API,
+            status=StepStatus.FAILED,
+            failure_code=FailureCode.TIMEOUT,
+        )
+        self.assertTrue(result.is_failure)
+
+
+class ExecutionRequestModelsTests(unittest.TestCase):
+    def test_models_returns_all_model_specs(self) -> None:
+        spec_a = resolve_model("mistral-small")
+        spec_b = resolve_model("kimi-k2-5")
+        step_a = ExecutionStep(
+            model=spec_a,
+            backend=ExecutionBackend.API,
+            provider=spec_a.provider,
+            provider_model_id=spec_a.provider_model_id,
+            step_index=0,
+        )
+        step_b = ExecutionStep(
+            model=spec_b,
+            backend=ExecutionBackend.BROWSER,
+            provider=spec_b.provider,
+            provider_model_id=spec_b.provider_model_id,
+            step_index=1,
+        )
+        plan = ExecutionPlan(
+            steps=(step_a, step_b),
+            quorum=1,
+            merge_strategy=MergeStrategy.FIRST_SUCCESS,
+            dry_run=False,
+            adapter_hint=AdapterHint.AUTO,
+            cancel_on_quorum=False,
+        )
+        req = ExecutionRequest(
+            task_id="t1",
+            prompt="hello",
+            plan=plan,
+            step=step_a,
+            reasoning=False,
+        )
+        self.assertEqual(req.models, (spec_a, spec_b))
+
+
+class ExecutionAdapterHealthcheckTests(unittest.TestCase):
+    def test_default_healthcheck_returns_ok(self) -> None:
+        class _ConcreteAdapter(ExecutionAdapter):
+            name = "test-adapter"
+
+            def execute(self, request: ExecutionRequest) -> ExecutionResult:  # pragma: no cover
+                raise NotImplementedError
+
+        adapter = _ConcreteAdapter()
+        result = adapter.healthcheck()
+        self.assertEqual(result["status"], "ok")
+        self.assertEqual(result["adapter_name"], "test-adapter")
 
 
 if __name__ == "__main__":
