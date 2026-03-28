@@ -120,6 +120,33 @@ class AnalyticsRouteTests(unittest.TestCase):
         self.assertIn("success_rate", model)
         self.assertIn("avg_duration_ms", model)
 
+    def test_analytics_returns_503_when_storage_raises(self) -> None:
+        app = _create_test_app()
+        app.state.task_repository.list_recent.side_effect = RuntimeError("DB connection lost")
+        client = TestClient(app)
+
+        response = client.get("/api/v1/analytics")
+
+        self.assertEqual(503, response.status_code)
+        self.assertIn("Storage unavailable", response.json()["detail"])
+
+    def test_analytics_uses_execution_history_when_no_repository(self) -> None:
+        app = _create_test_app(has_repository=False)
+        history = MagicMock()
+        history.list_recent.return_value = [
+            MagicMock(model_id="model-z", status="completed", duration_ms=50),
+        ]
+        app.state.execution_history = history
+        client = TestClient(app)
+
+        response = client.get("/api/v1/analytics")
+        payload = response.json()
+
+        self.assertEqual(200, response.status_code)
+        self.assertEqual(1, payload["total_models"])
+        model_ids = [m["model_id"] for m in payload["models"]]
+        self.assertIn("model-z", model_ids)
+
 
 if __name__ == "__main__":
     unittest.main()
