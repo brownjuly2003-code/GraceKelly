@@ -113,5 +113,98 @@ class ConsensusAnalyzerTests(unittest.TestCase):
         self.assertEqual([cluster.cluster_id for cluster in result.all_clusters], [0, 1, 2])
 
 
+class AvgIntraSimilarityTests(unittest.TestCase):
+    """Direct unit tests for ConsensusAnalyzer._avg_intra_similarity."""
+
+    def test_single_member_returns_one(self) -> None:
+        matrix: list[list[float]] = [[1.0]]
+        result = ConsensusAnalyzer._avg_intra_similarity([0], matrix)
+        self.assertEqual(result, 1.0)
+
+    def test_two_members_returns_their_similarity(self) -> None:
+        matrix = [[1.0, 0.8], [0.8, 1.0]]
+        result = ConsensusAnalyzer._avg_intra_similarity([0, 1], matrix)
+        self.assertAlmostEqual(result, 0.8)
+
+    def test_three_members_averages_all_pairs(self) -> None:
+        # pairs: (0,1)=0.9, (0,2)=0.6, (1,2)=0.7 → avg = (0.9+0.6+0.7)/3
+        matrix = [
+            [1.0, 0.9, 0.6],
+            [0.9, 1.0, 0.7],
+            [0.6, 0.7, 1.0],
+        ]
+        result = ConsensusAnalyzer._avg_intra_similarity([0, 1, 2], matrix)
+        self.assertAlmostEqual(result, (0.9 + 0.6 + 0.7) / 3, places=6)
+
+    def test_sparse_indices_skip_diagonal(self) -> None:
+        # indices [0, 2] in a 3×3 matrix; only pair (0,2)=0.5 used
+        matrix = [
+            [1.0, 0.9, 0.5],
+            [0.9, 1.0, 0.7],
+            [0.5, 0.7, 1.0],
+        ]
+        result = ConsensusAnalyzer._avg_intra_similarity([0, 2], matrix)
+        self.assertAlmostEqual(result, 0.5)
+
+    def test_zero_similarity_cluster(self) -> None:
+        matrix = [[1.0, 0.0], [0.0, 1.0]]
+        result = ConsensusAnalyzer._avg_intra_similarity([0, 1], matrix)
+        self.assertAlmostEqual(result, 0.0)
+
+
+class FindCentroidTests(unittest.TestCase):
+    """Direct unit tests for ConsensusAnalyzer._find_centroid."""
+
+    def test_single_member_returns_that_index(self) -> None:
+        matrix: list[list[float]] = [[1.0]]
+        result = ConsensusAnalyzer._find_centroid([0], matrix)
+        self.assertEqual(result, 0)
+
+    def test_two_members_equal_similarity_returns_first(self) -> None:
+        matrix = [[1.0, 0.5], [0.5, 1.0]]
+        result = ConsensusAnalyzer._find_centroid([0, 1], matrix)
+        self.assertIn(result, [0, 1])
+
+    def test_centroid_is_most_similar_to_others(self) -> None:
+        # index 1 has highest total similarity: 0.9+0.8 = 1.7 vs 0.9+0.4 = 1.3 vs 0.8+0.4 = 1.2
+        matrix = [
+            [1.0, 0.9, 0.8],
+            [0.9, 1.0, 0.4],
+            [0.8, 0.4, 1.0],
+        ]
+        # Wait, recalculate: for [0,1,2]
+        # idx 0: sum = matrix[0][1] + matrix[0][2] = 0.9 + 0.8 = 1.7
+        # idx 1: sum = matrix[1][0] + matrix[1][2] = 0.9 + 0.4 = 1.3
+        # idx 2: sum = matrix[2][0] + matrix[2][1] = 0.8 + 0.4 = 1.2
+        # best is idx 0 with sum 1.7
+        result = ConsensusAnalyzer._find_centroid([0, 1, 2], matrix)
+        self.assertEqual(result, 0)
+
+    def test_centroid_among_subset_of_indices(self) -> None:
+        # 4×4 matrix, only indices [1, 3] considered
+        matrix = [
+            [1.0, 0.2, 0.2, 0.2],
+            [0.2, 1.0, 0.2, 0.9],
+            [0.2, 0.2, 1.0, 0.2],
+            [0.2, 0.9, 0.2, 1.0],
+        ]
+        # idx 1 vs idx 3: both have same sim to each other (0.9)
+        result = ConsensusAnalyzer._find_centroid([1, 3], matrix)
+        self.assertIn(result, [1, 3])
+
+    def test_clearly_central_node(self) -> None:
+        # index 2 is the hub — most similar to all others
+        matrix = [
+            [1.0, 0.1, 0.9],
+            [0.1, 1.0, 0.9],
+            [0.9, 0.9, 1.0],
+        ]
+        # idx 0 sum = 0.1 + 0.9 = 1.0
+        # idx 1 sum = 0.1 + 0.9 = 1.0
+        # idx 2 sum = 0.9 + 0.9 = 1.8
+        result = ConsensusAnalyzer._find_centroid([0, 1, 2], matrix)
+        self.assertEqual(result, 2)
+
+
 if __name__ == "__main__":
     unittest.main()
