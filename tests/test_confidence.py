@@ -85,6 +85,30 @@ class ConfidenceTests(unittest.TestCase):
         result = extract_confidence("text", 5)
         self.assertEqual(result.response_index, 5)
 
+    def test_weighted_vote_zero_total_weight_falls_back_to_count_ratio(self) -> None:
+        # All normalized_scores = 0.0 → total_weight = 0.0 → fallback to count ratio
+        scores = [
+            ConfidenceScore(0, 0.0, 0.0),
+            ConfidenceScore(1, 0.0, 0.0),
+            ConfidenceScore(2, 0.0, 0.0),
+        ]
+        result = weighted_vote([0, 1], scores, total_responses=3)
+        self.assertAlmostEqual(result, 2 / 3)
+
+    def test_weighted_vote_index_not_in_score_map_uses_default(self) -> None:
+        # cluster_indices includes idx=5 not present in scores → score_map.get(5, 0.5)
+        scores = [ConfidenceScore(0, 8.0, 0.8)]
+        result = weighted_vote([5], scores, total_responses=2)
+        # cluster_weight = 0.5 (default), total_weight = 0.8
+        self.assertAlmostEqual(result, 0.5 / 0.8, places=6)
+
+    def test_extract_confidence_clamps_below_zero(self) -> None:
+        # pattern only matches digits so negative input won't match,
+        # but verify zero is valid
+        result = extract_confidence("confidence: 0")
+        self.assertEqual(result.raw_score, 0.0)
+        self.assertEqual(result.normalized_score, 0.0)
+
 
 if __name__ == "__main__":
     unittest.main()
