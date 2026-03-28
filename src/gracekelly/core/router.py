@@ -261,10 +261,12 @@ class ExecutionRouter:
         failed: tuple[ExecutionResult, ...],
     ) -> tuple[FailureCode, str]:
         first_failure = failed[0]
+        has_unknown = any(item.failure_code is None for item in failed)
         failure_codes = {item.failure_code for item in failed if item.failure_code is not None}
         if len(failed) == 1 and first_failure.failure_code is not None and first_failure.failure_message:
             return first_failure.failure_code, first_failure.failure_message
-        if len(failure_codes) == 1 and first_failure.failure_code is not None:
+        # All failures share the same code and none are missing a code
+        if not has_unknown and len(failure_codes) == 1 and first_failure.failure_code is not None:
             return (
                 first_failure.failure_code,
                 f"All {len(failed)} steps failed: {first_failure.failure_message or first_failure.failure_code.value}",

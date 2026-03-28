@@ -285,6 +285,32 @@ def _build_metrics_payload(
 @router.get("/health")
 async def health(request: Request) -> dict[str, object]:
     state = get_app_state(request)
+    expose_details = getattr(state.settings, "health_expose_details", False)
+
+    if not expose_details:
+        # Minimal payload: only status, no internal details exposed to unauthenticated callers.
+        # Build the full summary internally so we can log degraded states, but return nothing sensitive.
+        payload = await asyncio.to_thread(
+            _build_health_summary,
+            environment=state.settings.env,
+            storage_backend=state.task_repository.backend_name if state.task_repository else "none",
+            profile=state.execution_profile,
+            repository=state.task_repository,
+            adapters=state.adapter_registry,
+            execution_router=state.execution_router,
+        )
+        if payload["status"] != "ok" or payload["saturated_models"]:
+            logger.warning(
+                log_message(
+                    "health.snapshot",
+                    status=payload["status"],
+                    storage_backend=payload["storage_backend"],
+                    active_model_executions=payload["active_model_executions"],
+                    saturated_models=",".join(payload["saturated_models"]),
+                )
+            )
+        return {"status": payload["status"]}
+
     payload = await asyncio.to_thread(
         _build_health_summary,
         environment=state.settings.env,
@@ -307,6 +333,10 @@ async def health(request: Request) -> dict[str, object]:
     return {
         "status": payload["status"],
         "version": payload.get("version", "0.1.0"),
+        "environment": payload.get("environment"),
+        "storage_backend": payload.get("storage_backend"),
+        "active_model_executions": payload.get("active_model_executions"),
+        "saturated_models": payload.get("saturated_models"),
     }
 
 

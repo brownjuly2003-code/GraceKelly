@@ -153,3 +153,21 @@ def setup_rate_limiting(app: FastAPI, *, requests_per_minute: int | None) -> Non
             )
 
         return await call_next(request)
+
+
+def setup_request_tracking(app: FastAPI) -> None:
+    """Track active in-flight requests for graceful shutdown.
+
+    Uses a simple integer counter stored on ``app.state._active_requests``.
+    This works correctly for single-worker deployments. For multi-worker
+    deployments (multiple uvicorn processes) you need an external counter
+    (e.g. Redis INCR/DECR) because each worker maintains its own state.
+    """
+
+    @app.middleware("http")
+    async def _track_requests(request: Request, call_next: Callable[[Request], Awaitable[Response]]) -> Response:
+        app.state._active_requests = getattr(app.state, "_active_requests", 0) + 1
+        try:
+            return await call_next(request)
+        finally:
+            app.state._active_requests = max(0, getattr(app.state, "_active_requests", 1) - 1)

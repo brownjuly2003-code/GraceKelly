@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 logger = logging.getLogger(__name__)
 
@@ -68,6 +68,13 @@ class Settings:
     browser_scripted_model_label: str | None = None
     browser_scripted_output_text: str = "scripted browser result"
     orchestrate_timeout_seconds: float | None = None
+    # CORS
+    cors_allowed_origins: list[str] = field(default_factory=list)
+    cors_allow_credentials: bool = False
+    # Health endpoint security
+    health_expose_details: bool = False
+    # Graceful shutdown
+    graceful_shutdown_timeout_seconds: float = 30.0
 
     @classmethod
     def from_env(cls) -> Settings:
@@ -129,6 +136,13 @@ class Settings:
                 "scripted browser result",
             ),
             orchestrate_timeout_seconds=_env_float("GRACEKELLY_ORCHESTRATE_TIMEOUT_SECONDS", "0") or None,
+            cors_allowed_origins=[
+                o.strip() for o in os.getenv("GRACEKELLY_CORS_ALLOWED_ORIGINS", "").split(",")
+                if o.strip()
+            ],
+            cors_allow_credentials=os.getenv("GRACEKELLY_CORS_ALLOW_CREDENTIALS", "false").lower() == "true",
+            health_expose_details=os.getenv("GRACEKELLY_HEALTH_EXPOSE_DETAILS", "false").lower() == "true",
+            graceful_shutdown_timeout_seconds=_env_float("GRACEKELLY_GRACEFUL_SHUTDOWN_TIMEOUT_SECONDS", "30.0"),
         )
 
 

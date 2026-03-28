@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+import asyncio
 import inspect
 import logging
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from gracekelly.adapters.api.anthropic import AnthropicApiAdapter
 from gracekelly.adapters.api.mistral import MistralApiAdapter
@@ -43,7 +45,13 @@ from gracekelly.core.execution_history import ExecutionHistory
 from gracekelly.core.execution_profile import resolve_execution_profile
 from gracekelly.core.orchestrator import OrchestratorService
 from gracekelly.core.router import ExecutionRouter
-from gracekelly.middleware import setup_api_key_auth, setup_rate_limiting, setup_request_metrics, setup_security_headers
+from gracekelly.middleware import (
+    setup_api_key_auth,
+    setup_rate_limiting,
+    setup_request_metrics,
+    setup_request_tracking,
+    setup_security_headers,
+)
 from gracekelly.request_metrics import RequestMetrics
 from gracekelly.storage.base import TaskRepository
 from gracekelly.storage.memory import InMemoryTaskRepository
@@ -131,6 +139,24 @@ def build_browser_adapter(active_settings: Settings) -> ExecutionAdapter:
 @asynccontextmanager
 async def app_lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     yield
+    # Drain in-flight requests before releasing resources
+    app_settings = getattr(app.state, "settings", None)
+    timeout_seconds = (
+        app_settings.graceful_shutdown_timeout_seconds if app_settings else 30.0
+    )
+    deadline = asyncio.get_event_loop().time() + timeout_seconds
+    active = getattr(app.state, "_active_requests", 0)
+    if active > 0:
+        logger.info("Graceful shutdown: waiting for %d in-flight request(s)", active)
+    while getattr(app.state, "_active_requests", 0) > 0:
+        if asyncio.get_event_loop().time() >= deadline:
+            logger.warning(
+                "Graceful shutdown timeout (%.0fs) — %d request(s) still active",
+                timeout_seconds,
+                getattr(app.state, "_active_requests", 0),
+            )
+            break
+        await asyncio.sleep(0.05)
     logger.info("Shutting down — releasing resources")
     browser_adapter = getattr(app.state, "browser_adapter", None)
     if browser_adapter is not None:
@@ -212,10 +238,22 @@ def create_app(app_settings: Settings | None = None) -> FastAPI:
     )
     app.state.execution_history = ExecutionHistory()
     app.state.account_pool_manager = AccountPoolManager()
+
+    # CORS must be registered first so preflight requests are handled before auth middleware
+    if active_settings.cors_allowed_origins:
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=active_settings.cors_allowed_origins,
+            allow_credentials=active_settings.cors_allow_credentials,
+            allow_methods=["*"],
+            allow_headers=["*"],
+        )
+
     setup_security_headers(app)
     setup_api_key_auth(app, api_key=active_settings.api_key)
     setup_rate_limiting(app, requests_per_minute=active_settings.rate_limit_per_minute)
     setup_request_metrics(app)
+    setup_request_tracking(app)
 
     app.include_router(health_router)
     app.include_router(models_router)

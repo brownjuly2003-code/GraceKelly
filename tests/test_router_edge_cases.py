@@ -377,5 +377,132 @@ class RouterDetailsTests(unittest.TestCase):
             self.assertEqual(batch.details["cancel_reason"], "quorum_reached")
 
 
+class RouterResolveTaskFailureEdgeTests(unittest.TestCase):
+    """Edge cases for _resolve_task_failure not covered by test_router_helpers."""
+
+    def _router(self) -> ExecutionRouter:
+        return ExecutionRouter(dry_run_adapter=_StubAdapter([]))
+
+    def test_single_failed_with_code_but_no_message_uses_code_value(self) -> None:
+        """One failure with failure_code set but failure_message is None.
+        Falls through to the second branch (same failure_code set, len==1).
+        """
+        step = _step()
+        r = ExecutionResult(
+            adapter_name="api.perplexity",
+            model_id=step.model.id,
+            model_display_name=step.model.display_name,
+            execution_mode=ExecutionMode.API,
+            status=StepStatus.FAILED,
+            failure_code=FailureCode.TIMEOUT,
+            failure_message=None,
+        )
+        code, message = self._router()._resolve_task_failure((r,))
+        self.assertEqual(code, FailureCode.TIMEOUT)
+        self.assertIn("timeout", message.lower())
+
+    def test_failed_with_no_failure_code_uses_unknown_summary(self) -> None:
+        """Two failures where one has no failure_code → different codes branch."""
+        step = _step()
+        r1 = ExecutionResult(
+            adapter_name="api.perplexity",
+            model_id=step.model.id,
+            model_display_name=step.model.display_name,
+            execution_mode=ExecutionMode.API,
+            status=StepStatus.FAILED,
+            failure_code=FailureCode.RATE_LIMITED,
+            failure_message="limited",
+        )
+        r2 = ExecutionResult(
+            adapter_name="api.perplexity",
+            model_id=step.model.id,
+            model_display_name=step.model.display_name,
+            execution_mode=ExecutionMode.API,
+            status=StepStatus.FAILED,
+            failure_code=None,
+            failure_message="other",
+        )
+        code, message = self._router()._resolve_task_failure((r1, r2))
+        self.assertEqual(code, FailureCode.UNKNOWN_ERROR)
+        self.assertIn("2", message)
+
+
+class RouterCancelledResultTests(unittest.TestCase):
+    """_cancelled_result produces CANCELLED StepStatus."""
+
+    def test_cancelled_result_status(self) -> None:
+        step = _step()
+        router = ExecutionRouter(dry_run_adapter=_StubAdapter([]))
+        result = router._cancelled_result(step)
+        self.assertEqual(result.status, StepStatus.CANCELLED)
+
+    def test_cancelled_result_adapter_name(self) -> None:
+        step = _step()
+        router = ExecutionRouter(dry_run_adapter=_StubAdapter([]))
+        result = router._cancelled_result(step)
+        self.assertIn(step.backend.value, result.adapter_name)
+        self.assertIn(step.provider, result.adapter_name)
+
+    def test_cancelled_result_no_failure_code(self) -> None:
+        step = _step()
+        router = ExecutionRouter(dry_run_adapter=_StubAdapter([]))
+        result = router._cancelled_result(step)
+        self.assertIsNone(result.failure_code)
+
+    def test_cancelled_result_details_flag(self) -> None:
+        step = _step()
+        router = ExecutionRouter(dry_run_adapter=_StubAdapter([]))
+        result = router._cancelled_result(step)
+        self.assertTrue(result.details.get("cancelled"))
+
+
+class RouterConcurrencyLimitedResultTests(unittest.TestCase):
+    """_concurrency_limited_result produces FAILED with RATE_LIMITED."""
+
+    def test_concurrency_limited_status_is_failed(self) -> None:
+        step = _step()
+        router = ExecutionRouter(dry_run_adapter=_StubAdapter([]))
+        result = router._concurrency_limited_result(step)
+        self.assertEqual(result.status, StepStatus.FAILED)
+
+    def test_concurrency_limited_failure_code(self) -> None:
+        step = _step()
+        router = ExecutionRouter(dry_run_adapter=_StubAdapter([]))
+        result = router._concurrency_limited_result(step)
+        self.assertEqual(result.failure_code, FailureCode.RATE_LIMITED)
+
+    def test_concurrency_limited_message_mentions_model(self) -> None:
+        step = _step()
+        router = ExecutionRouter(dry_run_adapter=_StubAdapter([]))
+        result = router._concurrency_limited_result(step)
+        assert result.failure_message is not None
+        self.assertIn(step.model.display_name, result.failure_message)
+
+    def test_concurrency_limited_details_has_limit(self) -> None:
+        step = _step()
+        router = ExecutionRouter(dry_run_adapter=_StubAdapter([]))
+        result = router._concurrency_limited_result(step)
+        self.assertIn("concurrency_limit", result.details)
+
+
+class RouterMergeOutputsAllNoneTests(unittest.TestCase):
+    """_merge_outputs when all output_text values are None."""
+
+    def test_all_none_outputs_returns_none_for_concat(self) -> None:
+        step = _step()
+        r1 = _result(step, output_text=None)
+        r2 = _result(step, output_text=None)
+        router = ExecutionRouter(dry_run_adapter=_StubAdapter([]))
+        out = router._merge_outputs(MergeStrategy.CONCAT, (r1, r2))
+        self.assertIsNone(out)
+
+    def test_all_none_outputs_returns_none_for_first_success(self) -> None:
+        step = _step()
+        r = _result(step, output_text=None)
+        router = ExecutionRouter(dry_run_adapter=_StubAdapter([]))
+        out = router._merge_outputs(MergeStrategy.FIRST_SUCCESS, (r,))
+        self.assertIsNone(out)
+
+
 if __name__ == "__main__":
     unittest.main()
