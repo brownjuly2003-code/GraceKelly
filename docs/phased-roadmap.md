@@ -190,18 +190,27 @@ Deliverables:
 
 ## Phase 13: Production Hardening
 
-Status: in progress
+Status: complete (core hardening delivered)
 
 Delivered:
-- GitHub Actions CI pipeline (Python 3.11/3.12, import check)
-- Dockerfile (Python 3.12-slim, uvicorn)
-- docker-compose (standalone + postgres-backed configurations)
-- .dockerignore
-- Security audit: no hardcoded keys, all 44 core modules importable, no silent exception swallowing in routes
-- mypy strict mode: 0 errors across all 98 source files; CI enforces --strict on every push
-- Typed AppState, typed route helpers, cast() for all json.loads returns, typed middleware
+- ✅ GitHub Actions CI pipeline (Python 3.11/3.12, import check, coverage reporting, pip-audit)
+- ✅ Dockerfile: Python 3.12-slim, non-root user, HEALTHCHECK
+- ✅ docker-compose (standalone + postgres-backed configurations)
+- ✅ .dockerignore
+- ✅ Security audit: no hardcoded keys, all 44 core modules importable, no silent exception swallowing in routes
+- ✅ mypy strict mode: 0 errors across all 98 source files; CI enforces --strict on every push
+- ✅ Typed AppState, typed route helpers, cast() for all json.loads returns, typed middleware
+- ✅ CORS support (configurable origins, credentials, CORS middleware)
+- ✅ Health endpoint security: minimal response by default, details opt-in via GRACEKELLY_HEALTH_EXPOSE_DETAILS
+- ✅ Graceful shutdown with configurable drain period (GRACEKELLY_GRACEFUL_SHUTDOWN_TIMEOUT_SECONDS)
+- ✅ Orchestrate request timeout: returns HTTP 504 on breach (GRACEKELLY_ORCHESTRATE_TIMEOUT_SECONDS)
+- ✅ Analytics N+1 query fix: batch step loading via list_steps_batch
+- ✅ Event pagination for GET /tasks/{id}: events_limit / events_offset query params
+- ✅ httpx migration for API adapter (replaces requests)
 
 Remaining:
-- Live testing with real multi-model consensus (multiple API keys)
-- Performance profiling of V2 consensus pipeline
-- Load testing
+- Async adapters (async httpx / async playwright) — sync adapters currently block the event loop
+- Redis-backed rate limiting for multi-process deployments
+- OpenTelemetry distributed tracing
+- Error tracking integration (Sentry)
+- Load testing framework

@@ -263,3 +263,82 @@ If callers supply `metadata.trace_id` on `POST /api/v1/orchestrate`, GraceKelly 
 - `task.event_persistence_failed` warnings
 
 That gives a minimal correlation key across HTTP entry, task creation, and best-effort event logging without requiring an external tracing system.
+
+## CORS configuration
+
+By default CORS middleware is disabled. Enable it when a browser-based frontend calls the API from a different origin.
+
+Set allowed origins as a comma-separated list:
+
+```bash
+set GRACEKELLY_CORS_ALLOWED_ORIGINS=http://localhost:3000,https://app.example.com
+```
+
+To allow cookies or `Authorization` headers in cross-origin requests, also set:
+
+```bash
+set GRACEKELLY_CORS_ALLOW_CREDENTIALS=true
+```
+
+Operational guidance:
+- Never set `GRACEKELLY_CORS_ALLOWED_ORIGINS=*` in production — use explicit origins.
+- `CORS_ALLOW_CREDENTIALS=true` is only safe when the origins list is explicit (not wildcard).
+- If the frontend and API share the same origin, leave CORS disabled (empty origins list).
+- Allowed methods and headers are set to safe defaults; do not widen them unless required.
+
+## Graceful shutdown
+
+GraceKelly waits for in-flight requests to finish before terminating. The drain period is controlled by:
+
+```bash
+set GRACEKELLY_GRACEFUL_SHUTDOWN_TIMEOUT_SECONDS=30
+```
+
+What happens during shutdown:
+1. The process receives SIGTERM (or Ctrl-C in development).
+2. The lifespan context begins teardown: browser session is closed, pool connections are released.
+3. Uvicorn waits up to the configured timeout for active requests to complete.
+4. After the timeout, the process exits. Any request still in-flight receives a connection reset.
+
+Tuning guidance:
+- Default (30 s) covers most API-backed orchestrate calls.
+- For deployments running consensus V2 or pipeline endpoints with multiple rounds, raise to 90–120 s.
+- For health-check-only or metrics-only pods, 5 s is sufficient.
+- Monitor `gracekelly_execution_active_model_executions` from `/metrics` to assess typical drain time before lowering the timeout.
+
+## Health endpoint security
+
+The `GET /health` endpoint returns a minimal summary by default (status, environment, backend name, saturation counts). Internal component details are hidden.
+
+To expose full details (storage schema, browser circuit-breaker state, adapter keys present/absent):
+
+```bash
+set GRACEKELLY_HEALTH_EXPOSE_DETAILS=true
+```
+
+Security implications:
+- The detailed view reveals which adapters have API keys configured and whether the browser session is authenticated.
+- Keep `GRACEKELLY_HEALTH_EXPOSE_DETAILS=false` (default) in any internet-facing deployment.
+- The detailed view is safe on an internal monitoring network or when the health endpoint is behind API key authentication.
+- `GET /api/v1/health/detailed` always returns full adapter and embeddings status; protect it with `GRACEKELLY_API_KEY` if health endpoints are public.
+
+## Request timeout (orchestrate)
+
+`POST /api/v1/orchestrate` runs synchronously in a thread pool. To cap execution time and return HTTP 504 to the caller instead of holding the connection indefinitely:
+
+```bash
+set GRACEKELLY_ORCHESTRATE_TIMEOUT_SECONDS=60
+```
+
+Setting `0` (default) disables the timeout.
+
+How it works:
+- The orchestration coroutine is wrapped in `asyncio.wait_for` with the configured timeout.
+- On breach, the endpoint returns `504 Gateway Timeout` with `detail: "Orchestration request timed out."`.
+- The background thread continues running until the underlying adapter call completes or fails on its own — the timeout only affects the HTTP response, not the execution itself.
+
+Tuning guidance:
+- Start with the slowest expected model timeout + 10 s of overhead (e.g. Anthropic 120 s → set 130 s).
+- For dry-run mode, 5 s is sufficient.
+- For consensus V2 with multiple rounds, account for `max_rounds × variations_per_round × model_timeout_seconds`.
+- Pair this setting with load-balancer / reverse-proxy timeouts: both must be larger than the orchestrate timeout.
