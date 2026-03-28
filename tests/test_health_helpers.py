@@ -43,23 +43,27 @@ def _mock_readiness() -> dict:
     }
 
 
+def _call_metrics(readiness: dict, request_metrics: RequestMetrics | None = None) -> str:
+    profile = MagicMock()
+    profile.name = "dry-run"
+    with patch(
+        "gracekelly.api.routes.health._build_readiness_payload",
+        return_value=readiness,
+    ):
+        return _build_metrics_payload(
+            environment="test",
+            storage_backend="memory",
+            profile=profile,
+            repository=None,
+            adapters={},
+            execution_router=None,
+            request_metrics=request_metrics,
+        )
+
+
 class BuildMetricsPayloadRequestMetricsTests(unittest.TestCase):
     def _call(self, request_metrics: RequestMetrics) -> str:
-        profile = MagicMock()
-        profile.name = "dry-run"
-        with patch(
-            "gracekelly.api.routes.health._build_readiness_payload",
-            return_value=_mock_readiness(),
-        ):
-            return _build_metrics_payload(
-                environment="test",
-                storage_backend="memory",
-                profile=profile,
-                repository=None,
-                adapters={},
-                execution_router=None,
-                request_metrics=request_metrics,
-            )
+        return _call_metrics(_mock_readiness(), request_metrics)
 
     def test_recorded_requests_emit_http_requests_total(self) -> None:
         rm = RequestMetrics()
@@ -84,6 +88,68 @@ class BuildMetricsPayloadRequestMetricsTests(unittest.TestCase):
         rm = RequestMetrics()
         output = self._call(rm)
         self.assertNotIn("gracekelly_adapter_errors_total", output)
+
+
+class BuildMetricsPayloadStorageCountsTests(unittest.TestCase):
+    def _readiness_with_storage_details(self, details: dict) -> dict:
+        r = _mock_readiness()
+        for c in r["components"]:
+            if c["kind"] == "storage":
+                c["details"] = details
+        return r
+
+    def test_task_count_in_storage_emits_metric(self) -> None:
+        readiness = self._readiness_with_storage_details({"task_count": 42, "step_count": 10, "event_count": 5})
+        output = _call_metrics(readiness)
+        self.assertIn("gracekelly_storage_task_count", output)
+        self.assertIn("gracekelly_storage_step_count", output)
+        self.assertIn("gracekelly_storage_event_count", output)
+
+    def test_only_task_count_emits_only_task_metric(self) -> None:
+        readiness = self._readiness_with_storage_details({"task_count": 7})
+        output = _call_metrics(readiness)
+        self.assertIn("gracekelly_storage_task_count", output)
+        self.assertNotIn("gracekelly_storage_step_count", output)
+        self.assertNotIn("gracekelly_storage_event_count", output)
+
+    def test_empty_storage_details_emits_no_count_metrics(self) -> None:
+        output = _call_metrics(_mock_readiness())
+        self.assertNotIn("gracekelly_storage_task_count", output)
+        self.assertNotIn("gracekelly_storage_step_count", output)
+        self.assertNotIn("gracekelly_storage_event_count", output)
+
+
+class BuildMetricsPayloadCircuitBreakerTests(unittest.TestCase):
+    def _readiness_with_adapter(self, breaker_details: object) -> dict:
+        r = _mock_readiness()
+        r["components"].append({
+            "name": "browser.perplexity",
+            "kind": "adapter",
+            "status": "ok",
+            "required": False,
+            "details": {"circuit_breaker": breaker_details},
+        })
+        return r
+
+    def test_adapter_with_circuit_breaker_emits_state_metric(self) -> None:
+        breaker = {"state": "closed", "consecutive_failures": 0, "open_count": 0, "fail_fast_rejections": 0}
+        output = _call_metrics(self._readiness_with_adapter(breaker))
+        self.assertIn("gracekelly_browser_circuit_breaker_state", output)
+        self.assertIn('"closed"', output)
+
+    def test_adapter_with_circuit_breaker_emits_consecutive_failures(self) -> None:
+        breaker = {"state": "open", "consecutive_failures": 3, "open_count": 1, "fail_fast_rejections": 5}
+        output = _call_metrics(self._readiness_with_adapter(breaker))
+        self.assertIn("gracekelly_browser_circuit_breaker_consecutive_failures", output)
+
+    def test_adapter_non_dict_circuit_breaker_skipped(self) -> None:
+        # circuit_breaker is not a dict → the adapter block is skipped → fallback "disabled" state emitted
+        output = _call_metrics(self._readiness_with_adapter("not_a_dict"))
+        self.assertIn('"disabled"', output)
+
+    def test_no_adapter_component_emits_disabled_fallback(self) -> None:
+        output = _call_metrics(_mock_readiness())
+        self.assertIn('"disabled"', output)
 
 
 class PrometheusValueTests(unittest.TestCase):

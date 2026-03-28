@@ -178,6 +178,46 @@ class CompareRouteTests(unittest.TestCase):
         self.assertIsNone(body["analysis"])
         self.assertEqual(2, body["succeeded"])
 
+    def test_failed_result_returns_failed_status(self) -> None:
+        adapter = MagicMock()
+        adapter.execute.return_value = MagicMock(
+            status=StepStatus.FAILED,
+            output_text=None,
+            failure_code=None,
+        )
+        client = TestClient(_create_test_app({"mistral": adapter}))
+        resp = client.post("/api/v1/compare", json={
+            "prompt": "Hello",
+            "models": ["mistral-small"],
+        })
+        body = resp.json()
+        self.assertEqual(200, resp.status_code)
+        self.assertEqual("failed", body["answers"][0]["status"])
+        self.assertEqual(0, body["succeeded"])
+        self.assertEqual(1, body["failed"])
+
+    def test_analysis_failed_result_leaves_analysis_none(self) -> None:
+        good_result = MagicMock(
+            status=StepStatus.COMPLETED, output_text="answer", failure_code=None
+        )
+        failed_result = MagicMock(
+            status=StepStatus.FAILED, output_text=None, failure_code=None
+        )
+        adapter = MagicMock()
+        adapter.execute.side_effect = [good_result, good_result, failed_result]
+        client = TestClient(_create_test_app({"mistral": adapter}))
+
+        resp = client.post("/api/v1/compare", json={
+            "prompt": "Hello",
+            "models": ["mistral-small", "mistral-small"],
+            "analyze": True,
+        })
+        body = resp.json()
+
+        self.assertEqual(200, resp.status_code)
+        self.assertIsNone(body["analysis"])
+        self.assertEqual(2, body["succeeded"])
+
 
 if __name__ == "__main__":
     unittest.main()

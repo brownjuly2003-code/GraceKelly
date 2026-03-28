@@ -150,6 +150,19 @@ class SmartV2RouteTests(unittest.TestCase):
         self.assertEqual(400, response.status_code)
         self.assertIn("No API adapter", response.json()["detail"])
 
+    def test_smart_v2_failed_result_returns_error_answer(self) -> None:
+        app = _create_test_app()
+        app.state.api_adapters["mistral"].execute.return_value = MagicMock(
+            status=StepStatus.FAILED,
+            output_text=None,
+            failure_code="timeout",
+            failure_message="Request timed out",
+        )
+        client = TestClient(app)
+        response = client.post("/api/v1/smart/v2", json={"prompt": "Hello", "pattern": "single"})
+        self.assertEqual(200, response.status_code)
+        self.assertIn("[timeout]", response.json()["answer"])
+
 
 if __name__ == "__main__":
     unittest.main()
