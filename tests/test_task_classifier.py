@@ -146,5 +146,118 @@ class ClassifyTaskWordBoundaryTests(unittest.TestCase):
         self.assertEqual(classify_task("clean up the code"), TaskType.CODING)
 
 
+class ClassifyTaskRemainingCodingKeywordsTests(unittest.TestCase):
+    """Cover coding keywords not yet exercised."""
+
+    def test_compile_keyword_detected(self) -> None:
+        self.assertEqual(classify_task("compile the project"), TaskType.CODING)
+
+    def test_runtime_keyword_detected(self) -> None:
+        self.assertEqual(classify_task("fix this runtime issue"), TaskType.CODING)
+
+    def test_javascript_keyword_detected(self) -> None:
+        self.assertEqual(classify_task("javascript tutorial"), TaskType.CODING)
+
+    def test_class_keyword_detected(self) -> None:
+        self.assertEqual(classify_task("design a class hierarchy"), TaskType.CODING)
+
+    def test_api_keyword_detected(self) -> None:
+        self.assertEqual(classify_task("call the api endpoint"), TaskType.CODING)
+
+    def test_implement_keyword_detected(self) -> None:
+        self.assertEqual(classify_task("implement a retry mechanism"), TaskType.CODING)
+
+
+class ClassifyTaskRemainingMathKeywordsTests(unittest.TestCase):
+    """Cover math keywords not yet exercised."""
+
+    def test_formula_keyword_detected(self) -> None:
+        self.assertEqual(classify_task("apply this formula"), TaskType.MATH)
+
+    def test_derivative_keyword_detected(self) -> None:
+        self.assertEqual(classify_task("find the derivative of x squared"), TaskType.MATH)
+
+    def test_algebra_keyword_detected(self) -> None:
+        self.assertEqual(classify_task("solve this algebra problem"), TaskType.MATH)
+
+    def test_geometry_keyword_detected(self) -> None:
+        self.assertEqual(classify_task("geometry exercise about triangles"), TaskType.MATH)
+
+
+class ClassifyTaskRemainingAnalysisKeywordsTests(unittest.TestCase):
+    """Cover analysis keywords not yet exercised."""
+
+    def test_evaluate_keyword_detected(self) -> None:
+        self.assertEqual(classify_task("evaluate the risk factors"), TaskType.ANALYSIS)
+
+    def test_assess_keyword_detected(self) -> None:
+        self.assertEqual(classify_task("assess the situation"), TaskType.ANALYSIS)
+
+    def test_benchmark_keyword_detected(self) -> None:
+        self.assertEqual(classify_task("benchmark the performance"), TaskType.ANALYSIS)
+
+    def test_pros_and_cons_phrase_detected(self) -> None:
+        self.assertEqual(classify_task("list the pros and cons"), TaskType.ANALYSIS)
+
+    def test_trade_off_phrase_detected(self) -> None:
+        self.assertEqual(classify_task("explain the trade-off between speed and cost"), TaskType.ANALYSIS)
+
+
+class ClassifyTaskRemainingResearchKeywordsTests(unittest.TestCase):
+    """Cover research keywords not yet exercised."""
+
+    def test_study_keyword_detected(self) -> None:
+        self.assertEqual(classify_task("study the effects of exercise"), TaskType.RESEARCH)
+
+    def test_survey_keyword_detected(self) -> None:
+        self.assertEqual(classify_task("survey the relevant literature"), TaskType.RESEARCH)
+
+    def test_findings_keyword_detected(self) -> None:
+        self.assertEqual(classify_task("summarize the findings"), TaskType.RESEARCH)
+
+    def test_literature_keyword_detected(self) -> None:
+        self.assertEqual(classify_task("review the literature on this topic"), TaskType.ANALYSIS)
+
+
+class ClassifyTaskRemainingCreativeKeywordsTests(unittest.TestCase):
+    """Cover creative keywords not yet exercised."""
+
+    def test_creative_keyword_detected(self) -> None:
+        self.assertEqual(classify_task("come up with creative solutions"), TaskType.CREATIVE)
+
+    def test_imagine_keyword_detected(self) -> None:
+        self.assertEqual(classify_task("imagine a world without gravity"), TaskType.CREATIVE)
+
+    def test_narrative_keyword_detected(self) -> None:
+        self.assertEqual(classify_task("craft a narrative arc"), TaskType.CREATIVE)
+
+    def test_design_keyword_detected(self) -> None:
+        self.assertEqual(classify_task("design a logo concept"), TaskType.CREATIVE)
+
+
+class ClassifyTaskEdgeCaseTests(unittest.TestCase):
+    """Edge conditions not covered elsewhere."""
+
+    def test_single_word_no_match_returns_general(self) -> None:
+        self.assertEqual(classify_task("weather"), TaskType.GENERAL)
+
+    def test_all_special_chars_returns_general(self) -> None:
+        self.assertEqual(classify_task("!!! ### ???"), TaskType.GENERAL)
+
+    def test_newline_only_returns_general(self) -> None:
+        self.assertEqual(classify_task("\n\n"), TaskType.GENERAL)
+
+    def test_tab_only_returns_general(self) -> None:
+        self.assertEqual(classify_task("\t"), TaskType.GENERAL)
+
+    def test_task_type_str_values(self) -> None:
+        self.assertEqual(TaskType.CODING, "coding")
+        self.assertEqual(TaskType.MATH, "math")
+        self.assertEqual(TaskType.ANALYSIS, "analysis")
+        self.assertEqual(TaskType.RESEARCH, "research")
+        self.assertEqual(TaskType.CREATIVE, "creative")
+        self.assertEqual(TaskType.GENERAL, "general")
+
+
 if __name__ == "__main__":
     unittest.main()
