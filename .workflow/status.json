@@ -1,0 +1,12 @@
+{
+  "checked_at": "2026-03-28T20:59:38.099Z",
+  "anthropic": {
+    "ok": false,
+    "indicator": "unknown"
+  },
+  "openai": {
+    "ok": true,
+    "indicator": "none"
+  },
+  "all_ok": false
+}

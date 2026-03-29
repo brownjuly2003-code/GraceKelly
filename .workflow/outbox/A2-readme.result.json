@@ -1,0 +1,1 @@
+{"task_id":"A2-readme","status":"blocked","files_modified":[],"tests_passed":false,"error":"README.md already exists, but the task scope is create-only with README.md listed only under files_to_create.","self_score":"10","notes":"Not executed to avoid violating task scope and surgical-edit rules. Needs a corrected batch if the existing README should be edited or replaced."}

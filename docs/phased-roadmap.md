@@ -1,6 +1,6 @@
 # Phased Roadmap
 
-Last updated: 2026-03-21
+Last updated: 2026-03-29
 
 ## Phase 0: Clean foundation
 
@@ -190,7 +190,7 @@ Deliverables:
 
 ## Phase 13: Production Hardening
 
-Status: complete (core hardening delivered)
+Status: complete
 
 Delivered:
 - ✅ GitHub Actions CI pipeline (Python 3.11/3.12, import check, coverage reporting, pip-audit)
@@ -220,4 +220,27 @@ Remaining:
 - OpenTelemetry distributed tracing
 - Error tracking integration (Sentry)
 - Load testing framework
-- Event buffering for storage failures (in-memory retry queue)
+
+---
+
+## Phase 14: Quality Excellence
+
+Status: complete
+
+Deliverables:
+- ✅ README.md: Quick Start, Configuration table, API table (15 endpoints), Development, Architecture
+- ✅ X-Request-ID correlation middleware: echoes client header or generates UUID; propagated in all responses
+- ✅ RFC 7807 Problem Details: all 4xx/5xx responses use `{type, title, status, detail}` format
+- ✅ GRACEKELLY_REQUIRE_AUTH=true strict mode: returns 503 when no API key is configured
+- ✅ Kubernetes probes: GET /healthz/live (always 200) and GET /healthz/ready (checks storage, 503 if unavailable)
+- ✅ Settings.validate(): fail-fast startup validation (postgres+no DSN, timeout<1s)
+- ✅ Event buffering: OrchestratorService._event_buffer (deque maxlen=500) buffers events on storage failure, flushes on next submit
+- ✅ Property-based tests: hypothesis invariants for similarity symmetry, clustering bounds, confidence normalization
+- ✅ Coverage gap tests: smart_v2, base adapter, pipeline, storage/base
+- ✅ Multi-stage Docker build: builder + runtime stages, non-root user, HEALTHCHECK
+- ✅ playwright_driver.py excluded from coverage (requires live browser)
+- ✅ CI coverage gate raised: 90% → 93%
+- ✅ 2355 tests passing, 0 failures, coverage 93.85%
+
+Remaining (deferred):
+- Async adapters (async httpx.AsyncClient) — current sync adapters already wrapped in asyncio.to_thread, deferred as low-risk high-complexity

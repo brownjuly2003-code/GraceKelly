@@ -1,0 +1,1 @@
+{"task_id":"B1-rate-limit-strict","status":"success","files_modified":["src/gracekelly/config.py","src/gracekelly/middleware.py","src/gracekelly/main.py","tests/test_rate_limit_strict.py"],"tests_passed":true,"error":null,"self_score":"9","notes":"Added GRACEKELLY_REQUIRE_AUTH, strict auth middleware behavior, and verified targeted tests plus full-suite regression coverage."}
