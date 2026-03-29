@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import logging
+from collections import deque
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from uuid import uuid4
@@ -69,6 +70,7 @@ class OrchestratorService:
     def __init__(self, repository: TaskRepository, execution_router: ExecutionRouter) -> None:
         self._repository = repository
         self._execution_router = execution_router
+        self._event_buffer: deque[TaskEventRecord] = deque(maxlen=500)
 
     def submit(self, request: OrchestrateRequest) -> TaskRecord:
         return self.submit_snapshot(request).task
@@ -80,6 +82,7 @@ class OrchestratorService:
         retry_of_task_id: str | None = None,
     ) -> SubmissionSnapshot:
         execution_plan = build_execution_plan(request)
+        self._flush_buffer()
         task_id = str(uuid4())
         trace_id = trace_id_from_metadata(request.metadata)
         logger.info(
@@ -360,6 +363,15 @@ class OrchestratorService:
             payload.update(batch_details)
             seq.append(EventType.TASK_CANCELLED, event_time, payload)
 
+    def _flush_buffer(self) -> None:
+        while self._event_buffer:
+            event = self._event_buffer.popleft()
+            try:
+                self._repository.append_event(event)
+            except Exception:
+                self._event_buffer.appendleft(event)
+                break
+
     def _append_event_safe(self, event: TaskEventRecord, *, trace_id: str | None = None) -> None:
         try:
             self._repository.append_event(event)
@@ -374,6 +386,7 @@ class OrchestratorService:
                     message=str(exc),
                 )
             )
+            self._event_buffer.append(event)
             return
 
     def _event_result_details(self, result: ExecutionResult) -> dict[str, object]:
