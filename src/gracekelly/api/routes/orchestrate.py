@@ -74,6 +74,7 @@ def _load_task_list_items(
     dry_run: bool | None,
     failure_code: FailureCode | None,
     before: datetime | None = None,
+    prompt_contains: str | None = None,
 ) -> list[TaskListItem]:
     tasks = service.list_recent_tasks(
         limit,
@@ -82,6 +83,7 @@ def _load_task_list_items(
         dry_run=dry_run,
         failure_code=failure_code,
         before=before,
+        prompt_contains=prompt_contains,
     )
     if not tasks:
         return []
@@ -111,6 +113,28 @@ def _load_task_view(
         task_id, limit=events_limit, offset=events_offset
     )
     return TaskView.from_task(task, steps, events, events_total=events_total)
+
+
+def _render_task_export(task: TaskRecord) -> str:
+    lines = [
+        "---",
+        f"task_id: {task.task_id}",
+        f"status: {task.status}",
+        f"accepted_at: {task.accepted_at.isoformat()}",
+        f"duration_ms: {task.duration_ms}",
+        f"model_count: {task.model_count}",
+        f"dry_run: {task.dry_run}",
+        "---",
+        "",
+        "## Prompt",
+        "",
+        task.prompt,
+        "",
+        "## Output",
+        "",
+        task.output_text or "_No output returned._",
+    ]
+    return "\n".join(lines)
 
 
 @router.post(
@@ -243,6 +267,11 @@ async def list_tasks(
     dry_run: bool | None = Query(default=None),
     failure_code: FailureCode | None = Query(default=None),
     before: str | None = Query(default=None, description="Cursor: accepted_at ISO timestamp for pagination"),
+    prompt_contains: str | None = Query(
+        default=None,
+        max_length=200,
+        description="Filter by prompt substring (case-insensitive)",
+    ),
 ) -> list[TaskListItem]:
     service = get_app_state(request).orchestrator_service
     before_dt = _parse_before_cursor(before)
@@ -256,6 +285,7 @@ async def list_tasks(
             dry_run=dry_run,
             failure_code=failure_code,
             before=before_dt,
+            prompt_contains=prompt_contains,
         )
         logger.info(
             log_message(
@@ -338,6 +368,30 @@ async def get_task(
     except KeyError as exc:
         logger.warning(log_message("task.get.not_found", task_id=task_id))
         raise HTTPException(status_code=404, detail="Task not found") from exc
+
+
+@router.get(
+    "/tasks/{task_id}/export",
+    summary="Export task as Markdown",
+    response_class=Response,
+    responses={
+        200: {"content": {"text/markdown": {}}, "description": "Task exported as Markdown"},
+        404: {"description": "Task not found"},
+        503: {"description": "Storage temporarily unavailable"},
+    },
+)
+async def export_task(
+    request: Request,
+    task_id: str = Path(pattern=_UUID_PATTERN),
+) -> Response:
+    service = get_app_state(request).orchestrator_service
+    try:
+        task = await asyncio.to_thread(service.get_task, task_id)
+    except StorageUnavailableError as exc:
+        raise HTTPException(status_code=503, detail=_storage_error_detail(exc)) from exc
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail="Task not found") from exc
+    return Response(content=_render_task_export(task), media_type="text/markdown; charset=utf-8")
 
 
 @router.post(

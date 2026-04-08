@@ -180,6 +180,18 @@ class OrchestrateRequestValidationTests(unittest.TestCase):
         self.assertFalse(req.reasoning)
         self.assertTrue(req.dry_run)
 
+    def test_orchestrate_request_context_task_id_defaults_to_none(self) -> None:
+        req = OrchestrateRequest(prompt="hello", model="dry-run")
+        self.assertIsNone(req.context_task_id)
+
+    def test_orchestrate_request_context_task_id_accepted(self) -> None:
+        req = OrchestrateRequest(prompt="hello", model="dry-run", context_task_id="abc-123")
+        self.assertEqual(req.context_task_id, "abc-123")
+
+    def test_orchestrate_request_context_task_id_max_length_enforced(self) -> None:
+        with self.assertRaises(ValidationError):
+            OrchestrateRequest(prompt="hello", model="dry-run", context_task_id="x" * 37)
+
 
 class TaskStepViewTruncationTests(unittest.TestCase):
     def _step_record(self, output_text: str | None = None) -> TaskStepRecord:

@@ -23,6 +23,7 @@ def _make_task(
     task_id: str = "t1",
     *,
     accepted_at: datetime = _NOW,
+    prompt: str = "Q",
     status: TaskStatus = TaskStatus.COMPLETED,
     dry_run: bool = False,
     execution_mode: ExecutionMode = ExecutionMode.API,
@@ -34,7 +35,7 @@ def _make_task(
         accepted_at=accepted_at,
         completed_at=_NOW,
         duration_ms=100,
-        prompt="Q",
+        prompt=prompt,
         reasoning=False,
         execution_mode=execution_mode,
         dry_run=dry_run,
@@ -390,6 +391,34 @@ class InMemoryListRecentEdgeCasesTests(unittest.TestCase):
         result = repo.list_recent(10, failure_code=FailureCode.TIMEOUT)
         self.assertEqual(len(result), 1)
         self.assertEqual(result[0].task_id, "t1")
+
+
+class InMemoryPromptFilterTests(unittest.TestCase):
+    def test_list_recent_prompt_contains_filters_by_substring(self) -> None:
+        repo = InMemoryTaskRepository()
+        repo.save_task_with_steps(
+            _make_task("alpha-task", accepted_at=_NOW, prompt="Alpha request"), []
+        )
+        repo.save_task_with_steps(
+            _make_task(
+                "beta-task",
+                accepted_at=_NOW + timedelta(seconds=1),
+                prompt="Beta request",
+            ),
+            [],
+        )
+
+        result = repo.list_recent(10, prompt_contains="alpHA")
+
+        self.assertEqual([task.task_id for task in result], ["alpha-task"])
+
+    def test_list_recent_prompt_contains_no_match_returns_empty(self) -> None:
+        repo = InMemoryTaskRepository()
+        repo.save_task_with_steps(_make_task("alpha-task", prompt="Alpha request"), [])
+
+        result = repo.list_recent(10, prompt_contains="zzznomatch")
+
+        self.assertEqual(result, [])
 
 
 class InMemoryEvictionTests(unittest.TestCase):

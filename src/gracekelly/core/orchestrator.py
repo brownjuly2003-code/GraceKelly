@@ -81,9 +81,22 @@ class OrchestratorService:
         *,
         retry_of_task_id: str | None = None,
     ) -> SubmissionSnapshot:
-        execution_plan = build_execution_plan(request)
         self._flush_buffer()
         task_id = str(uuid4())
+        active_request = request
+        if request.context_task_id is not None:
+            try:
+                prev = self._repository.get(request.context_task_id)
+            except Exception:
+                prev = None
+            if prev is not None and prev.output_text:
+                context_prefix = (
+                    f"[Context from task {request.context_task_id}]\n"
+                    f"{prev.output_text}\n\n"
+                    "[New query]\n"
+                )
+                active_request = request.model_copy(update={"prompt": context_prefix + request.prompt})
+        execution_plan = build_execution_plan(active_request)
         trace_id = trace_id_from_metadata(request.metadata)
         logger.info(
             log_message(
@@ -109,8 +122,8 @@ class OrchestratorService:
             accepted_at=accepted_at,
             completed_at=None,
             duration_ms=None,
-            prompt=request.prompt,
-            reasoning=request.reasoning,
+            prompt=active_request.prompt,
+            reasoning=active_request.reasoning,
             execution_mode=accepted_execution_mode,
             dry_run=execution_plan.dry_run,
             model_count=len(execution_plan.steps),
@@ -118,7 +131,7 @@ class OrchestratorService:
             merge_strategy=execution_plan.merge_strategy,
             adapter_hint=execution_plan.adapter_hint,
             cancel_on_quorum=execution_plan.cancel_on_quorum,
-            metadata=dict(request.metadata),
+            metadata=dict(active_request.metadata),
             retry_of_task_id=retry_of_task_id,
         )
         accepted_event = _EventSequence(task_id)
@@ -155,10 +168,10 @@ class OrchestratorService:
             )
         batch_result = self._execution_router.execute(
             task_id=task_id,
-            prompt=request.prompt,
+            prompt=active_request.prompt,
             plan=execution_plan,
-            reasoning=request.reasoning,
-            metadata=dict(request.metadata),
+            reasoning=active_request.reasoning,
+            metadata=dict(active_request.metadata),
         )
         completed_at = datetime.now(UTC)
         duration_ms = max(0, int((completed_at - accepted_at).total_seconds() * 1000))
@@ -169,8 +182,8 @@ class OrchestratorService:
             accepted_at=accepted_at,
             completed_at=completed_at,
             duration_ms=duration_ms,
-            prompt=request.prompt,
-            reasoning=request.reasoning,
+            prompt=active_request.prompt,
+            reasoning=active_request.reasoning,
             execution_mode=batch_result.execution_mode,
             dry_run=execution_plan.dry_run,
             model_count=len(execution_plan.steps),
@@ -181,7 +194,7 @@ class OrchestratorService:
             failure_code=batch_result.failure_code,
             failure_message=batch_result.failure_message,
             output_text=batch_result.output_text,
-            metadata=dict(request.metadata),
+            metadata=dict(active_request.metadata),
             retry_of_task_id=retry_of_task_id,
         )
         steps = self._build_step_records(task_id, execution_plan, batch_result.results)
@@ -237,6 +250,7 @@ class OrchestratorService:
         dry_run: bool | None = None,
         failure_code: FailureCode | None = None,
         before: datetime | None = None,
+        prompt_contains: str | None = None,
     ) -> list[TaskRecord]:
         try:
             return self._repository.list_recent(
@@ -246,6 +260,7 @@ class OrchestratorService:
                 dry_run=dry_run,
                 failure_code=failure_code,
                 before=before,
+                prompt_contains=prompt_contains,
             )
         except Exception as exc:
             raise StorageUnavailableError("list_recent_tasks", str(exc)) from exc

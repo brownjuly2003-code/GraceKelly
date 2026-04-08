@@ -303,6 +303,7 @@ class PostgresTaskRepository(TaskRepository):
         dry_run: bool | None = None,
         failure_code: FailureCode | None = None,
         before: datetime | None = None,
+        prompt_contains: str | None = None,
     ) -> list[TaskRecord]:
         where_clauses: list[str] = []
         params: list[object] = []
@@ -321,6 +322,9 @@ class PostgresTaskRepository(TaskRepository):
         if before is not None:
             where_clauses.append("accepted_at < %s")
             params.append(before)
+        if prompt_contains is not None:
+            where_clauses.append("prompt ILIKE %s")
+            params.append(f"%{prompt_contains}%")
 
         where_sql = ""
         if where_clauses:

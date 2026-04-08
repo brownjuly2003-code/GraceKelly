@@ -40,6 +40,7 @@ class InMemoryTaskRepository(TaskRepository):
         dry_run: bool | None = None,
         failure_code: FailureCode | None = None,
         before: datetime | None = None,
+        prompt_contains: str | None = None,
     ) -> list[TaskRecord]:
         with self._lock:
             tasks = list(self._tasks.values())
@@ -53,6 +54,9 @@ class InMemoryTaskRepository(TaskRepository):
             tasks = [item for item in tasks if item.failure_code == failure_code]
         if before is not None:
             tasks = [item for item in tasks if item.accepted_at < before]
+        if prompt_contains is not None:
+            needle = prompt_contains.casefold()
+            tasks = [item for item in tasks if needle in item.prompt.casefold()]
         return sorted(
             tasks,
             key=lambda item: item.accepted_at,

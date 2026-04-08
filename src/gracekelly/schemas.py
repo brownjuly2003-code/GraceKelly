@@ -22,6 +22,11 @@ class OrchestrateRequest(BaseModel):
     reasoning: bool = False
     metadata: dict[str, Any] = Field(default_factory=dict)
     dry_run: bool = False
+    context_task_id: str | None = Field(
+        default=None,
+        max_length=36,
+        description="Task ID of a prior query to use as context",
+    )
 
     @model_validator(mode="after")
     def validate_model_selection(self) -> OrchestrateRequest:

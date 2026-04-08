@@ -5,10 +5,12 @@ from datetime import UTC, datetime
 
 from gracekelly.adapters.dry_run import DryRunExecutionAdapter
 from gracekelly.core.contracts import (
+    AdapterHint,
     EventType,
     ExecutionBatchResult,
     ExecutionMode,
     ExecutionResult,
+    MergeStrategy,
     StepStatus,
     TaskStatus,
 )
@@ -455,6 +457,83 @@ class OrchestratorServiceTests(unittest.TestCase):
             retry_of_task_id="original-task-id",
         )
         self.assertEqual(snapshot.task.retry_of_task_id, "original-task-id")
+
+    def test_submit_snapshot_with_context_task_id_prepends_previous_output_to_prompt(self) -> None:
+        first = TaskRecord(
+            task_id="existing-task-id",
+            status=TaskStatus.COMPLETED,
+            accepted_at=datetime.now(UTC),
+            completed_at=datetime.now(UTC),
+            duration_ms=10,
+            prompt="first question",
+            reasoning=False,
+            execution_mode=ExecutionMode.API,
+            dry_run=False,
+            model_count=1,
+            quorum=1,
+            merge_strategy=MergeStrategy.FIRST_SUCCESS,
+            adapter_hint=AdapterHint.AUTO,
+            cancel_on_quorum=True,
+            output_text="previous answer",
+        )
+        self.repository.save_task_with_steps(first, [])
+        second_request = OrchestrateRequest(
+            prompt="follow-up question",
+            model="Kimi K2",
+            dry_run=True,
+            context_task_id=first.task_id,
+        )
+
+        second = self.service.submit_snapshot(second_request)
+
+        self.assertEqual(second_request.prompt, "follow-up question")
+        self.assertEqual(
+            second.task.prompt,
+            (
+                f"[Context from task {first.task_id}]\n"
+                f"{first.output_text}\n\n"
+                "[New query]\n"
+                "follow-up question"
+            ),
+        )
+
+    def test_list_recent_tasks_passes_prompt_contains_to_repository(self) -> None:
+        class CapturingRepository(InMemoryTaskRepository):
+            def __init__(self) -> None:
+                super().__init__()
+                self.prompt_contains: str | None = None
+
+            def list_recent(
+                self,
+                limit: int,
+                *,
+                status=None,
+                execution_mode=None,
+                dry_run=None,
+                failure_code=None,
+                before=None,
+                prompt_contains=None,
+            ) -> list:
+                self.prompt_contains = prompt_contains
+                return super().list_recent(
+                    limit,
+                    status=status,
+                    execution_mode=execution_mode,
+                    dry_run=dry_run,
+                    failure_code=failure_code,
+                    before=before,
+                    prompt_contains=prompt_contains,
+                )
+
+        repository = CapturingRepository()
+        service = OrchestratorService(
+            repository,
+            execution_router=ExecutionRouter(dry_run_adapter=DryRunExecutionAdapter()),
+        )
+
+        service.list_recent_tasks(prompt_contains="alpha")
+
+        self.assertEqual(repository.prompt_contains, "alpha")
 
     def test_storage_unavailable_error_message_includes_operation(self) -> None:
         err = StorageUnavailableError("my_op", "something broke")
