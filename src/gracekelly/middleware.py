@@ -5,9 +5,7 @@ import logging
 import re
 import time
 import uuid
-from collections import defaultdict
 from collections.abc import Awaitable, Callable
-from threading import Lock
 
 from fastapi import FastAPI, Request, Response
 from fastapi.responses import JSONResponse
@@ -23,21 +21,8 @@ def _is_protected(path: str) -> bool:
     return True
 
 
-def setup_api_key_auth(app: FastAPI, *, api_key: str | None, require_auth: bool = False) -> None:
+def setup_api_key_auth(app: FastAPI, *, api_key: str | None) -> None:
     if not api_key:
-        if require_auth:
-            @app.middleware("http")
-            async def require_auth_middleware(
-                request: Request, call_next: Callable[[Request], Awaitable[Response]]
-            ) -> Response:
-                if _is_protected(request.url.path):
-                    return JSONResponse(
-                        status_code=503,
-                        content={"detail": "Service not available: authentication not configured."},
-                    )
-                return await call_next(request)
-
-            return
         logger.warning("API key authentication is not configured — all endpoints are open")
         return
 
@@ -61,52 +46,6 @@ def setup_api_key_auth(app: FastAPI, *, api_key: str | None, require_auth: bool 
             status_code=401,
             content={"detail": "Invalid or missing API key."},
         )
-
-
-_PURGE_EVERY_N_REQUESTS = 500
-
-
-class RateLimiter:
-    """In-process sliding-window rate limiter.
-
-    NOTE: Works correctly only within a single process. Multiple uvicorn
-    workers or multiple service instances will each maintain their own
-    independent counters — effective limit becomes limit × worker_count.
-    Use a Redis-backed limiter for multi-process deployments.
-    """
-
-    def __init__(self, *, requests_per_minute: int) -> None:
-        self._limit = requests_per_minute
-        self._window_seconds = 60.0
-        self._lock = Lock()
-        self._buckets: dict[str, list[float]] = defaultdict(list)
-        self._request_count = 0
-
-    def is_allowed(self, client_id: str) -> bool:
-        now = time.monotonic()
-        cutoff = now - self._window_seconds
-        with self._lock:
-            self._request_count += 1
-            if self._request_count >= _PURGE_EVERY_N_REQUESTS:
-                self._purge_stale(now)
-                self._request_count = 0
-            timestamps = self._buckets[client_id]
-            recent = [t for t in timestamps if t > cutoff]
-            if not recent:
-                self._buckets[client_id] = [now]
-                return True
-            if len(recent) >= self._limit:
-                self._buckets[client_id] = recent
-                return False
-            recent.append(now)
-            self._buckets[client_id] = recent
-            return True
-
-    def _purge_stale(self, now: float) -> None:
-        cutoff = now - self._window_seconds
-        stale_keys = [k for k, ts in self._buckets.items() if not ts or max(ts) < cutoff]
-        for k in stale_keys:
-            del self._buckets[k]
 
 
 _UUID_RE = re.compile(
@@ -153,49 +92,3 @@ def setup_correlation_id(app: FastAPI) -> None:
         response = await call_next(request)
         response.headers["X-Request-ID"] = req_id
         return response
-
-
-def setup_rate_limiting(app: FastAPI, *, requests_per_minute: int | None) -> None:
-    if not requests_per_minute or requests_per_minute <= 0:
-        logger.warning("Rate limiting is not configured — no per-IP request limits")
-        return
-
-    logger.warning(
-        "Rate limiting enabled at %d req/min — in-process only, "
-        "does not coordinate across multiple workers or instances",
-        requests_per_minute,
-    )
-    limiter = RateLimiter(requests_per_minute=requests_per_minute)
-
-    @app.middleware("http")
-    async def rate_limit_middleware(request: Request, call_next: Callable[[Request], Awaitable[Response]]) -> Response:
-        if not _is_protected(request.url.path):
-            return await call_next(request)
-
-        client_ip = request.client.host if request.client else "unknown"
-        if not limiter.is_allowed(client_ip):
-            logger.warning("api.rate_limited client=%s path=%s", client_ip, request.url.path)
-            return JSONResponse(
-                status_code=429,
-                content={"detail": "Rate limit exceeded. Try again later."},
-            )
-
-        return await call_next(request)
-
-
-def setup_request_tracking(app: FastAPI) -> None:
-    """Track active in-flight requests for graceful shutdown.
-
-    Uses a simple integer counter stored on ``app.state._active_requests``.
-    This works correctly for single-worker deployments. For multi-worker
-    deployments (multiple uvicorn processes) you need an external counter
-    (e.g. Redis INCR/DECR) because each worker maintains its own state.
-    """
-
-    @app.middleware("http")
-    async def _track_requests(request: Request, call_next: Callable[[Request], Awaitable[Response]]) -> Response:
-        app.state._active_requests = getattr(app.state, "_active_requests", 0) + 1
-        try:
-            return await call_next(request)
-        finally:
-            app.state._active_requests = max(0, getattr(app.state, "_active_requests", 1) - 1)

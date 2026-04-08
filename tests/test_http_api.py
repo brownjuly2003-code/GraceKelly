@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import unittest
 from datetime import UTC, datetime
 from unittest.mock import AsyncMock, patch
@@ -11,11 +12,13 @@ except ModuleNotFoundError:  # pragma: no cover
 
 if TestClient is not None:
     from gracekelly.config import Settings
+    from gracekelly.core.contracts import StreamChunk
     from gracekelly.core.orchestrator import OrchestratorService
     from gracekelly.main import create_app
     from gracekelly.storage.memory import InMemoryTaskRepository
 else:  # pragma: no cover
     Settings = None
+    StreamChunk = None
     OrchestratorService = None
     create_app = None
     InMemoryTaskRepository = None
@@ -454,7 +457,7 @@ class HttpApiSmokeTests(unittest.TestCase):
             },
         )
 
-        self.assertEqual(response.status_code, 202)
+        self.assertEqual(response.status_code, 200)
         payload = response.json()
         self.assertEqual(payload["status"], "completed")
         self.assertEqual(len(payload["requested_models"]), 2)
@@ -473,6 +476,84 @@ class HttpApiSmokeTests(unittest.TestCase):
         self.assertTrue(task_payload["cancel_on_quorum"])
         self.assertEqual(task_payload["steps"], [])
 
+    def test_stream_route_dry_run_fallback_emits_visible_output_and_persists_task(self) -> None:
+        response = self.client.post(
+            "/api/v1/orchestrate/stream",
+            json={
+                "prompt": "dry run stream prompt",
+                "model": "Kimi K2",
+                "dry_run": True,
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("event: complete", response.text)
+        self.assertIn("[dry-run] Simulated response for: dry run stream prompt", response.text)
+        self.assertIn('"duration_ms": 0', response.text)
+
+        recent = self.client.get("/api/v1/tasks", params={"limit": 1})
+
+        self.assertEqual(recent.status_code, 200)
+        payload = recent.json()
+        self.assertEqual(len(payload), 1)
+        self.assertEqual(payload[0]["adapter_name"], "dry-run")
+        self.assertEqual(payload[0]["dry_run"], True)
+        self.assertEqual(payload[0]["requested_models"][0]["id"], "kimi-k2-5")
+
+    def test_stream_route_persists_completed_streaming_task(self) -> None:
+        class StreamingAdapter:
+            name = "api.mistral"
+
+            def execute_stream(self, request):
+                yield StreamChunk(type="delta", text="stream ", model_id=request.step.model.id)
+                yield StreamChunk(
+                    type="complete",
+                    text="stream result",
+                    model_id=request.step.model.id,
+                    details={"duration_ms": 7, "input_tokens": 11, "output_tokens": 13},
+                )
+
+        self.client.app.state.api_adapters["mistral"] = StreamingAdapter()
+        response = self.client.post(
+            "/api/v1/orchestrate/stream",
+            json={
+                "prompt": "persist streamed task",
+                "model": "Mistral",
+                "dry_run": False,
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("event: accepted", response.text)
+        self.assertIn("event: complete", response.text)
+
+        accepted_data = next(
+            line.removeprefix("data: ")
+            for line in response.text.splitlines()
+            if line.startswith("data: ") and '"task_id"' in line
+        )
+        task_id = json.loads(accepted_data)["task_id"]
+
+        recent = self.client.get("/api/v1/tasks", params={"limit": 1})
+
+        self.assertEqual(recent.status_code, 200)
+        payload = recent.json()
+        self.assertEqual(len(payload), 1)
+        self.assertEqual(payload[0]["task_id"], task_id)
+        self.assertEqual(payload[0]["adapter_name"], "api.mistral")
+        self.assertEqual(payload[0]["model"]["id"], "mistral-small")
+        self.assertEqual(payload[0]["execution_mode"], "api")
+
+        task = self.client.get(f"/api/v1/tasks/{task_id}")
+
+        self.assertEqual(task.status_code, 200)
+        task_payload = task.json()
+        self.assertEqual(task_payload["output_text"], "stream result")
+        self.assertEqual(len(task_payload["steps"]), 1)
+        self.assertEqual(task_payload["steps"][0]["duration_ms"], 7)
+        self.assertEqual(task_payload["steps"][0]["input_tokens"], 11)
+        self.assertEqual(task_payload["steps"][0]["output_tokens"], 13)
+
     def test_orchestrate_route_logs_request_and_acceptance_summary(self) -> None:
         with self.assertLogs("gracekelly.api.routes.orchestrate", level="INFO") as captured:
             response = self.client.post(
@@ -485,7 +566,7 @@ class HttpApiSmokeTests(unittest.TestCase):
                 },
             )
 
-        self.assertEqual(response.status_code, 202)
+        self.assertEqual(response.status_code, 200)
         self.assertEqual(len(captured.output), 2)
         self.assertIn("orchestrate.request", captured.output[0])
         self.assertIn("dry_run=true", captured.output[0])
@@ -501,7 +582,7 @@ class HttpApiSmokeTests(unittest.TestCase):
             "/api/v1/orchestrate",
             json={"prompt": "no trace", "model": "Kimi K2", "dry_run": True},
         )
-        self.assertEqual(response.status_code, 202)
+        self.assertEqual(response.status_code, 200)
         self.assertNotIn("x-trace-id", response.headers)
 
     def test_orchestration_routes_offload_blocking_work_to_thread(self) -> None:
@@ -522,10 +603,10 @@ class HttpApiSmokeTests(unittest.TestCase):
             recent = self.client.get("/api/v1/tasks", params={"limit": 1})
             task = self.client.get(f"/api/v1/tasks/{task_id}")
 
-        self.assertEqual(submit.status_code, 202)
+        self.assertEqual(submit.status_code, 200)
         self.assertEqual(recent.status_code, 200)
         self.assertEqual(task.status_code, 200)
-        self.assertEqual(mocked.await_count, 3)
+        self.assertEqual(mocked.await_count, 2)  # submit_snapshot uses run_in_executor now; list+get remain
 
     def test_list_tasks_returns_recent_summaries_in_desc_order(self) -> None:
         first = self.client.post(
@@ -546,8 +627,8 @@ class HttpApiSmokeTests(unittest.TestCase):
             },
         )
 
-        self.assertEqual(first.status_code, 202)
-        self.assertEqual(second.status_code, 202)
+        self.assertEqual(first.status_code, 200)
+        self.assertEqual(second.status_code, 200)
 
         response = self.client.get("/api/v1/tasks", params={"limit": 1})
 
@@ -668,7 +749,7 @@ class HttpApiSmokeTests(unittest.TestCase):
             },
         )
 
-        self.assertEqual(response.status_code, 202)
+        self.assertEqual(response.status_code, 200)
 
         recent = client.get("/api/v1/tasks", params={"limit": 1})
 
@@ -692,7 +773,7 @@ class HttpApiSmokeTests(unittest.TestCase):
             },
         )
 
-        self.assertEqual(response.status_code, 202)
+        self.assertEqual(response.status_code, 200)
         payload = response.json()
         self.assertEqual(payload["status"], "failed")
         self.assertEqual(payload["adapter_name"], "api.mistral")
@@ -777,7 +858,7 @@ class HttpApiSmokeTests(unittest.TestCase):
             },
         )
 
-        self.assertEqual(response.status_code, 202)
+        self.assertEqual(response.status_code, 200)
         payload = response.json()
         self.assertEqual([item["id"] for item in payload["requested_models"]], ["kimi-k2-5", "mistral-small"])
 
@@ -800,7 +881,7 @@ class HttpApiSmokeTests(unittest.TestCase):
             },
         )
 
-        self.assertEqual(response.status_code, 202)
+        self.assertEqual(response.status_code, 200)
         payload = response.json()
         self.assertEqual(payload["status"], "completed")
         self.assertEqual(payload["adapter_name"], "dry-run")
@@ -881,7 +962,7 @@ class HttpApiSmokeTests(unittest.TestCase):
             },
         )
 
-        self.assertEqual(response.status_code, 202)
+        self.assertEqual(response.status_code, 200)
         payload = response.json()
         self.assertEqual(payload["status"], "completed")
         self.assertEqual(payload["adapter_name"], "browser.perplexity")
@@ -941,7 +1022,7 @@ class HttpApiSmokeTests(unittest.TestCase):
             },
         )
 
-        self.assertEqual(response.status_code, 202)
+        self.assertEqual(response.status_code, 200)
         payload = response.json()
         self.assertEqual(payload["status"], "failed")
         self.assertEqual(payload["adapter_name"], "browser.perplexity")
@@ -978,7 +1059,7 @@ class HttpApiSmokeTests(unittest.TestCase):
                 "dry_run": True,
             },
         )
-        self.assertEqual(submit.status_code, 202)
+        self.assertEqual(submit.status_code, 200)
         original_id = submit.json()["task_id"]
 
         # Patch the original task to "failed" for retry
@@ -990,7 +1071,7 @@ class HttpApiSmokeTests(unittest.TestCase):
         task.failure_message = "timed out"
 
         retry = self.client.post(f"/api/v1/tasks/{original_id}/retry")
-        self.assertEqual(retry.status_code, 202)
+        self.assertEqual(retry.status_code, 200)
         retry_payload = retry.json()
         self.assertNotEqual(retry_payload["task_id"], original_id)
 
@@ -1007,7 +1088,7 @@ class HttpApiSmokeTests(unittest.TestCase):
                 "dry_run": True,
             },
         )
-        self.assertEqual(submit.status_code, 202)
+        self.assertEqual(submit.status_code, 200)
         task_id = submit.json()["task_id"]
 
         retry = self.client.post(f"/api/v1/tasks/{task_id}/retry")

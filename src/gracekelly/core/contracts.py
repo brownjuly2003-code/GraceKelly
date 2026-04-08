@@ -121,6 +121,8 @@ class ExecutionResult:
     failure_code: FailureCode | None = None
     failure_message: str | None = None
     duration_ms: int | None = None
+    input_tokens: int | None = None
+    output_tokens: int | None = None
     details: dict[str, Any] = field(default_factory=dict)
 
     @property
@@ -136,6 +138,14 @@ class ExecutionBatchResult:
     output_text: str | None = None
     failure_code: FailureCode | None = None
     failure_message: str | None = None
+    details: dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass(frozen=True, slots=True)
+class StreamChunk:
+    type: str
+    text: str = ""
+    model_id: str = ""
     details: dict[str, Any] = field(default_factory=dict)
 
 

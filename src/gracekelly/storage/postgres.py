@@ -131,7 +131,9 @@ INSERT INTO gk_task_steps (
     failure_code,
     failure_message,
     output_text,
-    duration_ms
+    duration_ms,
+    input_tokens,
+    output_tokens
 )
 VALUES (
     %(task_id)s,
@@ -144,7 +146,9 @@ VALUES (
     %(failure_code)s,
     %(failure_message)s,
     %(output_text)s,
-    %(duration_ms)s
+    %(duration_ms)s,
+    %(input_tokens)s,
+    %(output_tokens)s
 )
 ON CONFLICT (task_id, step_index) DO UPDATE SET
     model_id = EXCLUDED.model_id,
@@ -155,7 +159,9 @@ ON CONFLICT (task_id, step_index) DO UPDATE SET
     failure_code = EXCLUDED.failure_code,
     failure_message = EXCLUDED.failure_message,
     output_text = EXCLUDED.output_text,
-    duration_ms = EXCLUDED.duration_ms;
+    duration_ms = EXCLUDED.duration_ms,
+    input_tokens = EXCLUDED.input_tokens,
+    output_tokens = EXCLUDED.output_tokens;
 """
 
 _EVENT_INSERT_QUERY = """
@@ -250,7 +256,8 @@ class PostgresTaskRepository(TaskRepository):
         try:
             cursor.execute("SELECT name FROM gk_schema_migrations ORDER BY name")
             return [row[0] for row in cursor.fetchall()]
-        except Exception:
+        except psycopg.Error as exc:
+            logger.debug("postgres.applied_migrations.unavailable error=%r", exc)
             return []
 
     def save_task_with_steps(
@@ -346,7 +353,9 @@ class PostgresTaskRepository(TaskRepository):
             failure_code,
             failure_message,
             output_text,
-            duration_ms
+            duration_ms,
+            input_tokens,
+            output_tokens
         FROM gk_task_steps
         WHERE task_id = %s
         ORDER BY step_index ASC
@@ -364,7 +373,8 @@ class PostgresTaskRepository(TaskRepository):
         SELECT
             task_id, step_index, model_id, model_display_name,
             backend, provider, status, failure_code,
-            failure_message, output_text, duration_ms
+            failure_message, output_text, duration_ms,
+            input_tokens, output_tokens
         FROM gk_task_steps
         WHERE task_id = ANY(%s)
         ORDER BY task_id, step_index ASC
@@ -487,7 +497,8 @@ class PostgresTaskRepository(TaskRepository):
             available = discover_migrations()
             try:
                 applied = self.applied_migrations()
-            except Exception:
+            except psycopg.Error as exc:
+                logger.debug("postgres.schema_report.migrations_unavailable error=%r", exc)
                 applied = []
             pending = [m for m in available if m not in set(applied)]
             return {
@@ -617,6 +628,8 @@ class PostgresTaskRepository(TaskRepository):
             "failure_message": step.failure_message,
             "output_text": step.output_text,
             "duration_ms": step.duration_ms,
+            "input_tokens": step.input_tokens,
+            "output_tokens": step.output_tokens,
         }
 
     def _append_event_in_cursor(self, cursor, event: TaskEventRecord) -> None:
@@ -671,6 +684,8 @@ class PostgresTaskRepository(TaskRepository):
             failure_message=row["failure_message"],
             output_text=row["output_text"],
             duration_ms=row["duration_ms"],
+            input_tokens=row.get("input_tokens"),
+            output_tokens=row.get("output_tokens"),
         )
 
     def _event_from_row(self, row: dict[str, Any]) -> TaskEventRecord:

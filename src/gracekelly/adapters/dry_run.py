@@ -13,6 +13,8 @@ class DryRunExecutionAdapter(ExecutionAdapter):
             model_display_name=request.step.model.display_name,
             execution_mode=ExecutionMode.DRY_RUN,
             status=StepStatus.COMPLETED,
+            output_text=f"[dry-run] Simulated response for: {request.prompt[:100]}",
+            duration_ms=0,
             details={
                 "simulated": True,
                 "requested_models": [model.display_name for model in request.models],

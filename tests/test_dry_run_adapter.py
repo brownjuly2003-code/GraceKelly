@@ -106,7 +106,11 @@ class DryRunAdapterExecuteTests(unittest.TestCase):
 
     def test_no_output_text(self) -> None:
         result = self.adapter.execute(_make_request())
-        self.assertIsNone(result.output_text)
+        self.assertEqual(result.output_text, "[dry-run] Simulated response for: What is 2+2?")
+
+    def test_duration_ms_is_zero(self) -> None:
+        result = self.adapter.execute(_make_request())
+        self.assertEqual(result.duration_ms, 0)
 
 
 class DryRunAdapterMultiStepTests(unittest.TestCase):

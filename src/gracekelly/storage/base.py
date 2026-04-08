@@ -52,6 +52,8 @@ class TaskStepRecord:
     failure_message: str | None = None
     output_text: str | None = None
     duration_ms: int | None = None
+    input_tokens: int | None = None
+    output_tokens: int | None = None
 
 
 @dataclass(slots=True)

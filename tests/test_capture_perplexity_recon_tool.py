@@ -9,6 +9,9 @@ from unittest.mock import patch
 
 from gracekelly.tools import capture_perplexity_recon
 
+_TMP_ROOT = Path(".workflow/tmp-tests")
+_TMP_ROOT.mkdir(parents=True, exist_ok=True)
+
 
 class _FakeLocator:
     def __init__(
@@ -406,21 +409,25 @@ class BodyTextTests(unittest.TestCase):
 
 class WriteJsonTests(unittest.TestCase):
     def test_writes_valid_json(self) -> None:
-        import tempfile
-        with tempfile.TemporaryDirectory() as tmpdir:
-            path = Path(tmpdir) / "out.json"
+        path = _TMP_ROOT / "write-json-valid.json"
+        path.unlink(missing_ok=True)
+        try:
             capture_perplexity_recon._write_json(path, {"key": "value", "num": 42})
             loaded = json.loads(path.read_text(encoding="utf-8"))
             self.assertEqual(loaded["key"], "value")
             self.assertEqual(loaded["num"], 42)
+        finally:
+            path.unlink(missing_ok=True)
 
     def test_writes_unicode_content(self) -> None:
-        import tempfile
-        with tempfile.TemporaryDirectory() as tmpdir:
-            path = Path(tmpdir) / "out.json"
-            capture_perplexity_recon._write_json(path, {"text": "Юникод 🌍"})
+        path = _TMP_ROOT / "write-json-unicode.json"
+        path.unlink(missing_ok=True)
+        try:
+            capture_perplexity_recon._write_json(path, {"text": "\u042e\u043d\u0438\u043a\u043e\u0434 \U0001f30d"})
             content = path.read_text(encoding="utf-8")
-            self.assertIn("Юникод", content)
+            self.assertIn("\u042e\u043d\u0438\u043a\u043e\u0434", content)
+        finally:
+            path.unlink(missing_ok=True)
 
 
 if __name__ == "__main__":

@@ -9,8 +9,11 @@ The foundation must stay understandable under failure.
 
 Implemented:
 - full API surface: orchestration, task inspection, health, readiness, model catalog, metrics
+- SSE streaming for single-model execution via `/api/v1/orchestrate/stream`
 - canonical model registry with alias normalization
 - typed task/step/event contracts with multi-model execution planning
+- token counting and cost estimation per step (`input_tokens`, `output_tokens`, `cost_usd`)
+- model pricing registry for cost estimation
 - dual-backend storage: in-memory (development) and PostgreSQL (durable)
 - PostgreSQL operational tooling: schema validation plus JSON export/import snapshots
 - execution adapters: dry-run, Mistral API, OpenAI-compatible API, Perplexity browser (scripted and thin Playwright backends)
@@ -18,13 +21,12 @@ Implemented:
 - browser adapter lifecycle cleanup that resets idle session state on shutdown and detects stale runtime/session mismatches
 - structured key-value logging across orchestrator, browser adapters, API routes, and PostgreSQL degradation paths
 - operator surfaces: recent-task listing with multi-axis filtering, rich task detail with diagnostics
+- Streamlit playground UI (`ui/app.py`) with 4 execution patterns
 
 Not yet implemented:
 - account pools
 - richer retry policies beyond the current deferral
 - broader browser catalog refresh if account-tier drift continues
-- analytics dashboards
-- admin UI
 - cross-project integration glue
 
 Excluded by design:
@@ -33,6 +35,7 @@ Excluded by design:
 ## Module boundaries
 
 - `api.routes`: HTTP contract only - no domain logic, no adapter imports
+- `api.routes.stream`: SSE streaming endpoint for real-time execution output
 - `core.models`: canonical model catalog and alias resolution
 - `core.orchestrator`: use-case orchestration, event building, storage coordination
 - `core.contracts`: execution adapter interface, result envelopes, failure taxonomy
@@ -62,20 +65,24 @@ Excluded by design:
 3. Execution must support two adapter families:
    - browser adapters for UI-routed providers
    - API adapters for provider-backed execution
-4. Provider-specific naming drift must be normalized through the central model registry.
-5. Event logging must not be a critical dependency for accepting or executing a task.
+4. A solo-user Streamlit UI is part of the primary operating surface for experimentation and inspection.
+5. Provider-specific naming drift must be normalized through the central model registry.
+6. Browser execution via Perplexity is the primary adapter. The user's Perplexity Pro subscription
+   provides access to multiple frontier models at no additional API cost. API adapters exist as
+   optional fallbacks for direct provider access.
+7. Event logging must not be a critical dependency for accepting or executing a task.
 
 ## Design rules
 
 1. Every external dependency must sit behind an adapter boundary.
 2. Persistence is replaceable. Memory first, PostgreSQL next.
 3. Model names are canonicalized once at the edge.
-4. Browser execution is a plugin, not the center of the system.
-5. API execution is also a plugin, using the same orchestration contract.
-6. Observability must be append-only and isolated from request execution.
+4. Browser execution is the primary path - Perplexity subscription gives access to frontier
+   models. API execution is a fallback, using the same orchestration contract.
+5. Observability must be append-only and isolated from request execution.
 
 ## Next steps
 
-1. Refresh browser catalog strategy if Perplexity account-tier drift keeps diverging from the canonical registry.
-2. Broader backup strategy and production migration tooling for PostgreSQL.
-3. Account pools and any real retry model beyond the current deferral.
+1. Improve consensus/debate streaming beyond the current single-model streaming path.
+2. Account pools for the browser adapter if operational demand appears.
+3. Add more models to the pricing registry as providers are added.

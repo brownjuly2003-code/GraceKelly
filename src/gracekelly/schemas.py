@@ -7,6 +7,7 @@ from typing import Any
 from pydantic import BaseModel, Field, model_validator
 
 from gracekelly.core.contracts import AdapterHint, EventType, MergeStrategy, StepStatus, TaskStatus
+from gracekelly.core.models import estimate_cost_usd
 from gracekelly.storage.base import TaskEventRecord, TaskRecord, TaskStepRecord
 
 
@@ -90,6 +91,9 @@ class TaskStepView(BaseModel):
     output_text: str | None = None
     output_truncated: bool = False
     duration_ms: int | None = None
+    input_tokens: int | None = None
+    output_tokens: int | None = None
+    cost_usd: float | None = None
 
     @classmethod
     def from_record(
@@ -115,6 +119,9 @@ class TaskStepView(BaseModel):
             output_text=output,
             output_truncated=truncated,
             duration_ms=record.duration_ms,
+            input_tokens=record.input_tokens,
+            output_tokens=record.output_tokens,
+            cost_usd=estimate_cost_usd(record.model_id, record.input_tokens, record.output_tokens),
         )
 
 

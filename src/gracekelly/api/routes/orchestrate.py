@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import functools
 import logging
 from datetime import datetime
 
@@ -115,14 +116,14 @@ def _load_task_view(
 @router.post(
     "/orchestrate",
     response_model=OrchestrateResponse,
-    status_code=202,
+    status_code=200,
     summary="Submit a prompt for orchestrated execution",
     description=(
         "Submits a prompt to one or more models according to the specified execution plan. "
         "Supports dry-run, quorum, merge strategies, reasoning mode, and optional trace correlation. "
-        "Returns the accepted task snapshot immediately (async execution)."
+        "Executes synchronously and returns the final task snapshot for the completed request."
     ),
-    response_description="Accepted task snapshot with execution plan, steps, and initial status",
+    response_description="Final task snapshot with execution plan, steps, and terminal status",
     responses={
         422: {"description": "Validation error (unsupported model, invalid merge strategy, quorum conflict)"},
         501: {"description": "Requested capability is not implemented"},
@@ -131,8 +132,9 @@ def _load_task_view(
     },
 )
 async def orchestrate(payload: OrchestrateRequest, request: Request, response: Response) -> OrchestrateResponse:
-    service = get_app_state(request).orchestrator_service
-    _timeout = get_app_state(request).settings.orchestrate_timeout_seconds
+    state = get_app_state(request)
+    service = state.orchestrator_service
+    _timeout = state.settings.orchestrate_timeout_seconds
     trace_id = trace_id_from_metadata(payload.metadata)
     if trace_id:
         response.headers["x-trace-id"] = trace_id
@@ -151,7 +153,9 @@ async def orchestrate(payload: OrchestrateRequest, request: Request, response: R
         )
     )
     try:
-        _coro = asyncio.to_thread(service.submit_snapshot, payload)
+        _executor = getattr(state, "browser_executor", None)
+        _loop = asyncio.get_running_loop()
+        _coro = _loop.run_in_executor(_executor, service.submit_snapshot, payload)
         try:
             snapshot = await (asyncio.wait_for(_coro, timeout=_timeout) if _timeout else _coro)
         except TimeoutError as exc:
@@ -339,14 +343,14 @@ async def get_task(
 @router.post(
     "/tasks/{task_id}/retry",
     response_model=OrchestrateResponse,
-    status_code=202,
+    status_code=200,
     summary="Retry a failed or cancelled task",
     description=(
-        "Creates a new task that replays the original prompt and execution plan. "
+        "Synchronously creates and executes a new task that replays the original prompt and execution plan. "
         "Only tasks with status `failed` or `cancelled` can be retried. "
         "The new task carries a `retry_of_task_id` link back to the original."
     ),
-    response_description="New accepted task snapshot linked to the original task",
+    response_description="Final task snapshot for the retry linked back to the original task",
     responses={
         404: {"description": "Original task not found"},
         409: {"description": "Task status does not allow retry (not failed or cancelled)"},
@@ -358,7 +362,8 @@ async def retry_task(
     request: Request,
     task_id: str = Path(pattern=_UUID_PATTERN),
 ) -> OrchestrateResponse:
-    service = get_app_state(request).orchestrator_service
+    state = get_app_state(request)
+    service = state.orchestrator_service
     try:
         original = await asyncio.to_thread(service.get_task, task_id)
         original_steps = await asyncio.to_thread(service.list_task_steps, task_id)
@@ -383,8 +388,11 @@ async def retry_task(
         )
     )
     try:
-        snapshot = await asyncio.to_thread(
-            service.submit_snapshot, retry_request, retry_of_task_id=task_id
+        _executor = getattr(state, "browser_executor", None)
+        _loop = asyncio.get_running_loop()
+        snapshot = await _loop.run_in_executor(
+            _executor,
+            functools.partial(service.submit_snapshot, retry_request, retry_of_task_id=task_id),
         )
     except StorageUnavailableError as exc:
         raise HTTPException(status_code=503, detail=_storage_error_detail(exc)) from exc

@@ -203,6 +203,7 @@ class PostgresSchemaTests(unittest.TestCase):
             "gk_tasks": {"task_id", "status"},
             "gk_task_steps": {"task_id", "step_index"},
         }
+        repository.applied_migrations = lambda: []
 
         with self.assertLogs("gracekelly.storage.postgres", level="WARNING") as captured:
             report = repository.schema_report()

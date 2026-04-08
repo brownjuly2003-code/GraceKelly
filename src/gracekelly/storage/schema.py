@@ -47,6 +47,8 @@ EXPECTED_SCHEMA_COLUMNS: dict[str, tuple[str, ...]] = {
         "failure_message",
         "output_text",
         "duration_ms",
+        "input_tokens",
+        "output_tokens",
     ),
     "gk_task_events": (
         "event_id",

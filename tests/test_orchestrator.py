@@ -84,6 +84,40 @@ class OrchestratorServiceTests(unittest.TestCase):
         self.assertEqual(len(snapshot.steps), 1)
         self.assertEqual(snapshot.steps[0].status, "completed")
 
+    def test_submit_snapshot_persists_accepted_task_before_execution(self) -> None:
+        class InspectingRouter:
+            def __init__(self, repository: InMemoryTaskRepository) -> None:
+                self._repository = repository
+                self.observed_task: TaskRecord | None = None
+                self.observed_events = []
+
+            def execute(self, *, task_id, prompt, plan, reasoning, metadata):
+                self.observed_task = self._repository.get(task_id)
+                self.observed_events = self._repository.list_events(task_id)
+                return ExecutionBatchResult(
+                    execution_mode=ExecutionMode.DRY_RUN,
+                    task_status=TaskStatus.COMPLETED,
+                    results=(),
+                    output_text="accepted first",
+                )
+
+        repository = InMemoryTaskRepository()
+        router = InspectingRouter(repository)
+        service = OrchestratorService(repository, execution_router=router)
+
+        snapshot = service.submit_snapshot(
+            OrchestrateRequest(
+                prompt="accepted first",
+                model="Kimi K2",
+                dry_run=True,
+            )
+        )
+
+        assert router.observed_task is not None
+        self.assertEqual(router.observed_task.status, TaskStatus.ACCEPTED)
+        self.assertEqual([event.event_type for event in router.observed_events], [EventType.TASK_ACCEPTED])
+        self.assertEqual(snapshot.task.status, TaskStatus.COMPLETED)
+
     def test_non_dry_run_api_request_can_complete(self) -> None:
         class FakeMistralAdapter:
             name = "api.mistral"
@@ -174,6 +208,27 @@ class OrchestratorServiceTests(unittest.TestCase):
             service.submit(request)
 
         self.assertIn("save_task_with_steps", str(ctx.exception))
+
+    def test_submit_raises_storage_unavailable_when_final_snapshot_replace_fails(self) -> None:
+        class ReplaceFailingRepository(InMemoryTaskRepository):
+            def replace_task_snapshot(self, task, steps, events) -> None:
+                raise RuntimeError("final write offline")
+
+        service = OrchestratorService(
+            ReplaceFailingRepository(),
+            execution_router=ExecutionRouter(dry_run_adapter=DryRunExecutionAdapter()),
+        )
+
+        with self.assertRaises(StorageUnavailableError) as ctx:
+            service.submit(
+                OrchestrateRequest(
+                    prompt="replace failure",
+                    model="Kimi K2",
+                    dry_run=True,
+                )
+            )
+
+        self.assertIn("replace_task_snapshot", str(ctx.exception))
 
     def test_submit_logs_warning_when_event_persistence_fails(self) -> None:
         class EventFailingRepository(InMemoryTaskRepository):

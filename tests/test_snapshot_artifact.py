@@ -421,6 +421,102 @@ class ValidateManifestTests(unittest.TestCase):
 # derived_missing_task_ids
 # ---------------------------------------------------------------------------
 
+# ---------------------------------------------------------------------------
+# Edge cases: malformed snapshot data
+# ---------------------------------------------------------------------------
+
+class ExportedTaskIdsMalformedTests(unittest.TestCase):
+    def test_task_item_not_dict_skipped(self) -> None:
+        snap = {"tasks": [_task_bundle("t1"), "not_a_dict", None]}
+        ids = exported_task_ids(snap)
+        self.assertEqual(ids, ["t1"])
+
+    def test_task_payload_not_dict_skipped(self) -> None:
+        snap = {"tasks": [{"task": "not_a_dict"}, _task_bundle("t2")]}
+        ids = exported_task_ids(snap)
+        self.assertEqual(ids, ["t2"])
+
+
+class DerivedNestedCountMalformedTests(unittest.TestCase):
+    def test_non_dict_task_items_skipped(self) -> None:
+        from gracekelly.tools.snapshot_artifact import derived_nested_count
+
+        snap = {"tasks": [_task_bundle("t1", steps=2), "bad_item", 42]}
+        self.assertEqual(derived_nested_count(snap, "step_count"), 2)
+
+
+class ManifestCountStatusEdgeTests(unittest.TestCase):
+    def test_non_int_explicit_count_returns_mismatch(self) -> None:
+        snap = {"tasks": [_task_bundle("t1")], "task_count": "not_int"}
+        self.assertEqual(manifest_count_status(snap, "task_count"), "mismatch")
+
+
+class ExportedTaskIdsStatusEdgeTests(unittest.TestCase):
+    def test_non_list_explicit_ids_returns_mismatch(self) -> None:
+        snap = {"tasks": [_task_bundle("t1")], "exported_task_ids": "not_a_list"}
+        self.assertEqual(exported_task_ids_status(snap), "mismatch")
+
+
+class MissingTaskIdsStatusEdgeTests(unittest.TestCase):
+    def test_non_list_explicit_ids_returns_mismatch(self) -> None:
+        snap = {"tasks": [_task_bundle("t1")], "missing_task_ids": "not_a_list"}
+        self.assertEqual(missing_task_ids_status(snap), "mismatch")
+
+
+class SnapshotStatusConsistencyEdgeTests(unittest.TestCase):
+    def test_non_string_status_returns_mismatch(self) -> None:
+        snap = {"status": 42}
+        self.assertEqual(snapshot_status_consistency_status(snap), "mismatch")
+
+
+class SelectionStatusEdgeTests(unittest.TestCase):
+    def test_non_dict_selection_returns_mismatch(self) -> None:
+        self.assertEqual(selection_status({"selection": "bad"}), "mismatch")
+
+    def test_non_list_task_ids_returns_mismatch(self) -> None:
+        self.assertEqual(selection_status({"selection": {"task_ids": "bad"}}), "mismatch")
+
+    def test_non_string_task_id_item_returns_mismatch(self) -> None:
+        snap = {
+            "tasks": [_task_bundle("t1")],
+            "selection": {"task_ids": [123]},
+        }
+        self.assertEqual(selection_status(snap), "mismatch")
+
+    def test_task_ids_with_limit_returns_mismatch(self) -> None:
+        snap = {
+            "tasks": [_task_bundle("t1")],
+            "exported_task_ids": ["t1"],
+            "missing_task_ids": [],
+            "selection": {"task_ids": ["t1"], "limit": 10},
+        }
+        self.assertEqual(selection_status(snap), "mismatch")
+
+    def test_invalid_limit_type_returns_mismatch(self) -> None:
+        snap = {
+            "tasks": [_task_bundle("t1")],
+            "task_count": 1,
+            "selection": {"task_ids": [], "limit": "bad"},
+        }
+        self.assertEqual(selection_status(snap), "mismatch")
+
+    def test_limit_zero_returns_mismatch(self) -> None:
+        snap = {
+            "tasks": [_task_bundle("t1")],
+            "task_count": 1,
+            "selection": {"task_ids": [], "limit": 0},
+        }
+        self.assertEqual(selection_status(snap), "mismatch")
+
+
+class DerivedMissingTaskIdsMalformedTests(unittest.TestCase):
+    def test_non_dict_selection_returns_empty(self) -> None:
+        self.assertEqual(derived_missing_task_ids({"selection": "bad"}), [])
+
+    def test_non_list_task_ids_returns_empty(self) -> None:
+        self.assertEqual(derived_missing_task_ids({"selection": {"task_ids": "bad"}}), [])
+
+
 class DerivedMissingTaskIdsTests(unittest.TestCase):
     def test_all_present(self) -> None:
         snap = {

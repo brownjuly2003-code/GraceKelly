@@ -179,6 +179,21 @@ MODEL_SPECS: tuple[ModelSpec, ...] = (
 )
 
 
+MODEL_PRICING: dict[str, tuple[float, float]] = {
+    "mistral-small": (0.0001, 0.0003),
+    "gpt-5-4-api": (0.005, 0.015),
+    "claude-sonnet-4-6-api": (0.003, 0.015),
+}
+
+
+def estimate_cost_usd(model_id: str, input_tokens: int | None, output_tokens: int | None) -> float | None:
+    pricing = MODEL_PRICING.get(model_id)
+    if pricing is None or input_tokens is None or output_tokens is None:
+        return None
+    input_cost, output_cost = pricing
+    return (input_tokens / 1000) * input_cost + (output_tokens / 1000) * output_cost
+
+
 def list_models() -> tuple[ModelSpec, ...]:
     return MODEL_SPECS
 

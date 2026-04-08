@@ -97,6 +97,62 @@ class OrchestratorService:
             )
         )
         accepted_at = datetime.now(UTC)
+        planned_backends = {step.backend.value for step in execution_plan.steps}
+        accepted_execution_mode = (
+            ExecutionMode.DRY_RUN
+            if execution_plan.dry_run
+            else ExecutionMode(next(iter(planned_backends))) if len(planned_backends) == 1 else ExecutionMode.MIXED
+        )
+        accepted_task = TaskRecord(
+            task_id=task_id,
+            status=TaskStatus.ACCEPTED,
+            accepted_at=accepted_at,
+            completed_at=None,
+            duration_ms=None,
+            prompt=request.prompt,
+            reasoning=request.reasoning,
+            execution_mode=accepted_execution_mode,
+            dry_run=execution_plan.dry_run,
+            model_count=len(execution_plan.steps),
+            quorum=execution_plan.quorum,
+            merge_strategy=execution_plan.merge_strategy,
+            adapter_hint=execution_plan.adapter_hint,
+            cancel_on_quorum=execution_plan.cancel_on_quorum,
+            metadata=dict(request.metadata),
+            retry_of_task_id=retry_of_task_id,
+        )
+        accepted_event = _EventSequence(task_id)
+        accepted_event.append(
+            EventType.TASK_ACCEPTED,
+            accepted_at,
+            self._accepted_payload(accepted_task, execution_plan),
+        )
+        try:
+            self._repository.save_task_with_steps(accepted_task, [])
+        except Exception as exc:
+            logger.warning(
+                log_message(
+                    "task.submit.storage_failed",
+                    task_id=task_id,
+                    trace_id=trace_id,
+                    operation="save_task_with_steps",
+                    message=str(exc),
+                )
+            )
+            raise StorageUnavailableError("save_task_with_steps", str(exc)) from exc
+        try:
+            self._repository.append_event(accepted_event.events[0])
+        except Exception as exc:
+            logger.warning(
+                log_message(
+                    "task.event_persistence_failed",
+                    task_id=task_id,
+                    trace_id=trace_id,
+                    event_type=accepted_event.events[0].event_type,
+                    sequence_no=accepted_event.events[0].sequence_no,
+                    message=str(exc),
+                )
+            )
         batch_result = self._execution_router.execute(
             task_id=task_id,
             prompt=request.prompt,
@@ -129,22 +185,20 @@ class OrchestratorService:
             retry_of_task_id=retry_of_task_id,
         )
         steps = self._build_step_records(task_id, execution_plan, batch_result.results)
+        events = self._build_events(task, execution_plan, batch_result)
         try:
-            self._repository.save_task_with_steps(task, steps)
+            self._repository.replace_task_snapshot(task, steps, events)
         except Exception as exc:
             logger.warning(
                 log_message(
                     "task.submit.storage_failed",
                     task_id=task_id,
                     trace_id=trace_id,
-                    operation="save_task_with_steps",
+                    operation="replace_task_snapshot",
                     message=str(exc),
                 )
             )
-            raise StorageUnavailableError("save_task_with_steps", str(exc)) from exc
-
-        for event in self._build_events(task, execution_plan, batch_result):
-            self._append_event_safe(event, trace_id=trace_id)
+            raise StorageUnavailableError("replace_task_snapshot", str(exc)) from exc
         logger.info(
             log_message(
                 "task.submit.completed",
@@ -154,7 +208,7 @@ class OrchestratorService:
                 execution_mode=task.execution_mode,
                 dry_run=task.dry_run,
                 step_count=len(steps),
-                event_count=1 if task.dry_run else len(batch_result.results) + 2,
+                event_count=len(events),
             )
         )
         return SubmissionSnapshot(task=task, steps=steps)

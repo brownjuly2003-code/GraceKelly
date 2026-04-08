@@ -1,14 +1,13 @@
 from __future__ import annotations
 
-import asyncio
 import inspect
 import logging
 from collections.abc import AsyncGenerator
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
-from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
@@ -39,6 +38,7 @@ from gracekelly.api.routes.orchestrate import router as orchestrate_router
 from gracekelly.api.routes.pipeline import router as pipeline_router
 from gracekelly.api.routes.smart import router as smart_router
 from gracekelly.api.routes.smart_v2 import router as smart_v2_router
+from gracekelly.api.routes.stream import router as stream_router
 from gracekelly.config import Settings, settings
 from gracekelly.core.account_pool_manager import AccountPoolManager
 from gracekelly.core.circuit_breaker import CircuitBreakerConfig, CircuitBreakingExecutionAdapter
@@ -51,9 +51,7 @@ from gracekelly.core.router import ExecutionRouter
 from gracekelly.middleware import (
     setup_api_key_auth,
     setup_correlation_id,
-    setup_rate_limiting,
     setup_request_metrics,
-    setup_request_tracking,
     setup_security_headers,
 )
 from gracekelly.request_metrics import RequestMetrics
@@ -143,24 +141,6 @@ def build_browser_adapter(active_settings: Settings) -> ExecutionAdapter:
 @asynccontextmanager
 async def app_lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     yield
-    # Drain in-flight requests before releasing resources
-    app_settings = getattr(app.state, "settings", None)
-    timeout_seconds = (
-        app_settings.graceful_shutdown_timeout_seconds if app_settings else 30.0
-    )
-    deadline = asyncio.get_event_loop().time() + timeout_seconds
-    active = getattr(app.state, "_active_requests", 0)
-    if active > 0:
-        logger.info("Graceful shutdown: waiting for %d in-flight request(s)", active)
-    while getattr(app.state, "_active_requests", 0) > 0:
-        if asyncio.get_event_loop().time() >= deadline:
-            logger.warning(
-                "Graceful shutdown timeout (%.0fs) — %d request(s) still active",
-                timeout_seconds,
-                getattr(app.state, "_active_requests", 0),
-            )
-            break
-        await asyncio.sleep(0.05)
     logger.info("Shutting down — releasing resources")
     browser_adapter = getattr(app.state, "browser_adapter", None)
     if browser_adapter is not None:
@@ -169,6 +149,9 @@ async def app_lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
             result = close_method()
             if inspect.isawaitable(result):
                 await result
+    executor = getattr(app.state, "browser_executor", None)
+    if executor is not None:
+        executor.shutdown(wait=False)
     pool = getattr(app.state, "postgres_pool", None)
     if pool is not None:
         close_method = getattr(pool, "close", None)
@@ -244,6 +227,7 @@ def create_app(app_settings: Settings | None = None) -> FastAPI:
     }
     app.state.browser_adapter = build_browser_adapter(active_settings)
     app.state.browser_session_manager = getattr(app.state.browser_adapter, "session_manager", None)
+    app.state.browser_executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="browser")
     app.state.adapter_registry = {
         "dry-run": app.state.dry_run_adapter,
         "api.mistral": app.state.api_adapters["mistral"],
@@ -271,26 +255,15 @@ def create_app(app_settings: Settings | None = None) -> FastAPI:
     app.state.execution_history = ExecutionHistory()
     app.state.account_pool_manager = AccountPoolManager()
 
-    # CORS must be registered first so preflight requests are handled before auth middleware
-    if active_settings.cors_allowed_origins:
-        app.add_middleware(
-            CORSMiddleware,
-            allow_origins=active_settings.cors_allowed_origins,
-            allow_credentials=active_settings.cors_allow_credentials,
-            allow_methods=["*"],
-            allow_headers=["*"],
-        )
-
     setup_security_headers(app)
-    setup_api_key_auth(app, api_key=active_settings.api_key, require_auth=active_settings.require_auth)
-    setup_rate_limiting(app, requests_per_minute=active_settings.rate_limit_per_minute)
+    setup_api_key_auth(app, api_key=active_settings.api_key)
     setup_request_metrics(app)
     setup_correlation_id(app)
-    setup_request_tracking(app)
 
     app.include_router(health_router)
     app.include_router(models_router)
     app.include_router(orchestrate_router)
+    app.include_router(stream_router)
     app.include_router(consensus_router)
     app.include_router(analytics_router)
     app.include_router(smart_router)

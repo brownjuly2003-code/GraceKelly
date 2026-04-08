@@ -7,24 +7,6 @@ from unittest.mock import patch
 from gracekelly.config import Settings
 
 
-class SettingsRateLimitTests(unittest.TestCase):
-    def test_rate_limit_zero_becomes_none(self) -> None:
-        """GRACEKELLY_RATE_LIMIT_PER_MINUTE=0 must resolve to None."""
-        with patch.dict(os.environ, {"GRACEKELLY_RATE_LIMIT_PER_MINUTE": "0"}, clear=True):
-            s = Settings.from_env()
-        self.assertIsNone(s.rate_limit_per_minute)
-
-    def test_rate_limit_positive_preserved(self) -> None:
-        with patch.dict(os.environ, {"GRACEKELLY_RATE_LIMIT_PER_MINUTE": "60"}, clear=True):
-            s = Settings.from_env()
-        self.assertEqual(s.rate_limit_per_minute, 60)
-
-    def test_rate_limit_default_is_none(self) -> None:
-        with patch.dict(os.environ, {}, clear=True):
-            s = Settings.from_env()
-        self.assertIsNone(s.rate_limit_per_minute)
-
-
 class SettingsBooleanFlagsTests(unittest.TestCase):
     def test_browser_enabled_true(self) -> None:
         with patch.dict(os.environ, {"GRACEKELLY_BROWSER_ENABLED": "true"}, clear=True):

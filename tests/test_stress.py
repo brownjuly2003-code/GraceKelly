@@ -18,39 +18,6 @@ from gracekelly.core.contracts import (
     StepStatus,
 )
 from gracekelly.core.models import resolve_model
-from gracekelly.middleware import RateLimiter
-
-
-class RateLimiterStressTests(unittest.TestCase):
-    def test_concurrent_requests_from_different_ips(self) -> None:
-        limiter = RateLimiter(requests_per_minute=10)
-        results = []
-
-        def check(ip: str) -> bool:
-            return limiter.is_allowed(ip)
-
-        with ThreadPoolExecutor(max_workers=50) as pool:
-            futures = [pool.submit(check, f"10.0.0.{i % 100}") for i in range(200)]
-            results = [f.result() for f in futures]
-
-        self.assertTrue(any(results))
-        self.assertGreater(len(results), 0)
-
-    def test_concurrent_requests_single_ip_respects_limit(self) -> None:
-        limiter = RateLimiter(requests_per_minute=5)
-
-        with ThreadPoolExecutor(max_workers=20) as pool:
-            futures = [pool.submit(limiter.is_allowed, "10.0.0.1") for _ in range(20)]
-            results = [f.result() for f in futures]
-
-        allowed = sum(1 for r in results if r)
-        self.assertEqual(allowed, 5)
-
-    def test_empty_buckets_cleaned_up(self) -> None:
-        limiter = RateLimiter(requests_per_minute=100)
-        for i in range(50):
-            limiter.is_allowed(f"ip-{i}")
-        self.assertLessEqual(len(limiter._buckets), 50)
 
 
 class ConcurrencyGateStressTests(unittest.TestCase):

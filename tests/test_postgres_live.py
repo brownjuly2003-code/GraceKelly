@@ -59,7 +59,7 @@ class PostgresLiveIntegrationTests(unittest.TestCase):
             },
         )
 
-        self.assertEqual(response.status_code, 202)
+        self.assertEqual(response.status_code, 200)
         payload = response.json()
         self.assertEqual(payload["status"], "completed")
         self.assertEqual(len(payload["requested_models"]), 2)
@@ -81,7 +81,7 @@ class PostgresLiveIntegrationTests(unittest.TestCase):
             },
         )
 
-        self.assertEqual(response.status_code, 202)
+        self.assertEqual(response.status_code, 200)
         payload = response.json()
         self.assertEqual(payload["status"], "failed")
         self.assertEqual(payload["failure_code"], "provider_unavailable")
@@ -115,8 +115,8 @@ class PostgresLiveIntegrationTests(unittest.TestCase):
             },
         )
 
-        self.assertEqual(dry_run.status_code, 202)
-        self.assertEqual(failed.status_code, 202)
+        self.assertEqual(dry_run.status_code, 200)
+        self.assertEqual(failed.status_code, 200)
 
         recent = self.client.get("/api/v1/tasks", params={"limit": 2})
         self.assertEqual(recent.status_code, 200)

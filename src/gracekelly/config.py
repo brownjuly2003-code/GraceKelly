@@ -2,7 +2,16 @@ from __future__ import annotations
 
 import logging
 import os
-from dataclasses import dataclass, field
+import sys
+from dataclasses import dataclass
+
+if "pytest" not in sys.modules:
+    try:
+        from dotenv import load_dotenv
+
+        load_dotenv()
+    except ImportError:
+        pass
 
 logger = logging.getLogger(__name__)
 
@@ -41,8 +50,6 @@ class Settings:
     port: int = 8011
     log_level: str = "INFO"
     api_key: str | None = None
-    require_auth: bool = False
-    rate_limit_per_minute: int | None = None
     storage_backend: str = "memory"
     postgres_dsn: str | None = None
     postgres_connect_timeout_seconds: int = 5
@@ -78,13 +85,8 @@ class Settings:
     browser_scripted_model_label: str | None = None
     browser_scripted_output_text: str = "scripted browser result"
     orchestrate_timeout_seconds: float | None = None
-    # CORS
-    cors_allowed_origins: list[str] = field(default_factory=list)
-    cors_allow_credentials: bool = False
     # Health endpoint security
     health_expose_details: bool = False
-    # Graceful shutdown
-    graceful_shutdown_timeout_seconds: float = 30.0
 
     def validate(self) -> None:
         """Raise ValueError for invalid configuration combinations."""
@@ -105,8 +107,6 @@ class Settings:
             port=_env_int("GRACEKELLY_PORT", "8011"),
             log_level=os.getenv("GRACEKELLY_LOG_LEVEL", "INFO"),
             api_key=os.getenv("GRACEKELLY_API_KEY"),
-            require_auth=_env_bool("GRACEKELLY_REQUIRE_AUTH", False),
-            rate_limit_per_minute=_env_int("GRACEKELLY_RATE_LIMIT_PER_MINUTE", "0") or None,
             storage_backend=os.getenv("GRACEKELLY_STORAGE_BACKEND", "memory"),
             postgres_dsn=os.getenv("GRACEKELLY_POSTGRES_DSN"),
             postgres_connect_timeout_seconds=_env_int("GRACEKELLY_POSTGRES_CONNECT_TIMEOUT_SECONDS", "5"),
@@ -158,13 +158,7 @@ class Settings:
                 "scripted browser result",
             ),
             orchestrate_timeout_seconds=_env_float("GRACEKELLY_ORCHESTRATE_TIMEOUT_SECONDS", "0") or None,
-            cors_allowed_origins=[
-                o.strip() for o in os.getenv("GRACEKELLY_CORS_ALLOWED_ORIGINS", "").split(",")
-                if o.strip()
-            ],
-            cors_allow_credentials=os.getenv("GRACEKELLY_CORS_ALLOW_CREDENTIALS", "false").lower() == "true",
             health_expose_details=os.getenv("GRACEKELLY_HEALTH_EXPOSE_DETAILS", "false").lower() == "true",
-            graceful_shutdown_timeout_seconds=_env_float("GRACEKELLY_GRACEFUL_SHUTDOWN_TIMEOUT_SECONDS", "30.0"),
         )
 
 

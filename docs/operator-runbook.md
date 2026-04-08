@@ -1,15 +1,28 @@
 # Operator Runbook
 
-Last updated: 2026-03-19
+Last updated: 2026-04-05
 
 This runbook covers the current operating surface for GraceKelly:
-- API authentication and rate limiting
+- API authentication
+- Streamlit UI startup
+- browser execution via Perplexity as the primary path
 - service liveness and readiness
 - metrics scraping
 - browser-adapter recovery
 - storage validation and task-scoped snapshot restore
 
 It is intentionally limited to the current in-process deployment model.
+
+## UI
+
+Start the Streamlit playground alongside the backend:
+
+```bash
+pip install -r ui/requirements.txt
+streamlit run ui/app.py
+```
+
+Opens at http://localhost:8501. Requires backend running on localhost:8011.
 
 ## API security
 
@@ -23,11 +36,30 @@ Public endpoints (no key required): `/health`, `/docs`, `/openapi.json`, `/redoc
 
 When `GRACEKELLY_API_KEY` is not set, all endpoints are open (development default).
 
-### Rate limiting
+## Browser execution (primary)
 
-Set `GRACEKELLY_RATE_LIMIT_PER_MINUTE` to limit requests per client IP. Returns HTTP 429 when exceeded. Public endpoints are exempt.
+GraceKelly executes models through your Perplexity Pro subscription via browser automation.
+Direct provider APIs remain optional fallbacks when you need separate provider access.
 
-When not set or `0`, rate limiting is disabled (development default).
+### Setup
+
+1. Create a Chrome profile logged into Perplexity Pro
+2. Set in `.env`:
+   ```bash
+   GRACEKELLY_BROWSER_ENABLED=true
+   GRACEKELLY_BROWSER_AUTOMATION_BACKEND=playwright
+   GRACEKELLY_BROWSER_PROFILE_DIR=/path/to/chrome/profile
+   ```
+3. Available models depend on your Perplexity subscription tier
+
+### Circuit breaker
+
+If the browser adapter fails 3 times consecutively, the circuit breaker opens
+for 60 seconds. Check `/metrics` for `gracekelly_browser_circuit_breaker_state`.
+
+Configure via:
+- `GRACEKELLY_BROWSER_CIRCUIT_BREAKER_FAILURE_THRESHOLD` (default 3)
+- `GRACEKELLY_BROWSER_CIRCUIT_BREAKER_COOLDOWN_SECONDS` (default 60)
 
 ## Primary endpoints
 
@@ -264,48 +296,6 @@ If callers supply `metadata.trace_id` on `POST /api/v1/orchestrate`, GraceKelly 
 
 That gives a minimal correlation key across HTTP entry, task creation, and best-effort event logging without requiring an external tracing system.
 
-## CORS configuration
-
-By default CORS middleware is disabled. Enable it when a browser-based frontend calls the API from a different origin.
-
-Set allowed origins as a comma-separated list:
-
-```bash
-set GRACEKELLY_CORS_ALLOWED_ORIGINS=http://localhost:3000,https://app.example.com
-```
-
-To allow cookies or `Authorization` headers in cross-origin requests, also set:
-
-```bash
-set GRACEKELLY_CORS_ALLOW_CREDENTIALS=true
-```
-
-Operational guidance:
-- Never set `GRACEKELLY_CORS_ALLOWED_ORIGINS=*` in production — use explicit origins.
-- `CORS_ALLOW_CREDENTIALS=true` is only safe when the origins list is explicit (not wildcard).
-- If the frontend and API share the same origin, leave CORS disabled (empty origins list).
-- Allowed methods and headers are set to safe defaults; do not widen them unless required.
-
-## Graceful shutdown
-
-GraceKelly waits for in-flight requests to finish before terminating. The drain period is controlled by:
-
-```bash
-set GRACEKELLY_GRACEFUL_SHUTDOWN_TIMEOUT_SECONDS=30
-```
-
-What happens during shutdown:
-1. The process receives SIGTERM (or Ctrl-C in development).
-2. The lifespan context begins teardown: browser session is closed, pool connections are released.
-3. Uvicorn waits up to the configured timeout for active requests to complete.
-4. After the timeout, the process exits. Any request still in-flight receives a connection reset.
-
-Tuning guidance:
-- Default (30 s) covers most API-backed orchestrate calls.
-- For deployments running consensus V2 or pipeline endpoints with multiple rounds, raise to 90–120 s.
-- For health-check-only or metrics-only pods, 5 s is sufficient.
-- Monitor `gracekelly_execution_active_model_executions` from `/metrics` to assess typical drain time before lowering the timeout.
-
 ## Health endpoint security
 
 The `GET /health` endpoint returns a minimal summary by default (status, environment, backend name, saturation counts). Internal component details are hidden.
@@ -334,11 +324,11 @@ Setting `0` (default) disables the timeout.
 
 How it works:
 - The orchestration coroutine is wrapped in `asyncio.wait_for` with the configured timeout.
-- On breach, the endpoint returns `504 Gateway Timeout` with `detail: "Orchestration request timed out."`.
-- The background thread continues running until the underlying adapter call completes or fails on its own — the timeout only affects the HTTP response, not the execution itself.
+- On breach, the endpoint returns `504 Gateway Timeout` with `detail: "Orchestration request timed out."`
+- The background thread continues running until the underlying adapter call completes or fails on its own - the timeout only affects the HTTP response, not the execution itself.
 
 Tuning guidance:
-- Start with the slowest expected model timeout + 10 s of overhead (e.g. Anthropic 120 s → set 130 s).
+- Start with the slowest expected model timeout + 10 s of overhead (e.g. Anthropic 120 s -> set 130 s).
 - For dry-run mode, 5 s is sufficient.
-- For consensus V2 with multiple rounds, account for `max_rounds × variations_per_round × model_timeout_seconds`.
+- For consensus V2 with multiple rounds, account for `max_rounds x variations_per_round x model_timeout_seconds`.
 - Pair this setting with load-balancer / reverse-proxy timeouts: both must be larger than the orchestrate timeout.

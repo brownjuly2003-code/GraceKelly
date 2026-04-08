@@ -50,16 +50,13 @@ class OrchestrateTimeoutTests(unittest.TestCase):
         app = create_app(_make_settings(orchestrate_timeout_seconds=None))
         client = TestClient(app)
         resp = client.post("/api/v1/orchestrate", json=_ORCHESTRATE_PAYLOAD)
-        self.assertIn(resp.status_code, (200, 202))
+        self.assertEqual(resp.status_code, 200)
 
     def test_timeout_exceeded_returns_504(self) -> None:
         app = create_app(_make_settings(orchestrate_timeout_seconds=0.001))
         client = TestClient(app)
 
-        async def _slow(*_args, **_kwargs):
-            raise TimeoutError
-
-        with patch("asyncio.wait_for", side_effect=TimeoutError):
+        with patch("gracekelly.api.routes.orchestrate.asyncio.wait_for", side_effect=TimeoutError):
             resp = client.post("/api/v1/orchestrate", json=_ORCHESTRATE_PAYLOAD)
 
         self.assertEqual(resp.status_code, 504)
@@ -68,7 +65,7 @@ class OrchestrateTimeoutTests(unittest.TestCase):
         app = create_app(_make_settings(orchestrate_timeout_seconds=0.001))
         client = TestClient(app)
 
-        with patch("asyncio.wait_for", side_effect=TimeoutError):
+        with patch("gracekelly.api.routes.orchestrate.asyncio.wait_for", side_effect=TimeoutError):
             resp = client.post("/api/v1/orchestrate", json=_ORCHESTRATE_PAYLOAD)
 
         self.assertIn("timed out", resp.json()["detail"].lower())
@@ -78,7 +75,7 @@ class OrchestrateTimeoutTests(unittest.TestCase):
         app = create_app(_make_settings(orchestrate_timeout_seconds=120.0))
         client = TestClient(app)
         resp = client.post("/api/v1/orchestrate", json=_ORCHESTRATE_PAYLOAD)
-        self.assertIn(resp.status_code, (200, 202))
+        self.assertEqual(resp.status_code, 200)
 
     def test_zero_timeout_config_is_treated_as_no_limit(self) -> None:
         """GRACEKELLY_ORCHESTRATE_TIMEOUT_SECONDS=0 → None → no asyncio.wait_for."""

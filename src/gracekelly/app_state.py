@@ -26,6 +26,7 @@ class AppState:
     api_adapters: dict[str, ExecutionAdapter]
     browser_adapter: Any
     browser_session_manager: Any  # None when browser is not configured
+    browser_executor: Any  # concurrent.futures.ThreadPoolExecutor, max_workers=1
     adapter_registry: dict[str, Any]
     execution_router: ExecutionRouter
     orchestrator_service: OrchestratorService

@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import json
 import logging
 import time
+from collections.abc import Iterator
 
 import httpx
 
@@ -12,6 +14,7 @@ from gracekelly.core.contracts import (
     ExecutionResult,
     FailureCode,
     StepStatus,
+    StreamChunk,
 )
 
 logger = logging.getLogger(__name__)
@@ -74,6 +77,12 @@ class BaseApiAdapter(ExecutionAdapter):
                     "/chat/completions", payload, timeout_seconds=timeout_seconds,
                 )
                 output_text = self._extract_output_text(response_data)
+                usage = response_data.get("usage", {})
+                input_tokens = None
+                output_tokens = None
+                if isinstance(usage, dict):
+                    input_tokens = usage.get("prompt_tokens") or usage.get("input_tokens")
+                    output_tokens = usage.get("completion_tokens") or usage.get("output_tokens")
                 return ExecutionResult(
                     adapter_name=self.name,
                     model_id=model.id,
@@ -81,6 +90,8 @@ class BaseApiAdapter(ExecutionAdapter):
                     execution_mode=ExecutionMode.API,
                     status=StepStatus.COMPLETED,
                     output_text=output_text,
+                    input_tokens=int(input_tokens) if input_tokens is not None else None,
+                    output_tokens=int(output_tokens) if output_tokens is not None else None,
                     details={
                         "provider": self._provider_label.lower(),
                         "provider_model_id": request_model.step.provider_model_id,
@@ -167,6 +178,64 @@ class BaseApiAdapter(ExecutionAdapter):
             f"{self._provider_label} failed after {attempts} attempts: {last_error}",
         )
 
+    def execute_stream(self, request_model: ExecutionRequest) -> Iterator[StreamChunk]:
+        model = request_model.step.model
+        timeout_seconds = self._resolve_timeout_seconds(request_model)
+        if not self._api_key:
+            yield StreamChunk(type="error", text=f"{self._provider_label} API key not configured.")
+            return
+
+        payload: dict[str, object] = {
+            "model": request_model.step.provider_model_id,
+            "messages": [{"role": "user", "content": request_model.prompt}],
+            "stream": True,
+            "stream_options": {"include_usage": True},
+        }
+
+        collected_text = ""
+        input_tokens = None
+        output_tokens = None
+        start = time.monotonic()
+        try:
+            for raw_data in self._post_stream("/chat/completions", payload, timeout_seconds=timeout_seconds):
+                if raw_data.strip() == "[DONE]":
+                    break
+                chunk_json = json.loads(raw_data)
+                if not isinstance(chunk_json, dict):
+                    continue
+                usage = chunk_json.get("usage")
+                if isinstance(usage, dict):
+                    input_tokens = usage.get("prompt_tokens") or usage.get("input_tokens")
+                    output_tokens = usage.get("completion_tokens") or usage.get("output_tokens")
+                choices = chunk_json.get("choices")
+                if not isinstance(choices, list) or not choices:
+                    continue
+                first_choice = choices[0]
+                if not isinstance(first_choice, dict):
+                    continue
+                delta = first_choice.get("delta")
+                if not isinstance(delta, dict):
+                    continue
+                content = delta.get("content", "")
+                if isinstance(content, str) and content:
+                    collected_text += content
+                    yield StreamChunk(type="delta", text=content, model_id=model.id)
+
+            duration_ms = int((time.monotonic() - start) * 1000)
+            yield StreamChunk(
+                type="complete",
+                text=collected_text,
+                model_id=model.id,
+                details={
+                    "duration_ms": duration_ms,
+                    "provider": self._provider_label.lower(),
+                    "input_tokens": int(input_tokens) if input_tokens is not None else None,
+                    "output_tokens": int(output_tokens) if output_tokens is not None else None,
+                },
+            )
+        except Exception as exc:
+            yield StreamChunk(type="error", text=f"{self._provider_label} streaming error: {exc}")
+
     def _sleep_before_retry(self, attempt: int) -> None:
         delay = self._retry_backoff_seconds * (2 ** (attempt - 1))
         logger.info(
@@ -180,6 +249,29 @@ class BaseApiAdapter(ExecutionAdapter):
         if model_timeout and model_timeout > 0:
             return float(model_timeout)
         return self._default_timeout_seconds
+
+    def _post_stream(
+        self,
+        path: str,
+        payload: dict[str, object],
+        *,
+        timeout_seconds: float,
+    ) -> Iterator[str]:
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {self._api_key}",
+        }
+        with self._http_client.stream(
+            "POST",
+            f"{self._base_url}{path}",
+            json=payload,
+            headers=headers,
+            timeout=timeout_seconds,
+        ) as response:
+            response.raise_for_status()
+            for line in response.iter_lines():
+                if line.startswith("data: "):
+                    yield line[6:]
 
     def _post_json(
         self,
