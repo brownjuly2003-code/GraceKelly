@@ -2,14 +2,20 @@ from __future__ import annotations
 
 import unittest
 from datetime import UTC, datetime
+from types import SimpleNamespace
+from unittest.mock import patch
+
+from fastapi import FastAPI
+from fastapi.testclient import TestClient
 
 from gracekelly.api.routes.models import (
     _browser_menu_observation,
     _is_observed_browser_model_available,
     _last_verified_at,
     _model_catalog_item,
+    router,
 )
-from gracekelly.core.models import MODEL_SPECS
+from gracekelly.core.models import MODEL_SPECS, ModelSpec
 
 
 class BrowserMenuObservationTests(unittest.TestCase):
@@ -27,7 +33,7 @@ class BrowserMenuObservationTests(unittest.TestCase):
 
     def test_adapter_with_empty_healthcheck(self) -> None:
         class FakeAdapter:
-            def healthcheck(self) -> dict:
+            def healthcheck(self) -> dict[str, object]:
                 return {}
 
         labels, _, _, _, _ = _browser_menu_observation(FakeAdapter())
@@ -37,7 +43,7 @@ class BrowserMenuObservationTests(unittest.TestCase):
         now = datetime.now(UTC)
 
         class FakeAdapter:
-            def healthcheck(self) -> dict:
+            def healthcheck(self) -> dict[str, object]:
                 return {
                     "automation": {
                         "observed_model_menu": ["GPT-5.4", "Claude Sonnet 4.6"],
@@ -57,7 +63,7 @@ class BrowserMenuObservationTests(unittest.TestCase):
 
     def test_empty_and_whitespace_labels_filtered(self) -> None:
         class FakeAdapter:
-            def healthcheck(self) -> dict:
+            def healthcheck(self) -> dict[str, object]:
                 return {
                     "automation": {
                         "observed_model_menu": ["GPT-5.4", "", "  "],
@@ -102,10 +108,10 @@ class LastVerifiedAtTests(unittest.TestCase):
 
 
 class ModelCatalogItemTests(unittest.TestCase):
-    def _api_spec(self):
+    def _api_spec(self) -> ModelSpec:
         return next(s for s in MODEL_SPECS if s.adapter_kind == "api")
 
-    def _browser_spec(self):
+    def _browser_spec(self) -> ModelSpec:
         return next(s for s in MODEL_SPECS if s.adapter_kind == "browser")
 
     def test_api_model_is_static(self) -> None:
@@ -207,3 +213,30 @@ class ModelCatalogItemTests(unittest.TestCase):
             )
             self.assertIsNotNone(item.id)
             self.assertIn(item.availability_status, ("static", "unknown"))
+
+
+class RefreshModelsRouteTests(unittest.TestCase):
+    def setUp(self) -> None:
+        app = FastAPI()
+        app.include_router(router)
+        self.client = TestClient(app)
+
+    def test_refresh_models_returns_200(self) -> None:
+        with patch(
+            "gracekelly.api.routes.models.get_app_state",
+            return_value=SimpleNamespace(browser_adapter=None),
+        ):
+            resp = self.client.post("/api/v1/models/refresh")
+        self.assertEqual(resp.status_code, 200)
+
+    def test_refresh_models_has_refreshed_at_and_models(self) -> None:
+        with patch(
+            "gracekelly.api.routes.models.get_app_state",
+            return_value=SimpleNamespace(browser_adapter=None),
+        ):
+            resp = self.client.post("/api/v1/models/refresh")
+        data = resp.json()
+        self.assertIn("refreshed_at", data)
+        self.assertIn("models", data)
+        self.assertIsInstance(data["models"], list)
+        self.assertGreater(len(data["models"]), 0)

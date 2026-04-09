@@ -4,7 +4,7 @@ import json
 from collections.abc import Iterator
 from typing import Any
 
-import requests
+import requests  # type: ignore[import-untyped]
 import streamlit as st
 from requests import Response
 
@@ -36,7 +36,7 @@ def extract_error(response: Response) -> str:
     try:
         payload = response.json()
     except ValueError:
-        return response.text.strip() or response.reason
+        return response.text.strip() or str(response.reason)
     detail = payload.get("detail") if isinstance(payload, dict) else payload
     if isinstance(detail, (dict, list)):
         return json.dumps(detail, ensure_ascii=False)
@@ -79,13 +79,13 @@ def stream_from_sse(base_url: str, path: str, payload: dict[str, Any]) -> Iterat
         raise RuntimeError(f"Backend unreachable: {exc}") from exc
 
 
-@st.cache_data(ttl=60, show_spinner=False)
+@st.cache_data(ttl=60, show_spinner=False)  # type: ignore[untyped-decorator]
 def load_models(base_url: str) -> list[dict[str, Any]]:
     payload = request_json("GET", base_url, "/models")
     return payload if isinstance(payload, list) else []
 
 
-@st.cache_data(ttl=30, show_spinner=False)
+@st.cache_data(ttl=30, show_spinner=False)  # type: ignore[untyped-decorator]
 def load_tasks(base_url: str, limit: int = 20) -> list[dict[str, Any]]:
     payload = request_json("GET", base_url, f"/tasks?limit={limit}")
     return payload if isinstance(payload, list) else []
@@ -284,6 +284,17 @@ st.markdown(
     button[kind="secondary"] {
         border-radius: 999px;
     }
+    [data-testid="stChatMessage"] {
+        border-radius: 16px;
+        margin-bottom: 0.5rem;
+    }
+    [data-testid="stVerticalBlock"] > div:has(> [data-testid="stContainer"]) {
+        margin-top: 2rem;
+    }
+    .status-dot {
+        font-size: 0.7rem;
+        vertical-align: middle;
+    }
     </style>
     """,
     unsafe_allow_html=True,
@@ -294,9 +305,30 @@ st.session_state.setdefault("view_payload", {})
 st.session_state.setdefault("backend_url", "http://localhost:8011")
 st.session_state.setdefault("chat_messages", [])
 st.session_state.setdefault("chat_retry_message", None)
+st.session_state.setdefault("chat_last_failed_message", None)
+st.session_state.setdefault("last_models_date", "")
 
 with st.sidebar:
-    st.markdown("## GraceKelly")
+    backend_url = st.session_state["backend_url"]
+    _backend_ok = False
+    try:
+        _ping = requests.get(f"{backend_url}/health", timeout=2)
+        _backend_ok = _ping.status_code == 200
+    except Exception:
+        _backend_ok = False
+    _status_dot = "🟢" if _backend_ok else "🔴"
+    st.markdown(f"## GraceKelly &nbsp; {_status_dot}", unsafe_allow_html=True)
+    import datetime as _dt
+
+    _today = _dt.date.today().isoformat()
+    if st.session_state["last_models_date"] != _today:
+        load_models.clear()
+        load_tasks.clear()
+        try:
+            requests.post(f"{backend_url}/api/v1/models/refresh", timeout=5)
+        except Exception:
+            pass
+        st.session_state["last_models_date"] = _today
     backend_url = st.text_input("Backend URL", value=st.session_state["backend_url"])
     st.session_state["backend_url"] = backend_url
     if st.button("Refresh data", use_container_width=True):
@@ -320,15 +352,22 @@ else:
         for item in model_items
         if item.get("id") and str(item.get("adapter_kind", "")) == "api"
     ]
+    def _avail_badge(item: dict[str, Any]) -> str:
+        status = str(item.get("availability_status") or "")
+        if status == "observed_available":
+            return " ✓"
+        if status == "observed_unavailable":
+            return " ✗"
+        if item.get("adapter_kind") == "browser":
+            return " ?"
+        return ""
+
     model_labels = {
-        str(item["id"]): " | ".join(
-            part
-            for part in (
-                str(item.get("display_name") or item["id"]),
-                str(item.get("provider") or "unknown"),
-                str(item.get("availability_status") or "unknown"),
-            )
-            if part
+        str(item["id"]): (
+            str(item.get("display_name") or item["id"])
+            + _avail_badge(item)
+            + "  ·  "
+            + str(item.get("provider") or "")
         )
         for item in model_items
         if item.get("id")
@@ -424,6 +463,20 @@ with tab_chat:
                 if _parts:
                     st.caption(" \u00b7 ".join(_parts))
 
+    if not st.session_state.chat_messages:
+        with st.container(border=True):
+            st.markdown("#### 👋 What would you like to explore?")
+            st.caption("Choose a model in the selector above, then ask anything.")
+            _suggestions = [
+                "Summarize the latest AI research papers from this week",
+                "What are the key differences between GPT-5 and Claude 4?",
+                "Explain quantum entanglement in simple terms",
+            ]
+            for _s in _suggestions:
+                if st.button(_s, use_container_width=True, type="secondary"):
+                    st.session_state["_prefill_prompt"] = _s
+                    st.rerun()
+
     if st.session_state.chat_messages:
         _chat_md = _render_chat_export(st.session_state.chat_messages)
         st.download_button(
@@ -435,7 +488,16 @@ with tab_chat:
         )
 
     _retry_input = st.session_state.pop("chat_retry_message", None)
-    _user_input = st.chat_input("Ask GraceKelly...", key="chat_input_box")
+    if st.session_state.get("chat_last_failed_message"):
+        _failed_msg = st.session_state["chat_last_failed_message"]
+        st.warning(f"Last message failed. Retry: _{_failed_msg[:80]}{'…' if len(_failed_msg) > 80 else ''}_")
+        if st.button("↩ Retry", key="chat_retry_btn"):
+            st.session_state["chat_retry_message"] = st.session_state.pop("chat_last_failed_message")
+            st.rerun()
+    if st.session_state.get("_prefill_prompt"):
+        _user_input = st.session_state.pop("_prefill_prompt")
+    else:
+        _user_input = st.chat_input("Ask GraceKelly...", key="chat_input_box")
     if _retry_input is not None:
         _user_input = _retry_input
 
@@ -455,7 +517,7 @@ with tab_chat:
 
         _received_task_id: str | None = None
         _collected = ""
-        _final_meta: dict[str, Any] = {}
+        _final_meta: dict[str, Any] | None = None
         _stream_error: str | None = None
         _payload: dict[str, Any] = {
             "prompt": _user_input,
@@ -480,10 +542,12 @@ with tab_chat:
                         _placeholder.markdown(_collected)
                     elif _etype == "error":
                         _stream_error = str(_edata.get("text", "Unknown error"))
+                        st.session_state["chat_last_failed_message"] = _user_input
                         _placeholder.error(_stream_error)
                         break
             except RuntimeError as _exc:
                 _stream_error = str(_exc)
+                st.session_state["chat_last_failed_message"] = _user_input
                 if _stream_error.startswith("Backend unreachable:"):
                     _backend_error = _stream_error.removeprefix("Backend unreachable: ").strip()
                     _placeholder.error(
@@ -493,7 +557,7 @@ with tab_chat:
                 else:
                     _placeholder.error(_stream_error)
 
-            if _final_meta:
+            if _final_meta is not None:
                 _cap: list[str] = []
                 if _final_meta.get("model_id"):
                     _cap.append(str(_final_meta["model_id"]))
@@ -509,16 +573,17 @@ with tab_chat:
                 if _cap:
                     st.caption(" \u00b7 ".join(_cap))
 
-        _had_error = _stream_error is not None
+        if False:
+            st.session_state["chat_last_failed_message"] = None
 
-        if _had_error:
             if st.button("↩ Retry", key=f"retry_{len(st.session_state.chat_messages)}"):
                 if st.session_state.chat_messages and st.session_state.chat_messages[-1]["role"] == "user":
                     st.session_state.chat_messages.pop()
                 st.session_state["chat_retry_message"] = _user_input
                 st.rerun()
 
-        if not _had_error and _collected:
+        if _stream_error is None and _final_meta is not None:
+            st.session_state["chat_last_failed_message"] = None
             st.session_state.chat_messages.append(
                 {
                     "role": "assistant",

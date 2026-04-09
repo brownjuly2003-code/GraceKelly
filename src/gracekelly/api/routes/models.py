@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Request
 
@@ -145,3 +145,38 @@ async def models(request: Request) -> list[ModelCatalogItem]:
         )
         for spec in list_models()
     ]
+
+
+@router.post(
+    "/models/refresh",
+    summary="Refresh model catalog",
+    description=(
+        "Returns the current model catalog snapshot with a refreshed_at timestamp. "
+        "Browser model availability reflects the last Playwright observation. "
+        "A live Perplexity query is needed to update the model menu itself."
+    ),
+)
+async def refresh_models(request: Request) -> dict[str, object]:
+    (
+        observed_browser_labels,
+        observed_browser_checked_at,
+        observed_browser_source,
+        verified_browser_labels_at,
+        last_model_picker_unavailable_at,
+    ) = _browser_menu_observation(get_app_state(request).browser_adapter)
+    catalog = [
+        _model_catalog_item(
+            spec,
+            observed_browser_labels=observed_browser_labels,
+            observed_browser_checked_at=observed_browser_checked_at,
+            observed_browser_source=observed_browser_source,
+            verified_browser_labels_at=verified_browser_labels_at,
+            last_model_picker_unavailable_at=last_model_picker_unavailable_at,
+        )
+        for spec in list_models()
+    ]
+    return {
+        "refreshed_at": datetime.now(UTC).isoformat(),
+        "browser_last_observed": observed_browser_checked_at.isoformat() if observed_browser_checked_at else None,
+        "models": [item.model_dump() for item in catalog],
+    }
