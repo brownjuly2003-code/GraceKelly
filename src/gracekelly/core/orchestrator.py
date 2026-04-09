@@ -26,6 +26,8 @@ from gracekelly.storage.base import TaskEventRecord, TaskRecord, TaskRepository,
 
 logger = logging.getLogger(__name__)
 
+_MAX_CONTEXT_CHARS: int = 3000
+
 
 @dataclass(slots=True)
 class _StepSummary:
@@ -90,11 +92,10 @@ class OrchestratorService:
             except Exception:
                 prev = None
             if prev is not None and prev.output_text:
-                context_prefix = (
-                    f"[Context from task {request.context_task_id}]\n"
-                    f"{prev.output_text}\n\n"
-                    "[New query]\n"
-                )
+                prev_text = prev.output_text
+                if len(prev_text) > _MAX_CONTEXT_CHARS:
+                    prev_text = prev_text[:_MAX_CONTEXT_CHARS] + "\n[…truncated]"
+                context_prefix = f"[Context]\n{prev_text}\n\n[Query]\n"
                 active_request = request.model_copy(update={"prompt": context_prefix + request.prompt})
         execution_plan = build_execution_plan(active_request)
         trace_id = trace_id_from_metadata(request.metadata)

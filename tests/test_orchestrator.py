@@ -14,7 +14,12 @@ from gracekelly.core.contracts import (
     StepStatus,
     TaskStatus,
 )
-from gracekelly.core.orchestrator import OrchestratorService, StorageUnavailableError, _EventSequence
+from gracekelly.core.orchestrator import (
+    _MAX_CONTEXT_CHARS,
+    OrchestratorService,
+    StorageUnavailableError,
+    _EventSequence,
+)
 from gracekelly.core.planning import build_execution_plan
 from gracekelly.core.router import ExecutionRouter
 from gracekelly.schemas import OrchestrateRequest
@@ -490,12 +495,94 @@ class OrchestratorServiceTests(unittest.TestCase):
         self.assertEqual(
             second.task.prompt,
             (
-                f"[Context from task {first.task_id}]\n"
+                "[Context]\n"
                 f"{first.output_text}\n\n"
-                "[New query]\n"
+                "[Query]\n"
                 "follow-up question"
             ),
         )
+
+    def test_context_prefix_truncated_when_output_long(self) -> None:
+        long_output = ("a" * _MAX_CONTEXT_CHARS) + "TAIL"
+        first = TaskRecord(
+            task_id="existing-task-id",
+            status=TaskStatus.COMPLETED,
+            accepted_at=datetime.now(UTC),
+            completed_at=datetime.now(UTC),
+            duration_ms=10,
+            prompt="first question",
+            reasoning=False,
+            execution_mode=ExecutionMode.API,
+            dry_run=False,
+            model_count=1,
+            quorum=1,
+            merge_strategy=MergeStrategy.FIRST_SUCCESS,
+            adapter_hint=AdapterHint.AUTO,
+            cancel_on_quorum=True,
+            output_text=long_output,
+        )
+        self.repository.save_task_with_steps(first, [])
+
+        second = self.service.submit_snapshot(
+            OrchestrateRequest(
+                prompt="follow-up question",
+                model="Kimi K2",
+                dry_run=True,
+                context_task_id=first.task_id,
+            )
+        )
+
+        self.assertEqual(
+            second.task.prompt,
+            (
+                "[Context]\n"
+                f"{'a' * _MAX_CONTEXT_CHARS}\n[…truncated]\n\n"
+                "[Query]\n"
+                "follow-up question"
+            ),
+        )
+        self.assertNotIn("TAIL", second.task.prompt)
+
+    def test_context_prefix_not_truncated_when_output_short(self) -> None:
+        short_output = "previous answer"
+        first = TaskRecord(
+            task_id="existing-task-id",
+            status=TaskStatus.COMPLETED,
+            accepted_at=datetime.now(UTC),
+            completed_at=datetime.now(UTC),
+            duration_ms=10,
+            prompt="first question",
+            reasoning=False,
+            execution_mode=ExecutionMode.API,
+            dry_run=False,
+            model_count=1,
+            quorum=1,
+            merge_strategy=MergeStrategy.FIRST_SUCCESS,
+            adapter_hint=AdapterHint.AUTO,
+            cancel_on_quorum=True,
+            output_text=short_output,
+        )
+        self.repository.save_task_with_steps(first, [])
+
+        second = self.service.submit_snapshot(
+            OrchestrateRequest(
+                prompt="follow-up question",
+                model="Kimi K2",
+                dry_run=True,
+                context_task_id=first.task_id,
+            )
+        )
+
+        self.assertEqual(
+            second.task.prompt,
+            (
+                "[Context]\n"
+                f"{short_output}\n\n"
+                "[Query]\n"
+                "follow-up question"
+            ),
+        )
+        self.assertNotIn("[…truncated]", second.task.prompt)
 
     def test_list_recent_tasks_passes_prompt_contains_to_repository(self) -> None:
         class CapturingRepository(InMemoryTaskRepository):
