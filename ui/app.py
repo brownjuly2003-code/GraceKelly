@@ -573,14 +573,6 @@ with tab_chat:
                 if _cap:
                     st.caption(" \u00b7 ".join(_cap))
 
-        if False:
-            st.session_state["chat_last_failed_message"] = None
-
-            if st.button("↩ Retry", key=f"retry_{len(st.session_state.chat_messages)}"):
-                if st.session_state.chat_messages and st.session_state.chat_messages[-1]["role"] == "user":
-                    st.session_state.chat_messages.pop()
-                st.session_state["chat_retry_message"] = _user_input
-                st.rerun()
 
         if _stream_error is None and _final_meta is not None:
             st.session_state["chat_last_failed_message"] = None
