@@ -24,6 +24,7 @@ from gracekelly.core.contracts import (
     TaskStatus,
 )
 from gracekelly.core.models import resolve_model
+from gracekelly.core.orchestrator import StorageUnavailableError
 from gracekelly.schemas import OrchestrateRequest
 from gracekelly.storage.base import TaskRecord, TaskStepRecord
 
@@ -139,6 +140,44 @@ async def orchestrate_stream(request: Request, body: OrchestrateRequest) -> Stre
         )
 
     provider = resolved.provider
+    is_browser_model = resolved.adapter_kind == "browser"
+
+    if is_browser_model and not body.dry_run:
+        async def _browser_sse_stream() -> AsyncIterator[str]:
+            try:
+                _executor = getattr(request.app.state, "browser_executor", None)
+                _loop = asyncio.get_running_loop()
+                _snapshot = await _loop.run_in_executor(
+                    _executor,
+                    state.orchestrator_service.submit_snapshot,
+                    body,
+                )
+                _step = next(iter(_snapshot.steps), None)
+                yield _format_sse(
+                    "accepted",
+                    {
+                        "model_id": resolved.id,
+                        "task_id": _snapshot.task.task_id,
+                    },
+                )
+                yield _format_sse(
+                    "complete",
+                    {
+                        "text": _snapshot.task.output_text or "",
+                        "model_id": resolved.id,
+                        "duration_ms": _snapshot.task.duration_ms,
+                        "input_tokens": _step.input_tokens if _step else None,
+                        "output_tokens": _step.output_tokens if _step else None,
+                        "task_id": _snapshot.task.task_id,
+                    },
+                )
+            except StorageUnavailableError as _exc:
+                yield _format_sse("error", {"text": str(_exc)})
+            except Exception as _exc:
+                yield _format_sse("error", {"text": str(_exc)})
+
+        return StreamingResponse(_browser_sse_stream(), media_type="text/event-stream")
+
     adapter = state.dry_run_adapter if body.dry_run else state.api_adapters.get(provider)
     supports_streaming = adapter is not None and provider != "anthropic" and hasattr(adapter, "execute_stream")
 
