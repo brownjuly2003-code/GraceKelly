@@ -25,6 +25,7 @@ from gracekelly.core.task_classifier import classify_task
 
 router = APIRouter(prefix="/api/v1", tags=["pipeline"])
 logger = logging.getLogger(__name__)
+__all__ = ["MultiModelExecutor"]
 
 
 class PipelineRequest(BaseModel):

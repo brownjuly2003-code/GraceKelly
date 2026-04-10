@@ -29,6 +29,7 @@ from gracekelly.core.task_classifier import classify_task
 
 router = APIRouter(prefix="/api/v1", tags=["smart"])
 logger = logging.getLogger(__name__)
+__all__ = ["ConsensusExecutorV2"]
 
 
 class SmartV2Request(BaseModel):

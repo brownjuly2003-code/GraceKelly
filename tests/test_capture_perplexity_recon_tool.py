@@ -243,6 +243,11 @@ class CapturePerplexityReconToolTests(unittest.TestCase):
         prompts: list[str] = []
 
         temp_dir = self._workspace_output_dir("manual")
+
+        def _input_func(prompt: str) -> str:
+            prompts.append(prompt)
+            return ""
+
         manifest = capture_perplexity_recon.capture_recon(
             profile_dir=r"D:\GraceKelly\tmp\browser-recon\perplexity-profile",
             output_dir=temp_dir,
@@ -250,7 +255,7 @@ class CapturePerplexityReconToolTests(unittest.TestCase):
             channel="chrome",
             interactive_pause=True,
             sync_playwright_factory=lambda: manager,
-            input_func=lambda prompt: prompts.append(prompt) or "",
+            input_func=_input_func,
         )
 
         self.assertEqual(len(prompts), 1)

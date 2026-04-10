@@ -30,6 +30,9 @@ LIVE_PROMPT = "What are the three most important principles of software engineer
 
 
 class LiveMultiModelTests(unittest.TestCase):
+    _adapter: PerplexityBrowserAdapter
+    _embeddings: EmbeddingsClient
+
     @classmethod
     def setUpClass(cls) -> None:
         if os.getenv("GRACEKELLY_BROWSER_LIVE_TEST", "false").lower() != "true":

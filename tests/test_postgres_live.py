@@ -6,14 +6,14 @@ import unittest
 try:
     from fastapi.testclient import TestClient
 except ModuleNotFoundError:  # pragma: no cover
-    TestClient = None
+    TestClient = None  # type: ignore[assignment,misc]
 
 if TestClient is not None:
     from gracekelly.config import Settings
     from gracekelly.main import create_app
-    from gracekelly.storage.postgres import psycopg
+    from gracekelly.storage.postgres import psycopg  # type: ignore[attr-defined]
 else:  # pragma: no cover
-    Settings = None
+    Settings = None  # type: ignore[misc]
     create_app = None
     psycopg = None
 

@@ -6,6 +6,7 @@ import os
 import unittest
 import unittest.mock
 from datetime import UTC, datetime
+from typing import Any
 from unittest.mock import patch
 
 from gracekelly.tools import validate_postgres
@@ -94,7 +95,7 @@ class ValidatePostgresToolTests(unittest.TestCase):
         self.assertEqual(payload["schema"]["missing_tables"], ["gk_task_steps"])
 
     def test_main_bootstraps_and_returns_ok_when_health_and_schema_are_ok(self) -> None:
-        fake_repository_instances: list[object] = []
+        fake_repository_instances: list[Any] = []
 
         class FakeRepository:
             def __init__(self, dsn: str, *, bootstrap: bool) -> None:

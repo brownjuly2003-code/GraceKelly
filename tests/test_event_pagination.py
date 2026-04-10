@@ -7,7 +7,7 @@ from unittest.mock import MagicMock
 try:
     from fastapi.testclient import TestClient
 except ModuleNotFoundError:  # pragma: no cover
-    TestClient = None
+    TestClient = None  # type: ignore[assignment,misc]
 
 from gracekelly.core.contracts import (
     AdapterHint,

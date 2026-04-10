@@ -112,6 +112,7 @@ class _BaseRepo(TaskRepository):
         dry_run: bool | None = None,
         failure_code: FailureCode | None = None,
         before: datetime | None = None,
+        prompt_contains: str | None = None,
     ) -> list[TaskRecord]:
         raise NotImplementedError
 

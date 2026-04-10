@@ -95,6 +95,7 @@ class MistralErrorPathTests(unittest.TestCase):
         result = self._adapter(api_key=None).execute(_execution_request(_mistral_spec()))
         self.assertEqual(result.status, StepStatus.FAILED)
         self.assertEqual(result.failure_code, FailureCode.PROVIDER_UNAVAILABLE)
+        assert result.failure_message is not None
         self.assertIn("not configured", result.failure_message)
 
     @patch("httpx.Client.post")
@@ -114,6 +115,7 @@ class MistralErrorPathTests(unittest.TestCase):
         mock_post.side_effect = _make_http_status_error(500)
         result = self._adapter().execute(_execution_request(_mistral_spec()))
         self.assertEqual(result.failure_code, FailureCode.PROVIDER_UNAVAILABLE)
+        assert result.failure_message is not None
         self.assertIn("500", result.failure_message)
 
     @patch("httpx.Client.post")
@@ -121,6 +123,7 @@ class MistralErrorPathTests(unittest.TestCase):
         mock_post.side_effect = httpx.ConnectError("Connection refused")
         result = self._adapter().execute(_execution_request(_mistral_spec()))
         self.assertEqual(result.failure_code, FailureCode.PROVIDER_UNAVAILABLE)
+        assert result.failure_message is not None
         self.assertIn("network error", result.failure_message)
 
     @patch("httpx.Client.post")

@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any
 
 from gracekelly import __version__
+from gracekelly.storage.base import TaskRepository
 from gracekelly.storage.postgres import PostgresTaskRepository
 from gracekelly.storage.schema import INITIAL_MIGRATION_NAME
 from gracekelly.tools.snapshot_artifact import (
@@ -82,7 +83,7 @@ def serialize_record(record: Any) -> dict[str, Any]:
 
 
 def collect_export_snapshot(
-    repository: PostgresTaskRepository,
+    repository: TaskRepository,
     *,
     task_ids: list[str] | None = None,
     limit: int = 100,

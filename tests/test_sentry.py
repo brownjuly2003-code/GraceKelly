@@ -14,7 +14,7 @@ from gracekelly.middleware import logger, setup_sentry
 class SentrySetupTests(unittest.TestCase):
     def test_setup_sentry_initializes_sdk_when_dsn_is_provided(self) -> None:
         mock_sentry = types.ModuleType("sentry_sdk")
-        mock_sentry.init = MagicMock()
+        mock_sentry.init = MagicMock()  # type: ignore[attr-defined]
         integrations = types.ModuleType("sentry_sdk.integrations")
         fastapi_module = types.ModuleType("sentry_sdk.integrations.fastapi")
         starlette_module = types.ModuleType("sentry_sdk.integrations.starlette")
@@ -25,8 +25,8 @@ class SentrySetupTests(unittest.TestCase):
         class StarletteIntegration:
             pass
 
-        fastapi_module.FastApiIntegration = FastApiIntegration
-        starlette_module.StarletteIntegration = StarletteIntegration
+        fastapi_module.FastApiIntegration = FastApiIntegration  # type: ignore[attr-defined]
+        starlette_module.StarletteIntegration = StarletteIntegration  # type: ignore[attr-defined]
 
         with patch.dict(
             sys.modules,

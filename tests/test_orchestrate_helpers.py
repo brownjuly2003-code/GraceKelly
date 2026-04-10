@@ -226,7 +226,7 @@ class ModelsFromAcceptedEventTests(unittest.TestCase):
 
     def test_returns_sorted_model_ids(self) -> None:
         ev = _make_event(
-            event_type="task.accepted",
+            event_type=EventType.TASK_ACCEPTED,
             payload={"execution_plan": {"steps": [
                 {"model_id": "sonar"},
                 {"model_id": "mistral-small"},
@@ -237,7 +237,7 @@ class ModelsFromAcceptedEventTests(unittest.TestCase):
 
     def test_steps_without_model_id_skipped(self) -> None:
         ev = _make_event(
-            event_type="task.accepted",
+            event_type=EventType.TASK_ACCEPTED,
             payload={"execution_plan": {"steps": [
                 {"model_id": "mistral-small"},
                 {"no_model_id": True},

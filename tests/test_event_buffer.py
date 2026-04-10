@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import unittest
+from typing import cast
 from unittest.mock import MagicMock
 
 from gracekelly.core.orchestrator import OrchestratorService
@@ -30,7 +31,7 @@ class EventBufferTests(unittest.TestCase):
 
     def test_event_buffered_when_append_fails(self) -> None:
         svc = self._make_service()
-        svc._repository.append_event.side_effect = RuntimeError("db down")
+        cast(MagicMock, svc._repository).append_event.side_effect = RuntimeError("db down")
         event = _make_event()
         svc._append_event_safe(event)
         self.assertEqual(len(svc._event_buffer), 1)
@@ -40,10 +41,10 @@ class EventBufferTests(unittest.TestCase):
         svc = self._make_service()
         event = _make_event()
         svc._event_buffer.append(event)
-        svc._repository.append_event.return_value = None
+        cast(MagicMock, svc._repository).append_event.return_value = None
         svc._flush_buffer()
         self.assertEqual(len(svc._event_buffer), 0)
-        svc._repository.append_event.assert_called_once_with(event)
+        cast(MagicMock, svc._repository).append_event.assert_called_once_with(event)
 
     def test_buffer_stops_flushing_on_failure(self) -> None:
         svc = self._make_service()
@@ -51,7 +52,7 @@ class EventBufferTests(unittest.TestCase):
         ev2 = _make_event(seq=2)
         svc._event_buffer.append(ev1)
         svc._event_buffer.append(ev2)
-        svc._repository.append_event.side_effect = RuntimeError("still down")
+        cast(MagicMock, svc._repository).append_event.side_effect = RuntimeError("still down")
         svc._flush_buffer()
         self.assertEqual(len(svc._event_buffer), 2)
 

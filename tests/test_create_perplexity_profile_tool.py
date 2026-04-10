@@ -77,13 +77,18 @@ class CreatePerplexityProfileToolTests(unittest.TestCase):
         prompts: list[str] = []
         printed: list[str] = []
         profile_dir = r"D:\GraceKelly\tmp\browser-recon\perplexity-profile-test"
+
+        def _input_func(prompt: str) -> str:
+            prompts.append(prompt)
+            return ""
+
         with patch("pathlib.Path.mkdir") as mkdir_mock:
             create_perplexity_profile.create_profile(
                 profile_dir=profile_dir,
                 base_url="https://www.perplexity.ai",
                 channel="chrome",
                 sync_playwright_factory=lambda: manager,
-                input_func=lambda prompt: prompts.append(prompt) or "",
+                input_func=_input_func,
                 print_func=printed.append,
             )
 

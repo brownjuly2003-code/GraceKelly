@@ -23,6 +23,8 @@ from gracekelly.core.models import resolve_model
 
 
 class PlaywrightBrowserLiveTests(unittest.TestCase):
+    _adapter: PerplexityBrowserAdapter
+
     @classmethod
     def setUpClass(cls) -> None:
         if os.getenv("GRACEKELLY_BROWSER_LIVE_TEST", "false").lower() != "true":
@@ -99,6 +101,7 @@ class PlaywrightBrowserLiveTests(unittest.TestCase):
             debug_path.write_text(json.dumps(result.details, indent=2, sort_keys=True), encoding="utf-8")
 
         self.assertEqual(result.status, StepStatus.COMPLETED)
+        assert result.output_text is not None
         self.assertTrue(result.output_text.strip())
         self.assertIn("model_selection_verified", result.details)
         self.assertIn("response_source", result.details)

@@ -5,7 +5,7 @@ import unittest
 try:
     from fastapi.testclient import TestClient
 except ModuleNotFoundError:  # pragma: no cover
-    TestClient = None
+    TestClient = None  # type: ignore[assignment,misc]
 
 
 @unittest.skipIf(TestClient is None, "fastapi.testclient not installed")
@@ -22,7 +22,7 @@ class TaskSearchAndExportTests(unittest.TestCase):
             json={"prompt": prompt, "model": "Kimi K2", "dry_run": True},
         )
         self.assertEqual(response.status_code, 200)
-        return response.json()["task_id"]
+        return str(response.json()["task_id"])
 
     def test_prompt_contains_filter_returns_matching_tasks(self) -> None:
         alpha_task_id = self._create_task("alpha query here")
