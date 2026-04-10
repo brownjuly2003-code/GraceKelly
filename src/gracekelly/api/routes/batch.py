@@ -56,7 +56,7 @@ class BatchResponse(BaseModel):
         422: {"description": "Validation error (empty prompts list, prompt too long, or too many prompts)"},
     },
 )
-def run_batch(payload: BatchRequest, request: Request) -> BatchResponse:
+async def run_batch(payload: BatchRequest, request: Request) -> BatchResponse:
     api_adapters = get_app_state(request).api_adapters
 
     try:
@@ -100,7 +100,10 @@ def run_batch(payload: BatchRequest, request: Request) -> BatchResponse:
             reasoning=False,
         )
         try:
-            result = adapter.execute(exec_request)
+            if hasattr(type(adapter), "execute_async"):
+                result = await adapter.execute_async(exec_request)
+            else:
+                result = adapter.execute(exec_request)
             if result.status == StepStatus.COMPLETED and result.output_text:
                 results.append(BatchItemResponse(
                     prompt=prompt_text,

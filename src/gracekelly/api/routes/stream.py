@@ -206,7 +206,7 @@ async def orchestrate_stream(request: Request, body: OrchestrateRequest) -> Stre
             reasoning=body.reasoning,
         )
         fallback = adapter or state.dry_run_adapter
-        result = await asyncio.to_thread(fallback.execute, exec_request)
+        result = await fallback.execute_async(exec_request)
         await asyncio.to_thread(
             _persist_stream_result,
             state,

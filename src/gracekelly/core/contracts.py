@@ -156,6 +156,11 @@ class ExecutionAdapter(ABC):
     def execute(self, request: ExecutionRequest) -> ExecutionResult:
         raise NotImplementedError
 
+    async def execute_async(self, request: ExecutionRequest) -> ExecutionResult:
+        import asyncio
+
+        return await asyncio.to_thread(self.execute, request)
+
     def healthcheck(self) -> dict[str, Any]:
         return {
             "status": "ok",

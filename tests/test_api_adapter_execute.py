@@ -1,12 +1,22 @@
 from __future__ import annotations
 
+import threading
 import unittest
-from unittest.mock import MagicMock, patch
+from collections.abc import Mapping
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
 
 from gracekelly.adapters.api.base import BaseApiAdapter
-from gracekelly.core.contracts import FailureCode, StepStatus
+from gracekelly.adapters.dry_run import DryRunExecutionAdapter
+from gracekelly.core.contracts import (
+    ExecutionAdapter,
+    ExecutionMode,
+    ExecutionRequest,
+    ExecutionResult,
+    FailureCode,
+    StepStatus,
+)
 
 
 def _adapter(*, api_key: str | None = "test-key", max_retries: int = 0) -> BaseApiAdapter:
@@ -43,7 +53,7 @@ def _make_http_status_error(code: int) -> httpx.HTTPStatusError:
     )
 
 
-def _mock_httpx_response(content: dict) -> MagicMock:
+def _mock_httpx_response(content: Mapping[str, object]) -> MagicMock:
     mock = MagicMock(spec=httpx.Response)
     mock.status_code = 200
     mock.json.return_value = content
@@ -142,13 +152,13 @@ class ExecuteTimeoutAndNetworkErrorTests(unittest.TestCase):
         self.assertEqual(result.failure_code, FailureCode.PROVIDER_UNAVAILABLE)
 
     def test_timeout_retry_succeeds(self) -> None:
-        responses: list = [httpx.TimeoutException("timed out"), _mock_httpx_response(_GOOD_RESPONSE)]
+        responses: list[object] = [httpx.TimeoutException("timed out"), _mock_httpx_response(_GOOD_RESPONSE)]
         with patch("httpx.Client.post", side_effect=responses):
             result = _adapter(max_retries=1).execute(_make_request())
         self.assertEqual(result.status, StepStatus.COMPLETED)
 
     def test_connect_error_retry_succeeds(self) -> None:
-        responses: list = [httpx.ConnectError("conn"), _mock_httpx_response(_GOOD_RESPONSE)]
+        responses: list[object] = [httpx.ConnectError("conn"), _mock_httpx_response(_GOOD_RESPONSE)]
         with patch("httpx.Client.post", side_effect=responses):
             result = _adapter(max_retries=1).execute(_make_request())
         self.assertEqual(result.status, StepStatus.COMPLETED)
@@ -176,6 +186,87 @@ class ExecuteUnexpectedExceptionTests(unittest.TestCase):
         with patch("httpx.Client.post", side_effect=explode):
             _adapter(max_retries=3).execute(_make_request())
         self.assertEqual(call_count, 1)
+
+
+class ExecuteAsyncTests(unittest.IsolatedAsyncioTestCase):
+    async def test_execute_async_returns_result(self) -> None:
+        adapter = _adapter()
+        self.assertTrue(hasattr(adapter, "execute_async"))
+        with patch.object(
+            adapter,
+            "_async_post_json",
+            AsyncMock(return_value=_GOOD_RESPONSE),
+            create=True,
+        ) as mock_post:
+            result = await adapter.execute_async(_make_request())
+        self.assertEqual(result.status, StepStatus.COMPLETED)
+        self.assertEqual(result.output_text, "The answer is 42.")
+        self.assertEqual(mock_post.await_count, 1)
+
+    async def test_execute_async_retries_on_429(self) -> None:
+        adapter = _adapter(max_retries=1)
+        self.assertTrue(hasattr(adapter, "execute_async"))
+        with patch.object(
+            adapter,
+            "_async_post_json",
+            AsyncMock(side_effect=[_make_http_status_error(429), _GOOD_RESPONSE]),
+            create=True,
+        ) as mock_post:
+            result = await adapter.execute_async(_make_request())
+        self.assertEqual(result.status, StepStatus.COMPLETED)
+        self.assertEqual(result.details["attempts"], 2)
+        self.assertEqual(mock_post.await_count, 2)
+
+    async def test_execute_async_timeout(self) -> None:
+        adapter = _adapter(max_retries=0)
+        self.assertTrue(hasattr(adapter, "execute_async"))
+        with patch.object(
+            adapter,
+            "_async_post_json",
+            AsyncMock(side_effect=httpx.TimeoutException("timed out")),
+            create=True,
+        ):
+            result = await adapter.execute_async(_make_request())
+        self.assertEqual(result.failure_code, FailureCode.TIMEOUT)
+
+    async def test_dry_run_execute_async_matches_execute(self) -> None:
+        adapter = DryRunExecutionAdapter()
+        request = _make_request()
+        request.models = (request.step.model,)
+        self.assertTrue(hasattr(adapter, "execute_async"))
+        sync_result = adapter.execute(request)
+        async_result = await adapter.execute_async(request)
+        self.assertEqual(async_result.status, StepStatus.COMPLETED)
+        self.assertEqual(async_result.execution_mode, ExecutionMode.DRY_RUN)
+        self.assertEqual(async_result.output_text, sync_result.output_text)
+        self.assertEqual(async_result.details, sync_result.details)
+
+    async def test_default_execute_async_calls_execute_in_thread(self) -> None:
+        class _ConcreteAdapter(ExecutionAdapter):
+            name = "thread-check"
+
+            def __init__(self) -> None:
+                self.execute_thread_id: int | None = None
+
+            def execute(self, request: ExecutionRequest) -> ExecutionResult:
+                self.execute_thread_id = threading.get_ident()
+                return ExecutionResult(
+                    adapter_name=self.name,
+                    model_id="m1",
+                    model_display_name="M1",
+                    execution_mode=ExecutionMode.API,
+                    status=StepStatus.COMPLETED,
+                    output_text=request.prompt,
+                )
+
+        adapter = _ConcreteAdapter()
+        request = _make_request()
+        self.assertTrue(hasattr(adapter, "execute_async"))
+        caller_thread_id = threading.get_ident()
+        result = await adapter.execute_async(request)
+        self.assertEqual(result.output_text, "Hello")
+        self.assertIsNotNone(adapter.execute_thread_id)
+        self.assertNotEqual(adapter.execute_thread_id, caller_thread_id)
 
 
 if __name__ == "__main__":

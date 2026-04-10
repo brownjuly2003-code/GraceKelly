@@ -55,7 +55,7 @@ class CompareResponse(BaseModel):
         422: {"description": "Validation error (empty models list or prompt too long)"},
     },
 )
-def run_compare(payload: CompareRequest, request: Request) -> CompareResponse:
+async def run_compare(payload: CompareRequest, request: Request) -> CompareResponse:
     api_adapters = get_app_state(request).api_adapters
 
     answers: list[ModelAnswer] = []
@@ -93,13 +93,17 @@ def run_compare(payload: CompareRequest, request: Request) -> CompareResponse:
         )
 
         try:
-            result = adapter.execute(ExecutionRequest(
+            exec_request = ExecutionRequest(
                 task_id="compare",
                 prompt=payload.prompt,
                 plan=plan,
                 step=step,
                 reasoning=True,
-            ))
+            )
+            if hasattr(type(adapter), "execute_async"):
+                result = await adapter.execute_async(exec_request)
+            else:
+                result = adapter.execute(exec_request)
             if result.status == StepStatus.COMPLETED and result.output_text:
                 answers.append(ModelAnswer(model_id=model_spec.id, answer=result.output_text, status="completed"))
                 succeeded += 1
@@ -152,13 +156,17 @@ def run_compare(payload: CompareRequest, request: Request) -> CompareResponse:
                 cancel_on_quorum=False,
             )
             try:
-                result = first_adapter.execute(ExecutionRequest(
+                exec_request = ExecutionRequest(
                     task_id="compare-analysis",
                     prompt=analysis_prompt,
                     plan=plan,
                     step=step,
                     reasoning=True,
-                ))
+                )
+                if hasattr(type(first_adapter), "execute_async"):
+                    result = await first_adapter.execute_async(exec_request)
+                else:
+                    result = first_adapter.execute(exec_request)
                 if result.status == StepStatus.COMPLETED and result.output_text:
                     analysis = result.output_text
             except Exception:

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import time
@@ -45,9 +46,22 @@ class BaseApiAdapter(ExecutionAdapter):
             timeout=None,  # nosec B113 — timeout is set per-request in _post_json
             follow_redirects=True,
         )
+        self._async_http_client = httpx.AsyncClient(
+            timeout=None,  # nosec B113 — timeout is set per-request in _async_post_json
+            follow_redirects=True,
+        )
 
     def close(self) -> None:
         self._http_client.close()
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            asyncio.run(self.aclose())
+        else:
+            loop.create_task(self.aclose())
+
+    async def aclose(self) -> None:
+        await self._async_http_client.aclose()
 
     @property
     def has_api_key(self) -> bool:
@@ -178,6 +192,159 @@ class BaseApiAdapter(ExecutionAdapter):
             f"{self._provider_label} failed after {attempts} attempts: {last_error}",
         )
 
+    async def execute_async(self, request_model: ExecutionRequest) -> ExecutionResult:
+        model = request_model.step.model
+        timeout_seconds = self._resolve_timeout_seconds(request_model)
+        if not self._api_key:
+            return self._failure(
+                model.id,
+                model.display_name,
+                FailureCode.PROVIDER_UNAVAILABLE,
+                f"{self._provider_label} API key is not configured.",
+            )
+
+        payload: dict[str, object] = {
+            "model": request_model.step.provider_model_id,
+            "messages": [{"role": "user", "content": request_model.prompt}],
+        }
+
+        last_error: Exception | None = None
+        attempts = 1 + self._max_retries
+        for attempt in range(1, attempts + 1):
+            try:
+                response_data = await self._async_post_json(
+                    "/chat/completions", payload, timeout_seconds=timeout_seconds,
+                )
+                output_text = self._extract_output_text(response_data)
+                usage = response_data.get("usage", {})
+                input_tokens = None
+                output_tokens = None
+                if isinstance(usage, dict):
+                    input_tokens = usage.get("prompt_tokens") or usage.get("input_tokens")
+                    output_tokens = usage.get("completion_tokens") or usage.get("output_tokens")
+                return ExecutionResult(
+                    adapter_name=self.name,
+                    model_id=model.id,
+                    model_display_name=model.display_name,
+                    execution_mode=ExecutionMode.API,
+                    status=StepStatus.COMPLETED,
+                    output_text=output_text,
+                    input_tokens=int(input_tokens) if input_tokens is not None else None,
+                    output_tokens=int(output_tokens) if output_tokens is not None else None,
+                    details={
+                        "provider": self._provider_label.lower(),
+                        "provider_model_id": request_model.step.provider_model_id,
+                        "timeout_seconds": timeout_seconds,
+                        "attempts": attempt,
+                    },
+                )
+            except httpx.HTTPStatusError as exc:
+                last_error = exc
+                status_code = exc.response.status_code
+                if status_code in _RETRYABLE_HTTP_CODES and attempt < attempts:
+                    delay = self._retry_backoff_seconds * (2 ** (attempt - 1))
+                    logger.info(
+                        "%s retry attempt=%d delay=%.1fs",
+                        self._provider_label, attempt + 1, delay,
+                    )
+                    await asyncio.sleep(delay)
+                    continue
+                if status_code == 429:
+                    return self._failure(
+                        model.id, model.display_name, FailureCode.RATE_LIMITED,
+                        f"{self._provider_label} rate limit reached.",
+                    )
+                return self._failure(
+                    model.id, model.display_name, FailureCode.PROVIDER_UNAVAILABLE,
+                    f"{self._provider_label} HTTP error: {status_code}",
+                )
+            except httpx.TimeoutException as exc:
+                last_error = exc
+                if attempt < attempts:
+                    delay = self._retry_backoff_seconds * (2 ** (attempt - 1))
+                    logger.info(
+                        "%s retry attempt=%d delay=%.1fs",
+                        self._provider_label, attempt + 1, delay,
+                    )
+                    await asyncio.sleep(delay)
+                    continue
+                return self._failure(
+                    model.id, model.display_name, FailureCode.TIMEOUT,
+                    f"{self._provider_label} request timed out.",
+                )
+            except httpx.RequestError as exc:
+                last_error = exc
+                if attempt < attempts:
+                    delay = self._retry_backoff_seconds * (2 ** (attempt - 1))
+                    logger.info(
+                        "%s retry attempt=%d delay=%.1fs",
+                        self._provider_label, attempt + 1, delay,
+                    )
+                    await asyncio.sleep(delay)
+                    continue
+                return self._failure(
+                    model.id, model.display_name, FailureCode.PROVIDER_UNAVAILABLE,
+                    f"{self._provider_label} network error: {exc}",
+                )
+            except TimeoutError as exc:
+                last_error = exc
+                if attempt < attempts:
+                    delay = self._retry_backoff_seconds * (2 ** (attempt - 1))
+                    logger.info(
+                        "%s retry attempt=%d delay=%.1fs",
+                        self._provider_label, attempt + 1, delay,
+                    )
+                    await asyncio.sleep(delay)
+                    continue
+                return self._failure(
+                    model.id, model.display_name, FailureCode.TIMEOUT,
+                    f"{self._provider_label} request timed out.",
+                )
+            except OSError as exc:
+                last_error = exc
+                code = getattr(exc, "code", None)
+                reason = getattr(exc, "reason", None)
+                if isinstance(code, int):
+                    if code in _RETRYABLE_HTTP_CODES and attempt < attempts:
+                        delay = self._retry_backoff_seconds * (2 ** (attempt - 1))
+                        logger.info(
+                            "%s retry attempt=%d delay=%.1fs",
+                            self._provider_label, attempt + 1, delay,
+                        )
+                        await asyncio.sleep(delay)
+                        continue
+                    if code == 429:
+                        return self._failure(
+                            model.id, model.display_name, FailureCode.RATE_LIMITED,
+                            f"{self._provider_label} rate limit reached.",
+                        )
+                    return self._failure(
+                        model.id, model.display_name, FailureCode.PROVIDER_UNAVAILABLE,
+                        f"{self._provider_label} HTTP error: {code}",
+                    )
+                if attempt < attempts:
+                    delay = self._retry_backoff_seconds * (2 ** (attempt - 1))
+                    logger.info(
+                        "%s retry attempt=%d delay=%.1fs",
+                        self._provider_label, attempt + 1, delay,
+                    )
+                    await asyncio.sleep(delay)
+                    continue
+                return self._failure(
+                    model.id, model.display_name, FailureCode.PROVIDER_UNAVAILABLE,
+                    f"{self._provider_label} network error: {reason or exc}",
+                )
+            except Exception as exc:
+                return self._failure(
+                    model.id, model.display_name, FailureCode.UNKNOWN_ERROR,
+                    f"{self._provider_label} adapter error: {exc}",
+                )
+
+        return self._failure(
+            model.id, model.display_name, FailureCode.UNKNOWN_ERROR,
+            f"{self._provider_label} failed after {attempts} attempts: {last_error}",
+        )
+
     def execute_stream(self, request_model: ExecutionRequest) -> Iterator[StreamChunk]:
         model = request_model.step.model
         timeout_seconds = self._resolve_timeout_seconds(request_model)
@@ -288,6 +455,40 @@ class BaseApiAdapter(ExecutionAdapter):
         if extra_headers:
             headers.update(extra_headers)
         response = self._http_client.post(
+            f"{self._base_url}{path}",
+            json=payload,
+            headers=headers,
+            timeout=timeout_seconds,
+        )
+        response.raise_for_status()
+        result = response.json()
+        if not isinstance(result, dict):
+            raise ValueError(f"Expected dict response, got {type(result).__name__}")
+        return result
+
+    async def _async_post_json(
+        self,
+        path: str,
+        payload: dict[str, object],
+        *,
+        timeout_seconds: float,
+        extra_headers: dict[str, str] | None = None,
+    ) -> dict[str, object]:
+        if type(self)._post_json is not BaseApiAdapter._post_json:
+            return await asyncio.to_thread(
+                self._post_json,
+                path,
+                payload,
+                timeout_seconds=timeout_seconds,
+                extra_headers=extra_headers,
+            )
+        headers: dict[str, str] = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {self._api_key}",
+        }
+        if extra_headers:
+            headers.update(extra_headers)
+        response = await self._async_http_client.post(
             f"{self._base_url}{path}",
             json=payload,
             headers=headers,

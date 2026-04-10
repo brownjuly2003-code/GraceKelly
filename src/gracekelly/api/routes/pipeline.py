@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import logging
 
 from fastapi import APIRouter, HTTPException, Request
@@ -56,7 +57,7 @@ class PipelineResponse(BaseModel):
         400: {"description": "Invalid model, unknown reliability level, or no adapter available"},
     },
 )
-def run_pipeline(payload: PipelineRequest, request: Request) -> PipelineResponse:
+async def run_pipeline(payload: PipelineRequest, request: Request) -> PipelineResponse:
     api_adapters = get_app_state(request).api_adapters
 
     try:
@@ -104,7 +105,7 @@ def run_pipeline(payload: PipelineRequest, request: Request) -> PipelineResponse
 
     call_count = {"n": 0}
 
-    def execute_fn(prompt_text: str) -> str:
+    async def execute_request(prompt_text: str) -> str:
         call_count["n"] += 1
         exec_request = ExecutionRequest(
             task_id="pipeline",
@@ -113,7 +114,10 @@ def run_pipeline(payload: PipelineRequest, request: Request) -> PipelineResponse
             step=step,
             reasoning=resolved.reasoning,
         )
-        result = adapter.execute(exec_request)
+        if hasattr(type(adapter), "execute_async"):
+            result = await adapter.execute_async(exec_request)
+        else:
+            result = adapter.execute(exec_request)
         if result.status == StepStatus.COMPLETED and result.output_text:
             return result.output_text
         return f"[{result.failure_code or 'error'}] {result.failure_message or 'No output'}"
@@ -130,16 +134,17 @@ def run_pipeline(payload: PipelineRequest, request: Request) -> PipelineResponse
                     available_specs.append(spec)
                     break
         executor = MultiModelExecutor(api_adapters, available_specs)
-        mm_result = executor.execute_all(
+        mm_result = await asyncio.to_thread(
+            executor.execute_all,
             payload.prompt, reasoning=resolved.reasoning,
         )
         call_count["n"] = len(mm_result.responses) + len(mm_result.failed_models)
-        answer = mm_result.responses[0] if mm_result.responses else execute_fn(payload.prompt)
+        answer = mm_result.responses[0] if mm_result.responses else await execute_request(payload.prompt)
         models_used = list(mm_result.model_ids)
         if not models_used:
             models_used = [model_spec.id]
     else:
-        answer = execute_fn(payload.prompt)
+        answer = await execute_request(payload.prompt)
         models_used = [model_spec.id]
 
     task_type = classify_task(payload.prompt)

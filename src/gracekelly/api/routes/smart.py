@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import logging
 
 from fastapi import APIRouter, HTTPException, Request
@@ -64,7 +65,7 @@ class SmartResponse(BaseModel):
         400: {"description": "Invalid model, unknown pattern/reliability level, or conflicting options"},
     },
 )
-def run_smart(payload: SmartRequest, request: Request) -> SmartResponse:
+async def run_smart(payload: SmartRequest, request: Request) -> SmartResponse:
     state = get_app_state(request)
     api_adapters = state.api_adapters
     embeddings_client = state.embeddings_client
@@ -121,7 +122,7 @@ def run_smart(payload: SmartRequest, request: Request) -> SmartResponse:
 
     call_count = {"n": 0}
 
-    def execute_fn(prompt_text: str) -> str:
+    async def execute_request(prompt_text: str) -> str:
         call_count["n"] += 1
         exec_request = ExecutionRequest(
             task_id="smart",
@@ -130,10 +131,16 @@ def run_smart(payload: SmartRequest, request: Request) -> SmartResponse:
             step=step,
             reasoning=resolved.reasoning,
         )
-        result = adapter.execute(exec_request)
+        if hasattr(type(adapter), "execute_async"):
+            result = await adapter.execute_async(exec_request)
+        else:
+            result = adapter.execute(exec_request)
         if result.status == StepStatus.COMPLETED and result.output_text:
             return result.output_text
         return f"[{result.failure_code or 'error'}] {result.failure_message or 'No output'}"
+
+    def execute_fn(prompt_text: str) -> str:
+        return asyncio.run(execute_request(prompt_text))
 
     task_type = classify_task(payload.prompt)
     used_consensus = False
@@ -141,7 +148,7 @@ def run_smart(payload: SmartRequest, request: Request) -> SmartResponse:
     answer: str
 
     if resolved.use_decomposition:
-        decomp_result = execute_decomposed(payload.prompt, execute_fn)
+        decomp_result = await asyncio.to_thread(execute_decomposed, payload.prompt, execute_fn)
         answer = decomp_result.final_answer
         was_decomposed = decomp_result.was_decomposed
     elif resolved.use_consensus and embeddings_client is not None:
@@ -153,16 +160,16 @@ def run_smart(payload: SmartRequest, request: Request) -> SmartResponse:
             consensus_config=consensus_config,
         )
         executor = ConsensusExecutor(embeddings_client, exec_config)
-        consensus_result = executor.execute(payload.prompt, execute_fn)
+        consensus_result = await asyncio.to_thread(executor.execute, payload.prompt, execute_fn)
         answer = consensus_result.best_response
         used_consensus = True
     else:
-        answer = execute_fn(payload.prompt)
+        answer = await execute_request(payload.prompt)
 
     used_roles = False
     if resolved.roles and len(resolved.roles) > 0:
         role_exec = RoleExecutor(execute_fn)
-        answer, _ = role_exec.execute_and_verify(payload.prompt)
+        answer, _ = await asyncio.to_thread(role_exec.execute_and_verify, payload.prompt)
         used_roles = True
 
     return SmartResponse(

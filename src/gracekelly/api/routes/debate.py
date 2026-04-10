@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import logging
 
 from fastapi import APIRouter, HTTPException, Request
@@ -51,7 +52,7 @@ class DebateResponse(BaseModel):
         400: {"description": "Invalid model or no adapter available for the requested provider"},
     },
 )
-def run_debate_endpoint(payload: DebateRequest, request: Request) -> DebateResponse:
+async def run_debate_endpoint(payload: DebateRequest, request: Request) -> DebateResponse:
     api_adapters = get_app_state(request).api_adapters
 
     try:
@@ -84,7 +85,7 @@ def run_debate_endpoint(payload: DebateRequest, request: Request) -> DebateRespo
 
     call_count = {"n": 0}
 
-    def execute_fn(prompt_text: str) -> str:
+    async def execute_request(prompt_text: str) -> str:
         call_count["n"] += 1
         exec_request = ExecutionRequest(
             task_id="debate",
@@ -93,17 +94,23 @@ def run_debate_endpoint(payload: DebateRequest, request: Request) -> DebateRespo
             step=step,
             reasoning=True,
         )
-        result = adapter.execute(exec_request)
+        if hasattr(type(adapter), "execute_async"):
+            result = await adapter.execute_async(exec_request)
+        else:
+            result = adapter.execute(exec_request)
         if result.status == StepStatus.COMPLETED and result.output_text:
             return result.output_text
         return f"[{result.failure_code or 'error'}] {result.failure_message or 'No output'}"
 
+    def execute_fn(prompt_text: str) -> str:
+        return asyncio.run(execute_request(prompt_text))
+
     if payload.initial_position:
         initial = payload.initial_position
     else:
-        initial = execute_fn(f"Take a clear position on this topic: {payload.topic}")
+        initial = await execute_request(f"Take a clear position on this topic: {payload.topic}")
 
-    debate_result = run_debate(payload.topic, initial, execute_fn)
+    debate_result = await asyncio.to_thread(run_debate, payload.topic, initial, execute_fn)
 
     return DebateResponse(
         initial_position=initial,
