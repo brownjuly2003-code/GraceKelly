@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import unittest
 from datetime import UTC, datetime
+from typing import Any
 
 from gracekelly.core.contracts import (
     AdapterHint,
@@ -32,7 +33,7 @@ def _task(
     quorum: int = 1,
     cancel_on_quorum: bool = True,
     retry_of_task_id: str | None = None,
-    metadata: dict | None = None,
+    metadata: dict[str, Any] | None = None,
 ) -> TaskRecord:
     return TaskRecord(
         task_id=task_id,
@@ -85,7 +86,7 @@ def _event(
     task_id: str = "t1",
     seq: int = 1,
     event_type: EventType = EventType.TASK_COMPLETED,
-    payload: dict | None = None,
+    payload: dict[str, Any] | None = None,
 ) -> TaskEventRecord:
     return TaskEventRecord(
         event_id=f"ev-{seq}",

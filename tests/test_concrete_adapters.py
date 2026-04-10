@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import unittest
+from typing import Any
 from unittest.mock import MagicMock, patch
 
 from gracekelly.adapters.api.anthropic import AnthropicApiAdapter
@@ -10,7 +11,7 @@ from gracekelly.adapters.api.openai_compat import OpenAICompatibleApiAdapter
 from gracekelly.core.contracts import StepStatus
 
 
-def _mock_response(content: dict) -> MagicMock:
+def _mock_response(content: dict[str, Any]) -> MagicMock:
     mock = MagicMock()
     mock.read.return_value = json.dumps(content).encode("utf-8")
     mock.__enter__ = lambda s: s

@@ -57,7 +57,7 @@ class _FakePlaywrightManager:
     def __enter__(self) -> _FakePlaywright:
         return self.playwright
 
-    def __exit__(self, exc_type, exc, tb) -> None:
+    def __exit__(self, exc_type: object, exc: object, tb: object) -> None:
         return None
 
 

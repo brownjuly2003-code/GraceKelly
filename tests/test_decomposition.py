@@ -128,13 +128,13 @@ class DecompositionTests(unittest.TestCase):
         )
 
         with self.assertRaises(FrozenInstanceError):
-            result.final_answer = "changed"
+            setattr(result, "final_answer", "changed")
 
     def test_subtask_is_frozen(self) -> None:
         subtask = SubTask(index=0, prompt="prompt")
 
         with self.assertRaises(FrozenInstanceError):
-            subtask.prompt = "changed"
+            setattr(subtask, "prompt", "changed")
 
     def test_execute_fn_call_count_decomposed(self) -> None:
         execute_fn = Mock(

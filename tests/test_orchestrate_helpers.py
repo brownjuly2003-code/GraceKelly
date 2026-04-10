@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import unittest
 from datetime import UTC, datetime
+from typing import Any
 
 from gracekelly.api.routes.orchestrate import (
     _build_retry_request,
@@ -12,6 +13,7 @@ from gracekelly.api.routes.orchestrate import (
 )
 from gracekelly.core.contracts import (
     AdapterHint,
+    EventType,
     ExecutionMode,
     FailureCode,
     MergeStrategy,
@@ -24,8 +26,8 @@ from gracekelly.storage.base import TaskEventRecord, TaskRecord, TaskStepRecord
 _NOW = datetime(2026, 1, 1, 12, 0, tzinfo=UTC)
 
 
-def _make_task(**kwargs) -> TaskRecord:
-    defaults = dict(
+def _make_task(**kwargs: Any) -> TaskRecord:
+    defaults: dict[str, Any] = dict(
         task_id="t1",
         status=TaskStatus.FAILED,
         accepted_at=_NOW,
@@ -57,7 +59,10 @@ def _make_step(model_id: str = "mistral-small") -> TaskStepRecord:
     )
 
 
-def _make_event(event_type: str = "task.accepted", payload: dict | None = None) -> TaskEventRecord:
+def _make_event(
+    event_type: EventType = EventType.TASK_ACCEPTED,
+    payload: dict[str, object] | None = None,
+) -> TaskEventRecord:
     return TaskEventRecord(
         event_id="ev-1",
         task_id="t1",
@@ -172,7 +177,7 @@ class BuildRetryRequestTests(unittest.TestCase):
 
     def test_no_steps_falls_back_to_events(self) -> None:
         ev = _make_event(
-            event_type="task.accepted",
+            event_type=EventType.TASK_ACCEPTED,
             payload={"execution_plan": {"steps": [{"model_id": "mistral-small"}]}},
         )
         req = _build_retry_request(_make_task(), [], [ev])
@@ -188,7 +193,7 @@ class BuildRetryRequestTests(unittest.TestCase):
 class ModelsFromAcceptedEventTests(unittest.TestCase):
     def test_extracts_model_ids(self) -> None:
         ev = _make_event(
-            event_type="task.accepted",
+            event_type=EventType.TASK_ACCEPTED,
             payload={"execution_plan": {"steps": [
                 {"model_id": "mistral-small"},
                 {"model_id": "gpt-5-4-api"},
@@ -200,7 +205,7 @@ class ModelsFromAcceptedEventTests(unittest.TestCase):
 
     def test_deduplicates_model_ids(self) -> None:
         ev = _make_event(
-            event_type="task.accepted",
+            event_type=EventType.TASK_ACCEPTED,
             payload={"execution_plan": {"steps": [
                 {"model_id": "mistral-small"},
                 {"model_id": "mistral-small"},
@@ -211,7 +216,7 @@ class ModelsFromAcceptedEventTests(unittest.TestCase):
 
     def test_skips_non_accepted_events(self) -> None:
         ev = _make_event(
-            event_type="task.completed",
+            event_type=EventType.TASK_COMPLETED,
             payload={"execution_plan": {"steps": [{"model_id": "mistral-small"}]}},
         )
         self.assertEqual(_models_from_accepted_event([ev]), [])
@@ -241,7 +246,7 @@ class ModelsFromAcceptedEventTests(unittest.TestCase):
         self.assertEqual(_models_from_accepted_event([ev]), ["mistral-small"])
 
     def test_missing_execution_plan_returns_empty(self) -> None:
-        ev = _make_event(event_type="task.accepted", payload={})
+        ev = _make_event(event_type=EventType.TASK_ACCEPTED, payload={})
         self.assertEqual(_models_from_accepted_event([ev]), [])
 
 

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import inspect
 import logging
 
 from fastapi import APIRouter, HTTPException, Request
@@ -131,8 +132,9 @@ async def run_smart(payload: SmartRequest, request: Request) -> SmartResponse:
             step=step,
             reasoning=resolved.reasoning,
         )
-        if hasattr(type(adapter), "execute_async"):
-            result = await adapter.execute_async(exec_request)
+        async_result = adapter.execute_async(exec_request)
+        if inspect.isawaitable(async_result):
+            result = await async_result
         else:
             result = adapter.execute(exec_request)
         if result.status == StepStatus.COMPLETED and result.output_text:
@@ -140,7 +142,18 @@ async def run_smart(payload: SmartRequest, request: Request) -> SmartResponse:
         return f"[{result.failure_code or 'error'}] {result.failure_message or 'No output'}"
 
     def execute_fn(prompt_text: str) -> str:
-        return asyncio.run(execute_request(prompt_text))
+        call_count["n"] += 1
+        exec_request = ExecutionRequest(
+            task_id="smart",
+            prompt=prompt_text,
+            plan=plan,
+            step=step,
+            reasoning=resolved.reasoning,
+        )
+        result = adapter.execute(exec_request)
+        if result.status == StepStatus.COMPLETED and result.output_text:
+            return result.output_text
+        return f"[{result.failure_code or 'error'}] {result.failure_message or 'No output'}"
 
     task_type = classify_task(payload.prompt)
     used_consensus = False

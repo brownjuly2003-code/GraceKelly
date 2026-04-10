@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import unittest
+from typing import Any
 from unittest.mock import MagicMock, patch
 
 import httpx
@@ -19,22 +20,22 @@ from gracekelly.core.contracts import (
     MergeStrategy,
     StepStatus,
 )
-from gracekelly.core.models import MODEL_SPECS
+from gracekelly.core.models import MODEL_SPECS, ModelSpec
 
 
-def _mistral_spec():
+def _mistral_spec() -> ModelSpec:
     return next(s for s in MODEL_SPECS if s.id == "mistral-small")
 
 
-def _openai_spec():
+def _openai_spec() -> ModelSpec:
     return next(s for s in MODEL_SPECS if s.id == "gpt-5-4-api")
 
 
-def _anthropic_spec():
+def _anthropic_spec() -> ModelSpec:
     return next(s for s in MODEL_SPECS if s.id == "claude-sonnet-4-6-api")
 
 
-def _execution_request(model_spec) -> ExecutionRequest:
+def _execution_request(model_spec: ModelSpec) -> ExecutionRequest:
     step = ExecutionStep(
         model=model_spec,
         backend=ExecutionBackend.API,
@@ -64,11 +65,11 @@ def _make_http_status_error(code: int) -> httpx.HTTPStatusError:
     )
 
 
-def _api_response(content: str = "OK") -> dict:
+def _api_response(content: str = "OK") -> dict[str, Any]:
     return {"choices": [{"message": {"content": content}}]}
 
 
-def _mock_httpx_response(data: dict) -> MagicMock:
+def _mock_httpx_response(data: dict[str, Any]) -> MagicMock:
     mock = MagicMock(spec=httpx.Response)
     mock.status_code = 200
     mock.json.return_value = data
@@ -77,7 +78,7 @@ def _mock_httpx_response(data: dict) -> MagicMock:
 
 
 # urllib mock for Anthropic adapter (still uses urllib internally)
-def _mock_urllib_response(data: dict) -> MagicMock:
+def _mock_urllib_response(data: dict[str, Any]) -> MagicMock:
     body = json.dumps(data).encode("utf-8")
     mock = MagicMock()
     mock.__enter__ = lambda s: s

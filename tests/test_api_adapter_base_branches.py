@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import unittest
+from typing import Any
 from unittest.mock import MagicMock, patch
 
 import httpx
@@ -37,7 +38,7 @@ def _make_request(*, model_timeout: int | None = 10) -> MagicMock:
     return req
 
 
-def _mock_httpx_response(content: dict) -> MagicMock:
+def _mock_httpx_response(content: dict[str, Any]) -> MagicMock:
     mock = MagicMock(spec=httpx.Response)
     mock.status_code = 200
     mock.json.return_value = content
@@ -73,7 +74,7 @@ class ResolveTimeoutSecondsTests(unittest.TestCase):
 class ExtractOutputTextBranchTests(unittest.TestCase):
     """_extract_output_text branches for malformed response payloads."""
 
-    def _extract(self, payload: dict) -> str:
+    def _extract(self, payload: dict[str, Any]) -> str:
         return _adapter()._extract_output_text(payload)
 
     def test_choices_is_none_raises_value_error(self) -> None:

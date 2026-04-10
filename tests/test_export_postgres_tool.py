@@ -13,6 +13,7 @@ from unittest.mock import patch
 from uuid import uuid4
 
 from gracekelly import __version__
+from gracekelly.storage.base import TaskEventRecord, TaskRecord, TaskStepRecord
 from gracekelly.tools import export_postgres
 from gracekelly.tools.snapshot_digest import SNAPSHOT_FORMAT_VERSION, compute_snapshot_sha256
 
@@ -239,7 +240,7 @@ class ExportPostgresToolTests(unittest.TestCase):
                 self.dsn = dsn
                 fake_instances.append(self)
 
-            def get(self, task_id: str):
+            def get(self, task_id: str) -> TaskRecord | None:
                 from gracekelly.core.contracts import (
                     AdapterHint,
                     ExecutionMode,
@@ -269,13 +270,13 @@ class ExportPostgresToolTests(unittest.TestCase):
                     metadata={},
                 )
 
-            def list_recent(self, limit: int):
+            def list_recent(self, limit: int) -> list[TaskRecord]:
                 raise AssertionError("list_recent should not be used when explicit task_ids are provided")
 
-            def list_steps(self, task_id: str):
+            def list_steps(self, task_id: str) -> list[TaskStepRecord]:
                 return []
 
-            def list_events(self, task_id: str):
+            def list_events(self, task_id: str) -> list[TaskEventRecord]:
                 return []
 
             def healthcheck(self) -> dict[str, object]:
@@ -375,16 +376,16 @@ class ExportPostgresToolTests(unittest.TestCase):
             def __init__(self, dsn: str, *, bootstrap: bool) -> None:
                 pass
 
-            def get(self, task_id: str):
+            def get(self, task_id: str) -> TaskRecord | None:
                 raise AssertionError("get should not be used without explicit task_ids")
 
-            def list_recent(self, limit: int):
+            def list_recent(self, limit: int) -> list[TaskRecord]:
                 return []
 
-            def list_steps(self, task_id: str):
+            def list_steps(self, task_id: str) -> list[TaskStepRecord]:
                 return []
 
-            def list_events(self, task_id: str):
+            def list_events(self, task_id: str) -> list[TaskEventRecord]:
                 return []
 
             def healthcheck(self) -> dict[str, object]:
@@ -430,16 +431,16 @@ class ExportPostgresToolTests(unittest.TestCase):
             def __init__(self, dsn: str, *, bootstrap: bool) -> None:
                 pass
 
-            def get(self, task_id: str):
+            def get(self, task_id: str) -> TaskRecord | None:
                 raise AssertionError("get should not be used without explicit task_ids")
 
-            def list_recent(self, limit: int):
+            def list_recent(self, limit: int) -> list[TaskRecord]:
                 return []
 
-            def list_steps(self, task_id: str):
+            def list_steps(self, task_id: str) -> list[TaskStepRecord]:
                 return []
 
-            def list_events(self, task_id: str):
+            def list_events(self, task_id: str) -> list[TaskEventRecord]:
                 return []
 
             def healthcheck(self) -> dict[str, object]:
@@ -486,16 +487,16 @@ class ExportPostgresToolTests(unittest.TestCase):
             def __init__(self, dsn: str, *, bootstrap: bool) -> None:
                 pass
 
-            def get(self, task_id: str):
+            def get(self, task_id: str) -> TaskRecord | None:
                 raise AssertionError("get should not be used without explicit task_ids")
 
-            def list_recent(self, limit: int):
+            def list_recent(self, limit: int) -> list[TaskRecord]:
                 return []
 
-            def list_steps(self, task_id: str):
+            def list_steps(self, task_id: str) -> list[TaskStepRecord]:
                 return []
 
-            def list_events(self, task_id: str):
+            def list_events(self, task_id: str) -> list[TaskEventRecord]:
                 return []
 
             def healthcheck(self) -> dict[str, object]:

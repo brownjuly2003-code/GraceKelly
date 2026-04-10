@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import unittest
 from datetime import UTC, datetime
+from typing import Any
 
 from gracekelly.adapters.dry_run import DryRunExecutionAdapter
 from gracekelly.core.contracts import (
@@ -9,6 +10,8 @@ from gracekelly.core.contracts import (
     EventType,
     ExecutionBatchResult,
     ExecutionMode,
+    ExecutionPlan,
+    ExecutionRequest,
     ExecutionResult,
     MergeStrategy,
     StepStatus,
@@ -23,7 +26,7 @@ from gracekelly.core.orchestrator import (
 from gracekelly.core.planning import build_execution_plan
 from gracekelly.core.router import ExecutionRouter
 from gracekelly.schemas import OrchestrateRequest
-from gracekelly.storage.base import TaskRecord
+from gracekelly.storage.base import TaskEventRecord, TaskRecord, TaskStepRecord
 from gracekelly.storage.memory import InMemoryTaskRepository
 
 
@@ -60,14 +63,12 @@ class OrchestratorServiceTests(unittest.TestCase):
         class FakeMistralAdapter:
             name = "api.mistral"
 
-            def execute(self, request):
-                from gracekelly.core.contracts import ExecutionResult
-
+            def execute(self, request: ExecutionRequest) -> ExecutionResult:
                 return ExecutionResult(
                     adapter_name=self.name,
                     model_id=request.step.model.id,
                     model_display_name=request.step.model.display_name,
-                    execution_mode="api",
+                    execution_mode=ExecutionMode.API,
                     status=StepStatus.COMPLETED,
                     output_text="api result",
                 )
@@ -96,9 +97,17 @@ class OrchestratorServiceTests(unittest.TestCase):
             def __init__(self, repository: InMemoryTaskRepository) -> None:
                 self._repository = repository
                 self.observed_task: TaskRecord | None = None
-                self.observed_events = []
+                self.observed_events: list[TaskEventRecord] = []
 
-            def execute(self, *, task_id, prompt, plan, reasoning, metadata):
+            def execute(
+                self,
+                *,
+                task_id: str,
+                prompt: str,
+                plan: ExecutionPlan,
+                reasoning: bool,
+                metadata: dict[str, Any],
+            ) -> ExecutionBatchResult:
                 self.observed_task = self._repository.get(task_id)
                 self.observed_events = self._repository.list_events(task_id)
                 return ExecutionBatchResult(
@@ -129,14 +138,12 @@ class OrchestratorServiceTests(unittest.TestCase):
         class FakeMistralAdapter:
             name = "api.mistral"
 
-            def execute(self, request):
-                from gracekelly.core.contracts import ExecutionResult
-
+            def execute(self, request: ExecutionRequest) -> ExecutionResult:
                 return ExecutionResult(
                     adapter_name=self.name,
                     model_id=request.step.model.id,
                     model_display_name=request.step.model.display_name,
-                    execution_mode="api",
+                    execution_mode=ExecutionMode.API,
                     status=StepStatus.COMPLETED,
                     output_text="api result",
                     details={"provider": "mistral"},
@@ -198,7 +205,7 @@ class OrchestratorServiceTests(unittest.TestCase):
 
     def test_submit_raises_storage_unavailable_when_persistence_fails(self) -> None:
         class FailingRepository(InMemoryTaskRepository):
-            def save_task_with_steps(self, task, steps) -> None:
+            def save_task_with_steps(self, task: TaskRecord, steps: list[TaskStepRecord]) -> None:
                 raise RuntimeError("database is offline")
 
         service = OrchestratorService(
@@ -218,7 +225,12 @@ class OrchestratorServiceTests(unittest.TestCase):
 
     def test_submit_raises_storage_unavailable_when_final_snapshot_replace_fails(self) -> None:
         class ReplaceFailingRepository(InMemoryTaskRepository):
-            def replace_task_snapshot(self, task, steps, events) -> None:
+            def replace_task_snapshot(
+                self,
+                task: TaskRecord,
+                steps: list[TaskStepRecord],
+                events: list[TaskEventRecord],
+            ) -> None:
                 raise RuntimeError("final write offline")
 
         service = OrchestratorService(
@@ -239,7 +251,7 @@ class OrchestratorServiceTests(unittest.TestCase):
 
     def test_submit_logs_warning_when_event_persistence_fails(self) -> None:
         class EventFailingRepository(InMemoryTaskRepository):
-            def append_event(self, event) -> None:
+            def append_event(self, event: TaskEventRecord) -> None:
                 raise RuntimeError("event sink offline")
 
         service = OrchestratorService(
@@ -285,14 +297,12 @@ class OrchestratorServiceTests(unittest.TestCase):
         class FakeBrowserAdapter:
             name = "browser.perplexity"
 
-            def execute(self, request):
-                from gracekelly.core.contracts import ExecutionResult
-
+            def execute(self, request: ExecutionRequest) -> ExecutionResult:
                 return ExecutionResult(
                     adapter_name=self.name,
                     model_id=request.step.model.id,
                     model_display_name=request.step.model.display_name,
-                    execution_mode="browser",
+                    execution_mode=ExecutionMode.BROWSER,
                     status=StepStatus.COMPLETED,
                     output_text="browser first",
                     details={"provider": "perplexity"},
@@ -304,15 +314,13 @@ class OrchestratorServiceTests(unittest.TestCase):
             def __init__(self) -> None:
                 self.call_count = 0
 
-            def execute(self, request):
-                from gracekelly.core.contracts import ExecutionResult
-
+            def execute(self, request: ExecutionRequest) -> ExecutionResult:
                 self.call_count += 1
                 return ExecutionResult(
                     adapter_name=self.name,
                     model_id=request.step.model.id,
                     model_display_name=request.step.model.display_name,
-                    execution_mode="api",
+                    execution_mode=ExecutionMode.API,
                     status=StepStatus.COMPLETED,
                     output_text="api second",
                 )
@@ -331,7 +339,7 @@ class OrchestratorServiceTests(unittest.TestCase):
             models=["Kimi K2", "Mistral"],
             dry_run=False,
             quorum=1,
-            merge_strategy="first_success",
+            merge_strategy=MergeStrategy.FIRST_SUCCESS,
             cancel_on_quorum=True,
         )
 
@@ -358,7 +366,7 @@ class OrchestratorServiceTests(unittest.TestCase):
                 prompt="mismatch",
                 models=["Kimi K2", "Mistral"],
                 dry_run=False,
-                merge_strategy="concat",
+                merge_strategy=MergeStrategy.CONCAT,
                 cancel_on_quorum=False,
             )
         )
@@ -380,7 +388,7 @@ class OrchestratorServiceTests(unittest.TestCase):
 
     def test_get_task_raises_storage_unavailable_on_exception(self) -> None:
         class FailingRepository(InMemoryTaskRepository):
-            def get(self, task_id: str) -> None:  # type: ignore[override]
+            def get(self, task_id: str) -> None:
                 raise RuntimeError("db down")
 
         service = OrchestratorService(
@@ -393,7 +401,7 @@ class OrchestratorServiceTests(unittest.TestCase):
 
     def test_list_task_steps_raises_storage_unavailable_on_exception(self) -> None:
         class FailingRepository(InMemoryTaskRepository):
-            def list_steps(self, task_id: str) -> list:  # type: ignore[override]
+            def list_steps(self, task_id: str) -> list[TaskStepRecord]:
                 raise RuntimeError("db down")
 
         service = OrchestratorService(
@@ -406,7 +414,7 @@ class OrchestratorServiceTests(unittest.TestCase):
 
     def test_list_recent_tasks_raises_storage_unavailable_on_exception(self) -> None:
         class FailingRepository(InMemoryTaskRepository):
-            def list_recent(self, *args, **kwargs) -> list:  # type: ignore[override]
+            def list_recent(self, *args: Any, **kwargs: Any) -> list[TaskRecord]:
                 raise RuntimeError("db down")
 
         service = OrchestratorService(
@@ -419,7 +427,7 @@ class OrchestratorServiceTests(unittest.TestCase):
 
     def test_list_task_events_raises_storage_unavailable_on_exception(self) -> None:
         class FailingRepository(InMemoryTaskRepository):
-            def list_events(self, task_id: str) -> list:  # type: ignore[override]
+            def list_events(self, task_id: str) -> list[TaskEventRecord]:
                 raise RuntimeError("db down")
 
         service = OrchestratorService(
@@ -432,7 +440,7 @@ class OrchestratorServiceTests(unittest.TestCase):
 
     def test_list_steps_batch_raises_storage_unavailable_on_exception(self) -> None:
         class FailingRepository(InMemoryTaskRepository):
-            def list_steps_batch(self, task_ids: list) -> dict:  # type: ignore[override]
+            def list_steps_batch(self, task_ids: list[str]) -> dict[str, list[TaskStepRecord]]:
                 raise RuntimeError("db down")
 
         service = OrchestratorService(
@@ -445,7 +453,7 @@ class OrchestratorServiceTests(unittest.TestCase):
 
     def test_list_events_batch_raises_storage_unavailable_on_exception(self) -> None:
         class FailingRepository(InMemoryTaskRepository):
-            def list_events_batch(self, task_ids: list) -> dict:  # type: ignore[override]
+            def list_events_batch(self, task_ids: list[str]) -> dict[str, list[TaskEventRecord]]:
                 raise RuntimeError("db down")
 
         service = OrchestratorService(
@@ -594,13 +602,13 @@ class OrchestratorServiceTests(unittest.TestCase):
                 self,
                 limit: int,
                 *,
-                status=None,
-                execution_mode=None,
-                dry_run=None,
-                failure_code=None,
-                before=None,
-                prompt_contains=None,
-            ) -> list:
+                status: Any = None,
+                execution_mode: Any = None,
+                dry_run: Any = None,
+                failure_code: Any = None,
+                before: Any = None,
+                prompt_contains: str | None = None,
+            ) -> list[TaskRecord]:
                 self.prompt_contains = prompt_contains
                 return super().list_recent(
                     limit,
@@ -633,7 +641,7 @@ class OrchestratorServiceTests(unittest.TestCase):
                 prompt="mismatch",
                 models=["Kimi K2", "Mistral"],
                 dry_run=False,
-                merge_strategy="concat",
+                merge_strategy=MergeStrategy.CONCAT,
                 cancel_on_quorum=False,
             )
         )

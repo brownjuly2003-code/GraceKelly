@@ -58,12 +58,12 @@ class SimilarityTests(unittest.TestCase):
         self.assertEqual(find_clusters_greedy([]), [])
 
     def test_find_clusters_threshold(self) -> None:
-        clusters = find_clusters_greedy([[1, 0], [0.9, 0.1], [0, 1]], threshold=0.85)
+        clusters = find_clusters_greedy([[1.0, 0.0], [0.9, 0.1], [0.0, 1.0]], threshold=0.85)
         self.assertEqual(len(clusters), 2)
         self.assertEqual(sorted(len(cluster) for cluster in clusters), [1, 2])
 
     def test_find_clusters_all_assigned(self) -> None:
-        vectors = [[1, 0], [1, 0], [0, 1], [0, 1]]
+        vectors = [[1.0, 0.0], [1.0, 0.0], [0.0, 1.0], [0.0, 1.0]]
         clusters = find_clusters_greedy(vectors)
         self.assertEqual(sum(len(cluster) for cluster in clusters), len(vectors))
 

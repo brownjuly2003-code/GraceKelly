@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import inspect
 import logging
 
 from fastapi import APIRouter, HTTPException, Request
@@ -94,8 +95,9 @@ async def run_debate_endpoint(payload: DebateRequest, request: Request) -> Debat
             step=step,
             reasoning=True,
         )
-        if hasattr(type(adapter), "execute_async"):
-            result = await adapter.execute_async(exec_request)
+        async_result = adapter.execute_async(exec_request)
+        if inspect.isawaitable(async_result):
+            result = await async_result
         else:
             result = adapter.execute(exec_request)
         if result.status == StepStatus.COMPLETED and result.output_text:
@@ -103,7 +105,18 @@ async def run_debate_endpoint(payload: DebateRequest, request: Request) -> Debat
         return f"[{result.failure_code or 'error'}] {result.failure_message or 'No output'}"
 
     def execute_fn(prompt_text: str) -> str:
-        return asyncio.run(execute_request(prompt_text))
+        call_count["n"] += 1
+        exec_request = ExecutionRequest(
+            task_id="debate",
+            prompt=prompt_text,
+            plan=plan,
+            step=step,
+            reasoning=True,
+        )
+        result = adapter.execute(exec_request)
+        if result.status == StepStatus.COMPLETED and result.output_text:
+            return result.output_text
+        return f"[{result.failure_code or 'error'}] {result.failure_message or 'No output'}"
 
     if payload.initial_position:
         initial = payload.initial_position

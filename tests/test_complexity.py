@@ -67,7 +67,7 @@ class ComplexityTests(unittest.TestCase):
     def test_assessment_is_frozen(self) -> None:
         result = assess_complexity("Analyze the market trends")
         with self.assertRaises(FrozenInstanceError):
-            result.level = "simple"  # type: ignore[misc]
+            setattr(result, "level", ComplexityLevel.SIMPLE)
 
     def test_complexity_level_is_str_enum(self) -> None:
         self.assertEqual(ComplexityLevel.SIMPLE, "simple")

@@ -78,18 +78,18 @@ class InMemoryRepositoryTests(unittest.TestCase):
         repository.save_task_with_steps(
             TaskRecord(
                 task_id="task-older",
-                status="completed",
+                status=TaskStatus.COMPLETED,
                 accepted_at=older,
                 completed_at=older,
                 duration_ms=1,
                 prompt="older",
                 reasoning=False,
-                execution_mode="dry-run",
+                execution_mode=ExecutionMode.DRY_RUN,
                 dry_run=True,
                 model_count=1,
                 quorum=1,
-                merge_strategy="first_success",
-                adapter_hint="auto",
+                merge_strategy=MergeStrategy.FIRST_SUCCESS,
+                adapter_hint=AdapterHint.AUTO,
                 cancel_on_quorum=True,
             ),
             [],
@@ -97,18 +97,18 @@ class InMemoryRepositoryTests(unittest.TestCase):
         repository.save_task_with_steps(
             TaskRecord(
                 task_id="task-newer",
-                status="completed",
+                status=TaskStatus.COMPLETED,
                 accepted_at=newer,
                 completed_at=newer,
                 duration_ms=1,
                 prompt="newer",
                 reasoning=False,
-                execution_mode="dry-run",
+                execution_mode=ExecutionMode.DRY_RUN,
                 dry_run=True,
                 model_count=1,
                 quorum=1,
-                merge_strategy="first_success",
-                adapter_hint="auto",
+                merge_strategy=MergeStrategy.FIRST_SUCCESS,
+                adapter_hint=AdapterHint.AUTO,
                 cancel_on_quorum=True,
             ),
             [],
@@ -124,18 +124,18 @@ class InMemoryRepositoryTests(unittest.TestCase):
         repository.save_task_with_steps(
             TaskRecord(
                 task_id="task-completed",
-                status="completed",
+                status=TaskStatus.COMPLETED,
                 accepted_at=accepted_at,
                 completed_at=accepted_at,
                 duration_ms=1,
                 prompt="completed",
                 reasoning=False,
-                execution_mode="dry-run",
+                execution_mode=ExecutionMode.DRY_RUN,
                 dry_run=True,
                 model_count=1,
                 quorum=1,
-                merge_strategy="first_success",
-                adapter_hint="auto",
+                merge_strategy=MergeStrategy.FIRST_SUCCESS,
+                adapter_hint=AdapterHint.AUTO,
                 cancel_on_quorum=True,
             ),
             [],
@@ -143,30 +143,30 @@ class InMemoryRepositoryTests(unittest.TestCase):
         repository.save_task_with_steps(
             TaskRecord(
                 task_id="task-failed",
-                status="failed",
+                status=TaskStatus.FAILED,
                 accepted_at=accepted_at.replace(minute=1),
                 completed_at=accepted_at.replace(minute=1),
                 duration_ms=1,
                 prompt="failed",
                 reasoning=False,
-                execution_mode="api",
+                execution_mode=ExecutionMode.API,
                 dry_run=False,
                 model_count=1,
                 quorum=1,
-                merge_strategy="first_success",
-                adapter_hint="auto",
+                merge_strategy=MergeStrategy.FIRST_SUCCESS,
+                adapter_hint=AdapterHint.AUTO,
                 cancel_on_quorum=True,
-                failure_code="provider_unavailable",
+                failure_code=FailureCode.PROVIDER_UNAVAILABLE,
             ),
             [],
         )
 
         tasks = repository.list_recent(
             10,
-            status="failed",
-            execution_mode="api",
+            status=TaskStatus.FAILED,
+            execution_mode=ExecutionMode.API,
             dry_run=False,
-            failure_code="provider_unavailable",
+            failure_code=FailureCode.PROVIDER_UNAVAILABLE,
         )
 
         self.assertEqual([task.task_id for task in tasks], ["task-failed"])
@@ -179,7 +179,7 @@ class InMemoryRepositoryTests(unittest.TestCase):
                 event_id="event-2",
                 task_id="task-1",
                 sequence_no=2,
-                event_type="task.completed",
+                event_type=EventType.TASK_COMPLETED,
                 created_at=created_at,
                 payload={},
             )
@@ -189,7 +189,7 @@ class InMemoryRepositoryTests(unittest.TestCase):
                 event_id="event-1",
                 task_id="task-1",
                 sequence_no=1,
-                event_type="task.accepted",
+                event_type=EventType.TASK_ACCEPTED,
                 created_at=created_at,
                 payload={},
             )
@@ -208,7 +208,7 @@ class InMemoryRepositoryTests(unittest.TestCase):
                 event_id="event-1",
                 task_id="task-1",
                 sequence_no=1,
-                event_type="task.accepted",
+                event_type=EventType.TASK_ACCEPTED,
                 created_at=created_at,
                 payload={},
             )
@@ -230,40 +230,40 @@ class InMemoryRepositoryTests(unittest.TestCase):
         repository = InMemoryTaskRepository()
         created_at = datetime.now(UTC)
         repository.save_task_with_steps(
-            TaskRecord(
-                task_id="task-1",
-                status="completed",
-                accepted_at=created_at,
-                completed_at=created_at,
-                duration_ms=1,
-                prompt="before",
-                reasoning=False,
-                execution_mode="dry-run",
-                dry_run=True,
-                model_count=1,
-                quorum=1,
-                merge_strategy="first_success",
-                adapter_hint="auto",
-                cancel_on_quorum=True,
-            ),
-            [
+                TaskRecord(
+                    task_id="task-1",
+                    status=TaskStatus.COMPLETED,
+                    accepted_at=created_at,
+                    completed_at=created_at,
+                    duration_ms=1,
+                    prompt="before",
+                    reasoning=False,
+                    execution_mode=ExecutionMode.DRY_RUN,
+                    dry_run=True,
+                    model_count=1,
+                    quorum=1,
+                    merge_strategy=MergeStrategy.FIRST_SUCCESS,
+                    adapter_hint=AdapterHint.AUTO,
+                    cancel_on_quorum=True,
+                ),
+                [
                 TaskStepRecord(
                     task_id="task-1",
                     step_index=1,
-                    model_id="old-model",
-                    model_display_name="Old Model",
-                    backend="api",
-                    provider="old",
-                    status="completed",
-                )
-            ],
-        )
+                        model_id="old-model",
+                        model_display_name="Old Model",
+                        backend="api",
+                        provider="old",
+                        status=StepStatus.COMPLETED,
+                    )
+                ],
+            )
         repository.append_event(
             TaskEventRecord(
                 event_id="event-1",
                 task_id="task-1",
                 sequence_no=1,
-                event_type="task.accepted",
+                event_type=EventType.TASK_ACCEPTED,
                 created_at=created_at,
                 payload={"before": True},
             )
@@ -272,20 +272,20 @@ class InMemoryRepositoryTests(unittest.TestCase):
         repository.replace_task_snapshot(
             TaskRecord(
                 task_id="task-1",
-                status="failed",
+                status=TaskStatus.FAILED,
                 accepted_at=created_at,
                 completed_at=created_at,
                 duration_ms=2,
                 prompt="after",
                 reasoning=False,
-                execution_mode="api",
+                execution_mode=ExecutionMode.API,
                 dry_run=False,
                 model_count=1,
                 quorum=1,
-                merge_strategy="first_success",
-                adapter_hint="auto",
+                merge_strategy=MergeStrategy.FIRST_SUCCESS,
+                adapter_hint=AdapterHint.AUTO,
                 cancel_on_quorum=True,
-                failure_code="provider_unavailable",
+                failure_code=FailureCode.PROVIDER_UNAVAILABLE,
             ),
             [
                 TaskStepRecord(
@@ -295,8 +295,8 @@ class InMemoryRepositoryTests(unittest.TestCase):
                     model_display_name="New Model",
                     backend="browser",
                     provider="perplexity",
-                    status="failed",
-                    failure_code="provider_unavailable",
+                    status=StepStatus.FAILED,
+                    failure_code=FailureCode.PROVIDER_UNAVAILABLE,
                 )
             ],
             [
@@ -304,7 +304,7 @@ class InMemoryRepositoryTests(unittest.TestCase):
                     event_id="event-2",
                     task_id="task-1",
                     sequence_no=1,
-                    event_type="task.failed",
+                    event_type=EventType.TASK_FAILED,
                     created_at=created_at,
                     payload={"after": True},
                 )

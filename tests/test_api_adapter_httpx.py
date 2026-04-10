@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import unittest
+from typing import Any
 from unittest.mock import MagicMock, patch
 
 import httpx
@@ -33,7 +34,7 @@ def _make_request(*, model_timeout: int = 10) -> MagicMock:
     return req
 
 
-def _mock_httpx_response(data: dict) -> MagicMock:
+def _mock_httpx_response(data: dict[str, Any]) -> MagicMock:
     mock = MagicMock(spec=httpx.Response)
     mock.status_code = 200
     mock.json.return_value = data

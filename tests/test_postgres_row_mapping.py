@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import unittest
 from datetime import UTC, datetime
+from typing import Any
 
 from gracekelly.core.contracts import (
     AdapterHint,
@@ -12,6 +13,7 @@ from gracekelly.core.contracts import (
     StepStatus,
     TaskStatus,
 )
+from gracekelly.storage.base import TaskRecord
 from gracekelly.storage.postgres import PostgresTaskRepository
 
 
@@ -24,7 +26,7 @@ class TaskFromRowTests(unittest.TestCase):
         repo._connect_timeout_seconds = 5
         return repo
 
-    def _task_row(self, **overrides) -> dict:
+    def _task_row(self, **overrides: Any) -> dict[str, Any]:
         base = {
             "task_id": "t1",
             "status": "completed",
@@ -90,7 +92,7 @@ class StepFromRowTests(unittest.TestCase):
         repo._connect_timeout_seconds = 5
         return repo
 
-    def _step_row(self, **overrides) -> dict:
+    def _step_row(self, **overrides: Any) -> dict[str, Any]:
         base = {
             "task_id": "t1",
             "step_index": 1,
@@ -141,7 +143,7 @@ class EventFromRowTests(unittest.TestCase):
         repo._connect_timeout_seconds = 5
         return repo
 
-    def _event_row(self, **overrides) -> dict:
+    def _event_row(self, **overrides: Any) -> dict[str, Any]:
         base = {
             "event_id": "e1",
             "task_id": "t1",
@@ -186,9 +188,9 @@ class TaskParamsTests(unittest.TestCase):
         repo._connect_timeout_seconds = 5
         return repo
 
-    def _base_task(self, **overrides):  # type: ignore[return]
+    def _base_task(self, **overrides: Any) -> TaskRecord:
         from gracekelly.storage.base import TaskRecord
-        base = dict(
+        base: dict[str, Any] = dict(
             task_id="t1",
             status=TaskStatus.COMPLETED,
             accepted_at=datetime(2026, 3, 19, tzinfo=UTC),
@@ -282,7 +284,7 @@ class StepParamsTests(unittest.TestCase):
             model_display_name="Mistral Small",
             backend="api",
             provider="mistral",
-            status="completed",
+            status=StepStatus.COMPLETED,
             output_text="result",
             duration_ms=300,
         )
@@ -305,7 +307,7 @@ class StepParamsTests(unittest.TestCase):
             model_display_name="Kimi K2.5",
             backend="browser",
             provider="perplexity",
-            status="failed",
+            status=StepStatus.FAILED,
             failure_code=FailureCode.AUTH_FAILED,
             failure_message="login failed",
         )

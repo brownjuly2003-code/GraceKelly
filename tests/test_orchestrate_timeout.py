@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import unittest
+from typing import Any
 from unittest.mock import patch
 
 try:
@@ -16,7 +17,7 @@ else:  # pragma: no cover
     create_app = None
 
 
-def _make_settings(**kwargs) -> Settings:
+def _make_settings(**kwargs: Any) -> Settings:
     return Settings(
         env="test",
         host="127.0.0.1",

@@ -7,8 +7,10 @@ from gracekelly.core.account_pool import Account, AccountPool
 from gracekelly.core.circuit_breaker import CircuitBreakerConfig, CircuitBreakingExecutionAdapter
 from gracekelly.core.concurrency import ModelConcurrencyGate
 from gracekelly.core.contracts import (
+    AdapterHint,
     ExecutionAdapter,
     ExecutionBackend,
+    ExecutionMode,
     ExecutionPlan,
     ExecutionRequest,
     ExecutionResult,
@@ -55,15 +57,15 @@ class CircuitBreakerStressTests(unittest.TestCase):
                 if idx % 3 == 0:
                     return ExecutionResult(
                         adapter_name="test", model_id="m", model_display_name="M",
-                        execution_mode="api", status=StepStatus.FAILED,
+                        execution_mode=ExecutionMode.API, status=StepStatus.FAILED,
                         failure_code=FailureCode.TIMEOUT, failure_message="slow",
                     )
                 return ExecutionResult(
                     adapter_name="test", model_id="m", model_display_name="M",
-                    execution_mode="api", status=StepStatus.COMPLETED, output_text="ok",
+                    execution_mode=ExecutionMode.API, status=StepStatus.COMPLETED, output_text="ok",
                 )
 
-            def healthcheck(self):
+            def healthcheck(self) -> dict[str, object]:
                 return {"status": "ok"}
 
         breaker = CircuitBreakingExecutionAdapter(
@@ -77,7 +79,7 @@ class CircuitBreakerStressTests(unittest.TestCase):
         )
         plan = ExecutionPlan(
             steps=(step,), quorum=1, merge_strategy=MergeStrategy.FIRST_SUCCESS,
-            dry_run=False, adapter_hint="auto", cancel_on_quorum=True,
+            dry_run=False, adapter_hint=AdapterHint.AUTO, cancel_on_quorum=True,
         )
         request = ExecutionRequest(
             task_id="t1", prompt="test", plan=plan, step=step, reasoning=False,

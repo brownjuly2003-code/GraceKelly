@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import unittest
+from typing import Any
 from unittest.mock import patch
 
 from fastapi.testclient import TestClient
@@ -14,7 +15,7 @@ class MainWiringTests(unittest.TestCase):
         captured: dict[str, object] = {}
 
         class FakeRepository:
-            def __init__(self, dsn: str, *, bootstrap: bool, connect_timeout_seconds: int, **kwargs) -> None:
+            def __init__(self, dsn: str, *, bootstrap: bool, connect_timeout_seconds: int, **kwargs: Any) -> None:
                 captured["dsn"] = dsn
                 captured["bootstrap"] = bootstrap
                 captured["connect_timeout_seconds"] = connect_timeout_seconds
@@ -94,7 +95,7 @@ class MainWiringTests(unittest.TestCase):
 
     def test_build_task_repository_unknown_backend_raises(self) -> None:
         with self.assertRaises(ValueError) as ctx:
-            build_task_repository(Settings(storage_backend="sqlite"))  # type: ignore[arg-type]
+            build_task_repository(Settings(storage_backend="sqlite"))
         self.assertIn("sqlite", str(ctx.exception))
 
     def test_build_browser_automation_null_backend(self) -> None:
@@ -119,7 +120,7 @@ class MainWiringTests(unittest.TestCase):
 
     def test_build_browser_automation_unknown_backend_raises(self) -> None:
         with self.assertRaises(ValueError) as ctx:
-            build_browser_automation(Settings(storage_backend="memory", browser_automation_backend="selenium"))  # type: ignore[arg-type]
+            build_browser_automation(Settings(storage_backend="memory", browser_automation_backend="selenium"))
         self.assertIn("selenium", str(ctx.exception))
 
     def test_app_lifespan_closes_browser_automation(self) -> None:

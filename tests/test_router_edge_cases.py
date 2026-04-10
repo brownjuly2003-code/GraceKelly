@@ -3,6 +3,7 @@ from __future__ import annotations
 import unittest
 
 from gracekelly.core.contracts import (
+    AdapterHint,
     ExecutionAdapter,
     ExecutionBackend,
     ExecutionMode,
@@ -46,7 +47,7 @@ def _plan(
         quorum=quorum,
         merge_strategy=merge_strategy,
         dry_run=dry_run,
-        adapter_hint="auto",
+        adapter_hint=AdapterHint.AUTO,
         cancel_on_quorum=cancel_on_quorum,
     )
 

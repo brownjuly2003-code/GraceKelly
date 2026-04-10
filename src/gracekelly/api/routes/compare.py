@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import inspect
 import logging
 
 from fastapi import APIRouter, Request
@@ -100,8 +101,9 @@ async def run_compare(payload: CompareRequest, request: Request) -> CompareRespo
                 step=step,
                 reasoning=True,
             )
-            if hasattr(type(adapter), "execute_async"):
-                result = await adapter.execute_async(exec_request)
+            async_result = adapter.execute_async(exec_request)
+            if inspect.isawaitable(async_result):
+                result = await async_result
             else:
                 result = adapter.execute(exec_request)
             if result.status == StepStatus.COMPLETED and result.output_text:
@@ -163,8 +165,9 @@ async def run_compare(payload: CompareRequest, request: Request) -> CompareRespo
                     step=step,
                     reasoning=True,
                 )
-                if hasattr(type(first_adapter), "execute_async"):
-                    result = await first_adapter.execute_async(exec_request)
+                async_result = first_adapter.execute_async(exec_request)
+                if inspect.isawaitable(async_result):
+                    result = await async_result
                 else:
                     result = first_adapter.execute(exec_request)
                 if result.status == StepStatus.COMPLETED and result.output_text:

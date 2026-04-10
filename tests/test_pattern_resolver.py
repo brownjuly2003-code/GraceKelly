@@ -99,7 +99,7 @@ class PatternResolverTests(unittest.TestCase):
         )
 
         with self.assertRaises(FrozenInstanceError):
-            result.pattern = ExecutionPattern.MAXIMUM
+            setattr(result, "pattern", ExecutionPattern.MAXIMUM)
 
     def test_consensus_threshold_from_level(self) -> None:
         maximum = resolve_from_level(ReliabilityLevel.MAXIMUM)

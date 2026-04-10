@@ -175,7 +175,7 @@ class EventPaginationStorageTests(unittest.TestCase):
 
 
 class OrchestratorEventPaginationTests(unittest.TestCase):
-    def _make_service(self, n: int = 5) -> tuple[OrchestratorService, str]:  # type: ignore[return]
+    def _make_service(self, n: int = 5) -> tuple[OrchestratorService, str]:
         if TestClient is None:  # pragma: no cover
             self.skipTest("fastapi not installed")
         repo = _make_repo_with_events(n)

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import unittest
 
+from gracekelly.core.contracts import AdapterHint, MergeStrategy
 from gracekelly.core.planning import build_execution_plan
 from gracekelly.schemas import OrchestrateRequest
 
@@ -22,7 +23,7 @@ class PlanningEdgeCasesTests(unittest.TestCase):
         request = OrchestrateRequest(
             prompt="test",
             models=["Mistral", "sonar"],
-            merge_strategy="concat",
+            merge_strategy=MergeStrategy.CONCAT,
             quorum=2,
             cancel_on_quorum=True,
         )
@@ -34,7 +35,7 @@ class PlanningEdgeCasesTests(unittest.TestCase):
         request = OrchestrateRequest(
             prompt="test",
             models=["Mistral", "sonar"],
-            merge_strategy="concat",
+            merge_strategy=MergeStrategy.CONCAT,
             quorum=1,
             cancel_on_quorum=False,
         )
@@ -83,7 +84,7 @@ class PlanningEdgeCasesTests(unittest.TestCase):
         request = OrchestrateRequest(
             prompt="test",
             model="Kimi K2",
-            adapter_hint="auto",
+            adapter_hint=AdapterHint.AUTO,
         )
         plan = build_execution_plan(request)
         self.assertEqual(plan.steps[0].backend.value, "browser")

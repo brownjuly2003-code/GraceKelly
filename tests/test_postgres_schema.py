@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import unittest
 from dataclasses import fields
+from typing import Any
 
 from gracekelly.core.contracts import (
     AdapterHint,
@@ -132,7 +133,7 @@ class PostgresSchemaTests(unittest.TestCase):
             called_with: tuple[object, dict[str, object]] | None = None
 
             @staticmethod
-            def connect(dsn: str, **kwargs):
+            def connect(dsn: str, **kwargs: object) -> object:
                 FakePsycopg.called_with = (dsn, kwargs)
                 return object()
 
@@ -141,7 +142,8 @@ class PostgresSchemaTests(unittest.TestCase):
         original = postgres_module.psycopg
         postgres_module.psycopg = FakePsycopg
         try:
-            repository._connect(row_factory="dict")
+            repository_any: Any = repository
+            repository_any._connect(row_factory="dict")
         finally:
             postgres_module.psycopg = original
 
@@ -184,7 +186,7 @@ class PostgresSchemaTests(unittest.TestCase):
         repository = PostgresTaskRepository.__new__(PostgresTaskRepository)
         repository._connect_timeout_seconds = 5
 
-        def failing_connect(**kwargs):
+        def failing_connect(**kwargs: object) -> None:
             raise RuntimeError("database offline")
 
         repository._connect = failing_connect

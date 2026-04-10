@@ -9,7 +9,7 @@ from unittest.mock import patch
 from gracekelly.core.embeddings import EmbeddingsClient
 
 
-def _mock_response(embedding: list[float]):
+def _mock_response(embedding: list[float]) -> unittest.mock.MagicMock:
     response_data = {"data": [{"embedding": embedding}]}
     mock_resp = unittest.mock.MagicMock()
     mock_resp.read.return_value = json.dumps(response_data).encode("utf-8")

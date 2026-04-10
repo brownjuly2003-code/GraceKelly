@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 import unittest
+from collections.abc import Callable
 from datetime import date
 from pathlib import Path
 from unittest.mock import patch
@@ -18,11 +19,11 @@ class _FakeLocator:
         self,
         *,
         visible: bool = False,
-        click=None,
+        click: Callable[[], None] | None = None,
         inner_html: str = "",
         texts: list[str] | None = None,
-        fill=None,
-        press_sequentially=None,
+        fill: Callable[[str], None] | None = None,
+        press_sequentially: Callable[[str], None] | None = None,
     ) -> None:
         self._visible = visible
         self._click = click
@@ -38,7 +39,7 @@ class _FakeLocator:
     def count(self) -> int:
         return 1 if self._visible or self._inner_html or self._texts else 0
 
-    def click(self, **kwargs) -> None:
+    def click(self, **kwargs: object) -> None:
         if self._click is not None:
             self._click()
 
@@ -81,7 +82,7 @@ class _FakePage:
         Path(path).write_text(f"screenshot:{full_page}", encoding="utf-8")
         self.screenshot_paths.append(path)
 
-    def evaluate(self, script: str):
+    def evaluate(self, script: str) -> list[str] | bool:
         if "querySelectorAll('button')" in script:
             if self.more_open:
                 return ["More::More", "Model::Model", "Submit::Submit"]
@@ -182,7 +183,7 @@ class _FakePlaywrightManager:
     def __enter__(self) -> _FakePlaywright:
         return self.playwright
 
-    def __exit__(self, exc_type, exc, tb) -> None:
+    def __exit__(self, exc_type: object, exc: object, tb: object) -> None:
         return None
 
 

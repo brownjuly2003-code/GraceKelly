@@ -6,15 +6,20 @@ from gracekelly.adapters.browser.session import BrowserSessionConfig, BrowserSes
 
 
 class BrowserSessionManagerTests(unittest.TestCase):
-    def _config(self, **overrides) -> BrowserSessionConfig:
-        defaults = {
-            "enabled": True,
-            "provider": "perplexity",
-            "base_url": "https://www.perplexity.ai",
-            "profile_dir": "/tmp/test-profile",
-        }
-        defaults.update(overrides)
-        return BrowserSessionConfig(**defaults)
+    def _config(
+        self,
+        *,
+        enabled: bool = True,
+        provider: str = "perplexity",
+        base_url: str = "https://www.perplexity.ai",
+        profile_dir: str | None = "/tmp/test-profile",
+    ) -> BrowserSessionConfig:
+        return BrowserSessionConfig(
+            enabled=enabled,
+            provider=provider,
+            base_url=base_url,
+            profile_dir=profile_dir,
+        )
 
     def test_configured_when_enabled_with_profile(self) -> None:
         mgr = BrowserSessionManager(self._config())

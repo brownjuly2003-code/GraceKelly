@@ -9,6 +9,7 @@ from gracekelly.core.circuit_breaker import (
     _serialize_timestamp,
 )
 from gracekelly.core.contracts import (
+    AdapterHint,
     ExecutionAdapter,
     ExecutionBackend,
     ExecutionMode,
@@ -20,10 +21,10 @@ from gracekelly.core.contracts import (
     MergeStrategy,
     StepStatus,
 )
-from gracekelly.core.models import resolve_model
+from gracekelly.core.models import ModelSpec, resolve_model
 
 
-def _model():  # type: ignore[no-untyped-def]
+def _model() -> ModelSpec:
     return resolve_model("sonar")
 
 
@@ -44,7 +45,7 @@ def _plan(step: ExecutionStep) -> ExecutionPlan:
         quorum=1,
         merge_strategy=MergeStrategy.FIRST_SUCCESS,
         dry_run=False,
-        adapter_hint="auto",
+        adapter_hint=AdapterHint.AUTO,
         cancel_on_quorum=False,
     )
 

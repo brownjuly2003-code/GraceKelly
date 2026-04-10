@@ -14,7 +14,7 @@ class ExecutionPlanningTests(unittest.TestCase):
             models=["Kimi K2", "Mistral"],
             dry_run=False,
             quorum=2,
-            merge_strategy="concat",
+            merge_strategy=MergeStrategy.CONCAT,
         )
 
         plan = build_execution_plan(request)
@@ -37,18 +37,22 @@ class ExecutionPlanningTests(unittest.TestCase):
 
     def test_rejects_unknown_adapter_hint(self) -> None:
         with self.assertRaises(ValueError):
-            OrchestrateRequest(
-                prompt="bad adapter hint",
-                model="Mistral",
-                adapter_hint="desktop",
+            OrchestrateRequest.model_validate(
+                {
+                    "prompt": "bad adapter hint",
+                    "model": "Mistral",
+                    "adapter_hint": "desktop",
+                }
             )
 
     def test_rejects_unknown_merge_strategy(self) -> None:
         with self.assertRaises(ValueError):
-            OrchestrateRequest(
-                prompt="bad merge strategy",
-                model="Mistral",
-                merge_strategy="fanout",
+            OrchestrateRequest.model_validate(
+                {
+                    "prompt": "bad merge strategy",
+                    "model": "Mistral",
+                    "merge_strategy": "fanout",
+                }
             )
 
     def test_rejects_duplicate_models_after_canonicalization(self) -> None:
@@ -64,7 +68,7 @@ class ExecutionPlanningTests(unittest.TestCase):
         request = OrchestrateRequest(
             prompt="truncated concat",
             models=["Kimi K2", "Mistral"],
-            merge_strategy="concat",
+            merge_strategy=MergeStrategy.CONCAT,
             quorum=1,
             cancel_on_quorum=True,
         )
@@ -141,7 +145,7 @@ class ExecutionPlanningPositiveEdgeCasesTests(unittest.TestCase):
             OrchestrateRequest(
                 prompt="Q",
                 models=["Kimi K2", "Mistral"],
-                merge_strategy="concat",
+                merge_strategy=MergeStrategy.CONCAT,
                 cancel_on_quorum=False,
                 quorum=1,
             )
@@ -154,7 +158,7 @@ class ExecutionPlanningPositiveEdgeCasesTests(unittest.TestCase):
             OrchestrateRequest(
                 prompt="Q",
                 models=["Kimi K2", "Mistral"],
-                merge_strategy="concat",
+                merge_strategy=MergeStrategy.CONCAT,
                 cancel_on_quorum=True,
                 quorum=2,
             )

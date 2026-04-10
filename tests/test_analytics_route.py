@@ -9,7 +9,7 @@ from fastapi.testclient import TestClient
 from gracekelly.api.routes.analytics import router
 
 
-def _create_test_app(*, has_repository: bool = True, tasks_data: list | None = None) -> FastAPI:
+def _create_test_app(*, has_repository: bool = True, tasks_data: list[object] | None = None) -> FastAPI:
     app = FastAPI()
     app.include_router(router)
 

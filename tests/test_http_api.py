@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import json
 import unittest
+from collections.abc import Callable, Iterator
 from datetime import UTC, datetime
+from typing import Any
 from unittest.mock import AsyncMock, patch
 
 try:
@@ -12,15 +14,20 @@ except ModuleNotFoundError:  # pragma: no cover
 
 if TestClient is not None:
     from gracekelly.config import Settings
-    from gracekelly.core.contracts import StreamChunk
+    from gracekelly.core.contracts import ExecutionRequest, StreamChunk
     from gracekelly.core.orchestrator import OrchestratorService
     from gracekelly.main import create_app
+    from gracekelly.storage.base import TaskEventRecord, TaskRecord, TaskStepRecord
     from gracekelly.storage.memory import InMemoryTaskRepository
 else:  # pragma: no cover
     Settings = None
+    ExecutionRequest = None
     StreamChunk = None
     OrchestratorService = None
     create_app = None
+    TaskEventRecord = None
+    TaskRecord = None
+    TaskStepRecord = None
     InMemoryTaskRepository = None
 
 
@@ -48,7 +55,7 @@ class HttpApiSmokeTests(unittest.TestCase):
         )
         self.client = TestClient(app)
 
-    def _build_client_with_repository(self, repository) -> TestClient:
+    def _build_client_with_repository(self, repository: object) -> TestClient:
         app = create_app(
             Settings(
                 env="test",
@@ -93,7 +100,7 @@ class HttpApiSmokeTests(unittest.TestCase):
         self.assertEqual(execution["details"]["model_limits"]["mistral-small"], 4)
 
     def test_health_routes_offload_blocking_work_to_thread(self) -> None:
-        async def run_sync(func, /, *args, **kwargs):
+        async def run_sync(func: Callable[..., Any], /, *args: Any, **kwargs: Any) -> Any:
             return func(*args, **kwargs)
 
         mocked = AsyncMock(side_effect=run_sync)
@@ -504,7 +511,7 @@ class HttpApiSmokeTests(unittest.TestCase):
         class StreamingAdapter:
             name = "api.mistral"
 
-            def execute_stream(self, request):
+            def execute_stream(self, request: ExecutionRequest) -> Iterator[StreamChunk]:
                 yield StreamChunk(type="delta", text="stream ", model_id=request.step.model.id)
                 yield StreamChunk(
                     type="complete",
@@ -586,7 +593,7 @@ class HttpApiSmokeTests(unittest.TestCase):
         self.assertNotIn("x-trace-id", response.headers)
 
     def test_orchestration_routes_offload_blocking_work_to_thread(self) -> None:
-        async def run_sync(func, /, *args, **kwargs):
+        async def run_sync(func: Callable[..., Any], /, *args: Any, **kwargs: Any) -> Any:
             return func(*args, **kwargs)
 
         mocked = AsyncMock(side_effect=run_sync)
@@ -795,7 +802,7 @@ class HttpApiSmokeTests(unittest.TestCase):
 
     def test_orchestrate_returns_storage_failed_when_task_persistence_breaks(self) -> None:
         class SaveFailingRepository(InMemoryTaskRepository):
-            def save_task_with_steps(self, task, steps) -> None:
+            def save_task_with_steps(self, task: TaskRecord, steps: list[TaskStepRecord]) -> None:
                 raise RuntimeError("database is offline")
 
         client = self._build_client_with_repository(SaveFailingRepository())
@@ -816,7 +823,7 @@ class HttpApiSmokeTests(unittest.TestCase):
 
     def test_get_task_returns_storage_failed_when_repository_read_breaks(self) -> None:
         class ReadFailingRepository(InMemoryTaskRepository):
-            def get(self, task_id: str):
+            def get(self, task_id: str) -> TaskRecord | None:
                 raise RuntimeError("database is offline")
 
         client = self._build_client_with_repository(ReadFailingRepository())
@@ -830,7 +837,7 @@ class HttpApiSmokeTests(unittest.TestCase):
 
     def test_list_tasks_returns_storage_failed_when_repository_read_breaks(self) -> None:
         class ListFailingRepository(InMemoryTaskRepository):
-            def list_recent(self, limit: int, **kwargs):
+            def list_recent(self, limit: int, **kwargs: Any) -> list[TaskRecord]:
                 raise RuntimeError("database is offline")
 
         client = self._build_client_with_repository(ListFailingRepository())
@@ -844,7 +851,7 @@ class HttpApiSmokeTests(unittest.TestCase):
 
     def test_orchestrate_preserves_requested_models_when_event_persistence_fails(self) -> None:
         class EventFailingRepository(InMemoryTaskRepository):
-            def append_event(self, event) -> None:
+            def append_event(self, event: TaskEventRecord) -> None:
                 raise RuntimeError("event sink offline")
 
         client = self._build_client_with_repository(EventFailingRepository())
@@ -864,10 +871,10 @@ class HttpApiSmokeTests(unittest.TestCase):
 
     def test_orchestrate_summary_does_not_depend_on_post_write_readback(self) -> None:
         class ReadbackFailingRepository(InMemoryTaskRepository):
-            def list_steps(self, task_id: str):
+            def list_steps(self, task_id: str) -> list[TaskStepRecord]:
                 raise RuntimeError("read path offline")
 
-            def list_events(self, task_id: str):
+            def list_events(self, task_id: str) -> list[TaskEventRecord]:
                 raise RuntimeError("read path offline")
 
         client = self._build_client_with_repository(ReadbackFailingRepository())

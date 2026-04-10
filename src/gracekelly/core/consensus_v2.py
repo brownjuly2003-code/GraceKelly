@@ -15,6 +15,16 @@ from gracekelly.core.round_weighting import consensus_score_weighted
 from gracekelly.core.similarity import cosine_similarity
 from gracekelly.core.task_classifier import classify_task
 
+__all__ = [
+    "ConsensusExecutorV2",
+    "ConsensusV2Config",
+    "ConsensusV2FinalResult",
+    "ConsensusV2Result",
+    "DissentingView",
+    "DivergenceAction",
+    "_build_cluster_infos",
+]
+
 
 @dataclass(frozen=True, slots=True)
 class ConsensusV2Config:

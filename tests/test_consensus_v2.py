@@ -12,7 +12,7 @@ from gracekelly.core.consensus_v2 import (
 )
 
 
-def _make_embeddings_client(vectors: list[list[float]] | None = None):
+def _make_embeddings_client(vectors: list[list[float]] | None = None) -> MagicMock:
     client = MagicMock()
     if vectors is not None:
         client.embed_batch.return_value = vectors
@@ -22,14 +22,14 @@ def _make_embeddings_client(vectors: list[list[float]] | None = None):
 
 
 class TestConsensusV2(unittest.TestCase):
-    def test_basic_execution(self):
+    def test_basic_execution(self) -> None:
         client = _make_embeddings_client()
         executor = ConsensusExecutorV2(client)
         result = executor.execute("hello", lambda p: "response")
         self.assertIsInstance(result, ConsensusV2Result)
         self.assertTrue(len(result.best_response) > 0)
 
-    def test_all_flags_false(self):
+    def test_all_flags_false(self) -> None:
         config = ConsensusV2Config(
             use_adaptive_params=False,
             use_debate=False,
@@ -42,7 +42,7 @@ class TestConsensusV2(unittest.TestCase):
         result = executor.execute("hello", lambda p: "response")
         self.assertIsInstance(result, ConsensusV2Result)
 
-    def test_adaptive_params_affect_behavior(self):
+    def test_adaptive_params_affect_behavior(self) -> None:
         call_counts: dict[str, int] = {"coding": 0, "creative": 0}
 
         def count_coding(p: str) -> str:
@@ -63,7 +63,7 @@ class TestConsensusV2(unittest.TestCase):
         self.assertGreater(call_counts["coding"], 0)
         self.assertGreater(call_counts["creative"], 0)
 
-    def test_high_similarity_accept(self):
+    def test_high_similarity_accept(self) -> None:
         client = _make_embeddings_client()
         config = ConsensusV2Config(
             use_adaptive_params=False,
@@ -74,10 +74,10 @@ class TestConsensusV2(unittest.TestCase):
         self.assertEqual(result.total_rounds, 1)
         self.assertEqual(result.final_result.status, DivergenceAction.ACCEPT)
 
-    def test_debate_triggered_on_moderate_consensus(self):
-        def make_diverse_embeddings(texts):
+    def test_debate_triggered_on_moderate_consensus(self) -> None:
+        def make_diverse_embeddings(texts: list[str]) -> list[list[float]]:
             n = len(texts)
-            vecs = []
+            vecs: list[list[float]] = []
             for i in range(n):
                 if i < n * 2 // 3:
                     vecs.append([1.0, 0.0, 0.0])
@@ -104,10 +104,10 @@ class TestConsensusV2(unittest.TestCase):
         executor.execute("analyze this", mock_execute)
         self.assertGreater(len(debate_calls), 0)
 
-    def test_dissenting_views_populated(self):
-        def make_diverse(texts):
+    def test_dissenting_views_populated(self) -> None:
+        def make_diverse(texts: list[str]) -> list[list[float]]:
             n = len(texts)
-            vecs = []
+            vecs: list[list[float]] = []
             for i in range(n):
                 v = [0.0] * 10
                 v[i % 10] = 1.0
@@ -128,26 +128,26 @@ class TestConsensusV2(unittest.TestCase):
         if result.consensus_result.num_clusters > 1:
             self.assertGreater(len(result.final_result.dissenting_views), 0)
 
-    def test_total_rounds_gte_one(self):
+    def test_total_rounds_gte_one(self) -> None:
         client = _make_embeddings_client()
         executor = ConsensusExecutorV2(client)
         result = executor.execute("hello", lambda p: "r")
         self.assertGreaterEqual(result.total_rounds, 1)
 
-    def test_best_response_non_empty(self):
+    def test_best_response_non_empty(self) -> None:
         client = _make_embeddings_client()
         executor = ConsensusExecutorV2(client)
         result = executor.execute("hello", lambda p: "my_response")
         self.assertTrue(len(result.best_response) > 0)
 
-    def test_consensus_result_valid_score(self):
+    def test_consensus_result_valid_score(self) -> None:
         client = _make_embeddings_client()
         executor = ConsensusExecutorV2(client)
         result = executor.execute("hello", lambda p: "r")
         self.assertGreaterEqual(result.consensus_result.consensus_score, 0.0)
         self.assertLessEqual(result.consensus_result.consensus_score, 1.0)
 
-    def test_all_features_enabled(self):
+    def test_all_features_enabled(self) -> None:
         client = _make_embeddings_client()
         config = ConsensusV2Config(
             use_adaptive_params=True,
@@ -161,7 +161,7 @@ class TestConsensusV2(unittest.TestCase):
         self.assertIsInstance(result, ConsensusV2Result)
         self.assertIsInstance(result.consensus_result, ConsensusResult)
 
-    def test_consensus_result_has_cluster_info(self):
+    def test_consensus_result_has_cluster_info(self) -> None:
         client = _make_embeddings_client()
         executor = ConsensusExecutorV2(client)
         result = executor.execute("hello", lambda p: "r")
@@ -169,7 +169,7 @@ class TestConsensusV2(unittest.TestCase):
         self.assertGreater(result.consensus_result.total_responses, 0)
         self.assertIsNotNone(result.consensus_result.top_cluster)
 
-    def test_peer_review_enabled(self):
+    def test_peer_review_enabled(self) -> None:
         client = _make_embeddings_client()
         config = ConsensusV2Config(
             use_adaptive_params=False,
@@ -188,7 +188,7 @@ class TestConsensusV2(unittest.TestCase):
         review_calls = [c for c in call_log if "Rank these answers" in c]
         self.assertGreater(len(review_calls), 0)
 
-    def test_round_weighting_enabled(self):
+    def test_round_weighting_enabled(self) -> None:
         client = _make_embeddings_client()
         config = ConsensusV2Config(
             use_adaptive_params=False,
@@ -201,7 +201,7 @@ class TestConsensusV2(unittest.TestCase):
         self.assertGreaterEqual(result.weighted_score, 0.0)
         self.assertLessEqual(result.weighted_score, 1.0)
 
-    def test_all_new_features_enabled(self):
+    def test_all_new_features_enabled(self) -> None:
         client = _make_embeddings_client()
         config = ConsensusV2Config(
             use_adaptive_params=True,

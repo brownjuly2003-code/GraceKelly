@@ -9,7 +9,7 @@ from gracekelly.api.routes.models import (
     _last_verified_at,
     _model_catalog_item,
 )
-from gracekelly.core.models import MODEL_SPECS
+from gracekelly.core.models import MODEL_SPECS, ModelSpec
 
 _NOW = datetime(2026, 1, 1, 12, 0, tzinfo=UTC)
 _EARLIER = _NOW - timedelta(hours=1)
@@ -45,7 +45,7 @@ class BrowserMenuObservationEdgeCasesTests(unittest.TestCase):
 
     def test_healthcheck_returns_non_dict(self) -> None:
         class FakeAdapter:
-            def healthcheck(self) -> str:  # type: ignore[override]
+            def healthcheck(self) -> str:
                 return "not a dict"
 
         labels, checked, source, verified, picker = _browser_menu_observation(FakeAdapter())
@@ -57,7 +57,7 @@ class BrowserMenuObservationEdgeCasesTests(unittest.TestCase):
 
     def test_automation_not_a_dict(self) -> None:
         class FakeAdapter:
-            def healthcheck(self) -> dict:
+            def healthcheck(self) -> dict[str, object]:
                 return {"automation": "string, not dict"}
 
         labels, _, _, _, _ = _browser_menu_observation(FakeAdapter())
@@ -65,7 +65,7 @@ class BrowserMenuObservationEdgeCasesTests(unittest.TestCase):
 
     def test_observed_model_menu_not_a_list(self) -> None:
         class FakeAdapter:
-            def healthcheck(self) -> dict:
+            def healthcheck(self) -> dict[str, object]:
                 return {"automation": {"observed_model_menu": "GPT-5.4"}}
 
         labels, _, _, _, _ = _browser_menu_observation(FakeAdapter())
@@ -74,7 +74,7 @@ class BrowserMenuObservationEdgeCasesTests(unittest.TestCase):
     def test_verified_labels_non_str_keys_filtered_out(self) -> None:
         """Keys that are not strings must be silently dropped."""
         class FakeAdapter:
-            def healthcheck(self) -> dict:
+            def healthcheck(self) -> dict[str, object]:
                 return {
                     "automation": {
                         "observed_model_menu": ["GPT-5.4"],
@@ -95,7 +95,7 @@ class BrowserMenuObservationEdgeCasesTests(unittest.TestCase):
 
     def test_verified_labels_non_datetime_values_filtered_out(self) -> None:
         class FakeAdapter:
-            def healthcheck(self) -> dict:
+            def healthcheck(self) -> dict[str, object]:
                 return {
                     "automation": {
                         "observed_model_menu": ["GPT-5.4"],
@@ -113,7 +113,7 @@ class BrowserMenuObservationEdgeCasesTests(unittest.TestCase):
 
     def test_picker_unavailable_at_non_datetime_becomes_none(self) -> None:
         class FakeAdapter:
-            def healthcheck(self) -> dict:
+            def healthcheck(self) -> dict[str, object]:
                 return {
                     "automation": {
                         "observed_model_menu": [],
@@ -129,7 +129,7 @@ class BrowserMenuObservationEdgeCasesTests(unittest.TestCase):
 
     def test_picker_unavailable_at_datetime_preserved(self) -> None:
         class FakeAdapter:
-            def healthcheck(self) -> dict:
+            def healthcheck(self) -> dict[str, object]:
                 return {
                     "automation": {
                         "observed_model_menu": [],
@@ -160,7 +160,7 @@ class LastVerifiedAtAliasTests(unittest.TestCase):
 class ModelCatalogItemPickerNewerTests(unittest.TestCase):
     """Tests for _model_catalog_item branches involving picker_newer logic."""
 
-    def _browser_spec(self):  # type: ignore[no-untyped-def]
+    def _browser_spec(self) -> ModelSpec:
         return next(s for s in MODEL_SPECS if s.adapter_kind == "browser")
 
     def test_picker_newer_than_observation_updates_checked_at(self) -> None:

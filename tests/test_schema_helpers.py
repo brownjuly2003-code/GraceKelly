@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import unittest
+from typing import cast
 
 from gracekelly.storage.schema import compute_schema_diff, split_sql_statements
 
@@ -43,7 +44,7 @@ class SplitSqlStatementsTests(unittest.TestCase):
 
 
 class ComputeSchemaDiffTests(unittest.TestCase):
-    def _all_ok_columns(self) -> dict:
+    def _all_ok_columns(self) -> dict[str, list[str]]:
         from gracekelly.storage.schema import EXPECTED_SCHEMA_COLUMNS
         return {table: list(cols) for table, cols in EXPECTED_SCHEMA_COLUMNS.items()}
 
@@ -56,52 +57,60 @@ class ComputeSchemaDiffTests(unittest.TestCase):
         actual = self._all_ok_columns()
         del actual["gk_task_steps"]
         diff = compute_schema_diff(actual)
-        self.assertIn("gk_task_steps", diff["missing_tables"])
+        missing_tables = cast(list[str], diff["missing_tables"])
+        self.assertIn("gk_task_steps", missing_tables)
 
     def test_extra_table_ignored(self) -> None:
         actual = self._all_ok_columns()
         actual["extra_table"] = ["id"]
         diff = compute_schema_diff(actual)
-        self.assertNotIn("extra_table", diff["missing_tables"])
+        missing_tables = cast(list[str], diff["missing_tables"])
+        self.assertNotIn("extra_table", missing_tables)
 
     def test_missing_column_reported(self) -> None:
         actual = self._all_ok_columns()
         actual["gk_tasks"] = [c for c in actual["gk_tasks"] if c != "status"]
         diff = compute_schema_diff(actual)
-        self.assertIn("gk_tasks", diff["missing_columns"])
-        self.assertIn("status", diff["missing_columns"]["gk_tasks"])
+        missing_columns = cast(dict[str, list[str]], diff["missing_columns"])
+        self.assertIn("gk_tasks", missing_columns)
+        self.assertIn("status", missing_columns["gk_tasks"])
 
     def test_extra_column_ignored(self) -> None:
         actual = self._all_ok_columns()
         actual["gk_tasks"].append("custom_column")
         diff = compute_schema_diff(actual)
-        self.assertNotIn("gk_tasks", diff["missing_columns"])
+        missing_columns = cast(dict[str, list[str]], diff["missing_columns"])
+        self.assertNotIn("gk_tasks", missing_columns)
 
     def test_multiple_missing_tables_all_reported(self) -> None:
-        actual = {}
+        actual: dict[str, list[str]] = {}
         diff = compute_schema_diff(actual)
-        self.assertEqual(len(diff["missing_tables"]), 3)
+        missing_tables = cast(list[str], diff["missing_tables"])
+        self.assertEqual(len(missing_tables), 3)
 
     def test_missing_tables_sorted(self) -> None:
-        actual = {}
+        actual: dict[str, list[str]] = {}
         diff = compute_schema_diff(actual)
-        self.assertEqual(diff["missing_tables"], sorted(diff["missing_tables"]))
+        missing_tables = cast(list[str], diff["missing_tables"])
+        self.assertEqual(missing_tables, sorted(missing_tables))
 
     def test_missing_column_in_events_table(self) -> None:
         actual = self._all_ok_columns()
         actual["gk_task_events"] = [c for c in actual["gk_task_events"] if c != "payload"]
         diff = compute_schema_diff(actual)
-        self.assertIn("gk_task_events", diff["missing_columns"])
-        self.assertIn("payload", diff["missing_columns"]["gk_task_events"])
+        missing_columns = cast(dict[str, list[str]], diff["missing_columns"])
+        self.assertIn("gk_task_events", missing_columns)
+        self.assertIn("payload", missing_columns["gk_task_events"])
 
     def test_empty_actual_columns_for_existing_table(self) -> None:
         actual = self._all_ok_columns()
         actual["gk_tasks"] = []
         diff = compute_schema_diff(actual)
-        self.assertIn("gk_tasks", diff["missing_columns"])
+        missing_columns = cast(dict[str, list[str]], diff["missing_columns"])
+        self.assertIn("gk_tasks", missing_columns)
         from gracekelly.storage.schema import EXPECTED_SCHEMA_COLUMNS
         for col in EXPECTED_SCHEMA_COLUMNS["gk_tasks"]:
-            self.assertIn(col, diff["missing_columns"]["gk_tasks"])
+            self.assertIn(col, missing_columns["gk_tasks"])
 
 
 if __name__ == "__main__":

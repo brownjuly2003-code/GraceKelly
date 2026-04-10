@@ -114,7 +114,7 @@ class RoleExecutorTests(unittest.TestCase):
         )
 
         with self.assertRaises(FrozenInstanceError):
-            step.original_prompt = "changed"
+            setattr(step, "original_prompt", "changed")
 
     def test_all_role_methods_exist(self) -> None:
         executor = RoleExecutor(lambda prompt: prompt)

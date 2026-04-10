@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import inspect
 import logging
 from typing import Annotated
 
@@ -100,8 +101,9 @@ async def run_batch(payload: BatchRequest, request: Request) -> BatchResponse:
             reasoning=False,
         )
         try:
-            if hasattr(type(adapter), "execute_async"):
-                result = await adapter.execute_async(exec_request)
+            async_result = adapter.execute_async(exec_request)
+            if inspect.isawaitable(async_result):
+                result = await async_result
             else:
                 result = adapter.execute(exec_request)
             if result.status == StepStatus.COMPLETED and result.output_text:

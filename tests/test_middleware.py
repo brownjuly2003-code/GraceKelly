@@ -12,11 +12,11 @@ def _test_app_with_security_headers() -> FastAPI:
     app = FastAPI()
 
     @app.get("/health")
-    def health():
+    def health() -> dict[str, str]:
         return {"status": "ok"}
 
     @app.get("/api/v1/models")
-    def models():
+    def models() -> list[dict[str, str]]:
         return []
 
     setup_security_headers(app)
@@ -27,23 +27,23 @@ def _test_app(*, api_key: str | None = None) -> FastAPI:
     app = FastAPI()
 
     @app.get("/health")
-    def health():
+    def health() -> dict[str, str]:
         return {"status": "ok"}
 
     @app.get("/api/v1/models")
-    def models():
+    def models() -> list[dict[str, str]]:
         return []
 
     @app.post("/api/v1/orchestrate")
-    def orchestrate():
+    def orchestrate() -> dict[str, str]:
         return {"task_id": "t1"}
 
     @app.get("/api/v1/readiness")
-    def readiness():
+    def readiness() -> dict[str, str]:
         return {"status": "ok"}
 
     @app.get("/metrics")
-    def metrics():
+    def metrics() -> str:
         return "metrics"
 
     setup_api_key_auth(app, api_key=api_key)

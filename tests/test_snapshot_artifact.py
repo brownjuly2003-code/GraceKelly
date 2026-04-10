@@ -85,7 +85,9 @@ class ArtifactMetadataTests(unittest.TestCase):
     def test_existing_file_size_nonnegative(self) -> None:
         with tempfile.NamedTemporaryFile(suffix=".json") as f:
             meta = artifact_metadata(pathlib.Path(f.name))
-        self.assertGreaterEqual(meta["size_bytes"], 0)  # type: ignore[operator]
+        size_bytes = meta["size_bytes"]
+        assert isinstance(size_bytes, int)
+        self.assertGreaterEqual(size_bytes, 0)
 
 
 # ---------------------------------------------------------------------------
@@ -94,20 +96,20 @@ class ArtifactMetadataTests(unittest.TestCase):
 
 class ChecksumStatusTests(unittest.TestCase):
     def test_verified(self) -> None:
-        snap = {"a": 1}
+        snap: dict[str, object] = {"a": 1}
         snap["snapshot_sha256"] = compute_snapshot_sha256(snap)
         state, expected, computed = checksum_status(snap)
         self.assertEqual(state, "verified")
         self.assertEqual(expected, computed)
 
     def test_missing(self) -> None:
-        snap = {"a": 1}
+        snap: dict[str, object] = {"a": 1}
         state, expected, _ = checksum_status(snap)
         self.assertEqual(state, "missing")
         self.assertIsNone(expected)
 
     def test_mismatch(self) -> None:
-        snap = {"a": 1, "snapshot_sha256": "wrong_hash"}
+        snap: dict[str, object] = {"a": 1, "snapshot_sha256": "wrong_hash"}
         state, expected, computed = checksum_status(snap)
         self.assertEqual(state, "mismatch")
         self.assertEqual(expected, "wrong_hash")

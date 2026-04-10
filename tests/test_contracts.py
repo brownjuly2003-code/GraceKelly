@@ -42,7 +42,7 @@ class FailureCodeTests(unittest.TestCase):
             model_display_name="Kimi K2.5",
             backend="browser",
             provider="perplexity",
-            status="completed",
+            status=StepStatus.COMPLETED,
             output_text="x" * 12,
         )
 
@@ -70,12 +70,12 @@ class FailureCodeTests(unittest.TestCase):
             duration_ms=1,
             prompt="prompt",
             reasoning=False,
-            execution_mode="mixed",
+            execution_mode=ExecutionMode.MIXED,
             dry_run=False,
             model_count=2,
             quorum=1,
             merge_strategy=MergeStrategy.FIRST_SUCCESS,
-            adapter_hint="auto",
+            adapter_hint=AdapterHint.AUTO,
             cancel_on_quorum=True,
             output_text="winner",
         )

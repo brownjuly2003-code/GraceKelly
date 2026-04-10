@@ -186,7 +186,7 @@ class ConsensusExecutorTests(unittest.TestCase):
         )
         result = executor.execute("Test", lambda _p: "response")
         with self.assertRaises((AttributeError, TypeError, dataclasses.FrozenInstanceError)):
-            result.total_rounds = 99
+            setattr(result, "total_rounds", 99)
 
 
 if __name__ == "__main__":

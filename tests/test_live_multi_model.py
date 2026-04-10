@@ -5,6 +5,7 @@ import os
 import time
 import unittest
 from pathlib import Path
+from typing import Any
 
 from gracekelly.adapters.browser.perplexity import PerplexityBrowserAdapter
 from gracekelly.adapters.browser.playwright_driver import PlaywrightBrowserAutomation, PlaywrightBrowserRuntimeConfig
@@ -13,6 +14,7 @@ from gracekelly.adapters.browser.session import BrowserSessionConfig, BrowserSes
 from gracekelly.core.cluster_confidence import compute_cluster_confidence
 from gracekelly.core.clustering_hac import hac_cluster
 from gracekelly.core.contracts import (
+    AdapterHint,
     ExecutionBackend,
     ExecutionPlan,
     ExecutionRequest,
@@ -73,7 +75,7 @@ class LiveMultiModelTests(unittest.TestCase):
         if callable(close_method):
             close_method()
 
-    def _execute_model(self, model_name: str) -> dict:
+    def _execute_model(self, model_name: str) -> dict[str, Any]:
         model = resolve_model(model_name)
         step = ExecutionStep(
             model=model,
@@ -87,7 +89,7 @@ class LiveMultiModelTests(unittest.TestCase):
             quorum=1,
             merge_strategy=MergeStrategy.FIRST_SUCCESS,
             dry_run=False,
-            adapter_hint="auto",
+            adapter_hint=AdapterHint.AUTO,
             cancel_on_quorum=False,
         )
         request = ExecutionRequest(
@@ -115,7 +117,7 @@ class LiveMultiModelTests(unittest.TestCase):
         models_to_test = os.getenv("GRACEKELLY_LIVE_MODELS", ",".join(LIVE_MODELS)).split(",")
         models_to_test = [m.strip() for m in models_to_test if m.strip()]
 
-        results = []
+        results: list[dict[str, Any]] = []
         for model_name in models_to_test:
             result = self._execute_model(model_name)
             results.append(result)

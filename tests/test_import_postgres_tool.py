@@ -10,6 +10,7 @@ from unittest.mock import patch
 from uuid import uuid4
 
 from gracekelly import __version__
+from gracekelly.storage.base import TaskEventRecord, TaskRecord, TaskStepRecord
 from gracekelly.tools import import_postgres
 from gracekelly.tools.snapshot_digest import SNAPSHOT_FORMAT_VERSION, compute_snapshot_sha256
 
@@ -149,7 +150,7 @@ class ImportPostgresToolTests(unittest.TestCase):
 
         class FakeRepository:
             def __init__(self, dsn: str, *, bootstrap: bool) -> None:
-                self.replaced = []
+                self.replaced: list[tuple[TaskRecord, list[TaskStepRecord], list[TaskEventRecord]]] = []
 
             def healthcheck(self) -> dict[str, object]:
                 return {"status": "ok", "backend": "postgres"}
@@ -157,12 +158,17 @@ class ImportPostgresToolTests(unittest.TestCase):
             def schema_report(self) -> dict[str, object]:
                 return {"status": "ok", "backend": "postgres", "schema_version": "0001_initial"}
 
-            def replace_task_snapshot(self, task, steps, events) -> None:
+            def replace_task_snapshot(
+                self,
+                task: TaskRecord,
+                steps: list[TaskStepRecord],
+                events: list[TaskEventRecord],
+            ) -> None:
                 self.replaced.append((task, steps, events))
 
         fake_instances: list[FakeRepository] = []
 
-        def build_fake_repository(dsn: str, *, bootstrap: bool):
+        def build_fake_repository(dsn: str, *, bootstrap: bool) -> FakeRepository:
             repo = FakeRepository(dsn, bootstrap=bootstrap)
             fake_instances.append(repo)
             return repo
@@ -445,7 +451,7 @@ class ImportPostgresToolTests(unittest.TestCase):
 
         class FakeRepository:
             def __init__(self, dsn: str, *, bootstrap: bool) -> None:
-                self.replaced = []
+                self.replaced: list[tuple[TaskRecord, list[TaskStepRecord], list[TaskEventRecord]]] = []
 
             def healthcheck(self) -> dict[str, object]:
                 return {"status": "ok", "backend": "postgres"}
@@ -453,12 +459,17 @@ class ImportPostgresToolTests(unittest.TestCase):
             def schema_report(self) -> dict[str, object]:
                 return {"status": "ok", "backend": "postgres", "schema_version": "0001_initial"}
 
-            def replace_task_snapshot(self, task, steps, events) -> None:
+            def replace_task_snapshot(
+                self,
+                task: TaskRecord,
+                steps: list[TaskStepRecord],
+                events: list[TaskEventRecord],
+            ) -> None:
                 self.replaced.append((task, steps, events))
 
         fake_instances: list[FakeRepository] = []
 
-        def build_fake_repository(dsn: str, *, bootstrap: bool):
+        def build_fake_repository(dsn: str, *, bootstrap: bool) -> FakeRepository:
             repo = FakeRepository(dsn, bootstrap=bootstrap)
             fake_instances.append(repo)
             return repo
@@ -532,7 +543,7 @@ class ImportPostgresToolTests(unittest.TestCase):
 
         class FakeRepository:
             def __init__(self, dsn: str, *, bootstrap: bool) -> None:
-                self.replaced = []
+                self.replaced: list[tuple[TaskRecord, list[TaskStepRecord], list[TaskEventRecord]]] = []
 
             def healthcheck(self) -> dict[str, object]:
                 return {"status": "ok", "backend": "postgres"}
@@ -540,12 +551,17 @@ class ImportPostgresToolTests(unittest.TestCase):
             def schema_report(self) -> dict[str, object]:
                 return {"status": "ok", "backend": "postgres", "schema_version": "0001_initial"}
 
-            def replace_task_snapshot(self, task, steps, events) -> None:
+            def replace_task_snapshot(
+                self,
+                task: TaskRecord,
+                steps: list[TaskStepRecord],
+                events: list[TaskEventRecord],
+            ) -> None:
                 self.replaced.append((task, steps, events))
 
         fake_instances: list[FakeRepository] = []
 
-        def build_fake_repository(dsn: str, *, bootstrap: bool):
+        def build_fake_repository(dsn: str, *, bootstrap: bool) -> FakeRepository:
             repo = FakeRepository(dsn, bootstrap=bootstrap)
             fake_instances.append(repo)
             return repo
@@ -634,12 +650,17 @@ class ImportPostgresToolTests(unittest.TestCase):
             def schema_report(self) -> dict[str, object]:
                 return {"status": "ok", "backend": "postgres", "schema_version": "0001_initial"}
 
-            def replace_task_snapshot(self, task, steps, events) -> None:
+            def replace_task_snapshot(
+                self,
+                task: TaskRecord,
+                steps: list[TaskStepRecord],
+                events: list[TaskEventRecord],
+            ) -> None:
                 self.replace_called = True
 
         fake_instances: list[FakeRepository] = []
 
-        def build_fake_repository(dsn: str, *, bootstrap: bool):
+        def build_fake_repository(dsn: str, *, bootstrap: bool) -> FakeRepository:
             repo = FakeRepository(dsn, bootstrap=bootstrap)
             fake_instances.append(repo)
             return repo
@@ -697,7 +718,12 @@ class ImportPostgresToolTests(unittest.TestCase):
             def schema_report(self) -> dict[str, object]:
                 return {"status": "ok", "backend": "postgres", "schema_version": "0001_initial"}
 
-            def replace_task_snapshot(self, task, steps, events) -> None:
+            def replace_task_snapshot(
+                self,
+                task: TaskRecord,
+                steps: list[TaskStepRecord],
+                events: list[TaskEventRecord],
+            ) -> None:
                 raise AssertionError("replace_task_snapshot should not run for empty gzip snapshot")
 
         try:
@@ -941,7 +967,12 @@ class ImportPostgresToolTests(unittest.TestCase):
             def schema_report(self) -> dict[str, object]:
                 return {"status": "ok", "backend": "postgres", "schema_version": "0001_initial"}
 
-            def replace_task_snapshot(self, task, steps, events) -> None:
+            def replace_task_snapshot(
+                self,
+                task: TaskRecord,
+                steps: list[TaskStepRecord],
+                events: list[TaskEventRecord],
+            ) -> None:
                 raise AssertionError("replace_task_snapshot should not run on invalid input")
 
         try:
@@ -1030,7 +1061,12 @@ class ImportPostgresToolTests(unittest.TestCase):
             def schema_report(self) -> dict[str, object]:
                 return {"status": "ok", "backend": "postgres", "schema_version": "0001_initial"}
 
-            def replace_task_snapshot(self, task, steps, events) -> None:
+            def replace_task_snapshot(
+                self,
+                task: TaskRecord,
+                steps: list[TaskStepRecord],
+                events: list[TaskEventRecord],
+            ) -> None:
                 raise AssertionError("replace_task_snapshot should not run on invalid input")
 
         try:

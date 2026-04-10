@@ -166,7 +166,7 @@ class AdaptiveSelectorTests(unittest.TestCase):
         )
 
         with self.assertRaises(FrozenInstanceError):
-            recommendation.score = 0.5
+            setattr(recommendation, "score", 0.5)
 
     def test_score_is_success_rate(self) -> None:
         records = [

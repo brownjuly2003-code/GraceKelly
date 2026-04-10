@@ -10,7 +10,7 @@ from gracekelly.core.debate_round import (
 
 
 class TestDebateRound(unittest.TestCase):
-    def test_basic_debate(self):
+    def test_basic_debate(self) -> None:
         calls: list[str] = []
 
         def mock_fn(prompt: str) -> str:
@@ -24,7 +24,7 @@ class TestDebateRound(unittest.TestCase):
         self.assertEqual(result.defense, "improved_text")
         self.assertEqual(result.improved_response, "improved_text")
 
-    def test_execute_fn_called_twice(self):
+    def test_execute_fn_called_twice(self) -> None:
         call_count = 0
 
         def mock_fn(prompt: str) -> str:
@@ -35,30 +35,30 @@ class TestDebateRound(unittest.TestCase):
         run_debate("q", "a", mock_fn)
         self.assertEqual(call_count, 2)
 
-    def test_challenge_prompt_contains_original_and_response(self):
+    def test_challenge_prompt_contains_original_and_response(self) -> None:
         prompt = build_challenge_prompt("my question", "my answer")
         self.assertIn("my question", prompt)
         self.assertIn("my answer", prompt)
         self.assertIn("Devil's Advocate", prompt)
 
-    def test_defense_prompt_contains_challenge(self):
+    def test_defense_prompt_contains_challenge(self) -> None:
         prompt = build_defense_prompt("q", "a", "the critique")
         self.assertIn("q", prompt)
         self.assertIn("a", prompt)
         self.assertIn("the critique", prompt)
 
-    def test_improved_response_equals_defense(self):
+    def test_improved_response_equals_defense(self) -> None:
         result = run_debate("q", "a", lambda x: "same")
         self.assertEqual(result.improved_response, result.defense)
 
-    def test_rounds_used_is_one(self):
+    def test_rounds_used_is_one(self) -> None:
         result = run_debate("q", "a", lambda x: "r")
         self.assertEqual(result.rounds_used, 1)
 
-    def test_result_is_frozen(self):
+    def test_result_is_frozen(self) -> None:
         result = run_debate("q", "a", lambda x: "r")
         with self.assertRaises(AttributeError):
-            result.rounds_used = 5
+            setattr(result, "rounds_used", 5)
 
 
 if __name__ == "__main__":

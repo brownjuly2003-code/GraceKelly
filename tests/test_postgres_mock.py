@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 import unittest
 from datetime import UTC, datetime
+from typing import Any
 from unittest.mock import MagicMock, patch
 
 from gracekelly.core.contracts import (
@@ -38,7 +39,7 @@ def _make_repo(*, pool: object | None = None) -> PostgresTaskRepository:
 
 
 def _task_record(**overrides: object) -> TaskRecord:
-    base: dict = dict(
+    base: dict[str, Any] = dict(
         task_id="t-100",
         status=TaskStatus.COMPLETED,
         accepted_at=datetime(2026, 3, 29, tzinfo=UTC),
@@ -59,7 +60,7 @@ def _task_record(**overrides: object) -> TaskRecord:
 
 
 def _step_record(**overrides: object) -> TaskStepRecord:
-    base: dict = dict(
+    base: dict[str, Any] = dict(
         task_id="t-100",
         step_index=0,
         model_id="mistral-small",
@@ -75,7 +76,7 @@ def _step_record(**overrides: object) -> TaskStepRecord:
 
 
 def _event_record(**overrides: object) -> TaskEventRecord:
-    base: dict = dict(
+    base: dict[str, Any] = dict(
         event_id="ev-1",
         task_id="t-100",
         sequence_no=1,
@@ -87,7 +88,7 @@ def _event_record(**overrides: object) -> TaskEventRecord:
     return TaskEventRecord(**base)
 
 
-def _task_row(**overrides: object) -> dict:
+def _task_row(**overrides: object) -> dict[str, Any]:
     base = {
         "task_id": "t-100",
         "status": "completed",
@@ -113,7 +114,7 @@ def _task_row(**overrides: object) -> dict:
     return base
 
 
-def _step_row(**overrides: object) -> dict:
+def _step_row(**overrides: object) -> dict[str, Any]:
     base = {
         "task_id": "t-100",
         "step_index": 0,
@@ -131,7 +132,7 @@ def _step_row(**overrides: object) -> dict:
     return base
 
 
-def _event_row(**overrides: object) -> dict:
+def _event_row(**overrides: object) -> dict[str, Any]:
     base = {
         "event_id": "ev-1",
         "task_id": "t-100",
@@ -704,7 +705,7 @@ class SchemaReportTests(unittest.TestCase):
         call_count = 0
         mock_psycopg.Error = RuntimeError
 
-        def fetchall_side_effect() -> list:
+        def fetchall_side_effect() -> list[dict[str, str]]:
             nonlocal call_count
             call_count += 1
             if call_count == 1:
@@ -753,7 +754,8 @@ class ConnectPoolTests(unittest.TestCase):
         pool.connection.return_value = pool_conn
 
         repo = _make_repo(pool=pool)
-        result = repo._connect()
+        repo_any: Any = repo
+        result = repo_any._connect()
         self.assertIs(result, pool_conn)
 
     def test_connect_with_pool_row_factory(self) -> None:
@@ -762,7 +764,8 @@ class ConnectPoolTests(unittest.TestCase):
         pool.connection.return_value = pool_conn
 
         repo = _make_repo(pool=pool)
-        result = repo._connect(row_factory="dict_row_sentinel")
+        repo_any: Any = repo
+        result = repo_any._connect(row_factory="dict_row_sentinel")
         self.assertIsInstance(result, _PoolConnectionWithRowFactory)
 
     @patch("gracekelly.storage.postgres.psycopg")
@@ -771,7 +774,8 @@ class ConnectPoolTests(unittest.TestCase):
         mock_psycopg.connect.return_value = conn
 
         repo = _make_repo()
-        repo._connect()
+        repo_any: Any = repo
+        repo_any._connect()
         mock_psycopg.connect.assert_called_once_with(
             "postgresql://u:p@localhost/testdb",
             connect_timeout=5,
@@ -783,7 +787,8 @@ class ConnectPoolTests(unittest.TestCase):
         mock_psycopg.connect.return_value = conn
 
         repo = _make_repo()
-        repo._connect(row_factory="dict_row_sentinel")
+        repo_any: Any = repo
+        repo_any._connect(row_factory="dict_row_sentinel")
         mock_psycopg.connect.assert_called_once_with(
             "postgresql://u:p@localhost/testdb",
             connect_timeout=5,

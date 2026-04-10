@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import unittest
 from datetime import UTC, datetime
+from typing import Any
 
 from pydantic import ValidationError
 
@@ -87,7 +88,7 @@ def _event(
     task_id: str = "t1",
     event_type: EventType = EventType.TASK_ACCEPTED,
     seq: int = 1,
-    payload: dict | None = None,
+    payload: dict[str, Any] | None = None,
 ) -> TaskEventRecord:
     return TaskEventRecord(
         event_id=f"e-{seq}",
@@ -100,7 +101,7 @@ def _event(
 
 
 class OrchestrateRequestValidationTests(unittest.TestCase):
-    def _valid_payload(self, **overrides) -> dict:
+    def _valid_payload(self, **overrides: Any) -> dict[str, Any]:
         base = {"prompt": "Hello", "model": "Mistral", "dry_run": True}
         base.update(overrides)
         return base

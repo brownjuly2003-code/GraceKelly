@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import unittest
+from typing import Any
 from unittest.mock import MagicMock, patch
 
 from gracekelly.api.routes.health import (
@@ -14,7 +15,7 @@ from gracekelly.api.routes.health import (
 from gracekelly.request_metrics import RequestMetrics
 
 
-def _mock_readiness() -> dict:
+def _mock_readiness() -> dict[str, Any]:
     return {
         "status": "ok",
         "environment": "test",
@@ -43,7 +44,7 @@ def _mock_readiness() -> dict:
     }
 
 
-def _call_metrics(readiness: dict, request_metrics: RequestMetrics | None = None) -> str:
+def _call_metrics(readiness: dict[str, Any], request_metrics: RequestMetrics | None = None) -> str:
     profile = MagicMock()
     profile.name = "dry-run"
     with patch(
@@ -118,7 +119,7 @@ class BuildMetricsPayloadRequestMetricsTests(unittest.TestCase):
 
 
 class BuildMetricsPayloadStorageCountsTests(unittest.TestCase):
-    def _readiness_with_storage_details(self, details: dict) -> dict:
+    def _readiness_with_storage_details(self, details: dict[str, Any]) -> dict[str, Any]:
         r = _mock_readiness()
         for c in r["components"]:
             if c["kind"] == "storage":
@@ -147,7 +148,7 @@ class BuildMetricsPayloadStorageCountsTests(unittest.TestCase):
 
 
 class BuildMetricsPayloadCircuitBreakerTests(unittest.TestCase):
-    def _readiness_with_adapter(self, breaker_details: object) -> dict:
+    def _readiness_with_adapter(self, breaker_details: object) -> dict[str, Any]:
         r = _mock_readiness()
         r["components"].append({
             "name": "browser.perplexity",

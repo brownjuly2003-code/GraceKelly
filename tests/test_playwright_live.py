@@ -10,11 +10,13 @@ from gracekelly.adapters.browser.playwright_driver import PlaywrightBrowserAutom
 from gracekelly.adapters.browser.policy import AuthRecoveryPolicy, ModelVerificationPolicy, PopupPolicy, SubmitPolicy
 from gracekelly.adapters.browser.session import BrowserSessionConfig, BrowserSessionManager
 from gracekelly.core.contracts import (
+    AdapterHint,
     ExecutionBackend,
     ExecutionPlan,
     ExecutionRequest,
     ExecutionStep,
     FailureCode,
+    MergeStrategy,
     StepStatus,
 )
 from gracekelly.core.models import resolve_model
@@ -71,9 +73,9 @@ class PlaywrightBrowserLiveTests(unittest.TestCase):
         plan = ExecutionPlan(
             steps=(step,),
             quorum=1,
-            merge_strategy="first_success",
+            merge_strategy=MergeStrategy.FIRST_SUCCESS,
             dry_run=False,
-            adapter_hint="auto",
+            adapter_hint=AdapterHint.AUTO,
             cancel_on_quorum=True,
         )
         return ExecutionRequest(

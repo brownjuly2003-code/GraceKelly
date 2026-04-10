@@ -145,7 +145,7 @@ class ExecutionComponentStatusTests(unittest.TestCase):
 
     def test_none_is_not_healthcheck(self) -> None:
         """None should not match SupportsHealthcheck and must not crash."""
-        result = execution_component_status(None)  # type: ignore[arg-type]
+        result = execution_component_status(None)
         self.assertEqual(result["status"], "unknown")
 
 
@@ -183,7 +183,7 @@ class AdapterComponentStatusTests(unittest.TestCase):
         self.assertEqual(result["status"], "degraded")
 
     def test_none_adapter_returns_unknown(self) -> None:
-        result = adapter_component_status("x", None, required=False)  # type: ignore[arg-type]
+        result = adapter_component_status("x", None, required=False)
         self.assertEqual(result["status"], "unknown")
 
 

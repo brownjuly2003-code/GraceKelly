@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import unittest
+from collections.abc import Callable
+from typing import Any
 
 from gracekelly.adapters.browser.automation import BrowserProfileBusyError
 from gracekelly.adapters.browser.playwright_driver import PlaywrightBrowserAutomation
@@ -16,7 +18,7 @@ class _FakeLocator:
         texts: list[str] | None = None,
         inner_text: str | None = None,
         attributes: dict[str, str] | None = None,
-        on_click=None,
+        on_click: Callable[[], None] | None = None,
     ) -> None:
         self._visible = visible
         self.clicked = False
@@ -95,7 +97,7 @@ class _FakePage:
     def goto(self, url: str, wait_until: str) -> None:
         self.goto_url = url
 
-    def evaluate(self, script: str):
+    def evaluate(self, script: str) -> list[str]:
         return [
             "New Thread" if self.new_thread_button.is_visible() else "",
             "Model" if self.model_button.is_visible() else "",
@@ -103,7 +105,7 @@ class _FakePage:
 
 
 class _TransientLocator(_FakeLocator):
-    def __init__(self, visible_sequence: list[bool], **kwargs) -> None:
+    def __init__(self, visible_sequence: list[bool], **kwargs: Any) -> None:
         initial_visible = visible_sequence[0] if visible_sequence else False
         super().__init__(visible=initial_visible, **kwargs)
         self._visible_sequence = list(visible_sequence)
@@ -153,7 +155,7 @@ class _LaunchingChromium:
     def __init__(self, context: _FakeContext) -> None:
         self._context = context
 
-    def launch_persistent_context(self, *args, **kwargs) -> _FakeContext:
+    def launch_persistent_context(self, *args: Any, **kwargs: Any) -> _FakeContext:
         return self._context
 
 
@@ -175,7 +177,7 @@ class _LaunchingPlaywrightManager:
 
 
 class _CrashingChromium:
-    def launch_persistent_context(self, *args, **kwargs):
+    def launch_persistent_context(self, *args: Any, **kwargs: Any) -> _FakeContext:
         raise RuntimeError(
             "BrowserType.launch_persistent_context: Target page, context or browser has been closed\n"
             "Call log:\n"

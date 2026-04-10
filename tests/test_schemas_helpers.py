@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import unittest
 from datetime import UTC, datetime
+from typing import Any
 
 from gracekelly.core.contracts import (
     AdapterHint,
@@ -70,7 +71,7 @@ def _step(
 def _event(
     event_type: EventType,
     *,
-    payload: dict | None = None,
+    payload: dict[str, Any] | None = None,
     seq: int = 1,
 ) -> TaskEventRecord:
     return TaskEventRecord(

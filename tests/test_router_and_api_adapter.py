@@ -8,9 +8,11 @@ from gracekelly.adapters.api.openai_compat import OpenAICompatibleApiAdapter
 from gracekelly.adapters.dry_run import DryRunExecutionAdapter
 from gracekelly.core.contracts import (
     ExecutionMode,
+    ExecutionPlan,
     ExecutionRequest,
     ExecutionResult,
     FailureCode,
+    MergeStrategy,
     StepStatus,
     TaskStatus,
 )
@@ -69,7 +71,7 @@ class FakeOpenAICompatibleAdapter(OpenAICompatibleApiAdapter):
         }
 
 
-def build_request(task_id: str, prompt: str, plan) -> ExecutionRequest:
+def build_request(task_id: str, prompt: str, plan: ExecutionPlan) -> ExecutionRequest:
     return ExecutionRequest(
         task_id=task_id,
         prompt=prompt,
@@ -196,12 +198,12 @@ class ExecutionRouterTests(unittest.TestCase):
         class FakeBrowserAdapter:
             name = "browser.perplexity"
 
-            def execute(self, request):
+            def execute(self, request: ExecutionRequest) -> ExecutionResult:
                 return ExecutionResult(
                     adapter_name=self.name,
                     model_id=request.step.model.id,
                     model_display_name=request.step.model.display_name,
-                    execution_mode="browser",
+                    execution_mode=ExecutionMode.BROWSER,
                     status=StepStatus.COMPLETED,
                     output_text="browser result",
                 )
@@ -216,7 +218,7 @@ class ExecutionRouterTests(unittest.TestCase):
                 prompt="concat execution",
                 models=["Kimi K2", "Mistral"],
                 dry_run=False,
-                merge_strategy="concat",
+                merge_strategy=MergeStrategy.CONCAT,
                 quorum=1,
                 cancel_on_quorum=False,
             )
@@ -242,12 +244,12 @@ class ExecutionRouterTests(unittest.TestCase):
         class FakeBrowserAdapter:
             name = "browser.perplexity"
 
-            def execute(self, request):
+            def execute(self, request: ExecutionRequest) -> ExecutionResult:
                 return ExecutionResult(
                     adapter_name=self.name,
                     model_id=request.step.model.id,
                     model_display_name=request.step.model.display_name,
-                    execution_mode="browser",
+                    execution_mode=ExecutionMode.BROWSER,
                     status=StepStatus.COMPLETED,
                     output_text="browser first",
                 )
@@ -258,13 +260,13 @@ class ExecutionRouterTests(unittest.TestCase):
             def __init__(self) -> None:
                 self.call_count = 0
 
-            def execute(self, request):
+            def execute(self, request: ExecutionRequest) -> ExecutionResult:
                 self.call_count += 1
                 return ExecutionResult(
                     adapter_name=self.name,
                     model_id=request.step.model.id,
                     model_display_name=request.step.model.display_name,
-                    execution_mode="api",
+                    execution_mode=ExecutionMode.API,
                     status=StepStatus.COMPLETED,
                     output_text="api second",
                 )
@@ -280,7 +282,7 @@ class ExecutionRouterTests(unittest.TestCase):
                 prompt="first success",
                 models=["Kimi K2", "Mistral"],
                 dry_run=False,
-                merge_strategy="first_success",
+                merge_strategy=MergeStrategy.FIRST_SUCCESS,
                 quorum=1,
                 cancel_on_quorum=True,
             )
@@ -312,7 +314,7 @@ class ExecutionRouterTests(unittest.TestCase):
                 self.release_execution = threading.Event()
                 self.call_count = 0
 
-            def execute(self, request):
+            def execute(self, request: ExecutionRequest) -> ExecutionResult:
                 self.call_count += 1
                 self.started.set()
                 self.release_execution.wait(timeout=2.0)
@@ -320,7 +322,7 @@ class ExecutionRouterTests(unittest.TestCase):
                     adapter_name=self.name,
                     model_id=request.step.model.id,
                     model_display_name=request.step.model.display_name,
-                    execution_mode="browser",
+                    execution_mode=ExecutionMode.BROWSER,
                     status=StepStatus.COMPLETED,
                     output_text="browser result",
                 )
@@ -391,7 +393,7 @@ class ExecutionRouterTests(unittest.TestCase):
                 prompt="mismatch",
                 models=["Kimi K2", "Mistral"],
                 dry_run=False,
-                merge_strategy="concat",
+                merge_strategy=MergeStrategy.CONCAT,
                 cancel_on_quorum=False,
             )
         )

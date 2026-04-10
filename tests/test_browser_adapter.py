@@ -11,15 +11,17 @@ from gracekelly.adapters.browser.automation import (
     BrowserProfileBusyError,
 )
 from gracekelly.adapters.browser.perplexity import PerplexityBrowserAdapter
-from gracekelly.adapters.browser.policy import AuthRecoveryPolicy, ModelVerificationPolicy
+from gracekelly.adapters.browser.policy import AuthRecoveryPolicy, ModelVerificationPolicy, PopupPolicy, SubmitPolicy
 from gracekelly.adapters.browser.session import BrowserSessionConfig, BrowserSessionManager
 from gracekelly.core.contracts import (
+    AdapterHint,
     CancellationToken,
     ExecutionBackend,
     ExecutionPlan,
     ExecutionRequest,
     ExecutionStep,
     FailureCode,
+    MergeStrategy,
     StepStatus,
 )
 from gracekelly.core.models import resolve_model
@@ -40,25 +42,25 @@ class FakeBrowserAutomation(BrowserAutomationPort):
     def ensure_session(self, session_manager: BrowserSessionManager) -> None:
         return None
 
-    def dismiss_popups(self, policy) -> None:
+    def dismiss_popups(self, policy: PopupPolicy) -> None:
         return None
 
-    def auth_status(self, policy) -> BrowserAuthStatus:
+    def auth_status(self, policy: AuthRecoveryPolicy) -> BrowserAuthStatus:
         if self._logged_in:
             return BrowserAuthStatus(logged_in=True)
         return BrowserAuthStatus(logged_in=False, reason="Login required.")
 
-    def recover_auth(self, policy) -> BrowserAuthStatus:
+    def recover_auth(self, policy: AuthRecoveryPolicy) -> BrowserAuthStatus:
         return self.auth_status(policy)
 
-    def select_model(self, *, provider_model_id: str, policy) -> BrowserModelSelection:
+    def select_model(self, *, provider_model_id: str, policy: ModelVerificationPolicy) -> BrowserModelSelection:
         actual = self._actual_label or provider_model_id
         return BrowserModelSelection(
             requested_label=provider_model_id,
             actual_label=actual,
         )
 
-    def submit_prompt(self, *, prompt: str, policy, timeout_seconds: int) -> BrowserExecutionOutput:
+    def submit_prompt(self, *, prompt: str, policy: SubmitPolicy, timeout_seconds: int) -> BrowserExecutionOutput:
         return BrowserExecutionOutput(
             output_text=self._output_text,
             details={"submitted_prompt": prompt, "timeout_seconds": timeout_seconds},
@@ -84,9 +86,9 @@ class BrowserAdapterTests(unittest.TestCase):
         plan = ExecutionPlan(
             steps=(step,),
             quorum=1,
-            merge_strategy="first_success",
+            merge_strategy=MergeStrategy.FIRST_SUCCESS,
             dry_run=False,
-            adapter_hint="auto",
+            adapter_hint=AdapterHint.AUTO,
             cancel_on_quorum=True,
         )
         return ExecutionRequest(
@@ -168,7 +170,7 @@ class BrowserAdapterTests(unittest.TestCase):
 
     def test_browser_adapter_maps_unexpected_runtime_error_to_unknown_error(self) -> None:
         class CrashingBrowserAutomation(FakeBrowserAutomation):
-            def submit_prompt(self, *, prompt: str, policy, timeout_seconds: int) -> BrowserExecutionOutput:
+            def submit_prompt(self, *, prompt: str, policy: SubmitPolicy, timeout_seconds: int) -> BrowserExecutionOutput:
                 raise RuntimeError("unexpected browser crash")
 
         adapter = PerplexityBrowserAdapter(
@@ -184,7 +186,7 @@ class BrowserAdapterTests(unittest.TestCase):
 
     def test_browser_adapter_maps_permission_error_to_auth_failed(self) -> None:
         class PromptBlockedBrowserAutomation(FakeBrowserAutomation):
-            def submit_prompt(self, *, prompt: str, policy, timeout_seconds: int) -> BrowserExecutionOutput:
+            def submit_prompt(self, *, prompt: str, policy: SubmitPolicy, timeout_seconds: int) -> BrowserExecutionOutput:
                 raise PermissionError("Perplexity sign-in overlay blocked prompt submission.")
 
         adapter = PerplexityBrowserAdapter(
@@ -368,7 +370,7 @@ class EnsureAuthTests(unittest.TestCase):
     def test_ensure_auth_returns_status_when_already_logged_in(self) -> None:
         """_ensure_auth should return immediately when auth_status reports logged_in=True."""
         class LoggedInAutomation(FakeBrowserAutomation):
-            def auth_status(self, policy) -> BrowserAuthStatus:
+            def auth_status(self, policy: AuthRecoveryPolicy) -> BrowserAuthStatus:
                 return BrowserAuthStatus(logged_in=True)
 
         adapter = PerplexityBrowserAdapter(
@@ -383,10 +385,10 @@ class EnsureAuthTests(unittest.TestCase):
         recovered: list[bool] = []
 
         class RecoverableAutomation(FakeBrowserAutomation):
-            def auth_status(self, policy) -> BrowserAuthStatus:
+            def auth_status(self, policy: AuthRecoveryPolicy) -> BrowserAuthStatus:
                 return BrowserAuthStatus(logged_in=False)
 
-            def recover_auth(self, policy) -> BrowserAuthStatus:
+            def recover_auth(self, policy: AuthRecoveryPolicy) -> BrowserAuthStatus:
                 recovered.append(True)
                 return BrowserAuthStatus(logged_in=True)
 

@@ -107,7 +107,7 @@ class TestExecutionHistory(unittest.TestCase):
         self.history.record("m", TaskType.GENERAL, "completed", 100)
         rec = self.history.list_recent()[0]
         with self.assertRaises(AttributeError):
-            rec.model_id = "other"
+            setattr(rec, "model_id", "other")
 
 
 class TestExecutionHistoryEdgeCases(unittest.TestCase):

@@ -30,7 +30,7 @@ class ConsensusTests(unittest.TestCase):
     def test_config_is_frozen(self) -> None:
         config = ConsensusConfig()
         with self.assertRaises(FrozenInstanceError):
-            config.max_rounds = 10
+            setattr(config, "max_rounds", 10)
 
     def test_cluster_info_creation(self) -> None:
         cluster = ClusterInfo(cluster_id=0, member_indices=(0, 1, 2), centroid_index=1, size=3, avg_similarity=0.92)
@@ -43,7 +43,7 @@ class ConsensusTests(unittest.TestCase):
     def test_cluster_info_is_frozen(self) -> None:
         cluster = ClusterInfo(cluster_id=0, member_indices=(0,), centroid_index=0, size=1, avg_similarity=1.0)
         with self.assertRaises(FrozenInstanceError):
-            cluster.size = 5
+            setattr(cluster, "size", 5)
 
     def test_consensus_result_creation(self) -> None:
         cluster = ClusterInfo(cluster_id=0, member_indices=(0, 1), centroid_index=0, size=2, avg_similarity=0.8)

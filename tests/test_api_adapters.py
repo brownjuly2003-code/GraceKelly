@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import unittest
+from typing import Any
 from unittest.mock import MagicMock
 
 from gracekelly.adapters.api.anthropic import AnthropicApiAdapter
@@ -176,7 +177,7 @@ class OpenAICompatExtractOutputTextTests(unittest.TestCase):
             _openai()._extract_output_text(payload)
 
     def test_empty_list_content_raises(self) -> None:
-        payload = {"choices": [{"message": {"content": []}}]}
+        payload: dict[str, Any] = {"choices": [{"message": {"content": []}}]}
         with self.assertRaises(ValueError):
             _openai()._extract_output_text(payload)
 

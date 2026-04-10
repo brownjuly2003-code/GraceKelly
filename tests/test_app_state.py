@@ -15,7 +15,7 @@ class AppStateTests(unittest.TestCase):
 
     def test_app_state_attributes_assignable(self) -> None:
         state = AppState()
-        state.api_adapters = {}  # type: ignore[assignment]
+        state.api_adapters = {}
         self.assertEqual(state.api_adapters, {})
 
     def test_app_state_is_class(self) -> None:

@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import unittest
+from typing import cast
+from unittest import mock
 
 from gracekelly.core.consensus import ConsensusConfig
 from gracekelly.core.consensus_analyzer import ConsensusAnalyzer
@@ -8,10 +10,10 @@ from gracekelly.core.embeddings import EmbeddingsClient
 
 
 def _make_mock_client(embeddings_map: dict[str, list[float]]) -> EmbeddingsClient:
-    client = unittest.mock.MagicMock(spec=EmbeddingsClient)
+    client = mock.MagicMock(spec=EmbeddingsClient)
     client.embed.side_effect = lambda text: embeddings_map[text]
     client.embed_batch.side_effect = lambda texts: [embeddings_map[t] for t in texts]
-    return client
+    return cast(EmbeddingsClient, client)
 
 
 class ConsensusAnalyzerTests(unittest.TestCase):
