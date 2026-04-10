@@ -1,0 +1,2 @@
+ALTER TABLE gk_task_steps ADD COLUMN IF NOT EXISTS input_tokens INTEGER NULL;
+ALTER TABLE gk_task_steps ADD COLUMN IF NOT EXISTS output_tokens INTEGER NULL;
