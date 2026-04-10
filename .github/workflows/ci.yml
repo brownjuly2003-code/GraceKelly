@@ -45,7 +45,7 @@ jobs:
         run: python -m ruff check src/ tests/
 
       - name: Type check with mypy (strict)
-        run: python -m mypy src/gracekelly/
+        run: python -m mypy src/ tests/
 
       - name: Run tests with coverage
         run: |
