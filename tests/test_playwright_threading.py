@@ -4,6 +4,7 @@ import asyncio
 import unittest
 from concurrent.futures import ThreadPoolExecutor
 from types import SimpleNamespace
+from typing import Any, cast
 from unittest.mock import patch
 
 from fastapi import Response
@@ -53,11 +54,11 @@ class PlaywrightThreadingTests(unittest.TestCase):
 
         class FakeLoop:
             def __init__(self) -> None:
-                self.executor = None
-                self.fn = None
+                self.executor: object | None = None
+                self.fn: Any | None = None
                 self.args: tuple[object, ...] = ()
 
-            def run_in_executor(self, executor: object, fn: object, *args: object) -> object:
+            def run_in_executor(self, executor: object, fn: object, *args: object) -> Any:
                 self.executor = executor
                 self.fn = fn
                 self.args = args
@@ -71,11 +72,11 @@ class PlaywrightThreadingTests(unittest.TestCase):
 
         async def run_test() -> object:
             with (
-                patch.object(orchestrate_module.asyncio, "get_running_loop", return_value=fake_loop),
+                patch("gracekelly.api.routes.orchestrate.asyncio.get_running_loop", return_value=fake_loop),
                 patch.object(orchestrate_module, "_requested_models_from_request", return_value=[]),
                 patch.object(orchestrate_module.OrchestrateResponse, "from_task", return_value=sentinel),
             ):
-                return await orchestrate_module.orchestrate(payload, request, response)
+                return await orchestrate_module.orchestrate(payload, cast(Any, request), response)
 
         try:
             result = asyncio.run(run_test())
@@ -108,11 +109,11 @@ class PlaywrightThreadingTests(unittest.TestCase):
 
         class FakeLoop:
             def __init__(self) -> None:
-                self.executor = None
-                self.fn = None
+                self.executor: object | None = None
+                self.fn: Any | None = None
                 self.args: tuple[object, ...] = ()
 
-            def run_in_executor(self, executor: object, fn: object, *args: object) -> object:
+            def run_in_executor(self, executor: object, fn: object, *args: object) -> Any:
                 self.executor = executor
                 self.fn = fn
                 self.args = args
@@ -126,20 +127,22 @@ class PlaywrightThreadingTests(unittest.TestCase):
 
         async def run_test() -> object:
             with (
-                patch.object(orchestrate_module.asyncio, "get_running_loop", return_value=fake_loop),
+                patch("gracekelly.api.routes.orchestrate.asyncio.get_running_loop", return_value=fake_loop),
                 patch.object(orchestrate_module, "_build_retry_request", return_value=retry_request),
                 patch.object(orchestrate_module, "_requested_models_from_request", return_value=[]),
                 patch.object(orchestrate_module.OrchestrateResponse, "from_task", return_value=sentinel),
             ):
-                return await orchestrate_module.retry_task(request, "task-1")
+                return await orchestrate_module.retry_task(cast(Any, request), "task-1")
 
         try:
             result = asyncio.run(run_test())
             self.assertIs(result, sentinel)
             self.assertIs(fake_loop.executor, browser_executor)
             self.assertEqual(fake_loop.args, ())
-            self.assertIs(fake_loop.fn.func, service.submit_snapshot)
-            self.assertEqual(fake_loop.fn.args, (retry_request,))
-            self.assertEqual(fake_loop.fn.keywords, {"retry_of_task_id": "task-1"})
+            fn = fake_loop.fn
+            assert fn is not None
+            self.assertIs(fn.func, service.submit_snapshot)
+            self.assertEqual(fn.args, (retry_request,))
+            self.assertEqual(fn.keywords, {"retry_of_task_id": "task-1"})
         finally:
             browser_executor.shutdown(wait=False)

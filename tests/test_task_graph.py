@@ -9,8 +9,10 @@ class TaskGraphTests(unittest.TestCase):
     def test_add_and_get(self) -> None:
         g = TaskGraph()
         g.add_task(SubTask(id="a", prompt="do A"))
-        self.assertIsNotNone(g.get_task("a"))
-        self.assertEqual("do A", g.get_task("a").prompt)
+        task = g.get_task("a")
+        self.assertIsNotNone(task)
+        assert task is not None
+        self.assertEqual("do A", task.prompt)
 
     def test_get_missing(self) -> None:
         g = TaskGraph()
@@ -42,14 +44,18 @@ class TaskGraphTests(unittest.TestCase):
         g = TaskGraph()
         g.add_task(SubTask(id="a", prompt="A"))
         g.mark_completed("a", "result")
-        self.assertEqual(SubTaskStatus.COMPLETED, g.get_task("a").status)
-        self.assertEqual("result", g.get_task("a").result)
+        task = g.get_task("a")
+        assert task is not None
+        self.assertEqual(SubTaskStatus.COMPLETED, task.status)
+        self.assertEqual("result", task.result)
 
     def test_mark_failed(self) -> None:
         g = TaskGraph()
         g.add_task(SubTask(id="a", prompt="A"))
         g.mark_failed("a")
-        self.assertEqual(SubTaskStatus.FAILED, g.get_task("a").status)
+        task = g.get_task("a")
+        assert task is not None
+        self.assertEqual(SubTaskStatus.FAILED, task.status)
 
     def test_is_complete_all_done(self) -> None:
         g = TaskGraph()

@@ -331,6 +331,7 @@ class GetTests(unittest.TestCase):
         repo = _make_repo()
         task = repo.get("t-100")
         self.assertIsNotNone(task)
+        assert task is not None
         self.assertEqual(task.task_id, "t-100")
         self.assertEqual(task.status, TaskStatus.COMPLETED)
 

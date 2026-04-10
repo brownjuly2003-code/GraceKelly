@@ -52,11 +52,17 @@ class PostgresSchemaTests(unittest.TestCase):
         )
 
         self.assertEqual(diff["missing_tables"], ["gk_task_events"])
+        missing_columns = diff["missing_columns"]
+        assert isinstance(missing_columns, dict)
+        gk_tasks_columns = missing_columns.get("gk_tasks")
+        gk_task_steps_columns = missing_columns.get("gk_task_steps")
+        assert isinstance(gk_tasks_columns, list)
+        assert isinstance(gk_task_steps_columns, list)
         self.assertEqual(
-            diff["missing_columns"]["gk_tasks"][:2],
+            gk_tasks_columns[:2],
             ["accepted_at", "completed_at"],
         )
-        self.assertIn("model_id", diff["missing_columns"]["gk_task_steps"])
+        self.assertIn("model_id", gk_task_steps_columns)
 
     def test_task_row_is_normalized_back_to_merge_strategy_enum(self) -> None:
         repository = PostgresTaskRepository.__new__(PostgresTaskRepository)
@@ -139,16 +145,19 @@ class PostgresSchemaTests(unittest.TestCase):
 
         from gracekelly.storage import postgres as postgres_module
 
-        original = postgres_module.psycopg
-        postgres_module.psycopg = FakePsycopg
+        postgres_module_any: Any = postgres_module
+        original = postgres_module_any.psycopg
+        postgres_module_any.psycopg = FakePsycopg
         try:
             repository_any: Any = repository
             repository_any._connect(row_factory="dict")
         finally:
-            postgres_module.psycopg = original
+            postgres_module_any.psycopg = original
 
-        self.assertIsNotNone(FakePsycopg.called_with)
-        dsn, kwargs = FakePsycopg.called_with
+        called_with = FakePsycopg.called_with
+        self.assertIsNotNone(called_with)
+        assert called_with is not None
+        dsn, kwargs = called_with
         self.assertEqual(dsn, "postgresql://example")
         self.assertEqual(kwargs["connect_timeout"], 7)
         self.assertEqual(kwargs["row_factory"], "dict")
@@ -167,8 +176,9 @@ class PostgresSchemaTests(unittest.TestCase):
 
     def test_healthcheck_includes_storage_row_counts(self) -> None:
         repository = PostgresTaskRepository.__new__(PostgresTaskRepository)
-        repository._load_health_ping = lambda: {"ok": 1}
-        repository._load_storage_counts = lambda: {
+        repository_any: Any = repository
+        repository_any._load_health_ping = lambda: {"ok": 1}
+        repository_any._load_storage_counts = lambda: {
             "task_count": 2,
             "step_count": 3,
             "event_count": 5,
@@ -189,7 +199,8 @@ class PostgresSchemaTests(unittest.TestCase):
         def failing_connect(**kwargs: object) -> None:
             raise RuntimeError("database offline")
 
-        repository._connect = failing_connect
+        repository_any: Any = repository
+        repository_any._connect = failing_connect
 
         with self.assertLogs("gracekelly.storage.postgres", level="WARNING") as captured:
             report = repository.healthcheck()
@@ -201,11 +212,12 @@ class PostgresSchemaTests(unittest.TestCase):
 
     def test_schema_report_logs_warning_when_schema_diff_is_present(self) -> None:
         repository = PostgresTaskRepository.__new__(PostgresTaskRepository)
-        repository._load_schema_columns = lambda: {
+        repository_any: Any = repository
+        repository_any._load_schema_columns = lambda: {
             "gk_tasks": {"task_id", "status"},
             "gk_task_steps": {"task_id", "step_index"},
         }
-        repository.applied_migrations = lambda: []
+        repository_any.applied_migrations = lambda: []
 
         with self.assertLogs("gracekelly.storage.postgres", level="WARNING") as captured:
             report = repository.schema_report()

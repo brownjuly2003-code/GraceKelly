@@ -49,9 +49,11 @@ class ComputeSchemaDiffTests(unittest.TestCase):
 
     def test_missing_table_reported(self) -> None:
         diff = compute_schema_diff({})
-        self.assertIn("gk_tasks", diff["missing_tables"])
-        self.assertIn("gk_task_steps", diff["missing_tables"])
-        self.assertIn("gk_task_events", diff["missing_tables"])
+        missing_tables = diff["missing_tables"]
+        assert isinstance(missing_tables, list)
+        self.assertIn("gk_tasks", missing_tables)
+        self.assertIn("gk_task_steps", missing_tables)
+        self.assertIn("gk_task_events", missing_tables)
 
     def test_extra_table_not_reported(self) -> None:
         actual = {
@@ -60,8 +62,10 @@ class ComputeSchemaDiffTests(unittest.TestCase):
         }
         actual["gk_extra_table"] = ["col1"]
         diff = compute_schema_diff(actual)
+        missing_columns = diff["missing_columns"]
+        assert isinstance(missing_columns, dict)
         self.assertEqual(diff["missing_tables"], [])
-        self.assertNotIn("gk_extra_table", diff["missing_columns"])
+        self.assertNotIn("gk_extra_table", missing_columns)
 
     def test_missing_column_reported(self) -> None:
         actual = {
@@ -70,8 +74,12 @@ class ComputeSchemaDiffTests(unittest.TestCase):
             "gk_task_events": list(EXPECTED_SCHEMA_COLUMNS["gk_task_events"]),
         }
         diff = compute_schema_diff(actual)
-        self.assertIn("gk_tasks", diff["missing_columns"])
-        self.assertIn("prompt", diff["missing_columns"]["gk_tasks"])
+        missing_columns = diff["missing_columns"]
+        assert isinstance(missing_columns, dict)
+        gk_tasks_columns = missing_columns.get("gk_tasks")
+        assert isinstance(gk_tasks_columns, list)
+        self.assertIn("gk_tasks", missing_columns)
+        self.assertIn("prompt", gk_tasks_columns)
 
     def test_table_with_all_columns_not_in_missing_columns(self) -> None:
         actual = {
@@ -79,11 +87,15 @@ class ComputeSchemaDiffTests(unittest.TestCase):
             for table, cols in EXPECTED_SCHEMA_COLUMNS.items()
         }
         diff = compute_schema_diff(actual)
-        self.assertNotIn("gk_tasks", diff["missing_columns"])
+        missing_columns = diff["missing_columns"]
+        assert isinstance(missing_columns, dict)
+        self.assertNotIn("gk_tasks", missing_columns)
 
     def test_missing_tables_sorted(self) -> None:
         diff = compute_schema_diff({})
-        self.assertEqual(diff["missing_tables"], sorted(diff["missing_tables"]))
+        missing_tables = diff["missing_tables"]
+        assert isinstance(missing_tables, list)
+        self.assertEqual(missing_tables, sorted(missing_tables))
 
 
 class MigrationDiscoveryTests(unittest.TestCase):

@@ -1,16 +1,19 @@
 from __future__ import annotations
 
 import unittest
+from datetime import datetime
 from typing import Any
 
+from gracekelly.core.contracts import ExecutionMode, FailureCode, TaskStatus
 from gracekelly.core.readiness import (
     adapter_component_status,
     execution_component_status,
     storage_component_status,
 )
+from gracekelly.storage.base import TaskEventRecord, TaskRecord, TaskRepository, TaskStepRecord
 
 
-class _FakeRepository:
+class _FakeRepository(TaskRepository):
     """Minimal fake that implements TaskRepository's healthcheck/schema_report."""
 
     def __init__(
@@ -31,6 +34,42 @@ class _FakeRepository:
 
     def schema_report(self) -> dict[str, Any]:
         return {"status": self._schema_status}
+
+    def save_task_with_steps(self, task: TaskRecord, steps: list[TaskStepRecord]) -> None:
+        raise NotImplementedError
+
+    def get(self, task_id: str) -> TaskRecord | None:
+        raise NotImplementedError
+
+    def list_recent(
+        self,
+        limit: int,
+        *,
+        status: TaskStatus | None = None,
+        execution_mode: ExecutionMode | None = None,
+        dry_run: bool | None = None,
+        failure_code: FailureCode | None = None,
+        before: datetime | None = None,
+        prompt_contains: str | None = None,
+    ) -> list[TaskRecord]:
+        raise NotImplementedError
+
+    def list_steps(self, task_id: str) -> list[TaskStepRecord]:
+        raise NotImplementedError
+
+    def append_event(self, event: TaskEventRecord) -> None:
+        raise NotImplementedError
+
+    def list_events(self, task_id: str) -> list[TaskEventRecord]:
+        raise NotImplementedError
+
+    def replace_task_snapshot(
+        self,
+        task: TaskRecord,
+        steps: list[TaskStepRecord],
+        events: list[TaskEventRecord],
+    ) -> None:
+        raise NotImplementedError
 
 
 class _FakeHealthcheck:

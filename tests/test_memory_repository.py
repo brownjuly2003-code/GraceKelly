@@ -220,7 +220,7 @@ class InMemoryRepositoryTests(unittest.TestCase):
                     event_id="event-2",
                     task_id="task-1",
                     sequence_no=1,
-                    event_type="task.completed",
+                    event_type=EventType.TASK_COMPLETED,
                     created_at=created_at,
                     payload={},
                 )
@@ -315,12 +315,13 @@ class InMemoryRepositoryTests(unittest.TestCase):
         steps = repository.list_steps("task-1")
         events = repository.list_events("task-1")
 
+        assert task is not None
         self.assertEqual(task.prompt, "after")
-        self.assertEqual(task.status, "failed")
+        self.assertEqual(task.status, TaskStatus.FAILED)
         self.assertEqual(steps[0].model_id, "new-model")
         self.assertEqual(steps[0].backend, "browser")
         self.assertEqual(len(events), 1)
-        self.assertEqual(events[0].event_type, "task.failed")
+        self.assertEqual(events[0].event_type, EventType.TASK_FAILED)
         self.assertEqual(events[0].payload, {"after": True})
 
 

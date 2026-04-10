@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import unittest
 from collections.abc import Callable
-from typing import Any
+from typing import Any, cast
 
 from gracekelly.adapters.browser.automation import BrowserProfileBusyError
 from gracekelly.adapters.browser.playwright_driver import PlaywrightBrowserAutomation
@@ -213,6 +213,7 @@ class PlaywrightDriverTests(unittest.TestCase):
         )
 
         self.assertFalse(status.logged_in)
+        assert status.reason is not None
         self.assertIn("Sign-in prompt", status.reason)
 
     def test_pick_response_text_prefers_cleaned_answer_over_shell_noise(self) -> None:
@@ -227,6 +228,7 @@ class PlaywrightDriverTests(unittest.TestCase):
             ],
         )
 
+        assert response_text is not None
         self.assertEqual(response_text["text"], "OK")
         self.assertEqual(response_text["source"], "main div.prose")
         self.assertEqual(response_text["candidate_counts"]["main div.prose"], 1)
@@ -245,6 +247,7 @@ class PlaywrightDriverTests(unittest.TestCase):
             ],
         )
 
+        assert response_text is not None
         self.assertEqual(response_text["text"], "OK")
         self.assertEqual(response_text["source"], "main article")
         self.assertFalse(response_text["used_body_fallback"])
@@ -289,6 +292,7 @@ class PlaywrightDriverTests(unittest.TestCase):
             timeout_seconds=5,
         )
 
+        assert response_text is not None
         self.assertEqual(response_text["text"], "OK")
         self.assertEqual(response_text["source"], "body_after_prompt")
 
@@ -316,8 +320,9 @@ class PlaywrightDriverTests(unittest.TestCase):
         self.assertEqual(selection.details["model_button_text_before"], "Model")
         self.assertEqual(selection.details["model_button_text_after"], "Model")
         health = driver.healthcheck()
-        self.assertIn("Best", health["observed_model_menu"])
-        self.assertIn("GPT-5.4", health["observed_model_menu"])
+        observed_model_menu = cast(Any, health["observed_model_menu"])
+        self.assertIn("Best", observed_model_menu)
+        self.assertIn("GPT-5.4", observed_model_menu)
         self.assertEqual(health["observed_model_menu_source"], "perplexity-model-menu")
         self.assertIsNotNone(health["observed_model_menu_at"])
 
@@ -347,7 +352,7 @@ class PlaywrightDriverTests(unittest.TestCase):
         self.assertEqual(selection.details["selection_indicator"], "aria-selected")
         self.assertEqual(selection.details["selection_indicator_value"], "true")
         health = driver.healthcheck()
-        self.assertIn("GPT-5.4", health["verified_model_labels_at"])
+        self.assertIn("GPT-5.4", cast(Any, health["verified_model_labels_at"]))
 
     def test_select_model_waits_for_model_button_visibility(self) -> None:
         driver = PlaywrightBrowserAutomation(sync_playwright_factory=lambda: object())

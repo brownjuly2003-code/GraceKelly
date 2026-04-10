@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import os
 import unittest
+from typing import cast
 
 from gracekelly.core.account_loader import (
     AccountCredential,
@@ -29,7 +30,7 @@ class TestLoadAccounts(unittest.TestCase):
         self.assertEqual(load_accounts("{not valid json"), [])
 
     def test_none_input(self) -> None:
-        self.assertEqual(load_accounts(None), [])
+        self.assertEqual(load_accounts(cast(str, None)), [])
 
     def test_missing_fields_skipped(self) -> None:
         data = [

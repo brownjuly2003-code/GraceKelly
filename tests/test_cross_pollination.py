@@ -63,8 +63,13 @@ class TestCrossPollination(unittest.TestCase):
         clusters = ((0, 1), (2,), (3,))
         responses = ["a", "b", "c", "d"]
         calls: list[str] = []
+
+        def mock_fn(prompt: str) -> str:
+            calls.append(prompt)
+            return "r"
+
         result = cross_pollinate(
-            "q", responses, clusters, lambda x: (calls.append(x), "r")[1]
+            "q", responses, clusters, mock_fn
         )
         self.assertEqual(result.num_pollinated, 2)
         self.assertEqual(len(calls), 2)

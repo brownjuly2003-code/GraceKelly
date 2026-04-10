@@ -7,6 +7,8 @@ from gracekelly.adapters.api.mistral import MistralApiAdapter
 from gracekelly.adapters.api.openai_compat import OpenAICompatibleApiAdapter
 from gracekelly.adapters.dry_run import DryRunExecutionAdapter
 from gracekelly.core.contracts import (
+    ExecutionAdapter,
+    ExecutionBatchResult,
     ExecutionMode,
     ExecutionPlan,
     ExecutionRequest,
@@ -32,6 +34,7 @@ class FakeMistralAdapter(MistralApiAdapter):
         payload: dict[str, object],
         *,
         timeout_seconds: float,
+        extra_headers: dict[str, str] | None = None,
     ) -> dict[str, object]:
         self.last_timeout_seconds = timeout_seconds
         return {
@@ -56,6 +59,7 @@ class FakeOpenAICompatibleAdapter(OpenAICompatibleApiAdapter):
         payload: dict[str, object],
         *,
         timeout_seconds: float,
+        extra_headers: dict[str, str] | None = None,
     ) -> dict[str, object]:
         self.last_timeout_seconds = timeout_seconds
         return {
@@ -195,7 +199,7 @@ class ExecutionRouterTests(unittest.TestCase):
         self.assertEqual(result.details["timeout_seconds"], 60.0)
 
     def test_concat_runs_all_steps_when_short_circuit_is_disabled(self) -> None:
-        class FakeBrowserAdapter:
+        class FakeBrowserAdapter(ExecutionAdapter):
             name = "browser.perplexity"
 
             def execute(self, request: ExecutionRequest) -> ExecutionResult:
@@ -241,7 +245,7 @@ class ExecutionRouterTests(unittest.TestCase):
         self.assertTrue(all(item.status == StepStatus.COMPLETED for item in result.results))
 
     def test_first_success_short_circuits_remaining_steps(self) -> None:
-        class FakeBrowserAdapter:
+        class FakeBrowserAdapter(ExecutionAdapter):
             name = "browser.perplexity"
 
             def execute(self, request: ExecutionRequest) -> ExecutionResult:
@@ -254,7 +258,7 @@ class ExecutionRouterTests(unittest.TestCase):
                     output_text="browser first",
                 )
 
-        class FakeApiAdapter:
+        class FakeApiAdapter(ExecutionAdapter):
             name = "api.mistral"
 
             def __init__(self) -> None:
@@ -306,7 +310,7 @@ class ExecutionRouterTests(unittest.TestCase):
         self.assertEqual([item.status for item in result.results], [StepStatus.COMPLETED, StepStatus.CANCELLED])
 
     def test_concurrency_limit_rejects_parallel_execution_for_same_model(self) -> None:
-        class BlockingBrowserAdapter:
+        class BlockingBrowserAdapter(ExecutionAdapter):
             name = "browser.perplexity"
 
             def __init__(self) -> None:
@@ -339,7 +343,7 @@ class ExecutionRouterTests(unittest.TestCase):
                 dry_run=False,
             )
         )
-        first_result_holder: dict[str, object] = {}
+        first_result_holder: dict[str, ExecutionBatchResult] = {}
 
         def run_first() -> None:
             first_result_holder["result"] = router.execute(
@@ -423,6 +427,7 @@ class MistralAdapterTests(unittest.TestCase):
 
         result = adapter.execute(build_request("task-3", "missing key", plan))
 
+        assert result.failure_code is not None
         self.assertEqual(result.failure_code.value, "provider_unavailable")
         self.assertEqual(result.status, StepStatus.FAILED)
 
@@ -441,6 +446,7 @@ class OpenAICompatibleAdapterTests(unittest.TestCase):
 
         result = adapter.execute(build_request("task-3b", "missing key", plan))
 
+        assert result.failure_code is not None
         self.assertEqual(result.failure_code.value, "provider_unavailable")
         self.assertEqual(result.status, StepStatus.FAILED)
 

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import unittest
-from typing import Any
+from typing import Any, cast
 from unittest.mock import MagicMock
 
 from gracekelly.adapters.api.anthropic import AnthropicApiAdapter
@@ -91,17 +91,17 @@ class BaseApiAdapterExtractOutputTextTests(unittest.TestCase):
 
     def test_valid_string_content_stripped_and_returned(self) -> None:
         payload = {"choices": [{"message": {"content": "  hello  "}}]}
-        self.assertEqual(_base()._extract_output_text(payload), "hello")
+        self.assertEqual(_base()._extract_output_text(cast(dict[str, object], payload)), "hello")
 
     def test_whitespace_only_content_raises(self) -> None:
         payload = {"choices": [{"message": {"content": "   "}}]}
         with self.assertRaises(ValueError):
-            _base()._extract_output_text(payload)
+            _base()._extract_output_text(cast(dict[str, object], payload))
 
     def test_none_content_raises(self) -> None:
         payload = {"choices": [{"message": {"content": None}}]}
         with self.assertRaises(ValueError):
-            _base()._extract_output_text(payload)
+            _base()._extract_output_text(cast(dict[str, object], payload))
 
 
 class BaseApiAdapterHealthcheckTests(unittest.TestCase):
@@ -153,28 +153,28 @@ class BaseApiAdapterResolveTimeoutTests(unittest.TestCase):
 class OpenAICompatExtractOutputTextTests(unittest.TestCase):
     def test_string_content_returned_stripped(self) -> None:
         payload = {"choices": [{"message": {"content": "  answer  "}}]}
-        self.assertEqual(_openai()._extract_output_text(payload), "answer")
+        self.assertEqual(_openai()._extract_output_text(cast(dict[str, object], payload)), "answer")
 
     def test_list_content_text_blocks_joined_with_newline(self) -> None:
         payload = {"choices": [{"message": {"content": [
             {"type": "text", "text": "part one"},
             {"type": "text", "text": "part two"},
         ]}}]}
-        self.assertEqual(_openai()._extract_output_text(payload), "part one\npart two")
+        self.assertEqual(_openai()._extract_output_text(cast(dict[str, object], payload)), "part one\npart two")
 
     def test_list_content_non_text_blocks_ignored(self) -> None:
         payload = {"choices": [{"message": {"content": [
             {"type": "image", "url": "http://example.com/img.png"},
             {"type": "text", "text": "only text"},
         ]}}]}
-        self.assertEqual(_openai()._extract_output_text(payload), "only text")
+        self.assertEqual(_openai()._extract_output_text(cast(dict[str, object], payload)), "only text")
 
     def test_list_content_all_non_text_raises(self) -> None:
         payload = {"choices": [{"message": {"content": [
             {"type": "image", "url": "http://example.com/img.png"},
         ]}}]}
         with self.assertRaises(ValueError):
-            _openai()._extract_output_text(payload)
+            _openai()._extract_output_text(cast(dict[str, object], payload))
 
     def test_empty_list_content_raises(self) -> None:
         payload: dict[str, Any] = {"choices": [{"message": {"content": []}}]}
@@ -190,33 +190,33 @@ class OpenAICompatExtractOutputTextTests(unittest.TestCase):
             {"type": "text", "text": "   "},
             {"type": "text", "text": "real content"},
         ]}}]}
-        self.assertEqual(_openai()._extract_output_text(payload), "real content")
+        self.assertEqual(_openai()._extract_output_text(cast(dict[str, object], payload)), "real content")
 
     def test_single_text_block_no_join(self) -> None:
         payload = {"choices": [{"message": {"content": [
             {"type": "text", "text": "only one"},
         ]}}]}
-        self.assertEqual(_openai()._extract_output_text(payload), "only one")
+        self.assertEqual(_openai()._extract_output_text(cast(dict[str, object], payload)), "only one")
 
 
 class AnthropicExtractOutputTextTests(unittest.TestCase):
     def test_single_text_block_returned_stripped(self) -> None:
         payload = {"content": [{"type": "text", "text": "  Hello  "}]}
-        self.assertEqual(_anthropic()._extract_output_text(payload), "Hello")
+        self.assertEqual(_anthropic()._extract_output_text(cast(dict[str, object], payload)), "Hello")
 
     def test_multiple_text_blocks_joined(self) -> None:
         payload = {"content": [
             {"type": "text", "text": "First"},
             {"type": "text", "text": "Second"},
         ]}
-        self.assertEqual(_anthropic()._extract_output_text(payload), "First\nSecond")
+        self.assertEqual(_anthropic()._extract_output_text(cast(dict[str, object], payload)), "First\nSecond")
 
     def test_non_text_blocks_ignored(self) -> None:
         payload = {"content": [
             {"type": "tool_use", "id": "toolu_abc"},
             {"type": "text", "text": "answer"},
         ]}
-        self.assertEqual(_anthropic()._extract_output_text(payload), "answer")
+        self.assertEqual(_anthropic()._extract_output_text(cast(dict[str, object], payload)), "answer")
 
     def test_missing_content_key_raises(self) -> None:
         with self.assertRaises(ValueError):
@@ -235,12 +235,12 @@ class AnthropicExtractOutputTextTests(unittest.TestCase):
             {"type": "text", "text": "   "},
             {"type": "text", "text": "real"},
         ]}
-        self.assertEqual(_anthropic()._extract_output_text(payload), "real")
+        self.assertEqual(_anthropic()._extract_output_text(cast(dict[str, object], payload)), "real")
 
     def test_all_whitespace_blocks_raises(self) -> None:
         payload = {"content": [{"type": "text", "text": "   "}]}
         with self.assertRaises(ValueError):
-            _anthropic()._extract_output_text(payload)
+            _anthropic()._extract_output_text(cast(dict[str, object], payload))
 
     def test_default_anthropic_version(self) -> None:
         adapter = AnthropicApiAdapter(api_key="k")

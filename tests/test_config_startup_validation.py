@@ -5,26 +5,30 @@ import unittest
 from gracekelly.config import Settings
 
 
-def _base_settings(**kwargs: object) -> Settings:
-    data: dict[str, object] = {
-        "env": "test",
-        "host": "127.0.0.1",
-        "port": 8011,
-        "log_level": "INFO",
-        "storage_backend": "memory",
-        "postgres_dsn": None,
-        "mistral_api_key": None,
-        "mistral_base_url": "https://api.mistral.ai/v1",
-        "mistral_timeout_seconds": 30.0,
-        "openai_api_key": None,
-        "openai_base_url": "https://api.openai.com/v1",
-        "openai_timeout_seconds": 60.0,
-        "browser_enabled": False,
-        "browser_profile_dir": None,
-        "browser_base_url": "https://www.perplexity.ai",
-    }
-    data.update(kwargs)
-    return Settings(**data)
+def _base_settings(
+    *,
+    storage_backend: str = "memory",
+    postgres_dsn: str | None = None,
+    orchestrate_timeout_seconds: float | None = None,
+) -> Settings:
+    return Settings(
+        env="test",
+        host="127.0.0.1",
+        port=8011,
+        log_level="INFO",
+        storage_backend=storage_backend,
+        postgres_dsn=postgres_dsn,
+        mistral_api_key=None,
+        mistral_base_url="https://api.mistral.ai/v1",
+        mistral_timeout_seconds=30.0,
+        openai_api_key=None,
+        openai_base_url="https://api.openai.com/v1",
+        openai_timeout_seconds=60.0,
+        browser_enabled=False,
+        browser_profile_dir=None,
+        browser_base_url="https://www.perplexity.ai",
+        orchestrate_timeout_seconds=orchestrate_timeout_seconds,
+    )
 
 
 class SettingsValidateTests(unittest.TestCase):

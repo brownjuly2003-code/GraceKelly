@@ -10,7 +10,7 @@ from gracekelly.config import Settings
 from gracekelly.main import create_app
 
 
-def _make_settings(**kwargs: object) -> Settings:
+def _make_settings() -> Settings:
     return Settings(
         env="test",
         host="127.0.0.1",
@@ -27,7 +27,6 @@ def _make_settings(**kwargs: object) -> Settings:
         browser_enabled=False,
         browser_profile_dir=None,
         browser_base_url="https://www.perplexity.ai",
-        **kwargs,
     )
 
 

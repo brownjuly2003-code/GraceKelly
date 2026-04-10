@@ -8,6 +8,7 @@ from gracekelly.adapters.dry_run import DryRunExecutionAdapter
 from gracekelly.core.contracts import (
     AdapterHint,
     EventType,
+    ExecutionAdapter,
     ExecutionBatchResult,
     ExecutionMode,
     ExecutionPlan,
@@ -60,7 +61,7 @@ class OrchestratorServiceTests(unittest.TestCase):
         self.assertEqual([item.event_type for item in events], ["task.accepted"])
 
     def test_submit_snapshot_returns_persisted_steps_without_readback(self) -> None:
-        class FakeMistralAdapter:
+        class FakeMistralAdapter(ExecutionAdapter):
             name = "api.mistral"
 
             def execute(self, request: ExecutionRequest) -> ExecutionResult:
@@ -93,8 +94,9 @@ class OrchestratorServiceTests(unittest.TestCase):
         self.assertEqual(snapshot.steps[0].status, "completed")
 
     def test_submit_snapshot_persists_accepted_task_before_execution(self) -> None:
-        class InspectingRouter:
+        class InspectingRouter(ExecutionRouter):
             def __init__(self, repository: InMemoryTaskRepository) -> None:
+                super().__init__(dry_run_adapter=DryRunExecutionAdapter())
                 self._repository = repository
                 self.observed_task: TaskRecord | None = None
                 self.observed_events: list[TaskEventRecord] = []
@@ -106,7 +108,7 @@ class OrchestratorServiceTests(unittest.TestCase):
                 prompt: str,
                 plan: ExecutionPlan,
                 reasoning: bool,
-                metadata: dict[str, Any],
+                metadata: dict[str, object],
             ) -> ExecutionBatchResult:
                 self.observed_task = self._repository.get(task_id)
                 self.observed_events = self._repository.list_events(task_id)
@@ -135,7 +137,7 @@ class OrchestratorServiceTests(unittest.TestCase):
         self.assertEqual(snapshot.task.status, TaskStatus.COMPLETED)
 
     def test_non_dry_run_api_request_can_complete(self) -> None:
-        class FakeMistralAdapter:
+        class FakeMistralAdapter(ExecutionAdapter):
             name = "api.mistral"
 
             def execute(self, request: ExecutionRequest) -> ExecutionResult:
@@ -294,7 +296,7 @@ class OrchestratorServiceTests(unittest.TestCase):
         self.assertIn('trace_id="trace-123"', captured.output[1])
 
     def test_submit_records_quorum_short_circuit_in_steps_and_events(self) -> None:
-        class FakeBrowserAdapter:
+        class FakeBrowserAdapter(ExecutionAdapter):
             name = "browser.perplexity"
 
             def execute(self, request: ExecutionRequest) -> ExecutionResult:
@@ -308,7 +310,7 @@ class OrchestratorServiceTests(unittest.TestCase):
                     details={"provider": "perplexity"},
                 )
 
-        class FakeMistralAdapter:
+        class FakeMistralAdapter(ExecutionAdapter):
             name = "api.mistral"
 
             def __init__(self) -> None:
@@ -713,7 +715,9 @@ class OrchestratorServiceTests(unittest.TestCase):
         )
         out = self.service._event_result_details(result)
         self.assertIn("details", out)
-        self.assertEqual(out["details"]["tokens"], 42)
+        details = out.get("details")
+        assert isinstance(details, dict)
+        self.assertEqual(details["tokens"], 42)
 
     def test_event_result_details_non_serializable_coerced_to_string(self) -> None:
         class _Custom:
@@ -729,7 +733,9 @@ class OrchestratorServiceTests(unittest.TestCase):
             details={"obj": _Custom()},
         )
         out = self.service._event_result_details(result)
-        self.assertIsInstance(out["details"]["obj"], str)
+        details = out.get("details")
+        assert isinstance(details, dict)
+        self.assertIsInstance(details["obj"], str)
 
     def test_event_batch_details_empty_returns_empty_dict(self) -> None:
         batch_result = ExecutionBatchResult(
@@ -760,7 +766,9 @@ class OrchestratorServiceTests(unittest.TestCase):
         )
         out = self.service._event_batch_details(batch_result)
         self.assertIn("details", out)
-        self.assertTrue(out["details"]["quorum_hit"])
+        details = out.get("details")
+        assert isinstance(details, dict)
+        self.assertTrue(details["quorum_hit"])
 
 
 class EventSequenceTests(unittest.TestCase):

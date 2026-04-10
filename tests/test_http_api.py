@@ -4,34 +4,36 @@ import json
 import unittest
 from collections.abc import Callable, Iterator
 from datetime import UTC, datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any, cast
 from unittest.mock import AsyncMock, patch
 
 try:
     from fastapi.testclient import TestClient
 except ModuleNotFoundError:  # pragma: no cover
-    TestClient = None
+    HAS_TEST_CLIENT = False
+else:
+    HAS_TEST_CLIENT = True
 
-if TestClient is not None:
+if HAS_TEST_CLIENT:
     from gracekelly.config import Settings
     from gracekelly.core.contracts import ExecutionRequest, StreamChunk
     from gracekelly.core.orchestrator import OrchestratorService
     from gracekelly.main import create_app
     from gracekelly.storage.base import TaskEventRecord, TaskRecord, TaskStepRecord
     from gracekelly.storage.memory import InMemoryTaskRepository
-else:  # pragma: no cover
-    Settings = None
-    ExecutionRequest = None
-    StreamChunk = None
-    OrchestratorService = None
-    create_app = None
-    TaskEventRecord = None
-    TaskRecord = None
-    TaskStepRecord = None
-    InMemoryTaskRepository = None
+
+if TYPE_CHECKING:
+    from fastapi.testclient import TestClient
+
+    from gracekelly.config import Settings
+    from gracekelly.core.contracts import ExecutionRequest, StreamChunk
+    from gracekelly.core.orchestrator import OrchestratorService
+    from gracekelly.main import create_app
+    from gracekelly.storage.base import TaskEventRecord, TaskRecord, TaskStepRecord
+    from gracekelly.storage.memory import InMemoryTaskRepository
 
 
-@unittest.skipIf(TestClient is None, "fastapi.testclient is not installed")
+@unittest.skipIf(not HAS_TEST_CLIENT, "fastapi.testclient is not installed")
 class HttpApiSmokeTests(unittest.TestCase):
     def setUp(self) -> None:
         app = create_app(
@@ -55,7 +57,7 @@ class HttpApiSmokeTests(unittest.TestCase):
         )
         self.client = TestClient(app)
 
-    def _build_client_with_repository(self, repository: object) -> TestClient:
+    def _build_client_with_repository(self, repository: Any) -> TestClient:
         app = create_app(
             Settings(
                 env="test",
@@ -520,7 +522,8 @@ class HttpApiSmokeTests(unittest.TestCase):
                     details={"duration_ms": 7, "input_tokens": 11, "output_tokens": 13},
                 )
 
-        self.client.app.state.api_adapters["mistral"] = StreamingAdapter()
+        app = cast(Any, self.client.app)
+        app.state.api_adapters["mistral"] = StreamingAdapter()
         response = self.client.post(
             "/api/v1/orchestrate/stream",
             json={
@@ -1070,7 +1073,8 @@ class HttpApiSmokeTests(unittest.TestCase):
         original_id = submit.json()["task_id"]
 
         # Patch the original task to "failed" for retry
-        repo = self.client.app.state.orchestrator_service._repository
+        app = cast(Any, self.client.app)
+        repo = cast(Any, app.state.orchestrator_service)._repository
         task = repo.get(original_id)
         from gracekelly.core.contracts import FailureCode, TaskStatus
         task.status = TaskStatus.FAILED

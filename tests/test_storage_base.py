@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import unittest
 from datetime import UTC, datetime
-from typing import Any
 
 from gracekelly.core.contracts import (
     AdapterHint,
@@ -39,8 +38,17 @@ class _StubRepository(TaskRepository):
     def get(self, task_id: str) -> TaskRecord | None:
         return self._tasks.get(task_id)
 
-    def list_recent(self, limit: int, *, status: Any = None, execution_mode: Any = None,
-                    dry_run: Any = None, failure_code: Any = None, before: Any = None) -> list[TaskRecord]:
+    def list_recent(
+        self,
+        limit: int,
+        *,
+        status: TaskStatus | None = None,
+        execution_mode: ExecutionMode | None = None,
+        dry_run: bool | None = None,
+        failure_code: FailureCode | None = None,
+        before: datetime | None = None,
+        prompt_contains: str | None = None,
+    ) -> list[TaskRecord]:
         return list(self._tasks.values())[:limit]
 
     def list_steps(self, task_id: str) -> list[TaskStepRecord]:

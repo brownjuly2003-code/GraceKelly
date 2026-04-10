@@ -11,6 +11,9 @@ from gracekelly.adapters.browser.session import BrowserSessionConfig, BrowserSes
 
 
 class ThinkingReconTest(unittest.TestCase):
+    _automation: PlaywrightBrowserAutomation
+    _selectors: PerplexitySelectors
+
     @classmethod
     def setUpClass(cls) -> None:
         if os.getenv("GRACEKELLY_BROWSER_LIVE_TEST", "false").lower() != "true":
@@ -50,6 +53,7 @@ class ThinkingReconTest(unittest.TestCase):
 
         model_button = self._automation._resolve_model_button(page, attempts=5)
         self.assertIsNotNone(model_button, "Model button not found")
+        assert model_button is not None
 
         button_text_before = self._automation._locator_inner_text(model_button)
 

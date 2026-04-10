@@ -1,13 +1,22 @@
 from __future__ import annotations
 
 import unittest
+from typing import TYPE_CHECKING
 
 try:
     from fastapi.testclient import TestClient
 except ModuleNotFoundError:
-    TestClient = None
+    HAS_TEST_CLIENT = False
+else:
+    HAS_TEST_CLIENT = True
 
-if TestClient is not None:
+if HAS_TEST_CLIENT:
+    from gracekelly.config import Settings
+    from gracekelly.main import create_app
+
+if TYPE_CHECKING:
+    from fastapi.testclient import TestClient
+
     from gracekelly.config import Settings
     from gracekelly.main import create_app
 
@@ -35,9 +44,10 @@ def _make_client() -> TestClient:
     ))
     return TestClient(app)
 
-
-@unittest.skipIf(TestClient is None, "fastapi not installed")
+@unittest.skipIf(not HAS_TEST_CLIENT, "fastapi not installed")
 class RouteInventoryTests(unittest.TestCase):
+    client: TestClient
+
     @classmethod
     def setUpClass(cls) -> None:
         cls.client = _make_client()

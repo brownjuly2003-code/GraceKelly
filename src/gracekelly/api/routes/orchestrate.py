@@ -18,6 +18,8 @@ from gracekelly.storage.base import TaskEventRecord, TaskRecord, TaskStepRecord
 router = APIRouter(prefix="/api/v1", tags=["orchestration"])
 logger = logging.getLogger(__name__)
 
+__all__ = ("OrchestrateResponse",)
+
 
 _SAFE_VALIDATION_PREFIXES = (
     "Unsupported model:",

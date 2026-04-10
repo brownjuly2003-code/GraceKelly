@@ -62,10 +62,11 @@ class RedisRateLimitTests(unittest.TestCase):
         redis_client = Mock()
         redis_client.pipeline = Mock(return_value=pipeline)
         redis_asyncio = types.ModuleType("redis.asyncio")
-        redis_asyncio.from_url = Mock(return_value=redis_client)
+        from_url = Mock(return_value=redis_client)
+        setattr(redis_asyncio, "from_url", from_url)
         redis_package = types.ModuleType("redis")
         redis_package.__path__ = []
-        redis_package.asyncio = redis_asyncio
+        setattr(redis_package, "asyncio", redis_asyncio)
 
         with patch.dict(
             sys.modules,
@@ -78,7 +79,7 @@ class RedisRateLimitTests(unittest.TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json(), {"ok": True})
-        redis_asyncio.from_url.assert_called_once_with("redis://localhost:6379/0", decode_responses=True)
+        from_url.assert_called_once_with("redis://localhost:6379/0", decode_responses=True)
         redis_client.pipeline.assert_called_once_with()
         pipeline.execute.assert_awaited_once()
 
@@ -98,10 +99,11 @@ class RedisRateLimitTests(unittest.TestCase):
         redis_client = Mock()
         redis_client.pipeline = Mock(return_value=pipeline)
         redis_asyncio = types.ModuleType("redis.asyncio")
-        redis_asyncio.from_url = Mock(return_value=redis_client)
+        from_url = Mock(return_value=redis_client)
+        setattr(redis_asyncio, "from_url", from_url)
         redis_package = types.ModuleType("redis")
         redis_package.__path__ = []
-        redis_package.asyncio = redis_asyncio
+        setattr(redis_package, "asyncio", redis_asyncio)
 
         with patch.dict(
             sys.modules,
@@ -138,10 +140,11 @@ class RedisRateLimitTests(unittest.TestCase):
         redis_client = Mock()
         redis_client.pipeline = Mock(return_value=pipeline)
         redis_asyncio = types.ModuleType("redis.asyncio")
-        redis_asyncio.from_url = Mock(return_value=redis_client)
+        from_url = Mock(return_value=redis_client)
+        setattr(redis_asyncio, "from_url", from_url)
         redis_package = types.ModuleType("redis")
         redis_package.__path__ = []
-        redis_package.asyncio = redis_asyncio
+        setattr(redis_package, "asyncio", redis_asyncio)
 
         with patch.dict(
             sys.modules,
@@ -172,10 +175,11 @@ class RedisRateLimitTests(unittest.TestCase):
         redis_client = Mock()
         redis_client.pipeline = Mock(return_value=pipeline)
         redis_asyncio = types.ModuleType("redis.asyncio")
-        redis_asyncio.from_url = Mock(return_value=redis_client)
+        from_url = Mock(return_value=redis_client)
+        setattr(redis_asyncio, "from_url", from_url)
         redis_package = types.ModuleType("redis")
         redis_package.__path__ = []
-        redis_package.asyncio = redis_asyncio
+        setattr(redis_package, "asyncio", redis_asyncio)
 
         with patch.dict(
             sys.modules,

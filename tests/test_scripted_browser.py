@@ -49,8 +49,7 @@ class ScriptedBrowserAutomationTests(unittest.TestCase):
 
     def test_dismiss_popups_noop(self) -> None:
         automation = ScriptedBrowserAutomation()
-        result = automation.dismiss_popups(PopupPolicy())
-        self.assertIsNone(result)
+        automation.dismiss_popups(PopupPolicy())
 
     def test_auth_status_logged_in(self) -> None:
         automation = ScriptedBrowserAutomation(ScriptedBrowserScenario(logged_in=True))
@@ -62,6 +61,7 @@ class ScriptedBrowserAutomationTests(unittest.TestCase):
         automation = ScriptedBrowserAutomation(ScriptedBrowserScenario(logged_in=False))
         status = automation.auth_status(AuthRecoveryPolicy())
         self.assertFalse(status.logged_in)
+        assert status.reason is not None
         self.assertIn("logged out", status.reason)
 
     def test_recover_auth_delegates_to_auth_status(self) -> None:

@@ -28,6 +28,7 @@ class AccountPoolTests(unittest.TestCase):
         pool = AccountPool([self._account()])
         acct = pool.acquire("mistral")
         self.assertIsNotNone(acct)
+        assert acct is not None
         self.assertEqual(acct.id, "acct-1")
         self.assertTrue(acct.busy)
 
@@ -42,6 +43,7 @@ class AccountPoolTests(unittest.TestCase):
         pool.release("acct-1")
         acct = pool.acquire("mistral")
         self.assertIsNotNone(acct)
+        assert acct is not None
         self.assertEqual(acct.total_uses, 2)
 
     def test_acquire_filters_by_provider(self) -> None:
@@ -50,6 +52,7 @@ class AccountPoolTests(unittest.TestCase):
             self._account(id="a2", provider="openai"),
         ])
         acct = pool.acquire("openai")
+        assert acct is not None
         self.assertEqual(acct.id, "a2")
 
     def test_acquire_filters_by_kind(self) -> None:
@@ -58,6 +61,7 @@ class AccountPoolTests(unittest.TestCase):
             self._account(id="a2", kind="browser_profile"),
         ])
         acct = pool.acquire("mistral", kind="browser_profile")
+        assert acct is not None
         self.assertEqual(acct.id, "a2")
 
     def test_acquire_prefers_least_recently_used(self) -> None:
@@ -70,9 +74,11 @@ class AccountPoolTests(unittest.TestCase):
             now_factory=clock,
         )
         first = pool.acquire("mistral")
+        assert first is not None
         pool.release(first.id)
         clock.now += timedelta(seconds=1)
         second = pool.acquire("mistral")
+        assert second is not None
         self.assertEqual(second.id, "a2")
 
     def test_cooldown_blocks_acquisition(self) -> None:

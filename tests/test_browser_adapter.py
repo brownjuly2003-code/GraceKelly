@@ -182,6 +182,7 @@ class BrowserAdapterTests(unittest.TestCase):
 
         self.assertEqual(result.status, StepStatus.FAILED)
         self.assertEqual(result.failure_code, FailureCode.UNKNOWN_ERROR)
+        assert result.failure_message is not None
         self.assertIn("unexpected browser crash", result.failure_message)
 
     def test_browser_adapter_maps_permission_error_to_auth_failed(self) -> None:
@@ -198,6 +199,7 @@ class BrowserAdapterTests(unittest.TestCase):
 
         self.assertEqual(result.status, StepStatus.FAILED)
         self.assertEqual(result.failure_code, FailureCode.AUTH_FAILED)
+        assert result.failure_message is not None
         self.assertIn("sign-in overlay", result.failure_message)
 
     def test_browser_adapter_maps_busy_profile_error_to_provider_unavailable(self) -> None:
@@ -214,6 +216,7 @@ class BrowserAdapterTests(unittest.TestCase):
 
         self.assertEqual(result.status, StepStatus.FAILED)
         self.assertEqual(result.failure_code, FailureCode.PROVIDER_UNAVAILABLE)
+        assert result.failure_message is not None
         self.assertIn("already in use", result.failure_message)
 
     def test_browser_session_manager_state_returns_snapshot(self) -> None:

@@ -78,6 +78,7 @@ class ExecuteGraphTests(unittest.TestCase):
         self.assertEqual(1, result.failed)
         self.assertEqual(1, result.skipped)
         synth = g.get_task("synthesis")
+        assert synth is not None
         self.assertEqual(SubTaskStatus.SKIPPED, synth.status)
 
     def test_empty_graph(self) -> None:

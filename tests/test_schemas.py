@@ -219,16 +219,19 @@ class TaskStepViewTruncationTests(unittest.TestCase):
 
     def test_long_output_truncated(self) -> None:
         view = TaskStepView.from_record(self._step_record("x" * 25000))
+        assert view.output_text is not None
         self.assertEqual(len(view.output_text), 20000)
         self.assertTrue(view.output_truncated)
 
     def test_exact_boundary_not_truncated(self) -> None:
         view = TaskStepView.from_record(self._step_record("x" * 20000))
+        assert view.output_text is not None
         self.assertEqual(len(view.output_text), 20000)
         self.assertFalse(view.output_truncated)
 
     def test_custom_max_length(self) -> None:
         view = TaskStepView.from_record(self._step_record("x" * 100), max_output_length=50)
+        assert view.output_text is not None
         self.assertEqual(len(view.output_text), 50)
         self.assertTrue(view.output_truncated)
 

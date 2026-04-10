@@ -22,8 +22,12 @@ class BuildSequentialTests(unittest.TestCase):
 
     def test_dependencies(self) -> None:
         g = build_sequential(["A", "B"])
-        self.assertEqual((), g.get_task("step-0").dependencies)
-        self.assertEqual(("step-0",), g.get_task("step-1").dependencies)
+        first = g.get_task("step-0")
+        second = g.get_task("step-1")
+        assert first is not None
+        assert second is not None
+        self.assertEqual((), first.dependencies)
+        self.assertEqual(("step-0",), second.dependencies)
 
 
 class BuildParallelTests(unittest.TestCase):
@@ -41,6 +45,7 @@ class BuildFanOutFanInTests(unittest.TestCase):
     def test_synthesis_depends_on_all(self) -> None:
         g = build_fan_out_fan_in(["A", "B", "C"], "synthesize")
         synth = g.get_task("synthesis")
+        assert synth is not None
         self.assertEqual(("fan-0", "fan-1", "fan-2"), synth.dependencies)
 
     def test_synthesis_not_ready_initially(self) -> None:
@@ -61,6 +66,7 @@ class BuildPipelineTests(unittest.TestCase):
         g = build_pipeline([["A1", "A2"], ["B1"]])
         self.assertEqual(3, g.task_count())
         b1 = g.get_task("stage-1-task-0")
+        assert b1 is not None
         self.assertIn("stage-0-task-0", b1.dependencies)
         self.assertIn("stage-0-task-1", b1.dependencies)
 
