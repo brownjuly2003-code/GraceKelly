@@ -59,6 +59,7 @@ from gracekelly.middleware import (
 from gracekelly.request_metrics import RequestMetrics
 from gracekelly.storage.base import TaskRepository
 from gracekelly.storage.memory import InMemoryTaskRepository
+from gracekelly.telemetry import setup_telemetry
 
 logger = logging.getLogger(__name__)
 
@@ -172,6 +173,7 @@ def create_app(app_settings: Settings | None = None) -> FastAPI:
         version=_get_version(),
         lifespan=app_lifespan,
     )
+    setup_telemetry(app, active_settings.otel_endpoint, active_settings.otel_service_name)
 
     @app.exception_handler(StarletteHTTPException)
     async def http_exception_handler(request: Request, exc: StarletteHTTPException) -> JSONResponse:

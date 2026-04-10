@@ -86,6 +86,8 @@ class Settings:
     browser_scripted_output_text: str = "scripted browser result"
     sentry_dsn: str | None = None
     sentry_environment: str = "production"
+    otel_endpoint: str | None = None
+    otel_service_name: str = "gracekelly"
     redis_url: str | None = None
     rate_limit_rpm: int = 60
     rate_limit_burst: int = 10
@@ -164,6 +166,8 @@ class Settings:
             ),
             sentry_dsn=os.getenv("GRACEKELLY_SENTRY_DSN") or None,
             sentry_environment=os.getenv("GRACEKELLY_SENTRY_ENVIRONMENT", "production"),
+            otel_endpoint=os.getenv("GRACEKELLY_OTEL_ENDPOINT") or None,
+            otel_service_name=os.getenv("GRACEKELLY_OTEL_SERVICE_NAME", "gracekelly"),
             redis_url=os.getenv("GRACEKELLY_REDIS_URL") or None,
             rate_limit_rpm=_env_int("GRACEKELLY_RATE_LIMIT_RPM", "60"),
             rate_limit_burst=_env_int("GRACEKELLY_RATE_LIMIT_BURST", "10"),

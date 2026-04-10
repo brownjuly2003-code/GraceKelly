@@ -41,6 +41,9 @@ browser = [
 ]
 observability = [
   "sentry-sdk[fastapi]>=2.0,<3.0",
+  "opentelemetry-sdk>=1.25,<2.0",
+  "opentelemetry-instrumentation-fastapi>=0.46b0,<1.0",
+  "opentelemetry-exporter-otlp-proto-http>=1.25,<2.0",
 ]
 redis = [
   "redis[asyncio]>=5.0,<6.0",
