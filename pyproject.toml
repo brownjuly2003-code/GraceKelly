@@ -66,6 +66,7 @@ norecursedirs = ["tmp", ".pytest_cache", ".hypothesis", "docs"]
 [tool.ruff]
 target-version = "py311"
 line-length = 120
+exclude = [".codex", ".tmp", ".hypothesis", "_wr.py", "archive"]
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "UP"]
