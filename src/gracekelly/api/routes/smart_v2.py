@@ -5,7 +5,7 @@ import inspect
 import logging
 
 from fastapi import APIRouter, HTTPException, Request
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from gracekelly.app_state import get_app_state
 from gracekelly.core.complexity import assess_complexity
@@ -33,6 +33,8 @@ __all__ = ["ConsensusExecutorV2"]
 
 
 class SmartV2Request(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     prompt: str = Field(min_length=1, max_length=40000)
     model: str = Field(default="mistral-small", min_length=1, max_length=120)
     reliability_level: str | None = Field(default=None)

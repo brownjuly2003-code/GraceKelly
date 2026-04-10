@@ -183,7 +183,7 @@ class ExecutionRouter:
             task_status = TaskStatus.COMPLETED
             failure_code = None
             failure_message = None
-            output_text = None
+            output_text = self._merge_outputs(plan.merge_strategy, successful)
         elif len(successful) >= plan.quorum:
             task_status = TaskStatus.COMPLETED
             failure_code = None

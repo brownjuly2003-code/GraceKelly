@@ -509,6 +509,19 @@ class HttpApiSmokeTests(unittest.TestCase):
         self.assertEqual(payload[0]["dry_run"], True)
         self.assertEqual(payload[0]["requested_models"][0]["id"], "kimi-k2-5")
 
+    def test_stream_unknown_model_returns_sse_error(self) -> None:
+        response = self.client.post(
+            "/api/v1/orchestrate/stream",
+            json={
+                "prompt": "hello",
+                "model": "nonexistent-xyz",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("event: error", response.text)
+        self.assertIn("Unknown model: nonexistent-xyz", response.text)
+
     def test_stream_route_persists_completed_streaming_task(self) -> None:
         class StreamingAdapter:
             name = "api.mistral"

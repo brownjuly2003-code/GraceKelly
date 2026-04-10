@@ -111,6 +111,29 @@ class ExecutionRouterTests(unittest.TestCase):
         self.assertEqual(len(result.results), 2)
         self.assertTrue(all(item.status == StepStatus.COMPLETED for item in result.results))
 
+    def test_dry_run_returns_merged_output_text(self) -> None:
+        router = ExecutionRouter(dry_run_adapter=DryRunExecutionAdapter())
+        plan = build_execution_plan(
+            OrchestrateRequest(
+                prompt="dry run output",
+                model="Mistral",
+                dry_run=True,
+            )
+        )
+
+        result = router.execute(
+            task_id="task-1b",
+            prompt="dry run output",
+            plan=plan,
+            reasoning=False,
+            metadata={},
+        )
+
+        self.assertEqual(result.task_status, TaskStatus.COMPLETED)
+        self.assertIsNotNone(result.output_text)
+        assert result.output_text is not None
+        self.assertIn("[dry-run]", result.output_text)
+
     def test_api_adapter_completes_when_registered(self) -> None:
         adapter = FakeMistralAdapter()
         router = ExecutionRouter(

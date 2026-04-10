@@ -132,8 +132,9 @@ async def orchestrate_stream(request: Request, body: OrchestrateRequest) -> Stre
         )
 
     model_name = model_names[0]
-    resolved = resolve_model(model_name)
-    if resolved is None:
+    try:
+        resolved = resolve_model(model_name)
+    except ValueError:
         return StreamingResponse(
             iter([_format_sse("error", {"text": f"Unknown model: {model_name}"})]),
             media_type="text/event-stream",

@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 
 from fastapi import APIRouter, HTTPException, Request
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from gracekelly.app_state import get_app_state
 from gracekelly.core.consensus import ConsensusConfig
@@ -24,6 +24,8 @@ logger = logging.getLogger(__name__)
 
 
 class ConsensusRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     prompt: str = Field(min_length=1, max_length=40000)
     model: str = Field(default="mistral-small", min_length=1, max_length=120)
     similarity_threshold: float = Field(default=0.85, ge=0.0, le=1.0)

@@ -5,7 +5,7 @@ import inspect
 import logging
 
 from fastapi import APIRouter, HTTPException, Request
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from gracekelly.app_state import get_app_state
 from gracekelly.core.contracts import (
@@ -25,6 +25,8 @@ logger = logging.getLogger(__name__)
 
 
 class DebateRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     topic: str = Field(min_length=1, max_length=40000)
     initial_position: str | None = Field(default=None, max_length=40000)
     model: str = Field(default="mistral-small", min_length=1, max_length=120)

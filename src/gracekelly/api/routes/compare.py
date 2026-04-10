@@ -4,7 +4,7 @@ import inspect
 import logging
 
 from fastapi import APIRouter, Request
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from gracekelly.app_state import get_app_state
 from gracekelly.core.contracts import (
@@ -23,6 +23,8 @@ logger = logging.getLogger(__name__)
 
 
 class CompareRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     prompt: str = Field(min_length=1, max_length=40000)
     models: list[str] = Field(default_factory=lambda: ["mistral-small"], min_length=1, max_length=10)
     analyze: bool = Field(default=True)

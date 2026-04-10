@@ -118,6 +118,14 @@ class BatchRouteTests(unittest.TestCase):
         self.assertEqual(400, response.status_code)
         self.assertIn("No adapter", response.json()["detail"])
 
+    def test_batch_rejects_unknown_fields(self) -> None:
+        client = TestClient(_create_test_app())
+        response = client.post(
+            "/api/v1/batch",
+            json={"prompts": ["Hello"], "dry_run": True},
+        )
+        self.assertEqual(422, response.status_code)
+
     def test_completed_with_no_output_text_counts_as_failed(self) -> None:
         app = FastAPI()
         app.include_router(router)
