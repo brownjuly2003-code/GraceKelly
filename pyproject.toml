@@ -39,6 +39,12 @@ postgres = [
 browser = [
   "playwright>=1.56,<2.0",
 ]
+observability = [
+  "sentry-sdk[fastapi]>=2.0,<3.0",
+]
+redis = [
+  "redis[asyncio]>=5.0,<6.0",
+]
 
 [tool.setuptools]
 package-dir = {"" = "src"}

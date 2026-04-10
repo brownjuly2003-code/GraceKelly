@@ -51,8 +51,10 @@ from gracekelly.core.router import ExecutionRouter
 from gracekelly.middleware import (
     setup_api_key_auth,
     setup_correlation_id,
+    setup_rate_limiting,
     setup_request_metrics,
     setup_security_headers,
+    setup_sentry,
 )
 from gracekelly.request_metrics import RequestMetrics
 from gracekelly.storage.base import TaskRepository
@@ -255,10 +257,17 @@ def create_app(app_settings: Settings | None = None) -> FastAPI:
     app.state.execution_history = ExecutionHistory()
     app.state.account_pool_manager = AccountPoolManager()
 
+    setup_sentry(active_settings.sentry_dsn, active_settings.sentry_environment)
     setup_security_headers(app)
     setup_api_key_auth(app, api_key=active_settings.api_key)
     setup_request_metrics(app)
     setup_correlation_id(app)
+    setup_rate_limiting(
+        app,
+        active_settings.redis_url,
+        active_settings.rate_limit_rpm,
+        active_settings.rate_limit_burst,
+    )
 
     app.include_router(health_router)
     app.include_router(models_router)

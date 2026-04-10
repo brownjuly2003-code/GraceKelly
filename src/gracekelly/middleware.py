@@ -92,3 +92,81 @@ def setup_correlation_id(app: FastAPI) -> None:
         response = await call_next(request)
         response.headers["X-Request-ID"] = req_id
         return response
+
+
+def setup_rate_limiting(app: FastAPI, redis_url: str | None, rpm: int = 60, burst: int = 10) -> None:
+    if not redis_url:
+        return
+    try:
+        import redis.asyncio as aioredis
+    except ImportError:
+        logger.warning(
+            "GRACEKELLY_REDIS_URL is set but redis package is not installed. "
+            "Install with: pip install 'gracekelly[redis]'"
+        )
+        return
+
+    _redis_client = aioredis.from_url(redis_url, decode_responses=True)
+    _window_seconds = 60
+
+    @app.middleware("http")
+    async def rate_limit_middleware(
+        request: Request, call_next: Callable[[Request], Awaitable[Response]]
+    ) -> Response:
+        if request.url.path in _PUBLIC_PATHS:
+            return await call_next(request)
+
+        client_ip = request.client.host if request.client else "unknown"
+        key = f"gracekelly:rl:{client_ip}"
+        now = time.time()
+        window_start = now - _window_seconds
+
+        try:
+            pipe = _redis_client.pipeline()
+            pipe.zremrangebyscore(key, 0, window_start)
+            pipe.zadd(key, {str(now): now})
+            pipe.zcard(key)
+            pipe.expire(key, _window_seconds + 1)
+            results = await pipe.execute()
+            request_count = results[2]
+        except Exception:
+            return await call_next(request)
+
+        effective_limit = rpm + burst
+        if request_count > effective_limit:
+            return JSONResponse(
+                status_code=429,
+                content={
+                    "type": "about:blank",
+                    "title": "Too Many Requests",
+                    "status": 429,
+                    "detail": f"Rate limit exceeded: {rpm} requests/minute allowed.",
+                },
+                headers={"Retry-After": str(_window_seconds)},
+            )
+        return await call_next(request)
+
+    logger.info("Redis rate limiting enabled (url=%s, rpm=%d)", redis_url, rpm)
+
+
+def setup_sentry(dsn: str | None, environment: str = "production") -> None:
+    if not dsn:
+        return
+    try:
+        import sentry_sdk
+        from sentry_sdk.integrations.fastapi import FastApiIntegration
+        from sentry_sdk.integrations.starlette import StarletteIntegration
+    except ImportError:
+        logger.warning(
+            "GRACEKELLY_SENTRY_DSN is set but sentry-sdk is not installed. "
+            "Install with: pip install 'gracekelly[observability]'"
+        )
+        return
+    sentry_sdk.init(
+        dsn=dsn,
+        environment=environment,
+        integrations=[StarletteIntegration(), FastApiIntegration()],
+        traces_sample_rate=0.1,
+        send_default_pii=False,
+    )
+    logger.info("Sentry initialized (environment=%s)", environment)

@@ -84,6 +84,11 @@ class Settings:
     browser_scripted_logged_in: bool = True
     browser_scripted_model_label: str | None = None
     browser_scripted_output_text: str = "scripted browser result"
+    sentry_dsn: str | None = None
+    sentry_environment: str = "production"
+    redis_url: str | None = None
+    rate_limit_rpm: int = 60
+    rate_limit_burst: int = 10
     orchestrate_timeout_seconds: float | None = None
     # Health endpoint security
     health_expose_details: bool = False
@@ -157,6 +162,11 @@ class Settings:
                 "GRACEKELLY_BROWSER_SCRIPTED_OUTPUT_TEXT",
                 "scripted browser result",
             ),
+            sentry_dsn=os.getenv("GRACEKELLY_SENTRY_DSN") or None,
+            sentry_environment=os.getenv("GRACEKELLY_SENTRY_ENVIRONMENT", "production"),
+            redis_url=os.getenv("GRACEKELLY_REDIS_URL") or None,
+            rate_limit_rpm=_env_int("GRACEKELLY_RATE_LIMIT_RPM", "60"),
+            rate_limit_burst=_env_int("GRACEKELLY_RATE_LIMIT_BURST", "10"),
             orchestrate_timeout_seconds=_env_float("GRACEKELLY_ORCHESTRATE_TIMEOUT_SECONDS", "0") or None,
             health_expose_details=os.getenv("GRACEKELLY_HEALTH_EXPOSE_DETAILS", "false").lower() == "true",
         )
