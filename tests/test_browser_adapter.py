@@ -21,6 +21,7 @@ from gracekelly.core.contracts import (
     ExecutionRequest,
     ExecutionStep,
     FailureCode,
+    FileAttachment,
     MergeStrategy,
     StepStatus,
 )
@@ -74,7 +75,12 @@ class FakeBrowserAutomation(BrowserAutomationPort):
 
 
 class BrowserAdapterTests(unittest.TestCase):
-    def build_request(self, *, cancellation: CancellationToken | None = None) -> ExecutionRequest:
+    def build_request(
+        self,
+        *,
+        cancellation: CancellationToken | None = None,
+        attachments: tuple[FileAttachment, ...] = (),
+    ) -> ExecutionRequest:
         model = resolve_model("Kimi K2")
         step = ExecutionStep(
             model=model,
@@ -99,6 +105,7 @@ class BrowserAdapterTests(unittest.TestCase):
             reasoning=False,
             metadata={},
             cancellation=cancellation,
+            attachments=attachments,
         )
 
     def build_session_manager(self, *, enabled: bool = True, profile_dir: str | None = "D:\\Profiles\\GraceKelly") -> BrowserSessionManager:
@@ -132,6 +139,61 @@ class BrowserAdapterTests(unittest.TestCase):
         self.assertEqual(result.status, StepStatus.COMPLETED)
         self.assertEqual(result.output_text, "browser success")
         self.assertEqual(result.details["actual_model_label"], "Kimi K2.5")
+
+    def test_browser_adapter_attaches_files_before_prompt_submission(self) -> None:
+        attachment = FileAttachment(name="photo.png", content_type="image/png", data=b"png-bytes")
+        events: list[str] = []
+
+        class AttachmentAwareAutomation(FakeBrowserAutomation):
+            def __init__(self) -> None:
+                super().__init__()
+                self.captured_attachments: tuple[FileAttachment, ...] = ()
+
+            def attach_files(self, attachments: tuple[FileAttachment, ...]) -> None:
+                events.append("attach")
+                self.captured_attachments = attachments
+
+            def submit_prompt(
+                self,
+                *,
+                prompt: str,
+                policy: SubmitPolicy,
+                timeout_seconds: int,
+            ) -> BrowserExecutionOutput:
+                events.append("submit")
+                return super().submit_prompt(prompt=prompt, policy=policy, timeout_seconds=timeout_seconds)
+
+        automation = AttachmentAwareAutomation()
+        adapter = PerplexityBrowserAdapter(
+            session_manager=self.build_session_manager(),
+            automation=automation,
+        )
+
+        result = adapter.execute(self.build_request(attachments=(attachment,)))
+
+        self.assertEqual(result.status, StepStatus.COMPLETED)
+        self.assertEqual(automation.captured_attachments, (attachment,))
+        self.assertEqual(events, ["attach", "submit"])
+
+    def test_browser_adapter_skips_file_attachment_when_request_has_no_files(self) -> None:
+        class AttachmentAwareAutomation(FakeBrowserAutomation):
+            def __init__(self) -> None:
+                super().__init__()
+                self.attach_calls = 0
+
+            def attach_files(self, attachments: tuple[FileAttachment, ...]) -> None:
+                self.attach_calls += 1
+
+        automation = AttachmentAwareAutomation()
+        adapter = PerplexityBrowserAdapter(
+            session_manager=self.build_session_manager(),
+            automation=automation,
+        )
+
+        result = adapter.execute(self.build_request())
+
+        self.assertEqual(result.status, StepStatus.COMPLETED)
+        self.assertEqual(automation.attach_calls, 0)
 
     def test_browser_adapter_returns_auth_failed_when_login_missing(self) -> None:
         adapter = PerplexityBrowserAdapter(

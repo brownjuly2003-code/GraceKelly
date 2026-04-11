@@ -2,10 +2,13 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from gracekelly.adapters.browser.policy import AuthRecoveryPolicy, ModelVerificationPolicy, PopupPolicy, SubmitPolicy
 from gracekelly.adapters.browser.session import BrowserSessionManager
+
+if TYPE_CHECKING:
+    from gracekelly.core.contracts import FileAttachment
 
 
 @dataclass(frozen=True, slots=True)
@@ -66,6 +69,9 @@ class BrowserAutomationPort(ABC):
         timeout_seconds: int,
     ) -> BrowserExecutionOutput:
         raise NotImplementedError
+
+    def attach_files(self, attachments: tuple[FileAttachment, ...]) -> None:
+        return None
 
     def healthcheck(self) -> dict[str, Any]:
         return {

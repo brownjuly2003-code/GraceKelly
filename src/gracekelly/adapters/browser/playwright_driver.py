@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import logging
+import os
+import tempfile
 import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
@@ -22,6 +24,7 @@ from gracekelly.adapters.browser.policy import (
 )
 from gracekelly.adapters.browser.selectors import PerplexitySelectors
 from gracekelly.adapters.browser.session import BrowserSessionManager
+from gracekelly.core.contracts import FileAttachment
 
 logger = logging.getLogger(__name__)
 
@@ -278,6 +281,54 @@ class PlaywrightBrowserAutomation(BrowserAutomationPort):
         else:
             logger.warning("Thinking toggle clicked but button shows: %s", button_text_after)
         return enabled
+
+    def attach_files(self, attachments: tuple[FileAttachment, ...]) -> None:
+        if not attachments:
+            return
+
+        page = self._page_or_raise()
+        file_input = page.locator('input[type="file"]')
+        try:
+            file_input_count = file_input.count()
+        except Exception:
+            file_input_count = 0
+
+        if file_input_count == 0:
+            attach_button = self._first_visible_locator(
+                (
+                    page.locator(self._selectors.add_files_button),
+                    page.locator('[aria-label*="attach" i], [aria-label*="upload" i], [data-testid*="attach" i]'),
+                )
+            )
+            if attach_button is not None:
+                attach_button.click()
+                time.sleep(self._runtime.poll_interval_seconds)
+                file_input = page.locator('input[type="file"]')
+                try:
+                    file_input_count = file_input.count()
+                except Exception:
+                    file_input_count = 0
+            if file_input_count == 0:
+                logger.warning("No file input found on page; skipping %d attachment(s).", len(attachments))
+                return
+
+        temp_paths: list[str] = []
+        try:
+            for attachment in attachments:
+                suffix = os.path.splitext(attachment.name)[1] or ".bin"
+                with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as handle:
+                    handle.write(attachment.data)
+                    temp_paths.append(handle.name)
+
+            file_input.set_input_files(temp_paths)
+            time.sleep(self._runtime.poll_interval_seconds)
+            logger.info("Attached %d file(s) to Perplexity", len(temp_paths))
+        finally:
+            for path in temp_paths:
+                try:
+                    os.unlink(path)
+                except OSError:
+                    pass
 
     def submit_prompt(
         self,

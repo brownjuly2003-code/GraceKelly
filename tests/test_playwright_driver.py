@@ -1,13 +1,18 @@
 from __future__ import annotations
 
+import os
 import unittest
 from collections.abc import Callable
 from typing import Any, cast
 
 from gracekelly.adapters.browser.automation import BrowserProfileBusyError
-from gracekelly.adapters.browser.playwright_driver import PlaywrightBrowserAutomation
+from gracekelly.adapters.browser.playwright_driver import (
+    PlaywrightBrowserAutomation,
+    PlaywrightBrowserRuntimeConfig,
+)
 from gracekelly.adapters.browser.policy import AuthRecoveryPolicy, ModelVerificationPolicy
 from gracekelly.adapters.browser.session import BrowserSessionConfig, BrowserSessionManager
+from gracekelly.core.contracts import FileAttachment
 
 
 class _FakeLocator:
@@ -15,17 +20,22 @@ class _FakeLocator:
         self,
         *,
         visible: bool = False,
+        count_value: int | None = None,
         texts: list[str] | None = None,
         inner_text: str | None = None,
         attributes: dict[str, str] | None = None,
         on_click: Callable[[], None] | None = None,
+        on_set_input_files: Callable[[list[str]], None] | None = None,
     ) -> None:
         self._visible = visible
+        self._count_value = count_value
         self.clicked = False
+        self.input_files: list[str] = []
         self._texts = texts or []
         self._inner_text = inner_text
         self._attributes = attributes or {}
         self._on_click = on_click
+        self._on_set_input_files = on_set_input_files
 
     @property
     def first(self) -> _FakeLocator:
@@ -35,12 +45,19 @@ class _FakeLocator:
         return self._visible
 
     def count(self) -> int:
+        if self._count_value is not None:
+            return self._count_value
         return 1 if self._visible else 0
 
     def click(self) -> None:
         self.clicked = True
         if self._on_click is not None:
             self._on_click()
+
+    def set_input_files(self, paths: list[str]) -> None:
+        self.input_files = list(paths)
+        if self._on_set_input_files is not None:
+            self._on_set_input_files(paths)
 
     def all_inner_texts(self) -> list[str]:
         return list(self._texts)
@@ -60,6 +77,8 @@ class _FakePage:
         self.option = _FakeLocator(visible=False)
         self.new_thread_button = _FakeLocator(visible=False, inner_text="New Thread")
         self.stop_response_button = _FakeLocator(visible=False, inner_text="Stop response (Esc)")
+        self.file_input = _FakeLocator(visible=False, count_value=0)
+        self.add_files_button = _FakeLocator(visible=False, inner_text="Add files or tools")
         self.model_menu = _FakeLocator(
             visible=True,
             texts=["Best\nSelects the best available model\nGPT-5.4\nGemini 3.1 Pro"],
@@ -69,6 +88,10 @@ class _FakePage:
         self.keyboard = _FakeKeyboard()
 
     def locator(self, selector: str) -> _FakeLocator:
+        if selector == 'input[type="file"]':
+            return self.file_input
+        if selector == 'button[aria-label="Add files or tools"]':
+            return self.add_files_button
         if "radix-popper" in selector or "role=\"dialog\"" in selector or "role=\"listbox\"" in selector:
             return self.model_menu
         if "Stop response" in selector:
@@ -203,6 +226,49 @@ class _CrashingPlaywrightManager:
 
 
 class PlaywrightDriverTests(unittest.TestCase):
+    def test_attach_files_uploads_images_via_file_input(self) -> None:
+        captured: dict[str, object] = {}
+
+        def _capture_input_files(paths: list[str]) -> None:
+            captured["paths"] = list(paths)
+            captured["exists_during_upload"] = [os.path.exists(path) for path in paths]
+            captured["payloads"] = [open(path, "rb").read() for path in paths]
+
+        driver = PlaywrightBrowserAutomation(
+            runtime=PlaywrightBrowserRuntimeConfig(poll_interval_seconds=0),
+            sync_playwright_factory=lambda: object(),
+        )
+        page = _FakePage()
+        page.file_input = _FakeLocator(
+            visible=False,
+            count_value=1,
+            on_set_input_files=_capture_input_files,
+        )
+        driver._page = page
+        attachment = FileAttachment(name="photo.png", content_type="image/png", data=b"png-bytes")
+
+        driver.attach_files((attachment,))
+
+        self.assertEqual(captured["exists_during_upload"], [True])
+        self.assertEqual(captured["payloads"], [b"png-bytes"])
+        self.assertEqual(len(page.file_input.input_files), 1)
+        for path in cast(list[str], captured["paths"]):
+            self.assertFalse(os.path.exists(path))
+
+    def test_attach_files_logs_warning_when_file_input_is_missing(self) -> None:
+        driver = PlaywrightBrowserAutomation(
+            runtime=PlaywrightBrowserRuntimeConfig(poll_interval_seconds=0),
+            sync_playwright_factory=lambda: object(),
+        )
+        driver._page = _FakePage()
+        attachment = FileAttachment(name="photo.png", content_type="image/png", data=b"png-bytes")
+
+        with self.assertLogs("gracekelly.adapters.browser.playwright_driver", level="WARNING") as captured:
+            driver.attach_files((attachment,))
+
+        self.assertEqual(len(captured.output), 1)
+        self.assertIn("No file input", captured.output[0])
+
     def test_infer_auth_status_marks_sign_in_prompt_logged_out(self) -> None:
         driver = PlaywrightBrowserAutomation(sync_playwright_factory=lambda: object())
 

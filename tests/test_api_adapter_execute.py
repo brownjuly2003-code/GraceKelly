@@ -310,6 +310,7 @@ class ExecuteAsyncTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result.status, StepStatus.COMPLETED)
         self.assertEqual(result.execution_mode, ExecutionMode.DRY_RUN)
         self.assertIsNotNone(result.output_text)
+        self.assertIn("[dry-run]", result.output_text or "")
         self.assertEqual(result.details["requested_models"], ["Mistral Small"])
 
     async def test_default_execute_async_calls_execute_in_thread(self) -> None:
@@ -318,9 +319,11 @@ class ExecuteAsyncTests(unittest.IsolatedAsyncioTestCase):
 
             def __init__(self) -> None:
                 self.execute_thread_id: int | None = None
+                self.executed_on_main_thread: bool | None = None
 
             def execute(self, request: ExecutionRequest) -> ExecutionResult:
                 self.execute_thread_id = threading.get_ident()
+                self.executed_on_main_thread = threading.current_thread() is threading.main_thread()
                 return ExecutionResult(
                     adapter_name=self.name,
                     model_id="m1",
@@ -338,6 +341,7 @@ class ExecuteAsyncTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result.output_text, "Hello")
         self.assertIsNotNone(adapter.execute_thread_id)
         self.assertNotEqual(adapter.execute_thread_id, caller_thread_id)
+        self.assertIs(adapter.executed_on_main_thread, False)
 
 
 class AsyncRouteTests(unittest.IsolatedAsyncioTestCase):
@@ -633,6 +637,19 @@ class BaseApiAdapterAsyncEdgeCaseTests(unittest.IsolatedAsyncioTestCase):
         result = await _adapter(api_key=None).execute_async(_make_request())
         self.assertEqual(result.failure_code, FailureCode.PROVIDER_UNAVAILABLE)
 
+    async def test_execute_async_500_without_retry_returns_provider_unavailable(self) -> None:
+        adapter = _adapter(max_retries=0)
+        with patch.object(
+            adapter,
+            "_async_post_json",
+            AsyncMock(side_effect=_make_http_status_error(500)),
+            create=True,
+        ) as mock_post:
+            result = await adapter.execute_async(_make_request())
+        self.assertEqual(result.status, StepStatus.FAILED)
+        self.assertEqual(result.failure_code, FailureCode.PROVIDER_UNAVAILABLE)
+        self.assertEqual(mock_post.await_count, 1)
+
     async def test_execute_async_503_without_retry_returns_provider_unavailable(self) -> None:
         adapter = _adapter(max_retries=0)
         with patch.object(
@@ -665,6 +682,18 @@ class BaseApiAdapterAsyncEdgeCaseTests(unittest.IsolatedAsyncioTestCase):
         ):
             result = await adapter.execute_async(_make_request())
         self.assertEqual(result.failure_code, FailureCode.PROVIDER_UNAVAILABLE)
+
+    async def test_execute_async_network_error_returns_provider_unavailable(self) -> None:
+        adapter = _adapter(max_retries=0)
+        with patch.object(
+            adapter,
+            "_async_post_json",
+            AsyncMock(side_effect=httpx.NetworkError("offline")),
+            create=True,
+        ) as mock_post:
+            result = await adapter.execute_async(_make_request())
+        self.assertEqual(result.failure_code, FailureCode.PROVIDER_UNAVAILABLE)
+        self.assertEqual(mock_post.await_count, 1)
 
     async def test_execute_async_timeout_retries_then_succeeds(self) -> None:
         adapter = _adapter(max_retries=1)

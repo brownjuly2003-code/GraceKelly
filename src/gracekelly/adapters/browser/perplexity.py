@@ -66,8 +66,6 @@ class PerplexityBrowserAdapter(ExecutionAdapter):
     def execute(self, request: ExecutionRequest) -> ExecutionResult:
         model = request.step.model
         t0 = time.monotonic()
-        if request.attachments:
-            logger.warning("Browser adapter ignores image attachments (not supported yet)")
         logger.info(
             "Browser execution started for task %s model %s provider %s",
             request.task_id,
@@ -133,6 +131,9 @@ class PerplexityBrowserAdapter(ExecutionAdapter):
 
             if request.cancellation and request.cancellation.is_cancelled:
                 return self._cancelled(model.id, model.display_name)
+
+            if request.attachments:
+                self._automation.attach_files(request.attachments)
 
             output = self._automation.submit_prompt(
                 prompt=request.prompt,

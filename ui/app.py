@@ -422,6 +422,12 @@ with st.sidebar:
                 remember_view("task", request_json("GET", backend_url, f"/tasks/{task_id}"))
             except RuntimeError as exc:
                 st.error(str(exc))
+    with st.expander("Session", expanded=False):
+        st.caption(f"ID: `{st.session_state.get('chat_session_id', '—')[:8]}…`")
+        if st.button("Reset session", key="sidebar_reset_session"):
+            st.session_state["chat_session_id"] = str(uuid.uuid4())
+            st.session_state.chat_messages = []
+            st.rerun()
 
 tab_chat, tab_playground = st.tabs(["\U0001f4ac Chat", "\U0001f9ea Playground"])
 
@@ -465,6 +471,9 @@ with tab_chat:
                     _parts.append(f"{_meta['duration_ms']}ms")
                 if _parts:
                     st.caption(" \u00b7 ".join(_parts))
+                if _meta.get("was_decomposed"):
+                    _n = int(_meta.get("subtask_count") or 0)
+                    st.caption(f"🔀 Decomposed into {_n} subtasks")
 
     if not st.session_state.chat_messages:
         with st.container(border=True):
@@ -497,6 +506,13 @@ with tab_chat:
         if st.button("↩ Retry", key="chat_retry_btn"):
             st.session_state["chat_retry_message"] = st.session_state.pop("chat_last_failed_message")
             st.rerun()
+    _uploaded_files = st.file_uploader(
+        "Attach files",
+        accept_multiple_files=True,
+        type=["txt", "md", "csv", "json", "py", "pdf", "jpg", "jpeg", "png", "gif", "webp"],
+        key="chat_file_uploader",
+        label_visibility="collapsed",
+    )
     if st.session_state.get("_prefill_prompt"):
         _user_input = st.session_state.pop("_prefill_prompt")
     else:
@@ -527,21 +543,61 @@ with tab_chat:
         with st.chat_message("assistant"):
             _placeholder = st.empty()
             try:
-                for _etype, _edata in stream_from_sse(backend_url, "/orchestrate/stream", _payload):
-                    if _etype == "accepted":
-                        _received_task_id = str(_edata.get("task_id") or "")
-                    elif _etype == "delta":
-                        _collected += str(_edata.get("text", ""))
-                        _placeholder.markdown(_collected + "\u258c")
-                    elif _etype == "complete":
-                        _collected = str(_edata.get("text", _collected))
-                        _final_meta = _edata
+                if _uploaded_files:
+                    _upload_resp = requests.post(
+                        f"{backend_url}/api/v1/orchestrate/upload",
+                        data={
+                            "prompt": _user_input,
+                            "model": _resolved_model,
+                            "dry_run": str(_dry_run_chat).lower(),
+                            "session_id": st.session_state["chat_session_id"],
+                        },
+                        files=[
+                            ("files", (f.name, f.getvalue(), f.type or "application/octet-stream"))
+                            for f in _uploaded_files
+                        ],
+                        timeout=120,
+                    )
+                    if _upload_resp.ok:
+                        _body = _upload_resp.json()
+                        _collected = str(_body.get("output_text") or "(no output)")
+                        _received_task_id = str(_body.get("task_id") or "") or None
+                        _model_payload = _body.get("model") if isinstance(_body.get("model"), dict) else {}
+                        _final_meta = {
+                            "model_id": _model_payload.get("id") or _resolved_model,
+                            "duration_ms": _body.get("duration_ms"),
+                            "was_decomposed": bool(_body.get("was_decomposed", False)),
+                            "subtask_count": int(_body.get("subtask_count") or 0),
+                        }
                         _placeholder.markdown(_collected)
-                    elif _etype == "error":
-                        _stream_error = str(_edata.get("text", "Unknown error"))
+                    else:
+                        _stream_error = f"Upload failed: {_upload_resp.status_code}"
                         st.session_state["chat_last_failed_message"] = _user_input
-                        _placeholder.error(_stream_error)
-                        break
+                        _placeholder.error(f"{_stream_error}\n\n{extract_error(_upload_resp)}")
+                else:
+                    for _etype, _edata in stream_from_sse(backend_url, "/orchestrate/stream", _payload):
+                        if _etype == "accepted":
+                            _received_task_id = str(_edata.get("task_id") or "")
+                        elif _etype == "delta":
+                            _collected += str(_edata.get("text", ""))
+                            _placeholder.markdown(_collected + "\u258c")
+                        elif _etype == "complete":
+                            _collected = str(_edata.get("text", _collected))
+                            _final_meta = _edata
+                            _placeholder.markdown(_collected)
+                        elif _etype == "error":
+                            _stream_error = str(_edata.get("text", "Unknown error"))
+                            st.session_state["chat_last_failed_message"] = _user_input
+                            _placeholder.error(_stream_error)
+                            break
+            except requests.RequestException as _exc:
+                _stream_error = f"Backend unreachable: {_exc}"
+                st.session_state["chat_last_failed_message"] = _user_input
+                _backend_error = _stream_error.removeprefix("Backend unreachable: ").strip()
+                _placeholder.error(
+                    f"Backend unreachable: {_backend_error}\n\n"
+                    f"Is the GraceKelly server running at `{backend_url}`?"
+                )
             except RuntimeError as _exc:
                 _stream_error = str(_exc)
                 st.session_state["chat_last_failed_message"] = _user_input
@@ -555,6 +611,8 @@ with tab_chat:
                     _placeholder.error(_stream_error)
 
             if _final_meta is not None:
+                _final_meta["was_decomposed"] = bool(_final_meta.get("was_decomposed", False))
+                _final_meta["subtask_count"] = int(_final_meta.get("subtask_count") or 0)
                 _cap: list[str] = []
                 if _final_meta.get("model_id"):
                     _cap.append(str(_final_meta["model_id"]))
@@ -569,6 +627,9 @@ with tab_chat:
                     _cap.append(f"{_final_meta['duration_ms']}ms")
                 if _cap:
                     st.caption(" \u00b7 ".join(_cap))
+                if _final_meta.get("was_decomposed"):
+                    _n = _final_meta.get("subtask_count", 0)
+                    st.caption(f"🔀 Decomposed into {_n} subtasks")
 
 
         if _stream_error is None and _final_meta is not None:
