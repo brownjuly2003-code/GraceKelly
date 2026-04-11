@@ -22,11 +22,11 @@ class OrchestrateRequest(BaseModel):
     reasoning: bool = False
     metadata: dict[str, Any] = Field(default_factory=dict)
     dry_run: bool = False
-    context_task_id: str | None = Field(
-        default=None,
-        max_length=36,
-        description="Task ID of a prior query to use as context",
+    decompose: bool = Field(
+        default=True,
+        description="Enable automatic decomposition for complex prompts",
     )
+    session_id: str | None = Field(default=None, description="Session ID for conversation chaining")
 
     @model_validator(mode="after")
     def validate_model_selection(self) -> OrchestrateRequest:
@@ -143,6 +143,8 @@ class OrchestrateResponse(BaseModel):
     model: ModelView | None = None
     requested_models: list[ModelView]
     output_text: str | None = None
+    was_decomposed: bool = False
+    subtask_count: int = 0
 
     @classmethod
     def from_task(
@@ -167,6 +169,8 @@ class OrchestrateResponse(BaseModel):
             model=_resolve_winning_model(task, step_records),
             requested_models=requested_models_override or _resolve_requested_models(step_records, event_records),
             output_text=task.output_text,
+            was_decomposed=task.was_decomposed,
+            subtask_count=task.subtask_count,
         )
 
 
@@ -259,6 +263,8 @@ class TaskView(OrchestrateResponse):
             model=_resolve_winning_model(task, step_records),
             requested_models=_resolve_requested_models(step_records, event_records),
             output_text=task.output_text,
+            was_decomposed=task.was_decomposed,
+            subtask_count=task.subtask_count,
             prompt=task.prompt,
             reasoning=task.reasoning,
             metadata=task.metadata,

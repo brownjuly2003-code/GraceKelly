@@ -37,6 +37,9 @@ class TaskRecord:
     output_text: str | None = None
     metadata: dict[str, Any] = field(default_factory=dict)
     retry_of_task_id: str | None = None
+    session_id: str | None = None
+    was_decomposed: bool = False
+    subtask_count: int = 0
 
 
 @dataclass(slots=True)
@@ -79,6 +82,9 @@ class TaskRepository(ABC):
 
     @abstractmethod
     def get(self, task_id: str) -> TaskRecord | None:
+        raise NotImplementedError
+
+    def list_by_session(self, session_id: str, *, limit: int) -> list[TaskRecord]:
         raise NotImplementedError
 
     @abstractmethod

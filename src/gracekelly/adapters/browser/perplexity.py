@@ -66,6 +66,8 @@ class PerplexityBrowserAdapter(ExecutionAdapter):
     def execute(self, request: ExecutionRequest) -> ExecutionResult:
         model = request.step.model
         t0 = time.monotonic()
+        if request.attachments:
+            logger.warning("Browser adapter ignores image attachments (not supported yet)")
         logger.info(
             "Browser execution started for task %s model %s provider %s",
             request.task_id,

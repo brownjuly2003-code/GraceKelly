@@ -92,6 +92,7 @@ class Settings:
     rate_limit_rpm: int = 60
     rate_limit_burst: int = 10
     orchestrate_timeout_seconds: float | None = None
+    context_window_turns: int = 20
     # Health endpoint security
     health_expose_details: bool = False
 
@@ -104,6 +105,10 @@ class Settings:
         if self.orchestrate_timeout_seconds is not None and self.orchestrate_timeout_seconds <= 0.0:
             raise ValueError(
                 f"GRACEKELLY_ORCHESTRATE_TIMEOUT_SECONDS must be > 0.0, got {self.orchestrate_timeout_seconds}"
+            )
+        if not 1 <= self.context_window_turns <= 100:
+            raise ValueError(
+                f"GRACEKELLY_CONTEXT_WINDOW_TURNS must be between 1 and 100, got {self.context_window_turns}"
             )
 
     @classmethod
@@ -172,6 +177,7 @@ class Settings:
             rate_limit_rpm=_env_int("GRACEKELLY_RATE_LIMIT_RPM", "60"),
             rate_limit_burst=_env_int("GRACEKELLY_RATE_LIMIT_BURST", "10"),
             orchestrate_timeout_seconds=_env_float("GRACEKELLY_ORCHESTRATE_TIMEOUT_SECONDS", "0") or None,
+            context_window_turns=_env_int("GRACEKELLY_CONTEXT_WINDOW_TURNS", "20"),
             health_expose_details=os.getenv("GRACEKELLY_HEALTH_EXPOSE_DETAILS", "false").lower() == "true",
         )
 

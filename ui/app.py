@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import uuid
 from collections.abc import Iterator
 from typing import Any
 
@@ -306,6 +307,7 @@ st.session_state.setdefault("backend_url", "http://localhost:8011")
 st.session_state.setdefault("chat_messages", [])
 st.session_state.setdefault("chat_retry_message", None)
 st.session_state.setdefault("chat_last_failed_message", None)
+st.session_state.setdefault("chat_session_id", str(uuid.uuid4()))
 st.session_state.setdefault("last_models_date", "")
 
 with st.sidebar:
@@ -440,6 +442,7 @@ with tab_chat:
     with hcol_btn:
         if st.button("New chat", use_container_width=True, type="secondary"):
             st.session_state.chat_messages = []
+            st.session_state["chat_session_id"] = str(uuid.uuid4())
             st.rerun()
     _dry_run_chat = st.checkbox("Dry run", value=False, key="chat_dry_run")
 
@@ -503,11 +506,6 @@ with tab_chat:
 
     if _user_input:
         _resolved_model = chat_model if chat_model_options else st.session_state.get("chat_manual_model", "")
-        _last_asst = next(
-            (message for message in reversed(st.session_state.chat_messages) if message["role"] == "assistant"),
-            None,
-        )
-        _ctx_task_id: str | None = _last_asst.get("task_id") if _last_asst else None
 
         st.session_state.chat_messages.append(
             {"role": "user", "content": _user_input, "task_id": None, "meta": None}
@@ -523,9 +521,8 @@ with tab_chat:
             "prompt": _user_input,
             "model": _resolved_model,
             "dry_run": _dry_run_chat,
+            "session_id": st.session_state["chat_session_id"],
         }
-        if _ctx_task_id is not None:
-            _payload["context_task_id"] = _ctx_task_id
 
         with st.chat_message("assistant"):
             _placeholder = st.empty()

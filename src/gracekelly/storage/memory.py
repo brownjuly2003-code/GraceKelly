@@ -31,6 +31,12 @@ class InMemoryTaskRepository(TaskRepository):
         with self._lock:
             return self._tasks.get(task_id)
 
+    def list_by_session(self, session_id: str, *, limit: int) -> list[TaskRecord]:
+        with self._lock:
+            matching = [task for task in self._tasks.values() if task.session_id == session_id]
+        matching.sort(key=lambda task: task.accepted_at)
+        return matching[-limit:]
+
     def list_recent(
         self,
         limit: int,

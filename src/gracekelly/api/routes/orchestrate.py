@@ -2,15 +2,28 @@ from __future__ import annotations
 
 import asyncio
 import functools
+import io
+import json
 import logging
 from datetime import datetime
+from pathlib import Path as FilePath
+from typing import cast
 
-from fastapi import APIRouter, HTTPException, Path, Query, Request, Response
+from fastapi import APIRouter, File, Form, HTTPException, Path, Query, Request, Response, UploadFile
 
 from gracekelly.app_state import get_app_state
-from gracekelly.core.contracts import ExecutionMode, FailureCode, TaskStatus
+from gracekelly.core.contracts import (
+    ATTACHMENT_METADATA_KEY,
+    IMAGE_CONTENT_TYPES,
+    ExecutionMode,
+    FailureCode,
+    FileAttachment,
+    TaskStatus,
+    discard_registered_attachments,
+    register_file_attachments,
+)
 from gracekelly.core.models import resolve_model
-from gracekelly.core.orchestrator import OrchestratorService, StorageUnavailableError
+from gracekelly.core.orchestrator import OrchestratorService, StorageUnavailableError, SubmissionSnapshot
 from gracekelly.logging_utils import log_message, trace_id_from_metadata
 from gracekelly.schemas import ModelView, OrchestrateRequest, OrchestrateResponse, TaskListItem, TaskView
 from gracekelly.storage.base import TaskEventRecord, TaskRecord, TaskStepRecord
@@ -34,6 +47,30 @@ _SAFE_VALIDATION_PREFIXES = (
     "merge_strategy=",
     "reasoning=",
 )
+
+_TEXT_EXTENSIONS = frozenset({
+    ".csv",
+    ".html",
+    ".js",
+    ".json",
+    ".md",
+    ".py",
+    ".rst",
+    ".toml",
+    ".ts",
+    ".txt",
+    ".xml",
+    ".yaml",
+    ".yml",
+})
+
+_IMAGE_CONTENT_TYPES_BY_EXTENSION = {
+    ".gif": "image/gif",
+    ".jpeg": "image/jpeg",
+    ".jpg": "image/jpeg",
+    ".png": "image/png",
+    ".webp": "image/webp",
+}
 
 
 def _sanitize_validation_error(exc: Exception) -> str:
@@ -139,6 +176,58 @@ def _render_task_export(task: TaskRecord) -> str:
     return "\n".join(lines)
 
 
+def _parse_models_form_value(models: str | None) -> list[str]:
+    if models is None:
+        return []
+    try:
+        parsed = json.loads(models)
+    except json.JSONDecodeError as exc:
+        raise HTTPException(status_code=422, detail="Field 'models' must be a JSON array of strings.") from exc
+    if not isinstance(parsed, list) or not all(isinstance(item, str) for item in parsed):
+        raise HTTPException(status_code=422, detail="Field 'models' must be a JSON array of strings.")
+    return parsed
+
+
+async def _extract_file_content(file: UploadFile) -> tuple[str | None, FileAttachment | None]:
+    filename = file.filename or "unknown"
+    content_type = file.content_type or ""
+    extension = FilePath(filename).suffix.lower()
+    data = await file.read()
+
+    if content_type in IMAGE_CONTENT_TYPES or extension in _IMAGE_CONTENT_TYPES_BY_EXTENSION:
+        return None, FileAttachment(
+            name=filename,
+            content_type=content_type or _IMAGE_CONTENT_TYPES_BY_EXTENSION.get(extension, "image/jpeg"),
+            data=data,
+        )
+
+    if content_type == "application/pdf" or extension == ".pdf":
+        try:
+            import pypdf
+        except ImportError as exc:
+            raise HTTPException(
+                status_code=422,
+                detail="PDF support requires 'pypdf'. Install with: pip install 'gracekelly[pdf]'",
+            ) from exc
+        try:
+            reader = pypdf.PdfReader(io.BytesIO(data))
+            text = "\n".join(page.extract_text() or "" for page in reader.pages)
+        except Exception as exc:
+            raise HTTPException(status_code=422, detail=f"Cannot extract text from PDF: {filename}") from exc
+        return f"[File: {filename}]\n{text}", None
+
+    if extension in _TEXT_EXTENSIONS or content_type.startswith("text/"):
+        return f"[File: {filename}]\n{data.decode('utf-8', errors='replace')}", None
+
+    raise HTTPException(
+        status_code=422,
+        detail=(
+            f"Unsupported file type: {content_type or extension}. "
+            "Supported: text, PDF, images (jpeg/png/gif/webp)"
+        ),
+    )
+
+
 @router.post(
     "/orchestrate",
     response_model=OrchestrateResponse,
@@ -237,6 +326,149 @@ async def orchestrate(payload: OrchestrateRequest, request: Request, response: R
             dry_run=snapshot.task.dry_run,
             model_count=snapshot.task.model_count,
             trace_id=trace_id,
+        )
+    )
+    return OrchestrateResponse.from_task(
+        snapshot.task,
+        snapshot.steps,
+        [],
+        requested_models_override=_requested_models_from_request(payload),
+    )
+
+
+@router.post(
+    "/orchestrate/upload",
+    response_model=OrchestrateResponse,
+    status_code=200,
+    summary="Submit a prompt with file uploads for orchestrated execution",
+)
+async def orchestrate_with_files(
+    request: Request,
+    response: Response,
+    prompt: str = Form(...),
+    model: str | None = Form(default=None),
+    models: str | None = Form(default=None),
+    session_id: str | None = Form(default=None),
+    dry_run: bool = Form(default=False),
+    files: list[UploadFile] | None = File(default=None),
+) -> OrchestrateResponse:
+    state = get_app_state(request)
+    service = state.orchestrator_service
+    timeout_seconds = state.settings.orchestrate_timeout_seconds
+    text_parts = [prompt]
+    attachments: list[FileAttachment] = []
+    uploads = files or []
+
+    for upload in uploads:
+        text_content, attachment = await _extract_file_content(upload)
+        if text_content is not None:
+            text_parts.append(text_content)
+        if attachment is not None:
+            attachments.append(attachment)
+
+    payload = OrchestrateRequest(
+        prompt="\n\n".join(text_parts),
+        model=model,
+        models=_parse_models_form_value(models),
+        session_id=session_id,
+        dry_run=dry_run,
+    )
+    logger.info(
+        log_message(
+            "orchestrate.upload.request",
+            dry_run=payload.dry_run,
+            model_count=len(payload.requested_model_names()),
+            attachment_count=len(attachments),
+            prompt_length=len(payload.prompt),
+        )
+    )
+
+    attachment_token = register_file_attachments(tuple(attachments))
+    payload_for_submission = payload
+    if attachment_token is not None:
+        payload_for_submission = payload.model_copy(
+            update={"metadata": {**payload.metadata, ATTACHMENT_METADATA_KEY: attachment_token}}
+        )
+
+    executor_future: asyncio.Future[SubmissionSnapshot] | None = None
+    try:
+        executor = getattr(state, "browser_executor", None)
+        loop = asyncio.get_running_loop()
+        executor_future = cast(
+            asyncio.Future[SubmissionSnapshot],
+            loop.run_in_executor(executor, service.submit_snapshot, payload_for_submission),
+        )
+        try:
+            if timeout_seconds:
+                snapshot = await asyncio.wait_for(executor_future, timeout=timeout_seconds)
+            else:
+                snapshot = await executor_future
+        except TimeoutError as exc:
+            if attachment_token is not None:
+                token = attachment_token
+
+                def _discard_attachments_on_finish(
+                    _future: asyncio.Future[SubmissionSnapshot],
+                ) -> None:
+                    discard_registered_attachments(token)
+
+                executor_future.add_done_callback(_discard_attachments_on_finish)
+                attachment_token = None
+            logger.warning(
+                log_message(
+                    "orchestrate.upload.timeout",
+                    timeout_seconds=timeout_seconds,
+                )
+            )
+            raise HTTPException(status_code=504, detail="Orchestration request timed out.") from exc
+    except StorageUnavailableError as exc:
+        logger.warning(
+            log_message(
+                "orchestrate.upload.storage_failed",
+                operation=exc.operation,
+                dry_run=payload.dry_run,
+                model_count=len(payload.requested_model_names()),
+                message=str(exc),
+            )
+        )
+        raise HTTPException(status_code=503, detail=_storage_error_detail(exc)) from exc
+    except ValueError as exc:
+        logger.warning(
+            log_message(
+                "orchestrate.upload.rejected",
+                code="validation_error",
+                dry_run=payload.dry_run,
+                message=str(exc),
+            )
+        )
+        raise HTTPException(status_code=422, detail=_sanitize_validation_error(exc)) from exc
+    except NotImplementedError as exc:
+        logger.warning(
+            log_message(
+                "orchestrate.upload.rejected",
+                code="not_implemented",
+                dry_run=payload.dry_run,
+                message=str(exc),
+            )
+        )
+        raise HTTPException(status_code=501, detail="Requested capability is not available.") from exc
+    finally:
+        discard_registered_attachments(attachment_token)
+
+    if payload_for_submission.metadata != payload.metadata:
+        snapshot.task.metadata = dict(payload.metadata)
+        events = await asyncio.to_thread(service.list_task_events, snapshot.task.task_id)
+        await asyncio.to_thread(service._repository.replace_task_snapshot, snapshot.task, snapshot.steps, events)
+
+    logger.info(
+        log_message(
+            "orchestrate.upload.accepted",
+            task_id=snapshot.task.task_id,
+            status=snapshot.task.status,
+            execution_mode=snapshot.task.execution_mode,
+            dry_run=snapshot.task.dry_run,
+            model_count=snapshot.task.model_count,
+            attachment_count=len(attachments),
         )
     )
     return OrchestrateResponse.from_task(

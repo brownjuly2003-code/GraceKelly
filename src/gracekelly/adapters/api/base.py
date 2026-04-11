@@ -77,6 +77,8 @@ class BaseApiAdapter(ExecutionAdapter):
                 FailureCode.PROVIDER_UNAVAILABLE,
                 f"{self._provider_label} API key is not configured.",
             )
+        if request_model.attachments:
+            logger.warning("API adapter ignores image attachments (not supported)")
 
         payload: dict[str, object] = {
             "model": request_model.step.provider_model_id,
@@ -202,6 +204,8 @@ class BaseApiAdapter(ExecutionAdapter):
                 FailureCode.PROVIDER_UNAVAILABLE,
                 f"{self._provider_label} API key is not configured.",
             )
+        if request_model.attachments:
+            logger.warning("API adapter ignores image attachments (not supported)")
 
         payload: dict[str, object] = {
             "model": request_model.step.provider_model_id,

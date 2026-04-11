@@ -179,19 +179,20 @@ class OrchestrateRequestValidationTests(unittest.TestCase):
         self.assertEqual(req.merge_strategy, MergeStrategy.FIRST_SUCCESS)
         self.assertTrue(req.cancel_on_quorum)
         self.assertFalse(req.reasoning)
+        self.assertTrue(req.decompose)
         self.assertTrue(req.dry_run)
 
-    def test_orchestrate_request_context_task_id_defaults_to_none(self) -> None:
+    def test_orchestrate_request_session_id_defaults_to_none(self) -> None:
         req = OrchestrateRequest(prompt="hello", model="dry-run")
-        self.assertIsNone(req.context_task_id)
+        self.assertIsNone(req.session_id)
 
-    def test_orchestrate_request_context_task_id_accepted(self) -> None:
-        req = OrchestrateRequest(prompt="hello", model="dry-run", context_task_id="abc-123")
-        self.assertEqual(req.context_task_id, "abc-123")
+    def test_orchestrate_request_session_id_accepted(self) -> None:
+        req = OrchestrateRequest(prompt="hello", model="dry-run", session_id="abc-123")
+        self.assertEqual(req.session_id, "abc-123")
 
-    def test_orchestrate_request_context_task_id_max_length_enforced(self) -> None:
-        with self.assertRaises(ValidationError):
-            OrchestrateRequest(prompt="hello", model="dry-run", context_task_id="x" * 37)
+    def test_orchestrate_request_decompose_can_be_disabled(self) -> None:
+        req = OrchestrateRequest(prompt="hello", model="dry-run", decompose=False)
+        self.assertFalse(req.decompose)
 
 
 class TaskStepViewTruncationTests(unittest.TestCase):
@@ -303,6 +304,32 @@ class OrchestrateResponseFromTaskTests(unittest.TestCase):
         override = [ModelView(id="override-id", display_name="Override")]
         resp = OrchestrateResponse.from_task(task, [_step()], [], requested_models_override=override)
         self.assertEqual(resp.requested_models[0].id, "override-id")
+
+    def test_decomposition_fields_propagated_from_task(self) -> None:
+        task = TaskRecord(
+            task_id="t-decomp",
+            status=TaskStatus.COMPLETED,
+            accepted_at=_now(),
+            completed_at=_now(),
+            duration_ms=100,
+            prompt="test prompt",
+            reasoning=False,
+            execution_mode=ExecutionMode.API,
+            dry_run=False,
+            model_count=1,
+            quorum=1,
+            merge_strategy=MergeStrategy.FIRST_SUCCESS,
+            adapter_hint=AdapterHint.API,
+            cancel_on_quorum=False,
+            output_text="output",
+            was_decomposed=True,
+            subtask_count=3,
+        )
+
+        resp = OrchestrateResponse.from_task(task, [_step()], [])
+
+        self.assertTrue(resp.was_decomposed)
+        self.assertEqual(resp.subtask_count, 3)
 
 
 class TaskListItemFromTaskTests(unittest.TestCase):

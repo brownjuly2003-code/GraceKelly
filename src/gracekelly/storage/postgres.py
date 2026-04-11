@@ -75,7 +75,10 @@ INSERT INTO gk_tasks (
     failure_message,
     output_text,
     metadata,
-    retry_of_task_id
+    retry_of_task_id,
+    session_id,
+    was_decomposed,
+    subtask_count
 )
 VALUES (
     %(task_id)s,
@@ -96,7 +99,10 @@ VALUES (
     %(failure_message)s,
     %(output_text)s,
     %(metadata)s::jsonb,
-    %(retry_of_task_id)s
+    %(retry_of_task_id)s,
+    %(session_id)s,
+    %(was_decomposed)s,
+    %(subtask_count)s
 )
 ON CONFLICT (task_id) DO UPDATE SET
     status = EXCLUDED.status,
@@ -116,7 +122,10 @@ ON CONFLICT (task_id) DO UPDATE SET
     failure_message = EXCLUDED.failure_message,
     output_text = EXCLUDED.output_text,
     metadata = EXCLUDED.metadata,
-    retry_of_task_id = EXCLUDED.retry_of_task_id;
+    retry_of_task_id = EXCLUDED.retry_of_task_id,
+    session_id = EXCLUDED.session_id,
+    was_decomposed = EXCLUDED.was_decomposed,
+    subtask_count = EXCLUDED.subtask_count;
 """
 
 _STEP_UPSERT_QUERY = """
@@ -293,6 +302,24 @@ class PostgresTaskRepository(TaskRepository):
         if row is None:
             return None
         return self._task_from_row(row)
+
+    def list_by_session(self, session_id: str, *, limit: int) -> list[TaskRecord]:
+        query = """
+        SELECT *
+        FROM (
+            SELECT *
+            FROM gk_tasks
+            WHERE session_id = %s
+            ORDER BY accepted_at DESC, task_id DESC
+            LIMIT %s
+        ) AS session_tasks
+        ORDER BY accepted_at ASC, task_id ASC
+        """
+        with self._connect(row_factory=dict_row) as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(query, (session_id, limit))
+                rows = cursor.fetchall()
+        return [self._task_from_row(row) for row in rows]
 
     def list_recent(
         self,
@@ -607,6 +634,9 @@ class PostgresTaskRepository(TaskRepository):
             "output_text": task.output_text,
             "metadata": json.dumps(task.metadata),
             "retry_of_task_id": task.retry_of_task_id,
+            "session_id": task.session_id,
+            "was_decomposed": task.was_decomposed,
+            "subtask_count": task.subtask_count,
         }
 
     def _save_task_with_steps_in_cursor(
@@ -673,6 +703,9 @@ class PostgresTaskRepository(TaskRepository):
             output_text=row["output_text"],
             metadata=metadata,
             retry_of_task_id=row.get("retry_of_task_id"),
+            session_id=row.get("session_id"),
+            was_decomposed=bool(row.get("was_decomposed", False)),
+            subtask_count=int(row.get("subtask_count", 0)),
         )
 
     def _step_from_row(self, row: dict[str, Any]) -> TaskStepRecord:

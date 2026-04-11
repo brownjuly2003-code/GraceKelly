@@ -28,6 +28,7 @@ def _make_task(
     dry_run: bool = False,
     execution_mode: ExecutionMode = ExecutionMode.API,
     failure_code: FailureCode | None = None,
+    session_id: str | None = None,
 ) -> TaskRecord:
     return TaskRecord(
         task_id=task_id,
@@ -45,6 +46,7 @@ def _make_task(
         adapter_hint=AdapterHint.AUTO,
         cancel_on_quorum=True,
         failure_code=failure_code,
+        session_id=session_id,
     )
 
 
@@ -357,6 +359,46 @@ class InMemoryGetAndStepsTests(unittest.TestCase):
 
 
 class InMemoryListRecentEdgeCasesTests(unittest.TestCase):
+    def test_list_by_session_returns_ordered_by_accepted_at(self) -> None:
+        repo = InMemoryTaskRepository()
+        repo.save_task_with_steps(
+            _make_task("t2", accepted_at=_NOW + timedelta(minutes=2), session_id="s1"),
+            [],
+        )
+        repo.save_task_with_steps(
+            _make_task("t1", accepted_at=_NOW + timedelta(minutes=1), session_id="s1"),
+            [],
+        )
+        repo.save_task_with_steps(
+            _make_task("t3", accepted_at=_NOW + timedelta(minutes=3), session_id="s1"),
+            [],
+        )
+
+        result = repo.list_by_session("s1", limit=10)
+
+        self.assertEqual([task.task_id for task in result], ["t1", "t2", "t3"])
+
+    def test_list_by_session_respects_limit(self) -> None:
+        repo = InMemoryTaskRepository()
+        for i in range(5):
+            repo.save_task_with_steps(
+                _make_task(f"t{i}", accepted_at=_NOW + timedelta(minutes=i), session_id="s1"),
+                [],
+            )
+
+        result = repo.list_by_session("s1", limit=2)
+
+        self.assertEqual([task.task_id for task in result], ["t3", "t4"])
+
+    def test_list_by_session_isolates_sessions(self) -> None:
+        repo = InMemoryTaskRepository()
+        repo.save_task_with_steps(_make_task("s1-a", session_id="s1"), [])
+        repo.save_task_with_steps(_make_task("s2-a", session_id="s2"), [])
+
+        result = repo.list_by_session("s1", limit=10)
+
+        self.assertEqual([task.task_id for task in result], ["s1-a"])
+
     def test_filter_by_before_datetime(self) -> None:
         repo = InMemoryTaskRepository()
         cutoff = _NOW

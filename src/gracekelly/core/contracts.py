@@ -3,7 +3,9 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import StrEnum
+from threading import Lock
 from typing import Any
+from uuid import uuid4
 
 from gracekelly.core.models import ModelSpec
 
@@ -96,6 +98,51 @@ class ExecutionPlan:
 
 
 @dataclass(frozen=True, slots=True)
+class FileAttachment:
+    name: str
+    content_type: str
+    data: bytes
+
+
+IMAGE_CONTENT_TYPES: frozenset[str] = frozenset({
+    "image/gif",
+    "image/jpeg",
+    "image/jpg",
+    "image/png",
+    "image/webp",
+})
+
+ATTACHMENT_METADATA_KEY = "_gracekelly_attachment_token"
+
+_registered_attachments: dict[str, tuple[FileAttachment, ...]] = {}
+_registered_attachments_lock = Lock()
+
+
+def register_file_attachments(attachments: tuple[FileAttachment, ...]) -> str | None:
+    if not attachments:
+        return None
+    token = str(uuid4())
+    with _registered_attachments_lock:
+        _registered_attachments[token] = attachments
+    return token
+
+
+def discard_registered_attachments(token: str | None) -> None:
+    if token is None:
+        return
+    with _registered_attachments_lock:
+        _registered_attachments.pop(token, None)
+
+
+def _resolve_registered_attachments(metadata: dict[str, Any]) -> tuple[FileAttachment, ...]:
+    token = metadata.get(ATTACHMENT_METADATA_KEY)
+    if not isinstance(token, str):
+        return ()
+    with _registered_attachments_lock:
+        return _registered_attachments.get(token, ())
+
+
+@dataclass(frozen=True, slots=True)
 class ExecutionRequest:
     task_id: str
     prompt: str
@@ -104,6 +151,14 @@ class ExecutionRequest:
     reasoning: bool
     metadata: dict[str, Any] = field(default_factory=dict)
     cancellation: CancellationToken | None = None
+    attachments: tuple[FileAttachment, ...] = ()
+
+    def __post_init__(self) -> None:
+        if self.attachments:
+            return
+        resolved_attachments = _resolve_registered_attachments(self.metadata)
+        if resolved_attachments:
+            object.__setattr__(self, "attachments", resolved_attachments)
 
     @property
     def models(self) -> tuple[ModelSpec, ...]:

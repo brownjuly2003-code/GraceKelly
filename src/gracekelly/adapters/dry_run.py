@@ -20,6 +20,8 @@ class DryRunExecutionAdapter(ExecutionAdapter):
                 "requested_models": [model.display_name for model in request.models],
                 "active_model": request.step.model.display_name,
                 "reasoning": request.reasoning,
+                "attachment_count": len(request.attachments),
+                "attachment_names": [attachment.name for attachment in request.attachments],
             },
         )
 

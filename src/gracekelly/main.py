@@ -247,6 +247,7 @@ def create_app(app_settings: Settings | None = None) -> FastAPI:
     app.state.orchestrator_service = OrchestratorService(
         app.state.task_repository,
         execution_router=app.state.execution_router,
+        settings=active_settings,
     )
 
     app.state.request_metrics = RequestMetrics()

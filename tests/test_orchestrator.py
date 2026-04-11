@@ -3,8 +3,11 @@ from __future__ import annotations
 import unittest
 from datetime import UTC, datetime
 from typing import Any
+from unittest.mock import MagicMock, patch
 
 from gracekelly.adapters.dry_run import DryRunExecutionAdapter
+from gracekelly.config import Settings
+from gracekelly.core.complexity import assess_complexity
 from gracekelly.core.contracts import (
     AdapterHint,
     EventType,
@@ -19,7 +22,6 @@ from gracekelly.core.contracts import (
     TaskStatus,
 )
 from gracekelly.core.orchestrator import (
-    _MAX_CONTEXT_CHARS,
     OrchestratorService,
     StorageUnavailableError,
     _EventSequence,
@@ -184,6 +186,184 @@ class OrchestratorServiceTests(unittest.TestCase):
         self.assertEqual(events[-1].payload["details"]["adapter_names"], ["api.mistral"])
         self.assertEqual(events[-1].payload["details"]["completed_step_count"], 1)
         self.assertEqual(events[-1].payload["details"]["failed_step_count"], 0)
+
+    def test_complex_prompt_triggers_decomposition(self) -> None:
+        complex_prompt = (
+            "Compare distributed tracing approaches and also explain deployment trade-offs, "
+            "additionally outline the monitoring implications for incident response."
+        )
+        self.assertTrue(assess_complexity(complex_prompt).should_decompose)
+
+        class FakeMistralAdapter(ExecutionAdapter):
+            name = "api.mistral"
+
+            def __init__(self) -> None:
+                self.prompts: list[str] = []
+
+            def execute(self, request: ExecutionRequest) -> ExecutionResult:
+                self.prompts.append(request.prompt)
+                if request.prompt.startswith("Break this question into independent sub-questions."):
+                    output_text = (
+                        '["What are the tracing approaches?",'
+                        ' "What are the deployment trade-offs and monitoring implications?"]'
+                    )
+                elif request.prompt == "What are the tracing approaches?":
+                    output_text = "Tracing answer"
+                elif request.prompt == "What are the deployment trade-offs and monitoring implications?":
+                    output_text = "Trade-off answer"
+                elif request.prompt.startswith("Combine these answers into one comprehensive response."):
+                    output_text = "Final synthesized answer"
+                else:
+                    output_text = "Unexpected prompt"
+                return ExecutionResult(
+                    adapter_name=self.name,
+                    model_id=request.step.model.id,
+                    model_display_name=request.step.model.display_name,
+                    execution_mode=ExecutionMode.API,
+                    status=StepStatus.COMPLETED,
+                    output_text=output_text,
+                )
+
+        class TrackingRouter(ExecutionRouter):
+            def __init__(self, adapter: ExecutionAdapter) -> None:
+                super().__init__(
+                    dry_run_adapter=DryRunExecutionAdapter(),
+                    api_adapters={"mistral": adapter},
+                )
+                self.execute_calls = 0
+
+            def execute(
+                self,
+                *,
+                task_id: str,
+                prompt: str,
+                plan: ExecutionPlan,
+                reasoning: bool,
+                metadata: dict[str, object],
+            ) -> ExecutionBatchResult:
+                self.execute_calls += 1
+                return super().execute(
+                    task_id=task_id,
+                    prompt=prompt,
+                    plan=plan,
+                    reasoning=reasoning,
+                    metadata=metadata,
+                )
+
+        adapter = FakeMistralAdapter()
+        router = TrackingRouter(adapter)
+        service = OrchestratorService(self.repository, execution_router=router)
+
+        snapshot = service.submit_snapshot(
+            OrchestrateRequest(
+                prompt=complex_prompt,
+                model="Mistral",
+                dry_run=False,
+            )
+        )
+
+        self.assertTrue(snapshot.task.was_decomposed)
+        self.assertEqual(snapshot.task.subtask_count, 2)
+        self.assertEqual(snapshot.task.output_text, "Final synthesized answer")
+        self.assertEqual(router.execute_calls, 0)
+        self.assertEqual(len(adapter.prompts), 4)
+
+    def test_simple_prompt_skips_decomposition(self) -> None:
+        router = MagicMock()
+        router.execute.return_value = ExecutionBatchResult(
+            execution_mode=ExecutionMode.API,
+            task_status=TaskStatus.COMPLETED,
+            results=(
+                ExecutionResult(
+                    adapter_name="api.mistral",
+                    model_id="mistral-small",
+                    model_display_name="Mistral Small",
+                    execution_mode=ExecutionMode.API,
+                    status=StepStatus.COMPLETED,
+                    output_text="simple answer",
+                ),
+            ),
+            output_text="simple answer",
+        )
+        service = OrchestratorService(self.repository, execution_router=router)
+
+        with patch("gracekelly.core.orchestrator.execute_decomposed", side_effect=AssertionError):
+            snapshot = service.submit_snapshot(
+                OrchestrateRequest(
+                    prompt="What is 2+2?",
+                    model="Mistral",
+                    dry_run=False,
+                )
+            )
+
+        self.assertFalse(snapshot.task.was_decomposed)
+        self.assertEqual(snapshot.task.subtask_count, 0)
+        self.assertEqual(snapshot.task.output_text, "simple answer")
+        router.execute.assert_called_once()
+
+    def test_decompose_false_disables_decomposition(self) -> None:
+        router = MagicMock()
+        router.execute.return_value = ExecutionBatchResult(
+            execution_mode=ExecutionMode.API,
+            task_status=TaskStatus.COMPLETED,
+            results=(
+                ExecutionResult(
+                    adapter_name="api.mistral",
+                    model_id="mistral-small",
+                    model_display_name="Mistral Small",
+                    execution_mode=ExecutionMode.API,
+                    status=StepStatus.COMPLETED,
+                    output_text="standard execution",
+                ),
+            ),
+            output_text="standard execution",
+        )
+        service = OrchestratorService(self.repository, execution_router=router)
+
+        with patch("gracekelly.core.orchestrator.execute_decomposed", side_effect=AssertionError):
+            snapshot = service.submit_snapshot(
+                OrchestrateRequest(
+                    prompt=(
+                        "Compare architectural approaches and also explain deployment trade-offs, "
+                        "additionally cover operational risks."
+                    ),
+                    model="Mistral",
+                    dry_run=False,
+                    decompose=False,
+                )
+            )
+
+        self.assertFalse(snapshot.task.was_decomposed)
+        self.assertEqual(snapshot.task.subtask_count, 0)
+        self.assertEqual(snapshot.task.output_text, "standard execution")
+        router.execute.assert_called_once()
+
+    def test_dry_run_skips_decomposition(self) -> None:
+        router = MagicMock()
+        router.execute.return_value = ExecutionBatchResult(
+            execution_mode=ExecutionMode.DRY_RUN,
+            task_status=TaskStatus.COMPLETED,
+            results=(),
+            output_text="dry-run answer",
+        )
+        service = OrchestratorService(self.repository, execution_router=router)
+
+        with patch("gracekelly.core.orchestrator.execute_decomposed", side_effect=AssertionError):
+            snapshot = service.submit_snapshot(
+                OrchestrateRequest(
+                    prompt=(
+                        "Compare testing strategies and also explain delivery trade-offs, "
+                        "additionally describe rollback considerations."
+                    ),
+                    model="Mistral",
+                    dry_run=True,
+                )
+            )
+
+        self.assertFalse(snapshot.task.was_decomposed)
+        self.assertEqual(snapshot.task.subtask_count, 0)
+        self.assertEqual(snapshot.task.output_text, "dry-run answer")
+        router.execute.assert_called_once()
 
     def test_failed_task_event_carries_batch_execution_details(self) -> None:
         task = self.service.submit(
@@ -473,126 +653,172 @@ class OrchestratorServiceTests(unittest.TestCase):
         )
         self.assertEqual(snapshot.task.retry_of_task_id, "original-task-id")
 
-    def test_submit_snapshot_with_context_task_id_prepends_previous_output_to_prompt(self) -> None:
-        first = TaskRecord(
-            task_id="existing-task-id",
-            status=TaskStatus.COMPLETED,
-            accepted_at=datetime.now(UTC),
-            completed_at=datetime.now(UTC),
-            duration_ms=10,
-            prompt="first question",
-            reasoning=False,
-            execution_mode=ExecutionMode.API,
-            dry_run=False,
-            model_count=1,
-            quorum=1,
-            merge_strategy=MergeStrategy.FIRST_SUCCESS,
-            adapter_hint=AdapterHint.AUTO,
-            cancel_on_quorum=True,
-            output_text="previous answer",
-        )
-        self.repository.save_task_with_steps(first, [])
-        second_request = OrchestrateRequest(
-            prompt="follow-up question",
-            model="Kimi K2",
-            dry_run=True,
-            context_task_id=first.task_id,
-        )
+    def test_session_chain_builds_context_from_previous_turns(self) -> None:
+        class CapturingRouter(ExecutionRouter):
+            def __init__(self) -> None:
+                super().__init__(dry_run_adapter=DryRunExecutionAdapter())
+                self.observed_prompt: str | None = None
 
-        second = self.service.submit_snapshot(second_request)
+            def execute(
+                self,
+                *,
+                task_id: str,
+                prompt: str,
+                plan: ExecutionPlan,
+                reasoning: bool,
+                metadata: dict[str, object],
+            ) -> ExecutionBatchResult:
+                self.observed_prompt = prompt
+                return ExecutionBatchResult(
+                    execution_mode=ExecutionMode.DRY_RUN,
+                    task_status=TaskStatus.COMPLETED,
+                    results=(),
+                    output_text="ok",
+                )
 
-        self.assertEqual(second_request.prompt, "follow-up question")
-        self.assertEqual(
-            second.task.prompt,
-            (
-                "[Context]\n"
-                f"{first.output_text}\n\n"
-                "[Query]\n"
-                "follow-up question"
-            ),
-        )
+        router = CapturingRouter()
+        service = OrchestratorService(self.repository, execution_router=router)
+        session_id = "session-1"
+        accepted_at = datetime(2026, 4, 11, 10, 0, tzinfo=UTC)
+        for idx in range(3):
+            self.repository.save_task_with_steps(
+                TaskRecord(
+                    task_id=f"existing-task-{idx + 1}",
+                    status=TaskStatus.COMPLETED,
+                    accepted_at=accepted_at.replace(minute=idx),
+                    completed_at=accepted_at.replace(minute=idx),
+                    duration_ms=10,
+                    prompt=f"question {idx + 1}",
+                    reasoning=False,
+                    execution_mode=ExecutionMode.API,
+                    dry_run=False,
+                    model_count=1,
+                    quorum=1,
+                    merge_strategy=MergeStrategy.FIRST_SUCCESS,
+                    adapter_hint=AdapterHint.AUTO,
+                    cancel_on_quorum=True,
+                    output_text=f"answer {idx + 1}",
+                    session_id=session_id,
+                ),
+                [],
+            )
 
-    def test_context_prefix_truncated_when_output_long(self) -> None:
-        long_output = ("a" * _MAX_CONTEXT_CHARS) + "TAIL"
-        first = TaskRecord(
-            task_id="existing-task-id",
-            status=TaskStatus.COMPLETED,
-            accepted_at=datetime.now(UTC),
-            completed_at=datetime.now(UTC),
-            duration_ms=10,
-            prompt="first question",
-            reasoning=False,
-            execution_mode=ExecutionMode.API,
-            dry_run=False,
-            model_count=1,
-            quorum=1,
-            merge_strategy=MergeStrategy.FIRST_SUCCESS,
-            adapter_hint=AdapterHint.AUTO,
-            cancel_on_quorum=True,
-            output_text=long_output,
-        )
-        self.repository.save_task_with_steps(first, [])
-
-        second = self.service.submit_snapshot(
+        snapshot = service.submit_snapshot(
             OrchestrateRequest(
-                prompt="follow-up question",
+                prompt="question 4",
                 model="Kimi K2",
                 dry_run=True,
-                context_task_id=first.task_id,
+                session_id=session_id,
             )
         )
 
         self.assertEqual(
-            second.task.prompt,
+            router.observed_prompt,
             (
-                "[Context]\n"
-                f"{'a' * _MAX_CONTEXT_CHARS}\n[…truncated]\n\n"
-                "[Query]\n"
-                "follow-up question"
+                "[Turn 1]\nUser: question 1\nAssistant: answer 1\n\n"
+                "[Turn 2]\nUser: question 2\nAssistant: answer 2\n\n"
+                "[Turn 3]\nUser: question 3\nAssistant: answer 3\n\n"
+                "[Current]\nUser: question 4"
             ),
         )
-        self.assertNotIn("TAIL", second.task.prompt)
+        self.assertEqual(snapshot.task.prompt, "question 4")
 
-    def test_context_prefix_not_truncated_when_output_short(self) -> None:
-        short_output = "previous answer"
-        first = TaskRecord(
-            task_id="existing-task-id",
-            status=TaskStatus.COMPLETED,
-            accepted_at=datetime.now(UTC),
-            completed_at=datetime.now(UTC),
-            duration_ms=10,
-            prompt="first question",
-            reasoning=False,
-            execution_mode=ExecutionMode.API,
-            dry_run=False,
-            model_count=1,
-            quorum=1,
-            merge_strategy=MergeStrategy.FIRST_SUCCESS,
-            adapter_hint=AdapterHint.AUTO,
-            cancel_on_quorum=True,
-            output_text=short_output,
+    def test_session_chain_respects_window_limit(self) -> None:
+        class CapturingRouter(ExecutionRouter):
+            def __init__(self) -> None:
+                super().__init__(dry_run_adapter=DryRunExecutionAdapter())
+                self.observed_prompt: str | None = None
+
+            def execute(
+                self,
+                *,
+                task_id: str,
+                prompt: str,
+                plan: ExecutionPlan,
+                reasoning: bool,
+                metadata: dict[str, object],
+            ) -> ExecutionBatchResult:
+                self.observed_prompt = prompt
+                return ExecutionBatchResult(
+                    execution_mode=ExecutionMode.DRY_RUN,
+                    task_status=TaskStatus.COMPLETED,
+                    results=(),
+                    output_text="ok",
+                )
+
+        repository = InMemoryTaskRepository()
+        router = CapturingRouter()
+        service = OrchestratorService(
+            repository,
+            execution_router=router,
+            settings=Settings(context_window_turns=20),
         )
-        self.repository.save_task_with_steps(first, [])
+        session_id = "session-1"
+        accepted_at = datetime(2026, 4, 11, 10, 0, tzinfo=UTC)
+        for idx in range(25):
+            repository.save_task_with_steps(
+                TaskRecord(
+                    task_id=f"existing-task-{idx + 1}",
+                    status=TaskStatus.COMPLETED,
+                    accepted_at=accepted_at.replace(minute=idx),
+                    completed_at=accepted_at.replace(minute=idx),
+                    duration_ms=10,
+                    prompt=f"question {idx + 1}",
+                    reasoning=False,
+                    execution_mode=ExecutionMode.API,
+                    dry_run=False,
+                    model_count=1,
+                    quorum=1,
+                    merge_strategy=MergeStrategy.FIRST_SUCCESS,
+                    adapter_hint=AdapterHint.AUTO,
+                    cancel_on_quorum=True,
+                    output_text=f"answer {idx + 1}",
+                    session_id=session_id,
+                ),
+                [],
+            )
 
-        second = self.service.submit_snapshot(
+        snapshot = service.submit_snapshot(
             OrchestrateRequest(
-                prompt="follow-up question",
+                prompt="question 26",
                 model="Kimi K2",
                 dry_run=True,
-                context_task_id=first.task_id,
+                session_id=session_id,
             )
         )
 
-        self.assertEqual(
-            second.task.prompt,
-            (
-                "[Context]\n"
-                f"{short_output}\n\n"
-                "[Query]\n"
-                "follow-up question"
-            ),
+        assert router.observed_prompt is not None
+        self.assertIn("[Turn 1]\nUser: question 6\nAssistant: answer 6", router.observed_prompt)
+        self.assertIn("[Turn 20]\nUser: question 25\nAssistant: answer 25", router.observed_prompt)
+        self.assertNotIn("[Turn 1]\nUser: question 1\nAssistant: answer 1", router.observed_prompt)
+        self.assertEqual(snapshot.task.prompt, "question 26")
+
+    def test_no_session_id_skips_context_lookup(self) -> None:
+        class CapturingRepository(InMemoryTaskRepository):
+            def __init__(self) -> None:
+                super().__init__()
+                self.list_by_session_calls = 0
+
+            def list_by_session(self, session_id: str, *, limit: int) -> list[TaskRecord]:
+                self.list_by_session_calls += 1
+                return super().list_by_session(session_id, limit=limit)
+
+        repository = CapturingRepository()
+        service = OrchestratorService(
+            repository,
+            execution_router=ExecutionRouter(dry_run_adapter=DryRunExecutionAdapter()),
         )
-        self.assertNotIn("[…truncated]", second.task.prompt)
+
+        snapshot = service.submit_snapshot(
+            OrchestrateRequest(
+                prompt="standalone question",
+                model="Kimi K2",
+                dry_run=True,
+            )
+        )
+
+        self.assertEqual(repository.list_by_session_calls, 0)
+        self.assertEqual(snapshot.task.prompt, "standalone question")
 
     def test_list_recent_tasks_passes_prompt_contains_to_repository(self) -> None:
         class CapturingRepository(InMemoryTaskRepository):

@@ -3,21 +3,27 @@ from __future__ import annotations
 import json
 import logging
 from collections import deque
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from uuid import uuid4
 
+from gracekelly.config import Settings
+from gracekelly.core.complexity import assess_complexity
 from gracekelly.core.contracts import (
+    CancellationToken,
     EventType,
     ExecutionBatchResult,
     ExecutionMode,
     ExecutionPlan,
+    ExecutionRequest,
     ExecutionResult,
     FailureCode,
     MergeStrategy,
     StepStatus,
     TaskStatus,
 )
+from gracekelly.core.decomposition import execute_decomposed
 from gracekelly.core.planning import build_execution_plan
 from gracekelly.core.router import ExecutionRouter
 from gracekelly.logging_utils import log_message, trace_id_from_metadata
@@ -25,8 +31,6 @@ from gracekelly.schemas import OrchestrateRequest
 from gracekelly.storage.base import TaskEventRecord, TaskRecord, TaskRepository, TaskStepRecord
 
 logger = logging.getLogger(__name__)
-
-_MAX_CONTEXT_CHARS: int = 3000
 
 
 @dataclass(slots=True)
@@ -69,9 +73,15 @@ class SubmissionSnapshot:
 
 
 class OrchestratorService:
-    def __init__(self, repository: TaskRepository, execution_router: ExecutionRouter) -> None:
+    def __init__(
+        self,
+        repository: TaskRepository,
+        execution_router: ExecutionRouter,
+        settings: Settings | None = None,
+    ) -> None:
         self._repository = repository
         self._execution_router = execution_router
+        self._settings = settings if settings is not None else Settings()
         self._event_buffer: deque[TaskEventRecord] = deque(maxlen=500)
 
     def submit(self, request: OrchestrateRequest) -> TaskRecord:
@@ -86,17 +96,24 @@ class OrchestratorService:
         self._flush_buffer()
         task_id = str(uuid4())
         active_request = request
-        if request.context_task_id is not None:
+        if request.session_id is not None:
             try:
-                prev = self._repository.get(request.context_task_id)
+                turns = self._repository.list_by_session(
+                    request.session_id,
+                    limit=self._settings.context_window_turns,
+                )
             except Exception:
-                prev = None
-            if prev is not None and prev.output_text:
-                prev_text = prev.output_text
-                if len(prev_text) > _MAX_CONTEXT_CHARS:
-                    prev_text = prev_text[:_MAX_CONTEXT_CHARS] + "\n[…truncated]"
-                context_prefix = f"[Context]\n{prev_text}\n\n[Query]\n"
-                active_request = request.model_copy(update={"prompt": context_prefix + request.prompt})
+                turns = []
+            if turns:
+                history_lines: list[str] = []
+                for idx, turn in enumerate(turns, 1):
+                    history_lines.append(
+                        f"[Turn {idx}]\nUser: {turn.prompt or ''}\nAssistant: {turn.output_text or '(no response)'}"
+                    )
+                context_prefix = "\n\n".join(history_lines)
+                active_request = request.model_copy(
+                    update={"prompt": f"{context_prefix}\n\n[Current]\nUser: {request.prompt}"}
+                )
         execution_plan = build_execution_plan(active_request)
         trace_id = trace_id_from_metadata(request.metadata)
         logger.info(
@@ -123,8 +140,8 @@ class OrchestratorService:
             accepted_at=accepted_at,
             completed_at=None,
             duration_ms=None,
-            prompt=active_request.prompt,
-            reasoning=active_request.reasoning,
+            prompt=request.prompt,
+            reasoning=request.reasoning,
             execution_mode=accepted_execution_mode,
             dry_run=execution_plan.dry_run,
             model_count=len(execution_plan.steps),
@@ -132,8 +149,9 @@ class OrchestratorService:
             merge_strategy=execution_plan.merge_strategy,
             adapter_hint=execution_plan.adapter_hint,
             cancel_on_quorum=execution_plan.cancel_on_quorum,
-            metadata=dict(active_request.metadata),
+            metadata=dict(request.metadata),
             retry_of_task_id=retry_of_task_id,
+            session_id=request.session_id,
         )
         accepted_event = _EventSequence(task_id)
         accepted_event.append(
@@ -167,13 +185,73 @@ class OrchestratorService:
                     message=str(exc),
                 )
             )
-        batch_result = self._execution_router.execute(
-            task_id=task_id,
-            prompt=active_request.prompt,
-            plan=execution_plan,
-            reasoning=active_request.reasoning,
-            metadata=dict(active_request.metadata),
-        )
+        result_plan = execution_plan
+        was_decomposed = False
+        subtask_count = 0
+        assessment = assess_complexity(active_request.prompt)
+        if request.decompose and assessment.should_decompose and not execution_plan.dry_run:
+            decomp_result = execute_decomposed(
+                active_request.prompt,
+                self._make_execute_fn(
+                    task_id,
+                    execution_plan,
+                    request.reasoning,
+                    dict(request.metadata),
+                ),
+            )
+            was_decomposed = decomp_result.was_decomposed
+            subtask_count = len(decomp_result.subtasks) if decomp_result.was_decomposed else 0
+            step = execution_plan.steps[0]
+            decomposition_details = {
+                "was_decomposed": decomp_result.was_decomposed,
+                "subtask_count": subtask_count,
+                "subtasks": [item.prompt for item in decomp_result.subtasks],
+            }
+            result_plan = ExecutionPlan(
+                steps=(step,),
+                quorum=1,
+                merge_strategy=MergeStrategy.FIRST_SUCCESS,
+                dry_run=False,
+                adapter_hint=execution_plan.adapter_hint,
+                cancel_on_quorum=False,
+            )
+            synthetic_result = ExecutionResult(
+                adapter_name=f"{step.backend.value}.{step.provider}",
+                model_id=step.model.id,
+                model_display_name=step.model.display_name,
+                execution_mode=ExecutionMode(step.backend.value),
+                status=StepStatus.COMPLETED,
+                output_text=decomp_result.final_answer,
+                details={"decomposition": decomposition_details},
+            )
+            batch_result = ExecutionBatchResult(
+                execution_mode=synthetic_result.execution_mode,
+                task_status=TaskStatus.COMPLETED,
+                results=(synthetic_result,),
+                output_text=decomp_result.final_answer,
+                details={
+                    "quorum": result_plan.quorum,
+                    "merge_strategy": result_plan.merge_strategy,
+                    "adapter_names": [synthetic_result.adapter_name],
+                    "completed_step_count": 1,
+                    "failed_step_count": 0,
+                    "cancelled_step_count": 0,
+                    "failure_codes": [],
+                    "winning_step_index": step.step_index,
+                    "winning_model_id": step.model.id,
+                    "cancelled_steps": [],
+                    "cancel_reason": None,
+                    "decomposition": decomposition_details,
+                },
+            )
+        else:
+            batch_result = self._execution_router.execute(
+                task_id=task_id,
+                prompt=active_request.prompt,
+                plan=execution_plan,
+                reasoning=request.reasoning,
+                metadata=dict(request.metadata),
+            )
         completed_at = datetime.now(UTC)
         duration_ms = max(0, int((completed_at - accepted_at).total_seconds() * 1000))
 
@@ -183,8 +261,8 @@ class OrchestratorService:
             accepted_at=accepted_at,
             completed_at=completed_at,
             duration_ms=duration_ms,
-            prompt=active_request.prompt,
-            reasoning=active_request.reasoning,
+            prompt=request.prompt,
+            reasoning=request.reasoning,
             execution_mode=batch_result.execution_mode,
             dry_run=execution_plan.dry_run,
             model_count=len(execution_plan.steps),
@@ -195,11 +273,14 @@ class OrchestratorService:
             failure_code=batch_result.failure_code,
             failure_message=batch_result.failure_message,
             output_text=batch_result.output_text,
-            metadata=dict(active_request.metadata),
+            metadata=dict(request.metadata),
             retry_of_task_id=retry_of_task_id,
+            session_id=request.session_id,
+            was_decomposed=was_decomposed,
+            subtask_count=subtask_count,
         )
-        steps = self._build_step_records(task_id, execution_plan, batch_result.results)
-        events = self._build_events(task, execution_plan, batch_result)
+        steps = self._build_step_records(task_id, result_plan, batch_result.results)
+        events = self._build_events(task, result_plan, batch_result, accepted_plan=execution_plan)
         try:
             self._repository.replace_task_snapshot(task, steps, events)
         except Exception as exc:
@@ -296,6 +377,34 @@ class OrchestratorService:
         except Exception as exc:
             raise StorageUnavailableError("list_events_batch", str(exc)) from exc
 
+    def _make_execute_fn(
+        self,
+        task_id: str,
+        plan: ExecutionPlan,
+        reasoning: bool,
+        metadata: dict[str, object],
+    ) -> Callable[[str], str]:
+        step = plan.steps[0]
+
+        def execute_fn(prompt: str) -> str:
+            request = ExecutionRequest(
+                task_id=task_id,
+                prompt=prompt,
+                plan=plan,
+                step=step,
+                reasoning=reasoning,
+                metadata=dict(metadata),
+                cancellation=CancellationToken(),
+            )
+            result = (
+                self._execution_router._dry_run_adapter.execute(request)
+                if plan.dry_run
+                else self._execution_router._dispatch_step(step, request)
+            )
+            return result.output_text or ""
+
+        return execute_fn
+
     def _build_step_records(
         self,
         task_id: str,
@@ -328,9 +437,15 @@ class OrchestratorService:
         task: TaskRecord,
         plan: ExecutionPlan,
         batch_result: ExecutionBatchResult,
+        *,
+        accepted_plan: ExecutionPlan | None = None,
     ) -> list[TaskEventRecord]:
         seq = _EventSequence(task.task_id)
-        seq.append(EventType.TASK_ACCEPTED, task.accepted_at, self._accepted_payload(task, plan))
+        seq.append(
+            EventType.TASK_ACCEPTED,
+            task.accepted_at,
+            self._accepted_payload(task, accepted_plan or plan),
+        )
         if task.dry_run:
             return seq.events
 
