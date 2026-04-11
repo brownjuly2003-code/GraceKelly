@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import sys
 import unittest
 from collections.abc import Callable, Iterator
 from datetime import UTC, datetime
@@ -17,7 +18,7 @@ else:
 if HAS_TEST_CLIENT:
     from gracekelly.config import Settings
     from gracekelly.core.contracts import ExecutionRequest, StreamChunk
-    from gracekelly.core.orchestrator import OrchestratorService
+    from gracekelly.core.orchestrator import OrchestratorService, StorageUnavailableError
     from gracekelly.main import create_app
     from gracekelly.storage.base import TaskEventRecord, TaskRecord, TaskStepRecord
     from gracekelly.storage.memory import InMemoryTaskRepository
@@ -952,6 +953,192 @@ class HttpApiSmokeTests(unittest.TestCase):
         self.assertEqual(response.status_code, 422)
         self.assertIn("reasoning=true is not supported", response.json()["detail"])
 
+    def test_orchestrate_returns_not_implemented_when_submit_snapshot_rejects_capability(self) -> None:
+        with patch.object(
+            OrchestratorService,
+            "submit_snapshot",
+            side_effect=NotImplementedError("requested capability is not wired"),
+        ):
+            response = self.client.post(
+                "/api/v1/orchestrate",
+                json={
+                    "prompt": "not implemented",
+                    "model": "Kimi K2",
+                    "dry_run": True,
+                },
+            )
+
+        self.assertEqual(response.status_code, 501)
+        self.assertEqual(response.json()["detail"], "Requested capability is not available.")
+
+    def test_upload_accepts_text_file_and_models_form_value(self) -> None:
+        response = self.client.post(
+            "/api/v1/orchestrate/upload",
+            data={
+                "prompt": "Summarize this",
+                "models": '["Kimi K2", "Mistral"]',
+                "dry_run": "true",
+            },
+            files=[("files", ("notes.txt", b"Hello world content", "text/plain"))],
+        )
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual([item["id"] for item in payload["requested_models"]], ["kimi-k2-5", "mistral-small"])
+
+        task = self.client.get(f"/api/v1/tasks/{payload['task_id']}")
+        self.assertEqual(task.status_code, 200)
+        self.assertIn("Summarize this", task.json()["prompt"])
+        self.assertIn("[File: notes.txt]", task.json()["prompt"])
+
+    def test_upload_rejects_invalid_models_json(self) -> None:
+        response = self.client.post(
+            "/api/v1/orchestrate/upload",
+            data={
+                "prompt": "bad models",
+                "models": "not-json",
+                "dry_run": "true",
+            },
+        )
+
+        self.assertEqual(response.status_code, 422)
+        self.assertEqual(response.json()["detail"], "Field 'models' must be a JSON array of strings.")
+
+    def test_upload_rejects_non_string_models_json_array(self) -> None:
+        response = self.client.post(
+            "/api/v1/orchestrate/upload",
+            data={
+                "prompt": "bad models",
+                "models": "[1]",
+                "dry_run": "true",
+            },
+        )
+
+        self.assertEqual(response.status_code, 422)
+        self.assertEqual(response.json()["detail"], "Field 'models' must be a JSON array of strings.")
+
+    def test_upload_pdf_without_pypdf_returns_422(self) -> None:
+        real_import = __import__
+
+        def import_without_pypdf(
+            name: str,
+            globals: dict[str, object] | None = None,
+            locals: dict[str, object] | None = None,
+            fromlist: tuple[str, ...] = (),
+            level: int = 0,
+        ) -> Any:
+            if name == "pypdf":
+                raise ImportError("missing pypdf")
+            return real_import(name, globals, locals, fromlist, level)
+
+        with patch("builtins.__import__", side_effect=import_without_pypdf):
+            response = self.client.post(
+                "/api/v1/orchestrate/upload",
+                data={"prompt": "Read PDF", "model": "Mistral", "dry_run": "true"},
+                files=[("files", ("doc.pdf", b"%PDF-1.4", "application/pdf"))],
+            )
+
+        self.assertEqual(response.status_code, 422)
+        self.assertIn("pypdf", response.json()["detail"])
+
+    def test_upload_pdf_parse_failure_returns_422(self) -> None:
+        class BrokenPdfReader:
+            def __init__(self, _stream: Any) -> None:
+                raise RuntimeError("cannot read pdf")
+
+        fake_pypdf = type("FakePyPdf", (), {"PdfReader": BrokenPdfReader})
+
+        with patch.dict(sys.modules, {"pypdf": fake_pypdf}):
+            response = self.client.post(
+                "/api/v1/orchestrate/upload",
+                data={"prompt": "Read PDF", "model": "Mistral", "dry_run": "true"},
+                files=[("files", ("doc.pdf", b"%PDF-1.4", "application/pdf"))],
+            )
+
+        self.assertEqual(response.status_code, 422)
+        self.assertEqual(response.json()["detail"], "Cannot extract text from PDF: doc.pdf")
+
+    def test_upload_timeout_returns_504_when_executor_exceeds_timeout(self) -> None:
+        app = create_app(
+            Settings(
+                env="test",
+                host="127.0.0.1",
+                port=8011,
+                log_level="INFO",
+                storage_backend="memory",
+                postgres_dsn=None,
+                mistral_api_key=None,
+                mistral_base_url="https://api.mistral.ai/v1",
+                mistral_timeout_seconds=1.0,
+                openai_api_key=None,
+                openai_base_url="https://api.openai.com/v1",
+                openai_timeout_seconds=1.0,
+                browser_enabled=False,
+                browser_profile_dir=None,
+                browser_base_url="https://www.perplexity.ai",
+                orchestrate_timeout_seconds=0.01,
+            )
+        )
+        png_bytes = (
+            b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01"
+            b"\x00\x00\x00\x01\x08\x02\x00\x00\x00\x90wS\xde\x00\x00"
+            b"\x00\x0cIDATx\x9cc\xf8\x0f\x00\x00\x01\x01\x00\x05\x18"
+            b"\xd8N\x00\x00\x00\x00IEND\xaeB`\x82"
+        )
+
+        with TestClient(app) as client:
+            with patch("gracekelly.api.routes.orchestrate.asyncio.wait_for", side_effect=TimeoutError):
+                response = client.post(
+                    "/api/v1/orchestrate/upload",
+                    data={"prompt": "Describe this image", "model": "Kimi K2", "dry_run": "true"},
+                    files=[("files", ("photo.png", png_bytes, "image/png"))],
+                )
+
+        self.assertEqual(response.status_code, 504)
+        self.assertEqual(response.json()["detail"], "Orchestration request timed out.")
+
+    def test_upload_returns_storage_failed_when_submit_snapshot_raises(self) -> None:
+        with patch.object(
+            OrchestratorService,
+            "submit_snapshot",
+            side_effect=StorageUnavailableError("save_task_with_steps", "database offline"),
+        ):
+            response = self.client.post(
+                "/api/v1/orchestrate/upload",
+                data={"prompt": "storage failure", "model": "Kimi K2", "dry_run": "true"},
+            )
+
+        self.assertEqual(response.status_code, 503)
+        self.assertEqual(response.json()["detail"]["code"], "storage_failed")
+
+    def test_upload_returns_validation_error_when_submit_snapshot_raises(self) -> None:
+        with patch.object(
+            OrchestratorService,
+            "submit_snapshot",
+            side_effect=ValueError("Unsupported merge strategy: fanout"),
+        ):
+            response = self.client.post(
+                "/api/v1/orchestrate/upload",
+                data={"prompt": "bad request", "model": "Kimi K2", "dry_run": "true"},
+            )
+
+        self.assertEqual(response.status_code, 422)
+        self.assertEqual(response.json()["detail"], "Unsupported merge strategy: fanout")
+
+    def test_upload_returns_not_implemented_when_submit_snapshot_raises(self) -> None:
+        with patch.object(
+            OrchestratorService,
+            "submit_snapshot",
+            side_effect=NotImplementedError("upload not supported"),
+        ):
+            response = self.client.post(
+                "/api/v1/orchestrate/upload",
+                data={"prompt": "not implemented", "model": "Kimi K2", "dry_run": "true"},
+            )
+
+        self.assertEqual(response.status_code, 501)
+        self.assertEqual(response.json()["detail"], "Requested capability is not available.")
+
     def test_browser_execution_can_run_through_scripted_backend(self) -> None:
         app = create_app(
             Settings(
@@ -1125,6 +1312,88 @@ class HttpApiSmokeTests(unittest.TestCase):
     def test_retry_nonexistent_task_returns_404(self) -> None:
         retry = self.client.post("/api/v1/tasks/00000000-0000-0000-0000-000000000000/retry")
         self.assertEqual(retry.status_code, 404)
+
+    def test_export_task_returns_storage_failed_when_repository_is_unavailable(self) -> None:
+        with patch.object(
+            OrchestratorService,
+            "get_task",
+            side_effect=StorageUnavailableError("get_task", "database offline"),
+        ):
+            response = self.client.get("/api/v1/tasks/00000000-0000-0000-0000-000000000123/export")
+
+        self.assertEqual(response.status_code, 503)
+        self.assertEqual(response.json()["detail"]["code"], "storage_failed")
+
+    def test_retry_returns_storage_failed_when_loading_original_task_fails(self) -> None:
+        with patch.object(
+            OrchestratorService,
+            "get_task",
+            side_effect=StorageUnavailableError("get_task", "database offline"),
+        ):
+            response = self.client.post("/api/v1/tasks/00000000-0000-0000-0000-000000000123/retry")
+
+        self.assertEqual(response.status_code, 503)
+        self.assertEqual(response.json()["detail"]["code"], "storage_failed")
+
+    def test_retry_returns_storage_failed_when_retry_submission_fails(self) -> None:
+        submit = self.client.post(
+            "/api/v1/orchestrate",
+            json={
+                "prompt": "retry storage failure",
+                "model": "Mistral",
+                "dry_run": True,
+            },
+        )
+        self.assertEqual(submit.status_code, 200)
+        original_id = submit.json()["task_id"]
+
+        app = cast(Any, self.client.app)
+        repo = cast(Any, app.state.orchestrator_service)._repository
+        task = repo.get(original_id)
+        from gracekelly.core.contracts import FailureCode, TaskStatus
+        task.status = TaskStatus.FAILED
+        task.failure_code = FailureCode.TIMEOUT
+        task.failure_message = "timed out"
+
+        with patch.object(
+            OrchestratorService,
+            "submit_snapshot",
+            side_effect=StorageUnavailableError("save_task_with_steps", "database offline"),
+        ):
+            retry = self.client.post(f"/api/v1/tasks/{original_id}/retry")
+
+        self.assertEqual(retry.status_code, 503)
+        self.assertEqual(retry.json()["detail"]["code"], "storage_failed")
+
+    def test_retry_returns_validation_error_when_retry_submission_fails(self) -> None:
+        submit = self.client.post(
+            "/api/v1/orchestrate",
+            json={
+                "prompt": "retry validation failure",
+                "model": "Mistral",
+                "dry_run": True,
+            },
+        )
+        self.assertEqual(submit.status_code, 200)
+        original_id = submit.json()["task_id"]
+
+        app = cast(Any, self.client.app)
+        repo = cast(Any, app.state.orchestrator_service)._repository
+        task = repo.get(original_id)
+        from gracekelly.core.contracts import FailureCode, TaskStatus
+        task.status = TaskStatus.FAILED
+        task.failure_code = FailureCode.TIMEOUT
+        task.failure_message = "timed out"
+
+        with patch.object(
+            OrchestratorService,
+            "submit_snapshot",
+            side_effect=ValueError("Metadata trace_id must be a string."),
+        ):
+            retry = self.client.post(f"/api/v1/tasks/{original_id}/retry")
+
+        self.assertEqual(retry.status_code, 422)
+        self.assertEqual(retry.json()["detail"], "Metadata trace_id must be a string.")
 
 
 if __name__ == "__main__":
