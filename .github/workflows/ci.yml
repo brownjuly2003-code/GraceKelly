@@ -55,12 +55,12 @@ jobs:
       - name: Dependency security audit
         run: |
           pip install pip-audit
-          pip-audit --ignore-vuln PYSEC-2022-42969 || true
+          pip-audit --ignore-vuln PYSEC-2022-42969
 
       - name: SAST with bandit
         run: |
           pip install bandit[toml]
-          bandit -r src/gracekelly/ -ll -x src/gracekelly/adapters/browser/ || true
+          bandit -r src/gracekelly/ -ll -x src/gracekelly/adapters/browser/
 
       - name: Run PostgreSQL integration tests
         env:
