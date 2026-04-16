@@ -17,3 +17,37 @@ dist/
 logs/
 data/
 tmp/
+
+# Codex / CX workflow artifacts
+.codex/
+.claude/
+.workflow/
+.workflow/outbox/
+.workflow/tmp/
+.workflow/tmp-tests/
+.workflow/logs/
+.workflow/scripts/
+.workflow/state/test-baseline.json
+
+# Hypothesis / pytest-temp
+.hypothesis/
+pytest-temp/
+
+# Tmp scratch files
+.tmp/
+.tmp_*.log
+*.tmp.log
+
+# Static caches
+static/.cache/
+static/**/.cache/
+static/cache/
+static/**/cache/
+
+# Project scratch / local docs
+_wr.py
+rec_test.txt
+opt.md
+screen.png
+gracekelly_for_github
+archive/
