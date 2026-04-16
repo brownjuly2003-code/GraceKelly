@@ -2,6 +2,9 @@ from __future__ import annotations
 
 import unittest
 from datetime import UTC, datetime
+from typing import TYPE_CHECKING
+
+import pytest
 
 from gracekelly.core.contracts import (
     AdapterHint,
@@ -22,6 +25,15 @@ from gracekelly.core.models import resolve_model
 from gracekelly.schemas import OrchestrateResponse, TaskStepView
 from gracekelly.storage.base import TaskRecord, TaskStepRecord
 from gracekelly.storage.memory import InMemoryTaskRepository
+
+pytestmark = pytest.mark.usefixtures("inject_shared_test_factories")
+
+if TYPE_CHECKING:
+    def _make_execution_step(*args: object, **kwargs: object) -> ExecutionStep: ...
+
+    def _make_execution_plan(*args: object, **kwargs: object) -> ExecutionPlan: ...
+
+    def _make_execution_request(*args: object, **kwargs: object) -> ExecutionRequest: ...
 
 
 class FailureCodeTests(unittest.TestCase):
@@ -123,15 +135,6 @@ class CancellationTokenTests(unittest.TestCase):
 
 
 class ExecutionResultIsFailureTests(unittest.TestCase):
-    def _make_step(self) -> ExecutionStep:
-        return ExecutionStep(
-            model=resolve_model("mistral-small"),
-            backend=ExecutionBackend.API,
-            provider="mistral",
-            provider_model_id="mistral-small-latest",
-            step_index=0,
-        )
-
     def test_no_failure_code_is_not_failure(self) -> None:
         result = ExecutionResult(
             adapter_name="api.mistral",
@@ -158,21 +161,17 @@ class ExecutionRequestModelsTests(unittest.TestCase):
     def test_models_returns_all_model_specs(self) -> None:
         spec_a = resolve_model("mistral-small")
         spec_b = resolve_model("kimi-k2-5")
-        step_a = ExecutionStep(
+        step_a = _make_execution_step(
             model=spec_a,
             backend=ExecutionBackend.API,
-            provider=spec_a.provider,
-            provider_model_id=spec_a.provider_model_id,
             step_index=0,
         )
-        step_b = ExecutionStep(
+        step_b = _make_execution_step(
             model=spec_b,
             backend=ExecutionBackend.BROWSER,
-            provider=spec_b.provider,
-            provider_model_id=spec_b.provider_model_id,
             step_index=1,
         )
-        plan = ExecutionPlan(
+        plan = _make_execution_plan(
             steps=(step_a, step_b),
             quorum=1,
             merge_strategy=MergeStrategy.FIRST_SUCCESS,
@@ -180,7 +179,7 @@ class ExecutionRequestModelsTests(unittest.TestCase):
             adapter_hint=AdapterHint.AUTO,
             cancel_on_quorum=False,
         )
-        req = ExecutionRequest(
+        req = _make_execution_request(
             task_id="t1",
             prompt="hello",
             plan=plan,

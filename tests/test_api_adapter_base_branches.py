@@ -133,7 +133,7 @@ class HealthcheckDetailsTests(unittest.TestCase):
             provider_label="TestProv",
         )
         health = adapter.healthcheck()
-        self.assertEqual(health["base_url"], "https://api.test.com")
+        self.assertNotIn("base_url", health)
 
     def test_healthcheck_includes_default_timeout(self) -> None:
         adapter = BaseApiAdapter(
@@ -143,7 +143,7 @@ class HealthcheckDetailsTests(unittest.TestCase):
             provider_label="TestProv",
         )
         health = adapter.healthcheck()
-        self.assertEqual(health["default_timeout_seconds"], 25.0)
+        self.assertNotIn("default_timeout_seconds", health)
 
     def test_healthcheck_includes_max_retries(self) -> None:
         adapter = BaseApiAdapter(
@@ -154,7 +154,7 @@ class HealthcheckDetailsTests(unittest.TestCase):
             max_retries=3,
         )
         health = adapter.healthcheck()
-        self.assertEqual(health["max_retries"], 3)
+        self.assertNotIn("max_retries", health)
 
     def test_healthcheck_no_key_omits_base_url(self) -> None:
         adapter = BaseApiAdapter(

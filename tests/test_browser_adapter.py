@@ -2,6 +2,9 @@ from __future__ import annotations
 
 import asyncio
 import unittest
+from collections.abc import Callable
+
+import pytest
 
 from gracekelly.adapters.browser.automation import (
     BrowserAuthStatus,
@@ -14,18 +17,14 @@ from gracekelly.adapters.browser.perplexity import PerplexityBrowserAdapter
 from gracekelly.adapters.browser.policy import AuthRecoveryPolicy, ModelVerificationPolicy, PopupPolicy, SubmitPolicy
 from gracekelly.adapters.browser.session import BrowserSessionConfig, BrowserSessionManager
 from gracekelly.core.contracts import (
-    AdapterHint,
     CancellationToken,
-    ExecutionBackend,
-    ExecutionPlan,
     ExecutionRequest,
-    ExecutionStep,
     FailureCode,
     FileAttachment,
-    MergeStrategy,
     StepStatus,
 )
-from gracekelly.core.models import resolve_model
+
+pytestmark = pytest.mark.usefixtures("inject_shared_test_factories")
 
 
 class FakeBrowserAutomation(BrowserAutomationPort):
@@ -75,48 +74,8 @@ class FakeBrowserAutomation(BrowserAutomationPort):
 
 
 class BrowserAdapterTests(unittest.TestCase):
-    def build_request(
-        self,
-        *,
-        cancellation: CancellationToken | None = None,
-        attachments: tuple[FileAttachment, ...] = (),
-    ) -> ExecutionRequest:
-        model = resolve_model("Kimi K2")
-        step = ExecutionStep(
-            model=model,
-            backend=ExecutionBackend.BROWSER,
-            provider=model.provider,
-            provider_model_id=model.provider_model_id,
-            step_index=1,
-        )
-        plan = ExecutionPlan(
-            steps=(step,),
-            quorum=1,
-            merge_strategy=MergeStrategy.FIRST_SUCCESS,
-            dry_run=False,
-            adapter_hint=AdapterHint.AUTO,
-            cancel_on_quorum=True,
-        )
-        return ExecutionRequest(
-            task_id="task-browser-1",
-            prompt="hello",
-            plan=plan,
-            step=step,
-            reasoning=False,
-            metadata={},
-            cancellation=cancellation,
-            attachments=attachments,
-        )
-
-    def build_session_manager(self, *, enabled: bool = True, profile_dir: str | None = "D:\\Profiles\\GraceKelly") -> BrowserSessionManager:
-        return BrowserSessionManager(
-            BrowserSessionConfig(
-                enabled=enabled,
-                provider="perplexity",
-                base_url="https://www.perplexity.ai",
-                profile_dir=profile_dir,
-            )
-        )
+    build_request: Callable[..., ExecutionRequest]
+    build_session_manager: Callable[..., BrowserSessionManager]
 
     def test_browser_adapter_returns_provider_unavailable_when_not_configured(self) -> None:
         adapter = PerplexityBrowserAdapter(session_manager=self.build_session_manager(enabled=False, profile_dir=None))
@@ -385,19 +344,7 @@ class BrowserAdapterTests(unittest.TestCase):
 
 
 class ModelMatchesExpectedTests(unittest.TestCase):
-    def _make_adapter(self, *, allow_alias_match: bool = True) -> PerplexityBrowserAdapter:
-        session_manager = BrowserSessionManager(
-            BrowserSessionConfig(
-                enabled=True,
-                provider="perplexity",
-                base_url="https://www.perplexity.ai",
-                profile_dir="D:\\Profiles\\GraceKelly",
-            )
-        )
-        return PerplexityBrowserAdapter(
-            session_manager=session_manager,
-            model_verification_policy=ModelVerificationPolicy(allow_alias_match=allow_alias_match),
-        )
+    _make_adapter: Callable[..., PerplexityBrowserAdapter]
 
     def test_exact_match_returns_true(self) -> None:
         adapter = self._make_adapter()
@@ -422,15 +369,7 @@ class ModelMatchesExpectedTests(unittest.TestCase):
 class EnsureAuthTests(unittest.TestCase):
     """Direct tests for _ensure_auth branches."""
 
-    def _session_manager(self) -> BrowserSessionManager:
-        return BrowserSessionManager(
-            BrowserSessionConfig(
-                enabled=True,
-                provider="perplexity",
-                base_url="https://www.perplexity.ai",
-                profile_dir="D:\\Profiles\\GraceKelly",
-            )
-        )
+    _session_manager: Callable[[], BrowserSessionManager]
 
     def test_ensure_auth_returns_status_when_already_logged_in(self) -> None:
         """_ensure_auth should return immediately when auth_status reports logged_in=True."""

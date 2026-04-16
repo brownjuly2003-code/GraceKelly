@@ -380,5 +380,5 @@ class RetryTests(unittest.TestCase):
     def test_healthcheck_shows_retry_config(self) -> None:
         adapter = self._adapter(max_retries=3)
         health = adapter.healthcheck()
-        self.assertEqual(health["max_retries"], 3)
-        self.assertEqual(health["retry_backoff_seconds"], 0.0)
+        self.assertNotIn("max_retries", health)
+        self.assertNotIn("retry_backoff_seconds", health)

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import unittest
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 from gracekelly.core.contracts import (
     AdapterHint,
@@ -201,6 +201,47 @@ class RouterApiDispatchTests(unittest.TestCase):
         result = router.execute(task_id="t1", prompt="hi", plan=plan, reasoning=False, metadata={})
         browser_adapter.execute.assert_called_once()
         self.assertEqual(result.task_status, TaskStatus.COMPLETED)
+
+
+class RouterParallelTimeoutTests(unittest.TestCase):
+    def test_parallel_execution_uses_default_timeout_for_as_completed(self) -> None:
+        api_adapter = MagicMock()
+        api_adapter.execute.return_value = _ok_result()
+        step = _make_step(_make_spec(provider="anthropic"))
+        plan = _make_plan((step,))
+        router = ExecutionRouter(
+            dry_run_adapter=MagicMock(),
+            api_adapters={"anthropic": api_adapter},
+        )
+        observed: dict[str, object] = {}
+
+        def fake_as_completed(
+            futures: object,
+            timeout: float | None = None,
+        ) -> object:
+            observed["timeout"] = timeout
+            return iter(())
+
+        with patch("gracekelly.core.router.as_completed", side_effect=fake_as_completed):
+            router.execute(task_id="t1", prompt="hi", plan=plan, reasoning=False, metadata={})
+
+        self.assertEqual(observed["timeout"], 120)
+
+    def test_parallel_execution_timeout_returns_cancelled_batch(self) -> None:
+        api_adapter = MagicMock()
+        api_adapter.execute.return_value = _ok_result()
+        step = _make_step(_make_spec(provider="anthropic"))
+        plan = _make_plan((step,))
+        router = ExecutionRouter(
+            dry_run_adapter=MagicMock(),
+            api_adapters={"anthropic": api_adapter},
+        )
+
+        with patch("gracekelly.core.router.as_completed", side_effect=TimeoutError):
+            result = router.execute(task_id="t1", prompt="hi", plan=plan, reasoning=False, metadata={})
+
+        self.assertEqual(result.task_status, TaskStatus.CANCELLED)
+        self.assertEqual(result.results[0].status, StepStatus.CANCELLED)
 
 
 class RouterAggregateTests(unittest.TestCase):

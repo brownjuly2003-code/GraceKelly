@@ -6,9 +6,11 @@ import unittest
 import urllib.error
 from collections.abc import Mapping
 from http.client import HTTPMessage
+from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
+import pytest
 
 from gracekelly.adapters.api.base import BaseApiAdapter
 from gracekelly.adapters.dry_run import DryRunExecutionAdapter
@@ -26,6 +28,11 @@ from gracekelly.core.contracts import (
     StepStatus,
 )
 
+pytestmark = pytest.mark.usefixtures("inject_shared_test_factories")
+
+if TYPE_CHECKING:
+    def _make_request(*, model_id: str = "m1", display_name: str = "M1") -> MagicMock: ...
+
 
 def _adapter(*, api_key: str | None = "test-key", max_retries: int = 0) -> BaseApiAdapter:
     return BaseApiAdapter(
@@ -36,18 +43,6 @@ def _adapter(*, api_key: str | None = "test-key", max_retries: int = 0) -> BaseA
         max_retries=max_retries,
         retry_backoff_seconds=0.0,
     )
-
-
-def _make_request(*, model_id: str = "m1", display_name: str = "M1") -> MagicMock:
-    req = MagicMock()
-    req.task_id = "t1"
-    req.prompt = "Hello"
-    req.reasoning = False
-    req.step.model.id = model_id
-    req.step.model.display_name = display_name
-    req.step.model.timeout_seconds = 10
-    req.step.provider_model_id = model_id
-    return req
 
 
 def _make_http_status_error(code: int) -> httpx.HTTPStatusError:
@@ -438,8 +433,11 @@ class BaseApiAdapterUtilityTests(unittest.TestCase):
     def test_healthcheck_with_key_reports_configuration(self) -> None:
         healthcheck = _adapter().healthcheck()
         self.assertEqual(healthcheck["status"], "ok")
-        self.assertEqual(healthcheck["base_url"], "https://api.example.com")
-        self.assertEqual(healthcheck["max_retries"], 0)
+        self.assertEqual(healthcheck["configured"], True)
+        self.assertNotIn("base_url", healthcheck)
+        self.assertNotIn("default_timeout_seconds", healthcheck)
+        self.assertNotIn("max_retries", healthcheck)
+        self.assertNotIn("retry_backoff_seconds", healthcheck)
 
     def test_resolve_timeout_uses_default_for_nonpositive_model_timeout(self) -> None:
         adapter = _adapter()

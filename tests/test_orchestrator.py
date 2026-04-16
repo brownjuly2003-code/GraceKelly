@@ -21,13 +21,14 @@ from gracekelly.core.contracts import (
     StepStatus,
     TaskStatus,
 )
+from gracekelly.core.event_builder import _EventSequence
 from gracekelly.core.orchestrator import (
     OrchestratorService,
     StorageUnavailableError,
-    _EventSequence,
 )
 from gracekelly.core.planning import build_execution_plan
 from gracekelly.core.router import ExecutionRouter
+from gracekelly.core.session_context import build_session_context
 from gracekelly.schemas import OrchestrateRequest
 from gracekelly.storage.base import TaskEventRecord, TaskRecord, TaskStepRecord
 from gracekelly.storage.memory import InMemoryTaskRepository
@@ -562,7 +563,7 @@ class OrchestratorServiceTests(unittest.TestCase):
         )
 
         with self.assertRaises(ValueError):
-            self.service._build_step_records("task-mismatch", plan, (result,))
+            self.service._event_builder.build_step_records("task-mismatch", plan, (result,))
 
     def test_get_task_raises_key_error_for_missing_task(self) -> None:
         with self.assertRaises(KeyError):
@@ -907,7 +908,7 @@ class OrchestratorServiceTests(unittest.TestCase):
         )
 
         with self.assertRaises(ValueError):
-            self.service._build_events(task, plan, batch_result)
+            self.service._event_builder.build_events(task, plan, batch_result)
 
     def test_event_result_details_empty_returns_empty_dict(self) -> None:
         result = ExecutionResult(
@@ -918,7 +919,7 @@ class OrchestratorServiceTests(unittest.TestCase):
             status=StepStatus.COMPLETED,
             details={},
         )
-        self.assertEqual(self.service._event_result_details(result), {})
+        self.assertEqual(self.service._event_builder._event_result_details(result), {})
 
     def test_event_result_details_none_returns_empty_dict(self) -> None:
         result = ExecutionResult(
@@ -928,7 +929,7 @@ class OrchestratorServiceTests(unittest.TestCase):
             execution_mode=ExecutionMode.BROWSER,
             status=StepStatus.COMPLETED,
         )
-        self.assertEqual(self.service._event_result_details(result), {})
+        self.assertEqual(self.service._event_builder._event_result_details(result), {})
 
     def test_event_result_details_non_empty_returns_details_key(self) -> None:
         result = ExecutionResult(
@@ -939,7 +940,7 @@ class OrchestratorServiceTests(unittest.TestCase):
             status=StepStatus.COMPLETED,
             details={"tokens": 42, "model": "gpt-4"},
         )
-        out = self.service._event_result_details(result)
+        out = self.service._event_builder._event_result_details(result)
         self.assertIn("details", out)
         details = out.get("details")
         assert isinstance(details, dict)
@@ -958,7 +959,7 @@ class OrchestratorServiceTests(unittest.TestCase):
             status=StepStatus.COMPLETED,
             details={"obj": _Custom()},
         )
-        out = self.service._event_result_details(result)
+        out = self.service._event_builder._event_result_details(result)
         details = out.get("details")
         assert isinstance(details, dict)
         self.assertIsInstance(details["obj"], str)
@@ -971,7 +972,7 @@ class OrchestratorServiceTests(unittest.TestCase):
             output_text="",
             details={},
         )
-        self.assertEqual(self.service._event_batch_details(batch_result), {})
+        self.assertEqual(self.service._event_builder._event_batch_details(batch_result), {})
 
     def test_event_batch_details_none_returns_empty_dict(self) -> None:
         batch_result = ExecutionBatchResult(
@@ -980,7 +981,7 @@ class OrchestratorServiceTests(unittest.TestCase):
             results=(),
             output_text="",
         )
-        self.assertEqual(self.service._event_batch_details(batch_result), {})
+        self.assertEqual(self.service._event_builder._event_batch_details(batch_result), {})
 
     def test_event_batch_details_non_empty_returns_details_key(self) -> None:
         batch_result = ExecutionBatchResult(
@@ -990,11 +991,48 @@ class OrchestratorServiceTests(unittest.TestCase):
             output_text="",
             details={"quorum_hit": True, "winner_index": 0},
         )
-        out = self.service._event_batch_details(batch_result)
+        out = self.service._event_builder._event_batch_details(batch_result)
         self.assertIn("details", out)
         details = out.get("details")
         assert isinstance(details, dict)
         self.assertTrue(details["quorum_hit"])
+
+    def test_build_session_context_trims_history_to_max_chars(self) -> None:
+        repository = InMemoryTaskRepository()
+        session_id = "session-trim"
+        accepted_at = datetime(2026, 4, 11, 10, 0, tzinfo=UTC)
+        for idx in range(2):
+            repository.save_task_with_steps(
+                TaskRecord(
+                    task_id=f"existing-task-{idx + 1}",
+                    status=TaskStatus.COMPLETED,
+                    accepted_at=accepted_at.replace(minute=idx),
+                    completed_at=accepted_at.replace(minute=idx),
+                    duration_ms=10,
+                    prompt=f"question {idx + 1}",
+                    reasoning=False,
+                    execution_mode=ExecutionMode.API,
+                    dry_run=False,
+                    model_count=1,
+                    quorum=1,
+                    merge_strategy=MergeStrategy.FIRST_SUCCESS,
+                    adapter_hint=AdapterHint.AUTO,
+                    cancel_on_quorum=True,
+                    output_text=f"answer {idx + 1}",
+                    session_id=session_id,
+                ),
+                [],
+            )
+
+        prompt = build_session_context(
+            repository,
+            session_id,
+            "question 3",
+            Settings(context_window_turns=20, max_context_chars=60),
+        )
+
+        self.assertLessEqual(len(prompt.split("\n\n[Current]\nUser:")[0]), 60)
+        self.assertTrue(prompt.endswith("[Current]\nUser: question 3"))
 
 
 class EventSequenceTests(unittest.TestCase):

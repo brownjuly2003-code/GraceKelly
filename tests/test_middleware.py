@@ -1,53 +1,18 @@
 from __future__ import annotations
 
 import unittest
+from typing import TYPE_CHECKING
 
+import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from gracekelly.middleware import setup_api_key_auth, setup_security_headers
+pytestmark = pytest.mark.usefixtures("inject_shared_test_factories")
 
+if TYPE_CHECKING:
+    def _test_app_with_security_headers() -> FastAPI: ...
 
-def _test_app_with_security_headers() -> FastAPI:
-    app = FastAPI()
-
-    @app.get("/health")
-    def health() -> dict[str, str]:
-        return {"status": "ok"}
-
-    @app.get("/api/v1/models")
-    def models() -> list[dict[str, str]]:
-        return []
-
-    setup_security_headers(app)
-    return app
-
-
-def _test_app(*, api_key: str | None = None) -> FastAPI:
-    app = FastAPI()
-
-    @app.get("/health")
-    def health() -> dict[str, str]:
-        return {"status": "ok"}
-
-    @app.get("/api/v1/models")
-    def models() -> list[dict[str, str]]:
-        return []
-
-    @app.post("/api/v1/orchestrate")
-    def orchestrate() -> dict[str, str]:
-        return {"task_id": "t1"}
-
-    @app.get("/api/v1/readiness")
-    def readiness() -> dict[str, str]:
-        return {"status": "ok"}
-
-    @app.get("/metrics")
-    def metrics() -> str:
-        return "metrics"
-
-    setup_api_key_auth(app, api_key=api_key)
-    return app
+    def _test_app(*, api_key: str | None = None) -> FastAPI: ...
 
 
 class ApiKeyAuthTests(unittest.TestCase):
@@ -128,7 +93,10 @@ class SecurityHeadersTests(unittest.TestCase):
 
     def test_content_security_policy(self) -> None:
         resp = self.client.get("/health")
-        self.assertEqual(resp.headers.get("content-security-policy"), "default-src 'none'")
+        csp = resp.headers.get("content-security-policy", "")
+        self.assertIn("default-src 'self'", csp)
+        self.assertIn("script-src 'self'", csp)
+        self.assertIn("object-src 'none'", csp)
 
     def test_headers_present_on_api_endpoint(self) -> None:
         resp = self.client.get("/api/v1/models")

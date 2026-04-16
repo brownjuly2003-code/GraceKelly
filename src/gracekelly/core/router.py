@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import logging
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import replace
 from time import perf_counter
 
+from gracekelly.config import settings as _default_settings
 from gracekelly.core.concurrency import ModelConcurrencyGate
 from gracekelly.core.contracts import (
     CancellationToken,
@@ -21,6 +23,8 @@ from gracekelly.core.contracts import (
 )
 from gracekelly.core.models import list_models
 
+logger = logging.getLogger(__name__)
+
 
 class ExecutionRouter:
     def __init__(
@@ -29,11 +33,13 @@ class ExecutionRouter:
         api_adapters: dict[str, ExecutionAdapter] | None = None,
         browser_adapter: ExecutionAdapter | None = None,
         concurrency_gate: ModelConcurrencyGate | None = None,
+        executor: ThreadPoolExecutor | None = None,
     ) -> None:
         self._dry_run_adapter = dry_run_adapter
         self._api_adapters = api_adapters or {}
         self._browser_adapter = browser_adapter
         self._concurrency_gate = concurrency_gate or ModelConcurrencyGate()
+        self._shared_executor = executor
         self._model_limits = {
             model.id: model.concurrency_limit
             for model in list_models()
@@ -89,6 +95,11 @@ class ExecutionRouter:
         cancellation: CancellationToken,
     ) -> ExecutionBatchResult:
         indexed_results: dict[int, ExecutionResult] = {}
+        timeout_seconds = (
+            getattr(_default_settings, "execution_timeout_seconds", None)
+            or getattr(_default_settings, "orchestrate_timeout_seconds", None)
+            or 120
+        )
 
         def run_step(idx: int, step: ExecutionStep) -> tuple[int, ExecutionResult]:
             if cancellation.is_cancelled:
@@ -101,19 +112,36 @@ class ExecutionRouter:
             result = self._dispatch_step(step, request)
             return idx, self._stamp_duration(result, started)
 
-        with ThreadPoolExecutor(max_workers=len(plan.steps)) as pool:
+        executor = self._shared_executor
+        use_shared_executor = executor is not None
+        if executor is None:
+            executor = ThreadPoolExecutor(max_workers=len(plan.steps))
+        try:
+            assert executor is not None
             futures = {
-                pool.submit(run_step, idx, step): idx
+                executor.submit(run_step, idx, step): idx
                 for idx, step in enumerate(plan.steps)
             }
-            for future in as_completed(futures):
-                idx, result = future.result()
-                indexed_results[idx] = result
-                if (
-                    plan.cancel_on_quorum
-                    and self._successful_count(tuple(indexed_results.values())) >= plan.quorum
-                ):
-                    cancellation.request_cancel()
+            try:
+                for future in as_completed(futures, timeout=timeout_seconds):
+                    idx, result = future.result()
+                    indexed_results[idx] = result
+                    if (
+                        plan.cancel_on_quorum
+                        and self._successful_count(tuple(indexed_results.values())) >= plan.quorum
+                    ):
+                        cancellation.request_cancel()
+            except TimeoutError:
+                cancellation.request_cancel()
+                logger.warning(
+                    "ExecutionRouter: timeout after %ss, cancelling remaining steps",
+                    timeout_seconds,
+                )
+                for future in futures:
+                    future.cancel()
+        finally:
+            if not use_shared_executor:
+                executor.shutdown(wait=False, cancel_futures=True)
 
         ordered = []
         for idx in range(len(plan.steps)):

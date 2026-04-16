@@ -65,7 +65,18 @@ def setup_security_headers(app: FastAPI) -> None:
         response.headers["X-Frame-Options"] = "DENY"
         response.headers["X-XSS-Protection"] = "1; mode=block"
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
-        response.headers["Content-Security-Policy"] = "default-src 'none'"
+        response.headers["Content-Security-Policy"] = (
+            "default-src 'self'; "
+            "script-src 'self'; "
+            "style-src 'self'; "
+            "connect-src 'self'; "
+            "img-src 'self' data: blob:; "
+            "font-src 'self'; "
+            "object-src 'none'; "
+            "frame-src 'none'; "
+            "base-uri 'self'; "
+            "form-action 'self'"
+        )
         return response
 
 

@@ -117,11 +117,11 @@ class BaseApiAdapterHealthcheckTests(unittest.TestCase):
 
     def test_ok_healthcheck_includes_base_url(self) -> None:
         result = _base(api_key="k").healthcheck()
-        self.assertIn("base_url", result)
+        self.assertNotIn("base_url", result)
 
     def test_ok_healthcheck_includes_max_retries(self) -> None:
         result = _base(api_key="k", max_retries=3).healthcheck()
-        self.assertEqual(result["max_retries"], 3)
+        self.assertNotIn("max_retries", result)
 
     def test_degraded_healthcheck_has_adapter_name(self) -> None:
         result = _base(api_key=None).healthcheck()

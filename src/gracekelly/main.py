@@ -2,13 +2,16 @@ from __future__ import annotations
 
 import inspect
 import logging
+import pathlib
 from collections.abc import AsyncGenerator
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import asynccontextmanager
+from typing import Any
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from gracekelly.adapters.api.anthropic import AnthropicApiAdapter
@@ -152,9 +155,12 @@ async def app_lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
             result = close_method()
             if inspect.isawaitable(result):
                 await result
-    executor = getattr(app.state, "browser_executor", None)
-    if executor is not None:
-        executor.shutdown(wait=False)
+    execution_executor = getattr(app.state, "execution_executor", None)
+    if execution_executor is not None:
+        execution_executor.shutdown(wait=False)
+    browser_executor = getattr(app.state, "browser_executor", None)
+    if browser_executor is not None and browser_executor is not execution_executor:
+        browser_executor.shutdown(wait=False)
     pool = getattr(app.state, "postgres_pool", None)
     if pool is not None:
         close_method = getattr(pool, "close", None)
@@ -232,6 +238,10 @@ def create_app(app_settings: Settings | None = None) -> FastAPI:
     app.state.browser_adapter = build_browser_adapter(active_settings)
     app.state.browser_session_manager = getattr(app.state.browser_adapter, "session_manager", None)
     app.state.browser_executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="browser")
+    app.state.execution_executor = ThreadPoolExecutor(
+        max_workers=max(1, len(app.state.api_adapters) + int(app.state.browser_adapter is not None)),
+        thread_name_prefix="execution",
+    )
     app.state.adapter_registry = {
         "dry-run": app.state.dry_run_adapter,
         "api.mistral": app.state.api_adapters["mistral"],
@@ -243,6 +253,7 @@ def create_app(app_settings: Settings | None = None) -> FastAPI:
         dry_run_adapter=app.state.dry_run_adapter,
         api_adapters=app.state.api_adapters,
         browser_adapter=app.state.browser_adapter,
+        executor=app.state.execution_executor,
     )
     app.state.orchestrator_service = OrchestratorService(
         app.state.task_repository,
@@ -285,6 +296,19 @@ def create_app(app_settings: Settings | None = None) -> FastAPI:
     app.include_router(smart_v2_router)
     app.include_router(debate_router)
     app.include_router(compare_router)
+    _static_dir = pathlib.Path(__file__).parent.parent.parent / "static"
+    if _static_dir.exists():
+        app.mount("/", StaticFiles(directory=str(_static_dir), html=True), name="static")
+        _static_mount = app.router.routes[-1]
+        _add_api_route = app.router.add_api_route
+
+        def add_api_route(path: str, endpoint: Any, **kwargs: Any) -> None:
+            _add_api_route(path, endpoint, **kwargs)
+            if _static_mount in app.router.routes and app.router.routes[-1] is not _static_mount:
+                app.router.routes.remove(_static_mount)
+                app.router.routes.append(_static_mount)
+
+        app.router.add_api_route = add_api_route  # type: ignore[method-assign]
     return app
 
 

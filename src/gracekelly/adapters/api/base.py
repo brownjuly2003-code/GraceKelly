@@ -550,8 +550,4 @@ class BaseApiAdapter(ExecutionAdapter):
             "adapter_name": self.name,
             "provider": self._provider_label.lower(),
             "configured": True,
-            "base_url": self._base_url,
-            "default_timeout_seconds": self._default_timeout_seconds,
-            "max_retries": self._max_retries,
-            "retry_backoff_seconds": self._retry_backoff_seconds,
         }
