@@ -4,7 +4,7 @@ Last updated: 2026-04-05
 
 This runbook covers the current operating surface for GraceKelly:
 - API authentication
-- Streamlit UI startup
+- web UI startup
 - browser execution via Perplexity as the primary path
 - service liveness and readiness
 - metrics scraping
@@ -15,14 +15,8 @@ It is intentionally limited to the current in-process deployment model.
 
 ## UI
 
-Start the Streamlit playground alongside the backend:
-
-```bash
-pip install -r ui/requirements.txt
-streamlit run ui/app.py
-```
-
-Opens at http://localhost:8501. Requires backend running on localhost:8011.
+The built-in web UI is served from the main app at http://localhost:8000.
+Run the backend, then open that address in the browser.
 
 ## API security
 

@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GraceKelly</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body class="light">
+  <div id="app">
+    <nav class="icon-nav" aria-label="Основная навигация">
+      <button class="icon-btn" id="nav-new-thread" type="button" title="Новый диалог">+</button>
+      <div class="icon-nav-divider"></div>
+      <button class="icon-btn" id="nav-history" type="button" title="История" data-panel="threads">H</button>
+      <button class="icon-btn" id="nav-stats" type="button" title="Статистика" data-panel="stats">S</button>
+      <div class="icon-nav-spacer"></div>
+      <button class="icon-btn" id="dark-mode-toggle" type="button" title="Переключить тему">◐</button>
+    </nav>
+
+    <aside class="sidebar hidden" id="sidebar" aria-hidden="true">
+      <div class="sidebar-panel" id="panel-threads">
+        <div class="sidebar-header">
+          <span>Диалоги</span>
+          <button class="icon-btn small" id="close-sidebar" type="button" title="Закрыть">✕</button>
+        </div>
+        <div id="thread-list" class="thread-list"></div>
+      </div>
+
+      <div class="sidebar-panel hidden" id="panel-stats">
+        <div class="sidebar-header">
+          <span>Статистика</span>
+          <button class="icon-btn small" id="close-sidebar-stats" type="button" title="Закрыть">✕</button>
+        </div>
+        <div id="stats-cards" class="stats-cards">
+          <div class="stat-card">
+            <div class="stat-value" id="stat-total">—</div>
+            <div class="stat-label">Запросов</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value" id="stat-success">—</div>
+            <div class="stat-label">Успешных</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value" id="stat-avg-time">—</div>
+            <div class="stat-label">Ср. время</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value" id="stat-models">—</div>
+            <div class="stat-label">Моделей</div>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <main class="main-content">
+      <header class="main-header">
+        <span class="brand">GraceKelly</span>
+        <div class="header-status">
+          <span id="health-dot" class="health-dot">●</span>
+          <span id="health-text" class="health-text">Проверка...</span>
+        </div>
+      </header>
+
+      <div id="chat-messages" class="chat-area"></div>
+
+      <div id="loading-state" class="loading-state hidden">
+        <div class="spinner"></div>
+        <div id="loading-status" class="loading-status">Обработка запроса...</div>
+        <div class="progress-bar">
+          <div id="progress-fill" class="progress-fill"></div>
+        </div>
+      </div>
+
+      <div class="input-bar">
+        <div class="model-selector" id="model-selector">
+          <button class="model-trigger" id="model-trigger" type="button" title="Выбрать паттерн и модель">
+            <span id="model-trigger-label">🟣 Claude</span>
+            <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">
+              <path d="M2 4l4 4 4-4" stroke="currentColor" stroke-width="1.5" fill="none"/>
+            </svg>
+          </button>
+          <div class="model-popup hidden" id="model-popup"></div>
+        </div>
+
+        <input
+          type="file"
+          id="file-input"
+          multiple
+          accept=".txt,.md,.csv,.json,.py,.pdf,.jpg,.jpeg,.png,.gif,.webp"
+          hidden
+        >
+
+        <div class="input-wrapper">
+          <div id="attached-files" class="attached-files"></div>
+          <textarea
+            id="chat-input"
+            rows="2"
+            placeholder="Введите вопрос... (Enter — отправить, Shift+Enter — новая строка)"
+          ></textarea>
+        </div>
+
+        <div class="action-btns">
+          <button class="action-btn" id="attach-btn" type="button" title="Прикрепить файл">📎</button>
+          <button class="action-btn primary" id="send-btn" type="button" title="Отправить">→</button>
+        </div>
+      </div>
+
+      <div id="file-preview-bar" class="file-preview-bar" style="display:none;">
+        <span id="file-preview-name"></span>
+        <button id="file-clear-btn" type="button" title="Убрать файл">✕</button>
+      </div>
+    </main>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/model-menu.js"></script>
+  <script src="/js/threads.js"></script>
+  <script src="/js/app.js"></script>
+  <script src="/js/chat.js"></script>
+  <script src="/js/history.js"></script>
+  <script src="/js/playground.js"></script>
+</body>
+</html>

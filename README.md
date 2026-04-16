@@ -17,13 +17,9 @@ cp .env.example .env
 uvicorn gracekelly.main:create_app --factory --host 127.0.0.1 --port 8011
 ```
 
-**2. Start the UI:**
-```bash
-pip install -r ui/requirements.txt
-streamlit run ui/app.py
-```
+**2. Open the web UI:**
 
-Open http://localhost:8501 - choose models, pick a pattern, submit a prompt.
+Open http://localhost:8000
 
 **Docker alternative:**
 ```bash
@@ -65,7 +61,7 @@ Full reference: `.env.example`
 
 ## UI
 
-Streamlit playground at `ui/app.py`. Supports 4 execution patterns:
+Built-in web UI at `http://localhost:8000`. Supports 4 execution patterns:
 
 - **Single** - one model, streaming output
 - **Consensus** - multiple rounds, majority-vote best answer

@@ -21,7 +21,7 @@ Implemented:
 - browser adapter lifecycle cleanup that resets idle session state on shutdown and detects stale runtime/session mismatches
 - structured key-value logging across orchestrator, browser adapters, API routes, and PostgreSQL degradation paths
 - operator surfaces: recent-task listing with multi-axis filtering, rich task detail with diagnostics
-- Streamlit playground UI (`ui/app.py`) with 4 execution patterns
+- built-in web UI with 4 execution patterns
 
 Not yet implemented:
 - account pools
@@ -65,7 +65,7 @@ Excluded by design:
 3. Execution must support two adapter families:
    - browser adapters for UI-routed providers
    - API adapters for provider-backed execution
-4. A solo-user Streamlit UI is part of the primary operating surface for experimentation and inspection.
+4. A solo-user web UI is part of the primary operating surface for experimentation and inspection.
 5. Provider-specific naming drift must be normalized through the central model registry.
 6. Browser execution via Perplexity is the primary adapter. The user's Perplexity Pro subscription
    provides access to multiple frontier models at no additional API cost. API adapters exist as
