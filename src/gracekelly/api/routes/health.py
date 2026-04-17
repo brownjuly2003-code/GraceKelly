@@ -4,7 +4,7 @@ import asyncio
 import logging
 from typing import Any
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import PlainTextResponse
 
 from gracekelly import __version__
@@ -369,6 +369,19 @@ async def health(request: Request) -> dict[str, object]:
         "active_model_executions": payload.get("active_model_executions"),
         "saturated_models": payload.get("saturated_models"),
     }
+
+
+@router.get("/healthz/live")
+async def liveness() -> dict[str, str]:
+    return {"status": "ok"}
+
+
+@router.get("/healthz/ready")
+async def readiness_probe(request: Request) -> dict[str, object]:
+    state = get_app_state(request)
+    if state.task_repository is None:
+        raise HTTPException(status_code=503, detail="Storage unavailable")
+    return {"status": "ok"}
 
 
 @router.get("/api/v1/readiness")

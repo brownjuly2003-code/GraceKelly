@@ -122,7 +122,7 @@ class BatchRouteTests(unittest.TestCase):
         client = TestClient(_create_test_app())
         response = client.post(
             "/api/v1/batch",
-            json={"prompts": ["Hello"], "dry_run": True},
+            json={"prompts": ["Hello"], "unexpected": True},
         )
         self.assertEqual(422, response.status_code)
 

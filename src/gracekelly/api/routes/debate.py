@@ -30,6 +30,7 @@ class DebateRequest(BaseModel):
     topic: str = Field(min_length=1, max_length=40000)
     initial_position: str | None = Field(default=None, max_length=40000)
     model: str = Field(default="mistral-small", min_length=1, max_length=120)
+    dry_run: bool = Field(default=False)
 
 
 class DebateResponse(BaseModel):
@@ -56,14 +57,14 @@ class DebateResponse(BaseModel):
     },
 )
 async def run_debate_endpoint(payload: DebateRequest, request: Request) -> DebateResponse:
-    api_adapters = get_app_state(request).api_adapters
+    state = get_app_state(request)
 
     try:
         model_spec = resolve_model(payload.model)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
 
-    adapter = api_adapters.get(model_spec.provider)
+    adapter = state.dry_run_adapter if payload.dry_run else state.api_adapters.get(model_spec.provider)
     if adapter is None:
         raise HTTPException(
             status_code=400,
@@ -81,8 +82,8 @@ async def run_debate_endpoint(payload: DebateRequest, request: Request) -> Debat
         steps=(step,),
         quorum=1,
         merge_strategy=MergeStrategy.FIRST_SUCCESS,
-        dry_run=False,
-        adapter_hint=AdapterHint.API,
+        dry_run=payload.dry_run,
+        adapter_hint=AdapterHint.AUTO if payload.dry_run else AdapterHint.API,
         cancel_on_quorum=False,
     )
 

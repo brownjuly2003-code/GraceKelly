@@ -28,6 +28,7 @@ class CompareRequest(BaseModel):
     prompt: str = Field(min_length=1, max_length=40000)
     models: list[str] = Field(default_factory=lambda: ["mistral-small"], min_length=1, max_length=10)
     analyze: bool = Field(default=True)
+    dry_run: bool = Field(default=False)
 
 
 class ModelAnswer(BaseModel):
@@ -59,7 +60,8 @@ class CompareResponse(BaseModel):
     },
 )
 async def run_compare(payload: CompareRequest, request: Request) -> CompareResponse:
-    api_adapters = get_app_state(request).api_adapters
+    state = get_app_state(request)
+    api_adapters = state.api_adapters
 
     answers: list[ModelAnswer] = []
     succeeded = 0
@@ -73,7 +75,7 @@ async def run_compare(payload: CompareRequest, request: Request) -> CompareRespo
             failed += 1
             continue
 
-        adapter = api_adapters.get(model_spec.provider)
+        adapter = state.dry_run_adapter if payload.dry_run else api_adapters.get(model_spec.provider)
         if adapter is None:
             answers.append(ModelAnswer(model_id=model_spec.id, answer="", status="no_adapter"))
             failed += 1
@@ -90,8 +92,8 @@ async def run_compare(payload: CompareRequest, request: Request) -> CompareRespo
             steps=(step,),
             quorum=1,
             merge_strategy=MergeStrategy.FIRST_SUCCESS,
-            dry_run=False,
-            adapter_hint=AdapterHint.API,
+            dry_run=payload.dry_run,
+            adapter_hint=AdapterHint.AUTO if payload.dry_run else AdapterHint.API,
             cancel_on_quorum=False,
         )
 
@@ -135,7 +137,7 @@ async def run_compare(payload: CompareRequest, request: Request) -> CompareRespo
         for model_name in payload.models:
             try:
                 spec = resolve_model(model_name)
-                adp = api_adapters.get(spec.provider)
+                adp = state.dry_run_adapter if payload.dry_run else api_adapters.get(spec.provider)
                 if adp is not None:
                     first_adapter = adp
                     first_spec = spec
@@ -155,8 +157,8 @@ async def run_compare(payload: CompareRequest, request: Request) -> CompareRespo
                 steps=(step,),
                 quorum=1,
                 merge_strategy=MergeStrategy.FIRST_SUCCESS,
-                dry_run=False,
-                adapter_hint=AdapterHint.API,
+                dry_run=payload.dry_run,
+                adapter_hint=AdapterHint.AUTO if payload.dry_run else AdapterHint.API,
                 cancel_on_quorum=False,
             )
             try:

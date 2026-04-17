@@ -35,6 +35,7 @@ class PipelineRequest(BaseModel):
     model: str = Field(default="mistral-small", min_length=1, max_length=120)
     reliability_level: str | None = Field(default=None)
     multi_model: bool = Field(default=False)
+    dry_run: bool = Field(default=False)
 
 
 class PipelineResponse(BaseModel):
@@ -61,14 +62,15 @@ class PipelineResponse(BaseModel):
     },
 )
 async def run_pipeline(payload: PipelineRequest, request: Request) -> PipelineResponse:
-    api_adapters = get_app_state(request).api_adapters
+    state = get_app_state(request)
+    api_adapters = state.api_adapters
 
     try:
         model_spec = resolve_model(payload.model)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
 
-    adapter = api_adapters.get(model_spec.provider)
+    adapter = state.dry_run_adapter if payload.dry_run else api_adapters.get(model_spec.provider)
     if adapter is None:
         raise HTTPException(
             status_code=400,
@@ -101,8 +103,8 @@ async def run_pipeline(payload: PipelineRequest, request: Request) -> PipelineRe
         steps=(step,),
         quorum=1,
         merge_strategy=MergeStrategy.FIRST_SUCCESS,
-        dry_run=False,
-        adapter_hint=AdapterHint.API,
+        dry_run=payload.dry_run,
+        adapter_hint=AdapterHint.AUTO if payload.dry_run else AdapterHint.API,
         cancel_on_quorum=False,
     )
 
@@ -125,7 +127,7 @@ async def run_pipeline(payload: PipelineRequest, request: Request) -> PipelineRe
             return result.output_text
         return f"[{result.failure_code or 'error'}] {result.failure_message or 'No output'}"
 
-    if payload.multi_model:
+    if payload.multi_model and not payload.dry_run:
         available_specs: list[ModelSpec] = [model_spec]
         for provider_name, prov_adapter in api_adapters.items():
             if provider_name == model_spec.provider:

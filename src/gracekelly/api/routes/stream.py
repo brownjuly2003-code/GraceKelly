@@ -108,15 +108,18 @@ async def _stream_chunks(
         chunk = await queue.get()
         if chunk is None:
             break
+        details = dict(chunk.details)
+        if chunk.type == "complete":
+            details.setdefault("task_id", exec_request.task_id)
         if chunk.type == "complete" and final_state is not None:
             final_state["text"] = chunk.text
-            final_state.update(chunk.details)
+            final_state.update(details)
         yield _format_sse(
             chunk.type,
             {
                 "text": chunk.text,
                 "model_id": chunk.model_id,
-                **chunk.details,
+                **details,
             },
         )
 
@@ -227,6 +230,7 @@ async def orchestrate_stream(request: Request, body: OrchestrateRequest) -> Stre
                     "text": result.output_text or "",
                     "model_id": result.model_id,
                     "duration_ms": result.duration_ms,
+                    "task_id": exec_request.task_id,
                 },
             )
 

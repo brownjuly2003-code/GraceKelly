@@ -39,6 +39,7 @@ class SmartV2Request(BaseModel):
     model: str = Field(default="mistral-small", min_length=1, max_length=120)
     reliability_level: str | None = Field(default=None)
     pattern: str | None = Field(default=None)
+    dry_run: bool = Field(default=False)
 
 
 class DissentingViewResponse(BaseModel):
@@ -87,7 +88,7 @@ async def run_smart_v2(payload: SmartV2Request, request: Request) -> SmartV2Resp
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
 
-    adapter = api_adapters.get(model_spec.provider)
+    adapter = state.dry_run_adapter if payload.dry_run else api_adapters.get(model_spec.provider)
     if adapter is None:
         raise HTTPException(
             status_code=400,
@@ -136,8 +137,8 @@ async def run_smart_v2(payload: SmartV2Request, request: Request) -> SmartV2Resp
         steps=(step,),
         quorum=1,
         merge_strategy=MergeStrategy.FIRST_SUCCESS,
-        dry_run=False,
-        adapter_hint=AdapterHint.API,
+        dry_run=payload.dry_run,
+        adapter_hint=AdapterHint.AUTO if payload.dry_run else AdapterHint.API,
         cancel_on_quorum=False,
     )
 

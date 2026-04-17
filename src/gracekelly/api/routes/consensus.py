@@ -33,6 +33,7 @@ class ConsensusRequest(BaseModel):
     max_rounds: int = Field(default=5, ge=1, le=20)
     variations_per_round: int = Field(default=3, ge=1, le=9)
     use_confidence_weighting: bool = True
+    dry_run: bool = Field(default=False)
 
 
 class ConsensusResponse(BaseModel):
@@ -64,18 +65,60 @@ class ConsensusResponse(BaseModel):
 )
 def run_consensus(payload: ConsensusRequest, request: Request) -> ConsensusResponse:
     state = get_app_state(request)
-    embeddings_client = state.embeddings_client
-    if embeddings_client is None:
-        raise HTTPException(status_code=503, detail="Embeddings client is not configured.")
-
-    api_adapters = state.api_adapters
 
     try:
         model_spec = resolve_model(payload.model)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
 
-    adapter = api_adapters.get(model_spec.provider)
+    step = ExecutionStep(
+        model=model_spec,
+        backend=ExecutionBackend.API,
+        provider=model_spec.provider,
+        provider_model_id=model_spec.provider_model_id,
+        step_index=0,
+    )
+    plan = ExecutionPlan(
+        steps=(step,),
+        quorum=1,
+        merge_strategy=MergeStrategy.FIRST_SUCCESS,
+        dry_run=payload.dry_run,
+        adapter_hint=AdapterHint.AUTO if payload.dry_run else AdapterHint.API,
+        cancel_on_quorum=False,
+    )
+
+    if payload.dry_run:
+        adapter = state.dry_run_adapter
+        responses: list[str] = []
+        for _ in range(payload.variations_per_round):
+            exec_request = ExecutionRequest(
+                task_id="consensus",
+                prompt=payload.prompt,
+                plan=plan,
+                step=step,
+                reasoning=False,
+            )
+            result = adapter.execute(exec_request)
+            if result.status == StepStatus.COMPLETED and result.output_text:
+                responses.append(result.output_text)
+            else:
+                responses.append(f"[{result.failure_code or 'error'}] {result.failure_message or 'No output'}")
+        return ConsensusResponse(
+            consensus_score=1.0,
+            num_clusters=1,
+            best_response=responses[0],
+            weighted_score=1.0,
+            total_rounds=1,
+            total_llm_calls=len(responses),
+            needs_debate=False,
+            top_cluster_size=len(responses),
+        )
+
+    embeddings_client = state.embeddings_client
+    if embeddings_client is None:
+        raise HTTPException(status_code=503, detail="Embeddings client is not configured.")
+
+    adapter = state.api_adapters.get(model_spec.provider)
     if adapter is None:
         raise HTTPException(
             status_code=400,
@@ -94,22 +137,6 @@ def run_consensus(payload: ConsensusRequest, request: Request) -> ConsensusRespo
         use_confidence_weighting=payload.use_confidence_weighting,
     )
     executor = ConsensusExecutor(embeddings_client, exec_config)
-
-    step = ExecutionStep(
-        model=model_spec,
-        backend=ExecutionBackend.API,
-        provider=model_spec.provider,
-        provider_model_id=model_spec.provider_model_id,
-        step_index=0,
-    )
-    plan = ExecutionPlan(
-        steps=(step,),
-        quorum=1,
-        merge_strategy=MergeStrategy.FIRST_SUCCESS,
-        dry_run=False,
-        adapter_hint=AdapterHint.API,
-        cancel_on_quorum=False,
-    )
 
     def execute_fn(prompt_text: str) -> str:
         exec_request = ExecutionRequest(
