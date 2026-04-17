@@ -2,11 +2,13 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 import tempfile
 import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
+from pathlib import Path
 from typing import Any
 
 from gracekelly.adapters.browser.automation import (
@@ -38,6 +40,22 @@ class PlaywrightBrowserRuntimeConfig:
     launch_args: tuple[str, ...] = field(
         default_factory=lambda: ("--disable-blink-features=AutomationControlled",)
     )
+    screenshots_dir: str | None = None
+
+
+_PROFILE_LOCK_MARKERS: tuple[str, ...] = ("SingletonLock", "SingletonSocket", "SingletonCookie")
+
+
+def _profile_is_locked(profile_dir: str) -> str | None:
+    """Return lock marker path if another Chrome instance holds this profile, else None."""
+    profile_path = Path(profile_dir)
+    if not profile_path.exists():
+        return None
+    for marker in _PROFILE_LOCK_MARKERS:
+        candidate = profile_path / marker
+        if candidate.exists():
+            return str(candidate)
+    return None
 
 
 class PlaywrightBrowserAutomation(BrowserAutomationPort):
@@ -71,6 +89,15 @@ class PlaywrightBrowserAutomation(BrowserAutomationPort):
             if callable(is_closed) and not is_closed():
                 logger.debug("Reusing existing Playwright browser session")
                 return
+
+        if state.profile_dir is not None:
+            lock_marker = _profile_is_locked(state.profile_dir)
+            if lock_marker is not None:
+                raise BrowserProfileBusyError(
+                    f"Browser profile directory '{state.profile_dir}' is locked by another Chrome "
+                    f"process (marker: {lock_marker}). Close Chrome or use a dedicated "
+                    f"GRACEKELLY_BROWSER_PROFILE_DIR that is never opened by a regular Chrome window."
+                )
 
         logger.info(
             "Launching Playwright browser session for provider %s using profile %s",
@@ -108,6 +135,7 @@ class PlaywrightBrowserAutomation(BrowserAutomationPort):
         self._context = context
         self._page = page
         self._wait_for_shell()
+        self._screenshot("01-session-ready")
 
     def dismiss_popups(self, policy: PopupPolicy) -> None:
         page = self._page_or_raise()
@@ -125,11 +153,13 @@ class PlaywrightBrowserAutomation(BrowserAutomationPort):
         page = self._page_or_raise()
         body_text = self._body_text(page)
         prompt_input_visible = self._locator_is_visible(page.locator(self._selectors.prompt_input))
-        return self._infer_auth_status(
+        status = self._infer_auth_status(
             body_text=body_text,
             prompt_input_visible=prompt_input_visible,
             policy=policy,
         )
+        self._screenshot("02-auth-logged-in" if status.logged_in else "02-auth-signed-out")
+        return status
 
     def recover_auth(self, policy: AuthRecoveryPolicy) -> BrowserAuthStatus:
         return self.auth_status(policy)
@@ -182,9 +212,11 @@ class PlaywrightBrowserAutomation(BrowserAutomationPort):
             )
         model_button_text_before = self._locator_inner_text(model_button)
         logger.info("Selecting Perplexity model '%s' through Playwright", provider_model_id)
+        self._screenshot(f"03-model-before-{provider_model_id}")
         model_button.click()
         menu_texts = self._model_menu_texts(page)
         self._record_model_menu_snapshot(menu_texts)
+        self._screenshot(f"04-model-menu-open-{provider_model_id}")
 
         option = self._first_visible_locator(
             (
@@ -218,6 +250,7 @@ class PlaywrightBrowserAutomation(BrowserAutomationPort):
 
         option.click()
         time.sleep(self._runtime.poll_interval_seconds)
+        self._screenshot(f"05-model-after-{provider_model_id}")
         model_button_text_after = self._locator_inner_text(model_button)
         selection_evidence = self._selection_evidence(option)
         model_selection_verified = False
@@ -346,12 +379,19 @@ class PlaywrightBrowserAutomation(BrowserAutomationPort):
         prompt_input.click(force=True)
         self._clear_prompt_input(page)
         self._fill_prompt_input(page, prompt)
+        self._screenshot("06-prompt-filled")
         self._click_submit(page, policy)
-        output_text = self._wait_for_response_text(
-            page=page,
-            prompt=prompt,
-            timeout_seconds=timeout_seconds,
-        )
+        self._screenshot("07-prompt-submitted")
+        try:
+            output_text = self._wait_for_response_text(
+                page=page,
+                prompt=prompt,
+                timeout_seconds=timeout_seconds,
+            )
+        except TimeoutError:
+            self._screenshot("08-response-timeout")
+            raise
+        self._screenshot("09-response-received")
         return BrowserExecutionOutput(
             output_text=output_text["text"],
             details={
@@ -394,6 +434,26 @@ class PlaywrightBrowserAutomation(BrowserAutomationPort):
             context.close()
         if playwright is not None:
             playwright.stop()
+
+    def _screenshot(self, step_name: str) -> str | None:
+        """Save a page screenshot to configured dir. Returns saved path, or None if disabled/failed."""
+        dest_dir = self._runtime.screenshots_dir
+        if not dest_dir or self._page is None:
+            return None
+        try:
+            Path(dest_dir).mkdir(parents=True, exist_ok=True)
+            timestamp = datetime.now(UTC).strftime("%Y%m%d-%H%M%S-%f")[:-3]
+            safe_step = re.sub(r"[^a-zA-Z0-9_-]+", "_", step_name).strip("_") or "step"
+            path = Path(dest_dir) / f"{timestamp}-{safe_step}.png"
+            screenshot = getattr(self._page, "screenshot", None)
+            if not callable(screenshot):
+                return None
+            screenshot(path=str(path), full_page=True)
+            logger.info("Browser screenshot saved: %s", path)
+            return str(path)
+        except Exception as exc:
+            logger.warning("Browser screenshot '%s' failed: %s", step_name, exc)
+            return None
 
     def _build_playwright_manager(self) -> Any:
         factory = self._sync_playwright_factory

@@ -84,6 +84,7 @@ class Settings:
     browser_scripted_logged_in: bool = True
     browser_scripted_model_label: str | None = None
     browser_scripted_output_text: str = "scripted browser result"
+    browser_screenshots_dir: str | None = None
     sentry_dsn: str | None = None
     sentry_environment: str = "production"
     otel_endpoint: str | None = None
@@ -170,6 +171,7 @@ class Settings:
                 "GRACEKELLY_BROWSER_SCRIPTED_OUTPUT_TEXT",
                 "scripted browser result",
             ),
+            browser_screenshots_dir=os.getenv("GRACEKELLY_BROWSER_SCREENSHOTS_DIR") or None,
             sentry_dsn=os.getenv("GRACEKELLY_SENTRY_DSN") or None,
             sentry_environment=os.getenv("GRACEKELLY_SENTRY_ENVIRONMENT", "production"),
             otel_endpoint=os.getenv("GRACEKELLY_OTEL_ENDPOINT") or None,

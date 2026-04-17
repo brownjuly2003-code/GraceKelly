@@ -105,6 +105,7 @@ def build_browser_automation(active_settings: Settings) -> BrowserAutomationPort
             runtime=PlaywrightBrowserRuntimeConfig(
                 channel=active_settings.browser_playwright_channel,
                 headless=active_settings.browser_playwright_headless,
+                screenshots_dir=active_settings.browser_screenshots_dir,
             )
         )
     if backend == "scripted":
