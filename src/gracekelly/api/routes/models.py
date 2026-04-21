@@ -2,10 +2,10 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, HTTPException, Request
 
 from gracekelly.app_state import get_app_state
-from gracekelly.core.models import ModelSpec, list_models, models_equivalent
+from gracekelly.core.models import ModelCatalogSnapshot, ModelSpec, list_models_for_snapshot, models_equivalent
 from gracekelly.schemas import ModelCatalogItem
 
 router = APIRouter(prefix="/api/v1", tags=["models"])
@@ -115,26 +115,38 @@ def _model_catalog_item(
     )
 
 
-@router.get(
-    "/models",
-    response_model=list[ModelCatalogItem],
-    summary="List all registered models",
-    description=(
-        "Returns the full model catalog with availability status. "
-        "Browser-backed models include live observation metadata: "
-        "when the model menu was last checked and whether the model label was confirmed."
-    ),
-    response_description="Model catalog with adapter kind, provider, availability status, and observation timestamps",
-)
-async def models(request: Request) -> list[ModelCatalogItem]:
+def _catalog_snapshot_from_state(request: Request) -> ModelCatalogSnapshot | None:
+    state = get_app_state(request)
+    task_repository = getattr(state, "task_repository", None)
+    if task_repository is None:
+        return None
+    getter = getattr(task_repository, "get_model_catalog_snapshot", None)
+    if not callable(getter):
+        return None
+    snapshot = getter()
+    return snapshot if isinstance(snapshot, ModelCatalogSnapshot) else None
+
+
+def _catalog_response_from_snapshot(
+    snapshot: ModelCatalogSnapshot,
+    *,
+    browser_adapter: object | None,
+) -> dict[str, object]:
     (
         observed_browser_labels,
         observed_browser_checked_at,
         observed_browser_source,
         verified_browser_labels_at,
         last_model_picker_unavailable_at,
-    ) = _browser_menu_observation(get_app_state(request).browser_adapter)
-    return [
+    ) = _browser_menu_observation(browser_adapter)
+    if not observed_browser_labels:
+        observed_browser_labels = [spec.provider_model_id for spec in snapshot.models]
+    if observed_browser_checked_at is None:
+        observed_browser_checked_at = snapshot.checked_at
+    if observed_browser_source is None:
+        observed_browser_source = snapshot.source
+    catalog_specs = list_models_for_snapshot(snapshot)
+    catalog = [
         _model_catalog_item(
             spec,
             observed_browser_labels=observed_browser_labels,
@@ -143,8 +155,39 @@ async def models(request: Request) -> list[ModelCatalogItem]:
             verified_browser_labels_at=verified_browser_labels_at,
             last_model_picker_unavailable_at=last_model_picker_unavailable_at,
         )
-        for spec in list_models()
+        for spec in catalog_specs
     ]
+    return {
+        "last_checked": snapshot.checked_at,
+        "source": snapshot.source,
+        "models": [item.model_dump() for item in catalog],
+    }
+
+
+@router.get(
+    "/models",
+    summary="List all registered models",
+    description=(
+        "Returns the full model catalog with availability status. "
+        "Browser-backed models include live observation metadata: "
+        "when the model menu was last checked and whether the model label was confirmed."
+    ),
+    response_description="Model catalog with adapter kind, provider, availability status, and observation timestamps",
+)
+async def models(request: Request) -> dict[str, object]:
+    snapshot = _catalog_snapshot_from_state(request)
+    if snapshot is None:
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "code": "model_catalog_unavailable",
+                "message": "Browser model catalog is unavailable. No stored snapshot exists yet.",
+            },
+        )
+    return _catalog_response_from_snapshot(
+        snapshot,
+        browser_adapter=getattr(get_app_state(request), "browser_adapter", None),
+    )
 
 
 @router.post(
@@ -157,26 +200,18 @@ async def models(request: Request) -> list[ModelCatalogItem]:
     ),
 )
 async def refresh_models(request: Request) -> dict[str, object]:
-    (
-        observed_browser_labels,
-        observed_browser_checked_at,
-        observed_browser_source,
-        verified_browser_labels_at,
-        last_model_picker_unavailable_at,
-    ) = _browser_menu_observation(get_app_state(request).browser_adapter)
-    catalog = [
-        _model_catalog_item(
-            spec,
-            observed_browser_labels=observed_browser_labels,
-            observed_browser_checked_at=observed_browser_checked_at,
-            observed_browser_source=observed_browser_source,
-            verified_browser_labels_at=verified_browser_labels_at,
-            last_model_picker_unavailable_at=last_model_picker_unavailable_at,
+    snapshot = _catalog_snapshot_from_state(request)
+    if snapshot is None:
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "code": "model_catalog_unavailable",
+                "message": "Browser model catalog is unavailable. No stored snapshot exists yet.",
+            },
         )
-        for spec in list_models()
-    ]
-    return {
-        "refreshed_at": datetime.now(UTC).isoformat(),
-        "browser_last_observed": observed_browser_checked_at.isoformat() if observed_browser_checked_at else None,
-        "models": [item.model_dump() for item in catalog],
-    }
+    payload = _catalog_response_from_snapshot(
+        snapshot,
+        browser_adapter=getattr(get_app_state(request), "browser_adapter", None),
+    )
+    payload["refreshed_at"] = datetime.now(UTC).isoformat()
+    return payload

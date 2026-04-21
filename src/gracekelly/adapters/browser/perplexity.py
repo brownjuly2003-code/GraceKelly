@@ -246,6 +246,31 @@ class PerplexityBrowserAdapter(ExecutionAdapter):
                 await result
         self._session_manager.mark_idle()
 
+    def refresh_model_catalog(self) -> tuple[str, ...]:
+        try:
+            self._automation.ensure_session(self._session_manager)
+            self._session_manager.mark_active()
+            self._automation.dismiss_popups(self._popup_policy)
+            auth = self._ensure_auth()
+            if not auth.logged_in:
+                raise PermissionError(auth.reason or "Browser session is not authenticated.")
+            inspect_method = getattr(self._automation, "inspect_model_catalog", None)
+            if not callable(inspect_method):
+                raise NotImplementedError("Browser automation driver cannot inspect the model catalog.")
+            labels = tuple(str(label).strip() for label in inspect_method() if str(label).strip())
+            if not labels:
+                raise RuntimeError("Perplexity model catalog is empty.")
+            return labels
+        finally:
+            close_method = getattr(self._automation, "close", None)
+            if callable(close_method):
+                result = close_method()
+                if inspect.isawaitable(result):
+                    close_result = getattr(result, "close", None)
+                    if callable(close_result):
+                        close_result()
+            self._session_manager.mark_idle()
+
     def _ensure_auth(self) -> BrowserAuthStatus:
         auth = self._automation.auth_status(self._auth_policy)
         if auth.logged_in:

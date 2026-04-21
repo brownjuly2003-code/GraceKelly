@@ -240,6 +240,31 @@ class BrowserAdapterTests(unittest.TestCase):
         assert result.failure_message is not None
         self.assertIn("already in use", result.failure_message)
 
+    def test_refresh_model_catalog_closes_automation_after_inspection(self) -> None:
+        class InspectableBrowserAutomation(FakeBrowserAutomation):
+            def __init__(self) -> None:
+                super().__init__()
+                self.closed = False
+
+            def inspect_model_catalog(self) -> tuple[str, ...]:
+                return ("Best", "Kimi K2.5")
+
+            def close(self) -> None:
+                self.closed = True
+
+        session_manager = self.build_session_manager()
+        automation = InspectableBrowserAutomation()
+        adapter = PerplexityBrowserAdapter(
+            session_manager=session_manager,
+            automation=automation,
+        )
+
+        labels = adapter.refresh_model_catalog()
+
+        self.assertEqual(labels, ("Best", "Kimi K2.5"))
+        self.assertTrue(automation.closed)
+        self.assertFalse(session_manager.state.active)
+
     def test_browser_session_manager_state_returns_snapshot(self) -> None:
         session_manager = self.build_session_manager()
         session_manager.mark_active()

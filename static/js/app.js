@@ -1,4 +1,5 @@
 window.chatState = window.chatState || { messages: [], pendingFiles: [] };
+window.modelCatalog = window.modelCatalog || { items: [], ids: new Set(), lastChecked: null, unavailable: false };
 
 let activeSidebarPanel = "";
 let healthFailureNotified = false;
@@ -31,7 +32,7 @@ function getSessionId() {
 }
 
 function resetChatShell() {
-  const messages = document.getElementById("chat-messages");
+  const messages = document.getElementById("chat-area") || document.getElementById("chat-messages");
   if (messages) {
     messages.replaceChildren();
   }
@@ -46,7 +47,7 @@ function setSessionShortId() {
 }
 
 function resizeComposer() {
-  const input = document.getElementById("chat-input");
+  const input = document.getElementById("query-input") || document.getElementById("chat-input");
   if (!input) {
     return;
   }
@@ -134,6 +135,24 @@ function syncSelectionToLegacy(selection) {
   modelSelect.value = preferredModel;
 }
 
+function setModelBanner(message = "", type = "info") {
+  const banner = document.getElementById("model-banner");
+  if (!banner) {
+    return;
+  }
+
+  if (!message) {
+    banner.textContent = "";
+    banner.classList.add("hidden");
+    banner.classList.remove("warning");
+    return;
+  }
+
+  banner.textContent = message;
+  banner.classList.remove("hidden");
+  banner.classList.toggle("warning", type === "warning");
+}
+
 function applyTheme(theme) {
   const isDark = theme === "dark";
   const toggle = document.getElementById("dark-mode-toggle");
@@ -154,13 +173,11 @@ function restoreTheme() {
 
 function closeSidebar() {
   const sidebar = document.getElementById("sidebar");
-  if (!sidebar) {
-    return;
-  }
-
   activeSidebarPanel = "";
-  sidebar.classList.add("hidden");
-  sidebar.setAttribute("aria-hidden", "true");
+  sidebar?.classList.remove("hidden");
+  sidebar?.setAttribute("aria-hidden", "false");
+  document.getElementById("panel-threads")?.classList.remove("hidden");
+  document.getElementById("panel-stats")?.classList.remove("hidden");
   document.getElementById("nav-history")?.classList.remove("active");
   document.getElementById("nav-stats")?.classList.remove("active");
 }
@@ -171,13 +188,12 @@ function showSidebarPanel(panelName) {
   const statsPanel = document.getElementById("panel-stats");
   const historyBtn = document.getElementById("nav-history");
   const statsBtn = document.getElementById("nav-stats");
-  const isOpen = activeSidebarPanel === panelName && sidebar && !sidebar.classList.contains("hidden");
 
   if (!sidebar || !threadsPanel || !statsPanel || !historyBtn || !statsBtn) {
     return;
   }
 
-  if (isOpen) {
+  if (activeSidebarPanel === panelName) {
     closeSidebar();
     return;
   }
@@ -185,16 +201,18 @@ function showSidebarPanel(panelName) {
   activeSidebarPanel = panelName;
   sidebar.classList.remove("hidden");
   sidebar.setAttribute("aria-hidden", "false");
-  threadsPanel.classList.toggle("hidden", panelName !== "threads");
-  statsPanel.classList.toggle("hidden", panelName !== "stats");
+  threadsPanel.classList.remove("hidden");
+  statsPanel.classList.remove("hidden");
   historyBtn.classList.toggle("active", panelName === "threads");
   statsBtn.classList.toggle("active", panelName === "stats");
 
   if (panelName === "threads") {
+    threadsPanel.scrollIntoView({ block: "nearest" });
     void loadSidebarHistory();
   }
 
   if (panelName === "stats") {
+    statsPanel.scrollIntoView({ block: "nearest" });
     void loadStats();
   }
 }
@@ -250,9 +268,31 @@ async function loadModels() {
   }
 
   try {
-    const models = await window.api.models();
-    const entries = Array.isArray(models) ? models : Object.values(models || {});
+    const response = await fetch("/api/v1/models");
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      const detail = data?.detail;
+      const message = typeof detail?.message === "string"
+        ? detail.message
+        : "Model catalog is unavailable.";
+      throw new Error(message);
+    }
+
+    const entries = Array.isArray(data?.models) ? data.models : Array.isArray(data) ? data : [];
     select.innerHTML = "";
+    window.modelCatalog = {
+      items: entries,
+      ids: new Set(
+        entries.flatMap((model) => [model.id, model.model_id, model.display_name]).filter(Boolean),
+      ),
+      lastChecked: data?.last_checked || null,
+      unavailable: false,
+    };
+    setModelBanner(
+      data?.last_checked
+        ? `Каталог моделей обновлён: ${new Date(data.last_checked).toLocaleString()}.`
+        : "",
+    );
 
     if (!entries.length) {
       const emptyOption = document.createElement("option");
@@ -274,8 +314,15 @@ async function loadModels() {
       syncSelectionToLegacy(window.modelMenu.getSelection());
     }
   } catch (_error) {
+    window.modelCatalog = {
+      items: [],
+      ids: new Set(),
+      lastChecked: null,
+      unavailable: true,
+    };
     select.innerHTML = "<option value=\"\">Failed to load</option>";
-    showToast("Не удалось загрузить список моделей", "error");
+    setModelBanner("Каталог моделей недоступен. Интерфейс работает без свежего snapshot.", "warning");
+    return;
   }
 }
 
@@ -319,8 +366,8 @@ async function loadSidebarHistory() {
 async function loadStats() {
   const totalEl = document.getElementById("stat-total");
   const successEl = document.getElementById("stat-success");
-  const avgTimeEl = document.getElementById("stat-avg-time");
-  const modelsEl = document.getElementById("stat-models");
+  const avgTimeEl = document.getElementById("stat-time") || document.getElementById("stat-avg-time");
+  const modelsEl = document.getElementById("stat-accounts") || document.getElementById("stat-models");
 
   if (!totalEl || !successEl || !avgTimeEl || !modelsEl) {
     return;
@@ -349,6 +396,7 @@ async function loadStats() {
 
 function bindSidebarControls() {
   document.getElementById("nav-new-thread")?.addEventListener("click", newSession);
+  document.getElementById("btn-new-thread")?.addEventListener("click", newSession);
   document.getElementById("nav-history")?.addEventListener("click", () => {
     showSidebarPanel("threads");
   });
@@ -371,7 +419,7 @@ function setupKeyboardShortcuts() {
 
     if (event.ctrlKey && key === "enter") {
       event.preventDefault();
-      document.getElementById("send-btn")?.click();
+      (document.getElementById("btn-submit") || document.getElementById("send-btn"))?.click();
     }
 
     if (event.ctrlKey && key === "n") {
@@ -396,7 +444,7 @@ function setupKeyboardShortcuts() {
 }
 
 function bindComposerControls() {
-  const input = document.getElementById("chat-input");
+  const input = document.getElementById("query-input") || document.getElementById("chat-input");
   const fileInput = document.getElementById("file-input");
   const fileClearBtn = document.getElementById("file-clear-btn");
 

@@ -3,10 +3,11 @@ from __future__ import annotations
 import inspect
 import logging
 import pathlib
-from collections.abc import AsyncGenerator
+from collections.abc import AsyncGenerator, Callable
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import asynccontextmanager
-from typing import Any
+from datetime import UTC, datetime, timedelta
+from typing import Any, cast
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
@@ -49,6 +50,12 @@ from gracekelly.core.contracts import ExecutionAdapter
 from gracekelly.core.embeddings import EmbeddingsClient
 from gracekelly.core.execution_history import ExecutionHistory
 from gracekelly.core.execution_profile import resolve_execution_profile
+from gracekelly.core.models import (
+    ModelCatalogSnapshot,
+    build_browser_catalog,
+    clear_browser_catalog,
+    install_browser_catalog,
+)
 from gracekelly.core.orchestrator import OrchestratorService
 from gracekelly.core.router import ExecutionRouter
 from gracekelly.middleware import (
@@ -65,6 +72,7 @@ from gracekelly.storage.memory import InMemoryTaskRepository
 from gracekelly.telemetry import setup_telemetry
 
 logger = logging.getLogger(__name__)
+_MODEL_CATALOG_REFRESH_INTERVAL = timedelta(hours=24)
 
 
 def _get_version() -> str:
@@ -145,8 +153,119 @@ def build_browser_adapter(active_settings: Settings) -> ExecutionAdapter:
     )
 
 
+def build_catalog_refresh_adapter(active_settings: Settings) -> PerplexityBrowserAdapter:
+    return PerplexityBrowserAdapter(
+        session_manager=BrowserSessionManager(
+            BrowserSessionConfig(
+                enabled=active_settings.browser_enabled,
+                provider="perplexity",
+                base_url=active_settings.browser_base_url,
+                profile_dir=active_settings.browser_profile_dir,
+            )
+        ),
+        automation=PlaywrightBrowserAutomation(
+            runtime=PlaywrightBrowserRuntimeConfig(
+                channel=active_settings.browser_playwright_channel,
+                headless=active_settings.browser_playwright_headless,
+                screenshots_dir=active_settings.browser_screenshots_dir,
+            )
+        ),
+        popup_policy=PopupPolicy(),
+        auth_recovery_policy=AuthRecoveryPolicy(),
+        model_verification_policy=ModelVerificationPolicy(),
+        submit_policy=SubmitPolicy(),
+    )
+
+
+def _repository_model_catalog_snapshot(repository: object | None) -> ModelCatalogSnapshot | None:
+    getter = getattr(repository, "get_model_catalog_snapshot", None)
+    if not callable(getter):
+        return None
+    snapshot = getter()
+    return snapshot if isinstance(snapshot, ModelCatalogSnapshot) else None
+
+
+def _save_model_catalog_snapshot(repository: object | None, snapshot: ModelCatalogSnapshot) -> None:
+    saver = getattr(repository, "save_model_catalog_snapshot", None)
+    if callable(saver):
+        saver(snapshot)
+
+
+def _refresh_model_catalog_method(
+    browser_adapter: object | None,
+) -> Callable[[], tuple[str, ...] | list[str]] | None:
+    refresh_method = getattr(browser_adapter, "refresh_model_catalog", None)
+    if callable(refresh_method):
+        return cast(Callable[[], tuple[str, ...] | list[str]], refresh_method)
+    wrapped_adapter = getattr(browser_adapter, "_adapter", None)
+    refresh_method = getattr(wrapped_adapter, "refresh_model_catalog", None)
+    if callable(refresh_method):
+        return cast(Callable[[], tuple[str, ...] | list[str]], refresh_method)
+    return None
+
+
+def _refresh_model_catalog_labels(browser_adapter: object | None) -> tuple[str, ...] | None:
+    refresh_method = _refresh_model_catalog_method(browser_adapter)
+    if not callable(refresh_method):
+        return None
+    labels = refresh_method()
+    return tuple(str(label).strip() for label in labels if str(label).strip())
+
+
+def _catalog_refresh_adapter(app: FastAPI) -> object | None:
+    browser_adapter = cast(object | None, getattr(app.state, "browser_adapter", None))
+    if callable(_refresh_model_catalog_method(browser_adapter)):
+        return browser_adapter
+    active_settings = getattr(app.state, "settings", None)
+    if isinstance(active_settings, Settings):
+        return build_catalog_refresh_adapter(active_settings)
+    return None
+
+
+def _initialize_model_catalog(app: FastAPI) -> None:
+    repository = getattr(app.state, "task_repository", None)
+    snapshot = _repository_model_catalog_snapshot(repository)
+    now = datetime.now(UTC)
+    should_refresh = snapshot is None or (now - snapshot.checked_at) > _MODEL_CATALOG_REFRESH_INTERVAL
+
+    if not should_refresh:
+        install_browser_catalog(snapshot)
+        return
+
+    try:
+        labels = _refresh_model_catalog_labels(_catalog_refresh_adapter(app))
+        if not labels:
+            raise RuntimeError("Browser adapter cannot refresh the model catalog.")
+        snapshot = build_browser_catalog(
+            labels,
+            checked_at=now,
+            source="perplexity-model-menu",
+        )
+        _save_model_catalog_snapshot(repository, snapshot)
+        install_browser_catalog(snapshot)
+        logger.info(
+            "model_catalog.ready checked_at=%s source=%s count=%d",
+            snapshot.checked_at.isoformat(),
+            snapshot.source,
+            len(snapshot.models),
+        )
+    except Exception as exc:
+        if snapshot is not None:
+            install_browser_catalog(snapshot)
+            logger.warning(
+                "model_catalog.refresh_failed_using_snapshot checked_at=%s source=%s error=%r",
+                snapshot.checked_at.isoformat(),
+                snapshot.source,
+                exc,
+            )
+            return
+        clear_browser_catalog()
+        logger.warning("model_catalog.unavailable error=%r", exc)
+
+
 @asynccontextmanager
 async def app_lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
+    _initialize_model_catalog(app)
     yield
     logger.info("Shutting down — releasing resources")
     browser_adapter = getattr(app.state, "browser_adapter", None)

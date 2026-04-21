@@ -14,6 +14,7 @@ from gracekelly.core.contracts import (
     StepStatus,
     TaskStatus,
 )
+from gracekelly.core.models import ModelCatalogSnapshot
 
 
 @dataclass(slots=True)
@@ -154,3 +155,9 @@ class TaskRepository(ABC):
             "backend": self.backend_name,
             "schema_version": "not_applicable",
         }
+
+    def get_model_catalog_snapshot(self) -> ModelCatalogSnapshot | None:
+        return None
+
+    def save_model_catalog_snapshot(self, snapshot: ModelCatalogSnapshot) -> None:
+        return None

@@ -4,6 +4,7 @@ from datetime import datetime
 from threading import RLock
 
 from gracekelly.core.contracts import ExecutionMode, FailureCode, TaskStatus
+from gracekelly.core.models import ModelCatalogSnapshot
 from gracekelly.storage.base import TaskEventRecord, TaskRecord, TaskRepository, TaskStepRecord
 
 
@@ -15,6 +16,7 @@ class InMemoryTaskRepository(TaskRepository):
         self._tasks: dict[str, TaskRecord] = {}
         self._steps: dict[str, list[TaskStepRecord]] = {}
         self._events: dict[str, list[TaskEventRecord]] = {}
+        self._model_catalog_snapshot: ModelCatalogSnapshot | None = None
         self._max_tasks = max_tasks
 
     def save_task_with_steps(
@@ -115,4 +117,13 @@ class InMemoryTaskRepository(TaskRepository):
                 "task_count": len(self._tasks),
                 "step_count": sum(len(items) for items in self._steps.values()),
                 "event_count": sum(len(items) for items in self._events.values()),
+                "model_catalog_present": self._model_catalog_snapshot is not None,
             }
+
+    def get_model_catalog_snapshot(self) -> ModelCatalogSnapshot | None:
+        with self._lock:
+            return self._model_catalog_snapshot
+
+    def save_model_catalog_snapshot(self, snapshot: ModelCatalogSnapshot) -> None:
+        with self._lock:
+            self._model_catalog_snapshot = snapshot

@@ -26,6 +26,12 @@ from gracekelly.core.contracts import (
     StepStatus,
     TaskStatus,
 )
+from gracekelly.core.models import (
+    DEFAULT_BROWSER_CATALOG_KEY,
+    ModelCatalogSnapshot,
+    deserialize_model_catalog_snapshot,
+    serialize_model_catalog_snapshot,
+)
 from gracekelly.storage.base import TaskEventRecord, TaskRecord, TaskRepository, TaskStepRecord
 from gracekelly.storage.schema import (
     EXPECTED_SCHEMA_COLUMNS,
@@ -190,6 +196,28 @@ VALUES (
     %(created_at)s,
     %(payload)s::jsonb
 )
+"""
+
+_MODEL_CATALOG_UPSERT_QUERY = """
+INSERT INTO gk_model_catalog_snapshots (
+    catalog_key,
+    checked_at,
+    source,
+    payload,
+    updated_at
+)
+VALUES (
+    %(catalog_key)s,
+    %(checked_at)s,
+    %(source)s,
+    %(payload)s::jsonb,
+    now()
+)
+ON CONFLICT (catalog_key) DO UPDATE SET
+    checked_at = EXCLUDED.checked_at,
+    source = EXCLUDED.source,
+    payload = EXCLUDED.payload,
+    updated_at = now();
 """
 
 
@@ -486,6 +514,45 @@ class PostgresTaskRepository(TaskRepository):
                 cursor.execute(data_query, data_params)
                 rows = cursor.fetchall()
         return [self._event_from_row(row) for row in rows], total
+
+    def get_model_catalog_snapshot(self) -> ModelCatalogSnapshot | None:
+        query = """
+        SELECT checked_at, source, payload
+        FROM gk_model_catalog_snapshots
+        WHERE catalog_key = %s
+        """
+        with self._connect(row_factory=dict_row) as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(query, (DEFAULT_BROWSER_CATALOG_KEY,))
+                row = cursor.fetchone()
+        if row is None:
+            return None
+        payload = row["payload"]
+        if isinstance(payload, str):
+            payload = json.loads(payload)
+        if not isinstance(payload, dict):
+            return None
+        snapshot_payload = {
+            **payload,
+            "checked_at": row["checked_at"].isoformat(),
+            "source": row["source"],
+        }
+        return deserialize_model_catalog_snapshot(snapshot_payload)
+
+    def save_model_catalog_snapshot(self, snapshot: ModelCatalogSnapshot) -> None:
+        payload = serialize_model_catalog_snapshot(snapshot)
+        with self._connect() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(
+                    _MODEL_CATALOG_UPSERT_QUERY,
+                    {
+                        "catalog_key": DEFAULT_BROWSER_CATALOG_KEY,
+                        "checked_at": snapshot.checked_at,
+                        "source": snapshot.source,
+                        "payload": json.dumps({"models": payload["models"]}),
+                    },
+                )
+            conn.commit()
 
     def healthcheck(self) -> dict[str, Any]:
         try:

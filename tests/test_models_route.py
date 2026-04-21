@@ -15,7 +15,8 @@ from gracekelly.api.routes.models import (
     _model_catalog_item,
     router,
 )
-from gracekelly.core.models import MODEL_SPECS, ModelSpec
+from gracekelly.core.models import MODEL_SPECS, ModelSpec, build_browser_catalog
+from gracekelly.storage.memory import InMemoryTaskRepository
 
 
 class BrowserMenuObservationTests(unittest.TestCase):
@@ -222,17 +223,33 @@ class RefreshModelsRouteTests(unittest.TestCase):
         self.client = TestClient(app)
 
     def test_refresh_models_returns_200(self) -> None:
+        repository = InMemoryTaskRepository()
+        repository.save_model_catalog_snapshot(
+            build_browser_catalog(
+                ("Best", "Sonar"),
+                checked_at=datetime(2026, 3, 17, 18, 45, tzinfo=UTC),
+                source="perplexity-model-menu",
+            )
+        )
         with patch(
             "gracekelly.api.routes.models.get_app_state",
-            return_value=SimpleNamespace(browser_adapter=None),
+            return_value=SimpleNamespace(task_repository=repository, browser_adapter=None),
         ):
             resp = self.client.post("/api/v1/models/refresh")
         self.assertEqual(resp.status_code, 200)
 
     def test_refresh_models_has_refreshed_at_and_models(self) -> None:
+        repository = InMemoryTaskRepository()
+        repository.save_model_catalog_snapshot(
+            build_browser_catalog(
+                ("Best", "Sonar"),
+                checked_at=datetime(2026, 3, 17, 18, 45, tzinfo=UTC),
+                source="perplexity-model-menu",
+            )
+        )
         with patch(
             "gracekelly.api.routes.models.get_app_state",
-            return_value=SimpleNamespace(browser_adapter=None),
+            return_value=SimpleNamespace(task_repository=repository, browser_adapter=None),
         ):
             resp = self.client.post("/api/v1/models/refresh")
         data = resp.json()

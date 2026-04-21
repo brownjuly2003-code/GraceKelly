@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
+from datetime import UTC, datetime
 from typing import Any
 from unittest.mock import MagicMock
 
@@ -23,9 +24,38 @@ from gracekelly.core.contracts import (
     MergeStrategy,
     StepStatus,
 )
-from gracekelly.core.models import ModelSpec, resolve_model
+from gracekelly.core.models import (
+    ModelSpec,
+    build_browser_catalog,
+    clear_browser_catalog,
+    install_browser_catalog,
+    resolve_model,
+)
 from gracekelly.middleware import setup_api_key_auth, setup_security_headers
 from gracekelly.schemas import OrchestrateRequest
+
+_TEST_BROWSER_CATALOG_SNAPSHOT = build_browser_catalog(
+    (
+        "Best",
+        "Sonar",
+        "Claude Sonnet 4.6",
+        "GPT-5.4",
+        "Gemini 3.1 Pro",
+        "Kimi K2.5",
+        "Claude Opus 4.6",
+        "Max",
+        "Nemotron 3 Super",
+    ),
+    checked_at=datetime(2026, 4, 20, 12, 0, tzinfo=UTC),
+    source="test-fixture",
+)
+
+
+@pytest.fixture(autouse=True)
+def install_default_browser_catalog() -> Iterator[None]:
+    install_browser_catalog(_TEST_BROWSER_CATALOG_SNAPSHOT)
+    yield
+    clear_browser_catalog()
 
 
 @pytest.fixture
@@ -34,7 +64,7 @@ def api_model_spec() -> ModelSpec:
 
 
 @pytest.fixture
-def browser_model_spec() -> ModelSpec:
+def browser_model_spec(install_default_browser_catalog: None) -> ModelSpec:
     return resolve_model("Kimi K2")
 
 
