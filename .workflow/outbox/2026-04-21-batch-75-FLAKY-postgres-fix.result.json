@@ -1,0 +1,45 @@
+{
+  "task_id": "batch-75-FLAKY-postgres-fix",
+  "status": "completed",
+  "outcome": "no-repro",
+  "closure": "resolved by intervening batch-72/73/74 commits; no code change needed",
+  "date": "2026-04-21",
+  "commit": null,
+  "tests": {
+    "full_suite": {
+      "command": "pytest --tb=short -q -p no:cacheprovider",
+      "passed": 2579,
+      "failed": 0,
+      "skipped": 6,
+      "subtests_passed": 11,
+      "duration_seconds": 615.26,
+      "exit_code": 0,
+      "log": ".workflow/outbox/2026-04-21-batch-75-FLAKY-postgres-fix-test-output.log"
+    },
+    "full_suite_rerun": {
+      "command": "pytest --tb=short -q -p no:cacheprovider",
+      "log": ".workflow/outbox/2026-04-21-batch-75-FLAKY-postgres-fix-test-output-run2.log"
+    },
+    "target_isolated": {
+      "command": "pytest tests/test_import_postgres_tool.py -q",
+      "passed": 31,
+      "failed": 0,
+      "exit_code": 0
+    },
+    "target_single": {
+      "command": "pytest tests/test_import_postgres_tool.py::ImportPostgresToolTests::test_main_rejects_checksum_mismatch -q",
+      "passed": 1,
+      "failed": 0,
+      "exit_code": 0
+    }
+  },
+  "lint": {
+    "ruff_check": "clean",
+    "mypy_src": "clean"
+  },
+  "files_changed": [],
+  "hard_rules_respected": {
+    "no_skip_xfail": true,
+    "no_pytest_ordering": true
+  }
+}
