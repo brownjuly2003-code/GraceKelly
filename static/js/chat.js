@@ -20,10 +20,15 @@ const helpOverlay = document.getElementById("helpOverlay") || document.getElemen
 const helpCloseBtn = helpOverlay?.querySelector(".help-close");
 const dryRunCheck = document.getElementById("dry-run-check");
 const modelSelect = document.getElementById("model-select");
+const authBanner = document.getElementById("auth-banner");
+const authBannerText = document.getElementById("auth-banner-text");
+const authBannerRetryBtn = document.getElementById("auth-banner-retry");
 
 let isSending = false;
 let voiceRecognition = null;
 let isRecording = false;
+let lastSubmission = null;
+let authBannerRetry = null;
 const defaultPlaceholder = chatInput?.getAttribute("placeholder") || "Введите ваш вопрос или задачу...";
 
 function scrollMessages() {
@@ -46,6 +51,48 @@ function syncExportState() {
     btnDownload.disabled = !hasMessages;
     btnDownload.style.opacity = hasMessages ? "1" : "0.45";
   }
+}
+
+function syncAuthBannerState() {
+  if (authBannerRetryBtn) {
+    authBannerRetryBtn.disabled = isSending || !authBannerRetry;
+  }
+}
+
+function hideAuthBanner() {
+  authBanner?.classList.add("hidden");
+  authBanner?.removeAttribute("data-trace-id");
+  authBannerRetry = null;
+  syncAuthBannerState();
+}
+
+function showAuthBanner(detail = {}) {
+  if (!authBanner) {
+    return;
+  }
+
+  const message = detail.message || window.api?.authRequiredMessage || "Perplexity authentication required.";
+  authBannerText.textContent = detail.trace_id ? `${message} Trace ID: ${detail.trace_id}` : message;
+  if (detail.trace_id) {
+    authBanner.dataset.traceId = detail.trace_id;
+  } else {
+    authBanner.removeAttribute("data-trace-id");
+  }
+  authBannerRetry = typeof detail.retry === "function"
+    ? detail.retry
+    : lastSubmission
+      ? () => {
+          void sendMessage(lastSubmission.text, {
+            selection: lastSubmission.selection,
+            dryRun: lastSubmission.dryRun,
+            files: lastSubmission.files,
+            sessionId: lastSubmission.sessionId,
+            retryingAuth: true,
+          });
+        }
+      : null;
+  syncAuthBannerState();
+  authBanner.classList.remove("hidden");
 }
 
 function escapeHtml(value) {
@@ -165,6 +212,7 @@ function syncComposerState() {
   }
 
   sendBtn.disabled = isSending || chatInput.value.trim().length === 0;
+  syncAuthBannerState();
 }
 
 window.syncChatComposerState = syncComposerState;
@@ -429,6 +477,15 @@ async function hydrateTaskData(taskId, fallbackMeta, fallbackText) {
     if (typeof task.subtask_count === "number") {
       meta.subtask_count = task.subtask_count;
     }
+    if (!meta.failure_code && task.failure_code) {
+      meta.failure_code = task.failure_code;
+    }
+    if (!meta.failure_message && task.failure_message) {
+      meta.failure_message = task.failure_message;
+    }
+    if (!meta.trace_id && typeof task.metadata?.trace_id === "string") {
+      meta.trace_id = task.metadata.trace_id;
+    }
     if (completedStep) {
       if (typeof completedStep.input_tokens === "number") {
         meta.input_tokens = completedStep.input_tokens;
@@ -651,6 +708,9 @@ function normalizeMeta(raw, fallbackModelId) {
       : typeof decomposition.subtask_count === "number"
         ? decomposition.subtask_count
         : 0,
+    failure_code: raw?.failure_code || raw?.error?.code || raw?.detail?.code || "",
+    failure_message: raw?.failure_message || raw?.error?.message || raw?.detail?.message || "",
+    trace_id: raw?.trace_id || raw?.error?.trace_id || raw?.detail?.trace_id || raw?.metadata?.trace_id || "",
   };
 }
 
@@ -783,25 +843,40 @@ async function streamChat(body, onChunk) {
   return { acceptedEvent, finalEvent };
 }
 
-async function sendMessage(rawText) {
-  const text = rawText.trim();
+async function sendMessage(rawText, requestOptions = null) {
+  const text = String(rawText || "").trim();
   if (!text || isSending) {
     return;
   }
 
-  const sessionId = window.threadManager?.currentId || getSessionId();
-  const selection = getModelSelection();
+  const selection = requestOptions?.selection || getModelSelection();
+  const sessionId = requestOptions?.sessionId || window.threadManager?.currentId || getSessionId();
   const pattern = selection.pattern || "single";
   const modelId = selection.model || "";
   const modelIds = Array.isArray(selection.models) ? selection.models.filter(Boolean) : [];
-  const dryRun = Boolean(dryRunCheck?.checked);
-  const files = [...window.chatState.pendingFiles];
+  const dryRun = typeof requestOptions?.dryRun === "boolean" ? requestOptions.dryRun : Boolean(dryRunCheck?.checked);
+  const files = Array.isArray(requestOptions?.files) ? [...requestOptions.files] : [...window.chatState.pendingFiles];
+  const retryingAuth = Boolean(requestOptions?.retryingAuth);
 
-  appendUserBubble(text);
-  persistMessage("user", text);
+  lastSubmission = {
+    text,
+    selection: {
+      pattern,
+      model: modelId,
+      models: [...modelIds],
+    },
+    dryRun,
+    files: [...files],
+    sessionId,
+  };
 
-  chatInput.value = "";
-  clearPendingFiles();
+  if (!retryingAuth) {
+    appendUserBubble(text);
+    persistMessage("user", text);
+
+    chatInput.value = "";
+    clearPendingFiles();
+  }
 
   isSending = true;
   attachBtn.disabled = true;
@@ -953,6 +1028,12 @@ async function sendMessage(rawText) {
     if (dryRun && !responseText.trim()) {
       responseText = "[dry-run] Запрос обработан без реального вызова модели.";
     }
+    if (meta.failure_code === "auth_failed") {
+      const authError = new Error(meta.failure_message || "Perplexity authentication required.");
+      authError.authRequired = true;
+      throw authError;
+    }
+    hideAuthBanner();
     finalizeAssistantBubble(bubble, responseText, meta);
     persistMessage("assistant", responseText, meta);
     updateLoading("Готово", 100);
@@ -960,9 +1041,11 @@ async function sendMessage(rawText) {
   } catch (error) {
     updateLoading("Ошибка", 100);
     bubble.container.remove();
-    appendErrorBubble(mapErrorToUserMessage(error), () => {
-      void sendMessage(text);
-    });
+    if (!error?.authRequired) {
+      appendErrorBubble(mapErrorToUserMessage(error), () => {
+        void sendMessage(text);
+      });
+    }
     await new Promise((resolve) => window.setTimeout(resolve, 120));
   } finally {
     hideLoading();
@@ -981,6 +1064,7 @@ function resetChatUi() {
   chatInput.value = "";
   clearPendingFiles();
   window.chatState.messages = [];
+  hideAuthBanner();
   closeHelpOverlay();
   syncExportState();
   syncComposerState();
@@ -989,6 +1073,12 @@ function resetChatUi() {
 attachBtn?.addEventListener("click", () => {
   if (!fileInput.disabled) {
     fileInput.click();
+  }
+});
+
+authBannerRetryBtn?.addEventListener("click", () => {
+  if (authBannerRetry) {
+    authBannerRetry();
   }
 });
 
@@ -1039,6 +1129,9 @@ document.addEventListener("keydown", (event) => {
 });
 
 document.addEventListener("chat:reset", resetChatUi);
+window.addEventListener("auth:required", (event) => {
+  showAuthBanner(event.detail || {});
+});
 initVoiceInput();
 initHelpOverlay();
 

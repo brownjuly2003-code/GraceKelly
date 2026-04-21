@@ -343,7 +343,7 @@ svg {
 
 .main-content {
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr) auto auto;
+  grid-template-rows: auto auto minmax(0, 1fr) auto auto;
   min-width: 0;
   overflow: hidden;
 }
@@ -406,6 +406,54 @@ svg {
 
 .health-dot.err {
   color: var(--error);
+}
+
+.auth-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 0 32px 12px;
+  padding: 14px 16px;
+  border-left: 4px solid #f97316;
+  border-radius: 16px;
+  background: rgba(12, 16, 22, 0.94);
+  box-shadow: var(--shadow-md);
+}
+
+.auth-banner-copy {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 1.5;
+  text-wrap: pretty;
+}
+
+.auth-banner-copy a {
+  color: #fdba74;
+  font-weight: 700;
+}
+
+.auth-banner-copy a:hover {
+  color: #fed7aa;
+}
+
+.auth-banner-retry {
+  flex-shrink: 0;
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-primary);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.auth-banner-retry:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.14);
 }
 
 .model-banner {
@@ -1107,6 +1155,7 @@ svg {
   }
 
   .main-header,
+  .auth-banner,
   .model-banner,
   .chat-area,
   .input-bar,
@@ -1122,6 +1171,19 @@ svg {
   .main-header {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .auth-banner {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .auth-banner-copy {
+    align-items: flex-start;
+  }
+
+  .auth-banner-retry {
+    width: 100%;
   }
 
   .main-heading,
