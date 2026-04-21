@@ -17,6 +17,7 @@ dist/
 logs/
 data/
 tmp/
+chrome-profile/
 
 # Codex / CX workflow artifacts
 .codex/
