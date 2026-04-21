@@ -9,6 +9,7 @@ from time import perf_counter
 from typing import Any, cast
 from uuid import uuid4
 
+from gracekelly.api.error_codes import AUTH_TASK_FAILURE_CODE
 from gracekelly.config import Settings
 from gracekelly.core.complexity import assess_complexity
 from gracekelly.core.contracts import (
@@ -124,7 +125,7 @@ class OrchestratorService:
                 batch_result = self._execution_router.execute(task_id=task_id, prompt=active_request.prompt, plan=execution_plan, reasoning=request.reasoning, metadata=dict(request.metadata))
         if (
             batch_result.failure_code is not None
-            and batch_result.failure_code.value == "auth_failed"
+            and batch_result.failure_code.value == AUTH_TASK_FAILURE_CODE
             and trace_id is None
         ):
             trace_id = str(uuid4())

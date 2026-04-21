@@ -1,5 +1,6 @@
 const API_BASE = "";
 const AUTH_REQUIRED_CODE = "model_auth_required";
+const AUTH_TASK_FAILURE_CODE = "auth_failed"; // See .workflow/docs/auth-error-codes.md.
 const AUTH_REQUIRED_MESSAGE = "Perplexity session expired — open perplexity.ai and sign in, then retry";
 
 async function readResponseBody(response) {
@@ -24,7 +25,7 @@ function getAuthRequiredDetail(payload) {
   const code = payload.code || detail?.code || error?.code;
   const failureCode = payload.failure_code || error?.failure_code;
 
-  if (code !== AUTH_REQUIRED_CODE && failureCode !== "auth_failed") {
+  if (code !== AUTH_REQUIRED_CODE && failureCode !== AUTH_TASK_FAILURE_CODE) {
     return null;
   }
 
@@ -162,4 +163,5 @@ window.api = {
     return data.items || data;
   },
   authRequiredMessage: AUTH_REQUIRED_MESSAGE,
+  authTaskFailureCode: AUTH_TASK_FAILURE_CODE,
 };

@@ -1028,7 +1028,7 @@ async function sendMessage(rawText, requestOptions = null) {
     if (dryRun && !responseText.trim()) {
       responseText = "[dry-run] Запрос обработан без реального вызова модели.";
     }
-    if (meta.failure_code === "auth_failed") {
+    if (meta.failure_code === (window.api?.authTaskFailureCode || "auth_failed")) {
       const authError = new Error(meta.failure_message || "Perplexity authentication required.");
       authError.authRequired = true;
       throw authError;

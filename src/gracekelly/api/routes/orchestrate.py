@@ -12,6 +12,7 @@ from uuid import uuid4
 
 from fastapi import APIRouter, File, Form, HTTPException, Path, Query, Request, Response, UploadFile
 
+from gracekelly.api.error_codes import AUTH_SYNC_HTTP_CODE, AUTH_TASK_FAILURE_CODE
 from gracekelly.app_state import get_app_state
 from gracekelly.core.contracts import (
     ATTACHMENT_METADATA_KEY,
@@ -286,13 +287,13 @@ async def orchestrate(payload: OrchestrateRequest, request: Request, response: R
         if (
             snapshot.task.status == TaskStatus.FAILED
             and snapshot.task.failure_code is not None
-            and snapshot.task.failure_code.value == "auth_failed"
+            and snapshot.task.failure_code.value == AUTH_TASK_FAILURE_CODE
         ):
             trace_id = trace_id_from_metadata(snapshot.task.metadata) or trace_id or str(uuid4())
             raise HTTPException(
                 status_code=503,
                 detail={
-                    "code": "model_auth_required",
+                    "code": AUTH_SYNC_HTTP_CODE,
                     "message": snapshot.task.failure_message or "Browser session is not authenticated.",
                     "trace_id": trace_id,
                 },
@@ -471,13 +472,13 @@ async def orchestrate_with_files(
         if (
             snapshot.task.status == TaskStatus.FAILED
             and snapshot.task.failure_code is not None
-            and snapshot.task.failure_code.value == "auth_failed"
+            and snapshot.task.failure_code.value == AUTH_TASK_FAILURE_CODE
         ):
             trace_id = trace_id_from_metadata(snapshot.task.metadata) or trace_id or str(uuid4())
             raise HTTPException(
                 status_code=503,
                 detail={
-                    "code": "model_auth_required",
+                    "code": AUTH_SYNC_HTTP_CODE,
                     "message": snapshot.task.failure_message or "Browser session is not authenticated.",
                     "trace_id": trace_id,
                 },
