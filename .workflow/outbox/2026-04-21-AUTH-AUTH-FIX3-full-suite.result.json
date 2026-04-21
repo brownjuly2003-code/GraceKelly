@@ -1,0 +1,57 @@
+{
+  "task_id": "2026-04-21-AUTH-AUTH-FIX3-full-suite",
+  "status": "success",
+  "files_modified": [
+    ".workflow/outbox/2026-04-21-AUTH-AUTH1-route-auth-mapping.result.json",
+    ".workflow/outbox/2026-04-21-AUTH-AUTH2-ui-auth-banner.result.json",
+    ".workflow/outbox/2026-04-21-AUTH-AUTH1-route-auth-mapping-test-output.log",
+    ".workflow/outbox/2026-04-21-AUTH-AUTH2-ui-auth-banner-test-output.log",
+    ".workflow/outbox/2026-04-21-AUTH-AUTH-FIX3-full-suite-report.md"
+  ],
+  "lint_clean": true,
+  "self_review": {
+    "iterations": 1,
+    "initial_score": 9,
+    "final_score": 9,
+    "improvements": []
+  },
+  "test_battery": {
+    "R1": {
+      "pass": 2571,
+      "fail": 0,
+      "skip": 6
+    },
+    "R2": {
+      "pass": 2571,
+      "fail": 0,
+      "skip": 6,
+      "coverage_pct": 97,
+      "coverage_delta": "+1%"
+    },
+    "R3": {
+      "pass": 0,
+      "fail": 0,
+      "skip": 0
+    },
+    "R4": {
+      "warnings": [
+        "coverage: Couldn't import C tracer: No module named 'coverage.tracer' (no-ctracer)"
+      ]
+    },
+    "R5": {
+      "tests_audited": 0,
+      "kill_confirmed": 0,
+      "kill_failed": 0,
+      "weak_tests": []
+    },
+    "contradictions": []
+  },
+  "visual_check": null,
+  "test_output_hash": "sha256:32d97f189476f2eb19a68418579a396151deaa727ad374e4053b1564c8003529",
+  "roles_executed": [
+    "RUNNER",
+    "AUDITOR"
+  ],
+  "docs_pruned": null,
+  "error": null
+}

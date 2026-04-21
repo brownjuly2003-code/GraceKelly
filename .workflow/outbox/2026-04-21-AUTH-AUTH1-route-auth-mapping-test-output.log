@@ -1,0 +1,27 @@
+[pytest]
+command: python -m pytest --tb=short -q
+output:
+2571 passed, 6 skipped, 11 subtests passed in 418.22s (0:06:58)
+
+[coverage]
+command: python -m coverage run -m pytest --tb=short -q
+output:
+2571 passed, 6 skipped, 11 subtests passed in 572.43s (0:09:32)
+
+[coverage-report]
+command: python -m coverage report
+output:
+TOTAL                                               24572    695    97%
+
+[ruff]
+command: python -m ruff check src tests
+output:
+All checks passed!
+
+[mypy]
+command: python -m mypy src
+output:
+Success: no issues found in 104 source files
+
+[warnings]
+coverage: Couldn't import C tracer: No module named 'coverage.tracer' (no-ctracer)
