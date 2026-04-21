@@ -272,10 +272,19 @@ async def orchestrate(payload: OrchestrateRequest, request: Request, response: R
     try:
         _executor = getattr(state, "browser_executor", None)
         _loop = asyncio.get_running_loop()
-        _coro = _loop.run_in_executor(_executor, service.submit_snapshot, payload)
+        _coro = cast(asyncio.Future[SubmissionSnapshot], _loop.run_in_executor(_executor, service.submit_snapshot, payload))
         try:
             snapshot = await (asyncio.wait_for(_coro, timeout=_timeout) if _timeout else _coro)
         except TimeoutError as exc:
+            _coro.cancel()
+
+            def _consume_timed_out_submission(_future: asyncio.Future[SubmissionSnapshot]) -> None:
+                try:
+                    _future.exception()
+                except BaseException:
+                    return
+
+            _coro.add_done_callback(_consume_timed_out_submission)
             logger.warning(
                 log_message(
                     "orchestrate.timeout",
@@ -452,6 +461,17 @@ async def orchestrate_with_files(
             else:
                 snapshot = await executor_future
         except TimeoutError as exc:
+            executor_future.cancel()
+
+            def _consume_timed_out_submission(
+                _future: asyncio.Future[SubmissionSnapshot],
+            ) -> None:
+                try:
+                    _future.exception()
+                except BaseException:
+                    return
+
+            executor_future.add_done_callback(_consume_timed_out_submission)
             if attachment_token is not None:
                 token = attachment_token
 
