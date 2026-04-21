@@ -1,0 +1,15 @@
+{
+  "task_id": "batch-75-INBOX-cleanup",
+  "status": "completed",
+  "date": "2026-04-21",
+  "moves": [
+    {"from": ".workflow/inbox/2026-04-21-AUTH-fix.md", "to": ".workflow/inbox/Archive/2026-04-21-AUTH-fix.md", "method": "mv"},
+    {"from": ".workflow/inbox/2026-04-21-AUTH-perplexity-overlay.md", "to": ".workflow/inbox/Archive/2026-04-21-AUTH-perplexity-overlay.md", "method": "git mv"},
+    {"from": ".workflow/inbox/2026-04-21-batch-72.md", "to": ".workflow/inbox/Archive/2026-04-21-batch-72.md", "method": "mv"},
+    {"from": ".workflow/inbox/2026-04-21-batch-73.md", "to": ".workflow/inbox/Archive/2026-04-21-batch-73.md", "method": "mv"},
+    {"from": ".workflow/inbox/2026-04-21-batch-74.md", "to": ".workflow/inbox/Archive/2026-04-21-batch-74.md", "method": "mv"},
+    {"from": ".workflow/inbox/2026-04-21-batch-76-rerun.md", "to": ".workflow/inbox/Archive/2026-04-21-batch-76-rerun.md", "method": "mv"}
+  ],
+  "ready_marker": {"before": "2026-04-21-batch-76-rerun", "after_batch": "2026-04-21-batch-75", "after_closure": ""},
+  "deletions": 0
+}
