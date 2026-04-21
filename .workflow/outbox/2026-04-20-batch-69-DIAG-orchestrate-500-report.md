@@ -1,4 +1,5 @@
 # DIAG-orchestrate-500
+Closure status: partial — see decisions/2026-04-21-diag-orchestrate-500.md
 
 ## Files changed
 - `src/gracekelly/api/routes/orchestrate.py`

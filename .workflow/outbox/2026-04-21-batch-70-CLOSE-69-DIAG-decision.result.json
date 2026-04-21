@@ -1,0 +1,59 @@
+{
+  "task_id": "CLOSE-69-DIAG-decision",
+  "status": "success",
+  "files_modified": [
+    ".workflow/outbox/2026-04-20-batch-69-DIAG-orchestrate-500-report.md",
+    ".workflow/decisions/2026-04-21-diag-orchestrate-500.md",
+    ".workflow/inbox/2026-04-21-AUTH-perplexity-overlay.md"
+  ],
+  "lint_clean": true,
+  "self_review": {
+    "iterations": 1,
+    "initial_score": 9,
+    "final_score": 9,
+    "improvements": [
+      "Recorded the DIAG closure decision as a split AUTH follow-up instead of leaving the root-cause shift implicit.",
+      "Marked the original DIAG report as partial and created a dedicated inbox task with an explicit repro."
+    ]
+  },
+  "test_battery": {
+    "R1": {
+      "pass": 2566,
+      "fail": 0,
+      "skip": 6
+    },
+    "R2": {
+      "pass": 2566,
+      "fail": 0,
+      "skip": 6,
+      "coverage_pct": 97,
+      "coverage_delta": "+1%"
+    },
+    "R3": {
+      "pass": 0,
+      "fail": 0,
+      "skip": 0
+    },
+    "R4": {
+      "warnings": []
+    },
+    "R5": {
+      "tests_audited": 0,
+      "kill_confirmed": 0,
+      "kill_failed": 0,
+      "weak_tests": []
+    },
+    "contradictions": []
+  },
+  "visual_check": null,
+  "test_output_hash": "sha256:88bf9b1dda58c6bbfc7765b5e42504a96a224a2d08789783eecdabd49c46a642",
+  "roles_executed": [
+    "IMPLEMENTER",
+    "TEST_AUTHOR",
+    "RUNNER",
+    "ADVERSARY",
+    "AUDITOR"
+  ],
+  "docs_pruned": null,
+  "error": null
+}
