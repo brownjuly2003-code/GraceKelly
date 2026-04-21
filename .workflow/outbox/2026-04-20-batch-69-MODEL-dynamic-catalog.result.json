@@ -1,0 +1,83 @@
+{
+  "task_id": "MODEL-dynamic-catalog",
+  "status": "success",
+  "files_modified": [
+    "src/gracekelly/core/models.py",
+    "src/gracekelly/main.py",
+    "src/gracekelly/adapters/browser/perplexity.py",
+    "src/gracekelly/api/routes/models.py",
+    "src/gracekelly/storage/base.py",
+    "src/gracekelly/storage/memory.py",
+    "src/gracekelly/storage/postgres.py",
+    "src/gracekelly/storage/migrations/0006_add_model_catalog_snapshot.sql",
+    "static/js/app.js",
+    "static/js/model-menu.js",
+    "tests/conftest.py",
+    "tests/test_browser_adapter.py",
+    "tests/test_models_route.py",
+    "tests/test_model_catalog_runtime.py"
+  ],
+  "lint_clean": true,
+  "self_review": {
+    "iterations": 2,
+    "initial_score": 8,
+    "final_score": 9,
+    "improvements": [
+      "Moved browser catalog loading to persisted snapshots plus stable API models instead of hardcoded browser entries.",
+      "Added storage and migration support together with startup refresh and fallback behavior for /api/v1/models.",
+      "Wired the frontend shell to consume live catalog snapshots and covered stale and empty-storage paths with runtime tests."
+    ]
+  },
+  "test_battery": {
+    "R1": {
+      "pass": 2566,
+      "fail": 0,
+      "skip": 6
+    },
+    "R2": {
+      "pass": 2566,
+      "fail": 0,
+      "skip": 6,
+      "coverage_pct": 97,
+      "coverage_delta": "+1%"
+    },
+    "R3": {
+      "pass": 0,
+      "fail": 0,
+      "skip": 0
+    },
+    "R4": {
+      "warnings": []
+    },
+    "R5": {
+      "tests_audited": 0,
+      "kill_confirmed": 0,
+      "kill_failed": 0,
+      "weak_tests": []
+    },
+    "contradictions": []
+  },
+  "visual_check": {
+    "status": "passed",
+    "screenshots": [
+      ".workflow/outbox/screenshots/model-catalog-empty-banner.png",
+      ".workflow/outbox/screenshots/model-catalog-seeded-warning.png",
+      ".workflow/outbox/screenshots/batch-69/ui-1280x800.png",
+      ".workflow/outbox/screenshots/batch-69/ui-1920x1080.png"
+    ],
+    "notes": [
+      "The runtime catalog banner renders both the empty-storage and seeded-warning states.",
+      "Batch-69 UI artifacts were captured after wiring the live catalog into the frontend shell."
+    ]
+  },
+  "test_output_hash": "sha256:88bf9b1dda58c6bbfc7765b5e42504a96a224a2d08789783eecdabd49c46a642",
+  "roles_executed": [
+    "IMPLEMENTER",
+    "TEST_AUTHOR",
+    "RUNNER",
+    "ADVERSARY",
+    "AUDITOR"
+  ],
+  "docs_pruned": null,
+  "error": null
+}
