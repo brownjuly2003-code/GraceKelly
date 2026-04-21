@@ -283,6 +283,21 @@ async def orchestrate(payload: OrchestrateRequest, request: Request, response: R
                 )
             )
             raise HTTPException(status_code=504, detail="Orchestration request timed out.") from exc
+        if (
+            snapshot.task.status == TaskStatus.FAILED
+            and snapshot.task.failure_code is not None
+            and snapshot.task.failure_code.value == "auth_failed"
+        ):
+            trace_id = trace_id_from_metadata(snapshot.task.metadata) or trace_id or str(uuid4())
+            raise HTTPException(
+                status_code=503,
+                detail={
+                    "code": "model_auth_required",
+                    "message": snapshot.task.failure_message or "Browser session is not authenticated.",
+                    "trace_id": trace_id,
+                },
+                headers={"x-trace-id": trace_id},
+            )
         try:
             requested_models = _requested_models_from_request(payload)
         except ValueError:
@@ -453,6 +468,21 @@ async def orchestrate_with_files(
                 )
             )
             raise HTTPException(status_code=504, detail="Orchestration request timed out.") from exc
+        if (
+            snapshot.task.status == TaskStatus.FAILED
+            and snapshot.task.failure_code is not None
+            and snapshot.task.failure_code.value == "auth_failed"
+        ):
+            trace_id = trace_id_from_metadata(snapshot.task.metadata) or trace_id or str(uuid4())
+            raise HTTPException(
+                status_code=503,
+                detail={
+                    "code": "model_auth_required",
+                    "message": snapshot.task.failure_message or "Browser session is not authenticated.",
+                    "trace_id": trace_id,
+                },
+                headers={"x-trace-id": trace_id},
+            )
         try:
             requested_models = _requested_models_from_request(payload)
         except ValueError:

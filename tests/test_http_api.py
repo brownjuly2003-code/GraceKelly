@@ -1445,18 +1445,26 @@ class HttpApiSmokeTests(unittest.TestCase):
                 "prompt": "browser auth failure",
                 "model": "Kimi K2",
                 "dry_run": False,
+                "metadata": {"trace_id": "auth-trace-1"},
             },
         )
 
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, 503)
         payload = response.json()
-        self.assertEqual(payload["status"], "failed")
-        self.assertEqual(payload["adapter_name"], "browser.perplexity")
-        self.assertEqual(payload["failure_code"], "auth_failed")
+        self.assertEqual(payload["detail"]["code"], "model_auth_required")
+        self.assertEqual(payload["detail"]["message"], "Scripted browser session is logged out.")
+        self.assertEqual(payload["detail"]["trace_id"], "auth-trace-1")
 
-        task = client.get(f"/api/v1/tasks/{payload['task_id']}")
+        recent = client.get("/api/v1/tasks", params={"limit": 1})
+        self.assertEqual(recent.status_code, 200)
+        task_id = recent.json()[0]["task_id"]
+
+        task = client.get(f"/api/v1/tasks/{task_id}")
         self.assertEqual(task.status_code, 200)
         task_payload = task.json()
+        self.assertEqual(task_payload["status"], "failed")
+        self.assertEqual(task_payload["failure_code"], "auth_failed")
+        self.assertEqual(task_payload["metadata"]["trace_id"], "auth-trace-1")
         self.assertEqual(task_payload["steps"][0]["failure_code"], "auth_failed")
         self.assertEqual(
             [event["event_type"] for event in task_payload["events"]],
@@ -1474,6 +1482,55 @@ class HttpApiSmokeTests(unittest.TestCase):
         self.assertTrue(task_payload["events"][1]["payload"]["details"]["configured"])
         self.assertEqual(task_payload["events"][2]["payload"]["details"]["failure_codes"], ["auth_failed"])
         self.assertEqual(task_payload["events"][2]["payload"]["details"]["failed_step_count"], 1)
+
+    def test_browser_auth_failure_stream_persists_trace_id_for_task_polling(self) -> None:
+        app = create_app(
+            Settings(
+                env="test",
+                host="127.0.0.1",
+                port=8011,
+                log_level="INFO",
+                storage_backend="memory",
+                postgres_dsn=None,
+                execution_profile="hybrid",
+                mistral_api_key=None,
+                mistral_base_url="https://api.mistral.ai/v1",
+                mistral_timeout_seconds=1.0,
+                browser_enabled=True,
+                browser_automation_backend="scripted",
+                browser_profile_dir="D:\\Profiles\\GraceKelly",
+                browser_base_url="https://www.perplexity.ai",
+                browser_scripted_logged_in=False,
+                browser_scripted_model_label="Kimi K2",
+                browser_scripted_output_text="unused",
+            )
+        )
+        client = TestClient(app)
+
+        response = client.post(
+            "/api/v1/orchestrate/stream",
+            json={
+                "prompt": "browser auth stream failure",
+                "model": "Kimi K2",
+                "dry_run": False,
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        task_id = next(
+            json.loads(line.removeprefix("data: "))["task_id"]
+            for line in response.text.splitlines()
+            if line.startswith("data: ") and '"task_id"' in line
+        )
+
+        task = client.get(f"/api/v1/tasks/{task_id}")
+
+        self.assertEqual(task.status_code, 200)
+        task_payload = task.json()
+        self.assertEqual(task_payload["status"], "failed")
+        self.assertEqual(task_payload["failure_code"], "auth_failed")
+        self.assertIn("trace_id", task_payload["metadata"])
+        self.assertTrue(task_payload["metadata"]["trace_id"])
 
 
     def test_retry_failed_task_creates_new_task_with_linkage(self) -> None:

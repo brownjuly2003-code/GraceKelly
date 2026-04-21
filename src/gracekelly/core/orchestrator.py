@@ -122,6 +122,13 @@ class OrchestratorService:
                 )
             else:
                 batch_result = self._execution_router.execute(task_id=task_id, prompt=active_request.prompt, plan=execution_plan, reasoning=request.reasoning, metadata=dict(request.metadata))
+        if (
+            batch_result.failure_code is not None
+            and batch_result.failure_code.value == "auth_failed"
+            and trace_id is None
+        ):
+            trace_id = str(uuid4())
+            base_task["metadata"] = {**dict(request.metadata), "trace_id": trace_id}
         completed_at = datetime.now(UTC)
         duration_ms = max(0, int((completed_at - accepted_at).total_seconds() * 1000))
         task = TaskRecord(status=batch_result.task_status, completed_at=completed_at, duration_ms=duration_ms, execution_mode=batch_result.execution_mode, failure_code=batch_result.failure_code, failure_message=batch_result.failure_message, output_text=batch_result.output_text, was_decomposed=was_decomposed, subtask_count=subtask_count, **cast(Any, base_task))

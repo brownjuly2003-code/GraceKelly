@@ -17,6 +17,7 @@ from gracekelly.core.contracts import (
     ExecutionPlan,
     ExecutionRequest,
     ExecutionResult,
+    FailureCode,
     MergeStrategy,
     StepStatus,
     TaskStatus,
@@ -443,6 +444,46 @@ class OrchestratorServiceTests(unittest.TestCase):
         self.assertEqual(events[-1].payload["details"]["adapter_names"], ["api.mistral"])
         self.assertEqual(events[-1].payload["details"]["failed_step_count"], 1)
         self.assertEqual(events[-1].payload["details"]["failure_codes"], ["provider_unavailable"])
+
+    def test_submit_snapshot_generates_trace_id_for_auth_failed_task_without_metadata(self) -> None:
+        class FakeBrowserAdapter(ExecutionAdapter):
+            name = "browser.perplexity"
+
+            def execute(self, request: ExecutionRequest) -> ExecutionResult:
+                return ExecutionResult(
+                    adapter_name=self.name,
+                    model_id=request.step.model.id,
+                    model_display_name=request.step.model.display_name,
+                    execution_mode=ExecutionMode.BROWSER,
+                    status=StepStatus.FAILED,
+                    failure_code=FailureCode.AUTH_FAILED,
+                    failure_message="Perplexity sign-in overlay blocked prompt submission.",
+                    details={"provider": "perplexity"},
+                )
+
+        service = OrchestratorService(
+            self.repository,
+            execution_router=ExecutionRouter(
+                dry_run_adapter=DryRunExecutionAdapter(),
+                browser_adapter=FakeBrowserAdapter(),
+            ),
+        )
+
+        snapshot = service.submit_snapshot(
+            OrchestrateRequest(
+                prompt="browser auth",
+                model="Kimi K2",
+                dry_run=False,
+            )
+        )
+
+        self.assertEqual(snapshot.task.status, TaskStatus.FAILED)
+        self.assertEqual(snapshot.task.failure_code, FailureCode.AUTH_FAILED)
+        self.assertIn("trace_id", snapshot.task.metadata)
+        self.assertTrue(snapshot.task.metadata["trace_id"])
+        persisted = self.repository.get(snapshot.task.task_id)
+        assert persisted is not None
+        self.assertEqual(persisted.metadata["trace_id"], snapshot.task.metadata["trace_id"])
 
     def test_submit_raises_storage_unavailable_when_persistence_fails(self) -> None:
         class FailingRepository(InMemoryTaskRepository):
