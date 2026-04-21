@@ -1,0 +1,5 @@
+API key authentication is not configured — all endpoints are open
+INFO:     Started server process [25168]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:8011 (Press CTRL+C to quit)

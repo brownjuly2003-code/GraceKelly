@@ -1,0 +1,67 @@
+{
+  "task_id": "2026-04-21-batch-73-SMOKE-perplexity-live-200-rerun",
+  "status": "success",
+  "files_modified": [
+    ".workflow/outbox/2026-04-21-batch-73-SMOKE-report.md",
+    ".workflow/outbox/2026-04-21-batch-73-SMOKE-server.log",
+    ".workflow/outbox/screenshots/batch-73/before-1280x800.png",
+    ".workflow/outbox/screenshots/batch-73/after-1280x800.png"
+  ],
+  "lint_clean": true,
+  "self_review": {
+    "iterations": 1,
+    "initial_score": 8,
+    "final_score": 8,
+    "improvements": [
+      "Selected the browser model dynamically from live /api/v1/models before issuing the real orchestrate call.",
+      "Verified teardown with a 10-second delayed chrome-profile process scan after shutting down uvicorn."
+    ]
+  },
+  "test_battery": {
+    "R1": {
+      "pass": 1,
+      "fail": 0,
+      "skip": 0
+    },
+    "R2": {
+      "pass": 1,
+      "fail": 0,
+      "skip": 0
+    },
+    "R3": {
+      "pass": 1,
+      "fail": 0,
+      "skip": 0
+    },
+    "R4": {
+      "warnings": [
+        "The stock uvicorn launch did not emit the model_catalog.ready INFO line because gracekelly.main logger.info is not surfaced by the current runtime logging setup."
+      ]
+    },
+    "R5": {
+      "tests_audited": 1,
+      "kill_confirmed": 1,
+      "kill_failed": 0,
+      "weak_tests": []
+    },
+    "contradictions": []
+  },
+  "visual_check": {
+    "status": "passed",
+    "screenshots": [
+      ".workflow/outbox/screenshots/batch-73/before-1280x800.png",
+      ".workflow/outbox/screenshots/batch-73/after-1280x800.png"
+    ],
+    "notes": [
+      "Frontend stream flow rendered assistant text OK after the live browser-backed request.",
+      "No auth banner was shown during the UI smoke."
+    ]
+  },
+  "test_output_hash": "sha256:010f6d11fb5a8c19d323673362f287f776fb92a7cd0627abfb9b5dfe6785780e",
+  "roles_executed": [
+    "RUNNER",
+    "AUDITOR"
+  ],
+  "docs_pruned": null,
+  "error": null
+}

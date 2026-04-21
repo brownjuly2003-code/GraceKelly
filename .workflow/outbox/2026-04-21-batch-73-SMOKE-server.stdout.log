@@ -1,0 +1,16 @@
+INFO:     127.0.0.1:4157 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:4164 - "GET /api/v1/models HTTP/1.1" 200 OK
+INFO:     127.0.0.1:4164 - "POST /api/v1/orchestrate HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56573 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55881 - "GET /css/fonts.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:20735 - "GET /css/style.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53727 - "GET /js/api.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17999 - "GET /js/model-menu.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:10992 - "GET /js/app.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:16867 - "GET /js/threads.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55881 - "GET /js/chat.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55881 - "GET /api/v1/health HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:55881 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55881 - "GET /api/v1/models HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55881 - "POST /api/v1/orchestrate/stream HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55881 - "GET /api/v1/tasks/77783405-545a-47e1-8ef9-a3db2b542dfe HTTP/1.1" 200 OK
