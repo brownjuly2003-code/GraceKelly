@@ -1,0 +1,28 @@
+{
+  "task_id": "2026-04-21-batch-74-FLAKY-postgres-test-triage",
+  "status": "partial",
+  "files_modified": [],
+  "lint_clean": true,
+  "self_review": {
+    "iterations": 0,
+    "initial_score": 5,
+    "final_score": 5,
+    "improvements": [
+      "Confirmed isolation passes (31/31), narrowing root cause to cross-test state leak",
+      "Plan drafted: collect order → bisect → identify leaking test → teardown fix"
+    ]
+  },
+  "test_battery": {
+    "R1": {"pass": 2572, "fail": 1, "skip": 6},
+    "R2": {"pass": 2572, "fail": 1, "skip": 6, "coverage_pct": 97, "coverage_delta": null},
+    "R3": {"pass": 0, "fail": 0, "skip": 0},
+    "R4": {"warnings": ["Full-suite run is red on a pre-existing flake — NOT introduced by this batch"]},
+    "R5": {"tests_audited": 0, "kill_confirmed": 0, "kill_failed": 0, "weak_tests": ["test_import_postgres_tool.py::test_main_rejects_checksum_mismatch"]},
+    "contradictions": ["Isolated run green, full-suite run red on one test"]
+  },
+  "visual_check": null,
+  "test_output_hash": null,
+  "roles_executed": ["AUDITOR"],
+  "docs_pruned": null,
+  "error": "Root cause not yet identified; triaged and plan drafted."
+}
