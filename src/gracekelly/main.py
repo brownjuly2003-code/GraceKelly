@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import inspect
 import logging
 import pathlib
@@ -20,7 +21,11 @@ from gracekelly.adapters.api.mistral import MistralApiAdapter
 from gracekelly.adapters.api.openai_compat import OpenAICompatibleApiAdapter
 from gracekelly.adapters.browser.automation import BrowserAutomationPort, NullBrowserAutomation
 from gracekelly.adapters.browser.perplexity import PerplexityBrowserAdapter
-from gracekelly.adapters.browser.playwright_driver import PlaywrightBrowserAutomation, PlaywrightBrowserRuntimeConfig
+from gracekelly.adapters.browser.playwright_driver import (
+    PlaywrightBrowserAutomation,
+    PlaywrightBrowserRuntimeConfig,
+    _profile_is_locked,
+)
 from gracekelly.adapters.browser.policy import (
     AuthRecoveryPolicy,
     ModelVerificationPolicy,
@@ -222,7 +227,7 @@ def _catalog_refresh_adapter(app: FastAPI) -> object | None:
     return None
 
 
-def _initialize_model_catalog(app: FastAPI) -> None:
+async def _initialize_model_catalog_async(app: FastAPI) -> None:
     repository = getattr(app.state, "task_repository", None)
     snapshot = _repository_model_catalog_snapshot(repository)
     now = datetime.now(UTC)
@@ -233,7 +238,7 @@ def _initialize_model_catalog(app: FastAPI) -> None:
         return
 
     try:
-        labels = _refresh_model_catalog_labels(_catalog_refresh_adapter(app))
+        labels = await asyncio.to_thread(_refresh_model_catalog_labels, _catalog_refresh_adapter(app))
         if not labels:
             raise RuntimeError("Browser adapter cannot refresh the model catalog.")
         snapshot = build_browser_catalog(
@@ -265,7 +270,24 @@ def _initialize_model_catalog(app: FastAPI) -> None:
 
 @asynccontextmanager
 async def app_lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
-    _initialize_model_catalog(app)
+    active_settings = getattr(app.state, "settings", None)
+    if isinstance(active_settings, Settings) and active_settings.browser_enabled and active_settings.browser_profile_dir:
+        profile_dir = active_settings.browser_profile_dir
+        normalized_profile_dir = profile_dir.replace("\\", "/").lower()
+        if (
+            normalized_profile_dir.endswith("/default")
+            and (
+                "appdata/local/google/chrome/user data" in normalized_profile_dir
+                or "library/application support/google/chrome" in normalized_profile_dir
+                or ".config/google-chrome" in normalized_profile_dir
+            )
+        ) or _profile_is_locked(profile_dir):
+            raise RuntimeError(
+                "BROWSER_PROFILE_DIR points to a live Chrome profile "
+                f"('{profile_dir}'). Use a dedicated directory (see .env.example). "
+                "Example: `python scripts/bootstrap_chrome_profile.py`"
+            )
+    await _initialize_model_catalog_async(app)
     yield
     logger.info("Shutting down — releasing resources")
     browser_adapter = getattr(app.state, "browser_adapter", None)
@@ -292,6 +314,12 @@ async def app_lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 def create_app(app_settings: Settings | None = None) -> FastAPI:
     active_settings = app_settings or settings
     active_settings.validate()
+    gracekelly_logger = logging.getLogger("gracekelly")
+    gracekelly_logger.setLevel(active_settings.log_level.upper())
+    if not gracekelly_logger.handlers and not logging.getLogger().hasHandlers():
+        handler = logging.StreamHandler()
+        handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(name)s: %(message)s"))
+        gracekelly_logger.addHandler(handler)
 
     app = FastAPI(
         title="GraceKelly",

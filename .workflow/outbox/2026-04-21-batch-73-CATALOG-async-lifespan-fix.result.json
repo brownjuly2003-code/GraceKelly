@@ -1,0 +1,57 @@
+{
+  "task_id": "2026-04-21-batch-73-CATALOG-async-lifespan-fix",
+  "status": "success",
+  "files_modified": [
+    "src/gracekelly/main.py",
+    "tests/test_app_startup.py"
+  ],
+  "lint_clean": true,
+  "self_review": {
+    "iterations": 1,
+    "initial_score": 9,
+    "final_score": 9,
+    "improvements": [
+      "Moved sync catalog refresh off the startup event loop with asyncio.to_thread.",
+      "Added an async startup regression test that reproduces the Playwright sync guard."
+    ]
+  },
+  "test_battery": {
+    "R1": {
+      "pass": 7,
+      "fail": 0,
+      "skip": 0
+    },
+    "R2": {
+      "pass": 2572,
+      "fail": 0,
+      "skip": 6
+    },
+    "R3": {
+      "pass": 0,
+      "fail": 0,
+      "skip": 0
+    },
+    "R4": {
+      "warnings": [
+        "mypy emitted a pyproject note about unused module sections for test files, but reported no type errors."
+      ]
+    },
+    "R5": {
+      "tests_audited": 1,
+      "kill_confirmed": 0,
+      "kill_failed": 0,
+      "weak_tests": []
+    },
+    "contradictions": []
+  },
+  "visual_check": false,
+  "test_output_hash": "sha256:08de59c69eaf4dbc2afb18705a99f7af4e5329da88def2755fcf4fbec4e2912b",
+  "roles_executed": [
+    "IMPLEMENTER",
+    "TEST_AUTHOR",
+    "RUNNER",
+    "AUDITOR"
+  ],
+  "docs_pruned": null,
+  "error": null
+}
