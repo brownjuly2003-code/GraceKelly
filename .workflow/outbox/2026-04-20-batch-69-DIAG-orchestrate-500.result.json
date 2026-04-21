@@ -1,0 +1,63 @@
+{
+  "task_id": "DIAG-orchestrate-500",
+  "status": "success",
+  "files_modified": [
+    "src/gracekelly/api/routes/orchestrate.py",
+    "src/gracekelly/adapters/browser/playwright_driver.py",
+    "src/gracekelly/core/orchestrator.py",
+    "tests/test_http_api.py",
+    "tests/test_orchestrator.py",
+    "tests/test_playwright_driver.py"
+  ],
+  "lint_clean": true,
+  "self_review": {
+    "iterations": 2,
+    "initial_score": 8,
+    "final_score": 9,
+    "improvements": [
+      "Added structured unknown-error fallback with trace_id to the orchestrate routes.",
+      "Converted Perplexity sign-in overlays during model selection into explicit PermissionError failures.",
+      "Kept browser-only live-plan execution inline in submit_snapshot so the DIAG path exercises the real browser adapter failure mode."
+    ]
+  },
+  "test_battery": {
+    "R1": {
+      "pass": 2566,
+      "fail": 0,
+      "skip": 6
+    },
+    "R2": {
+      "pass": 2566,
+      "fail": 0,
+      "skip": 6,
+      "coverage_pct": 97,
+      "coverage_delta": "+1%"
+    },
+    "R3": {
+      "pass": 0,
+      "fail": 0,
+      "skip": 0
+    },
+    "R4": {
+      "warnings": []
+    },
+    "R5": {
+      "tests_audited": 0,
+      "kill_confirmed": 0,
+      "kill_failed": 0,
+      "weak_tests": []
+    },
+    "contradictions": []
+  },
+  "visual_check": null,
+  "test_output_hash": "sha256:88bf9b1dda58c6bbfc7765b5e42504a96a224a2d08789783eecdabd49c46a642",
+  "roles_executed": [
+    "IMPLEMENTER",
+    "TEST_AUTHOR",
+    "RUNNER",
+    "ADVERSARY",
+    "AUDITOR"
+  ],
+  "docs_pruned": null,
+  "error": null
+}
