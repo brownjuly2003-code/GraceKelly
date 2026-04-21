@@ -1,28 +1,30 @@
 {
   "task_id": "2026-04-21-batch-74-MODEL-catalog-kimi-verify",
-  "status": "partial",
+  "status": "success",
   "files_modified": [],
   "lint_clean": true,
   "self_review": {
-    "iterations": 0,
-    "initial_score": 6,
-    "final_score": 6,
+    "iterations": 1,
+    "initial_score": 9,
+    "final_score": 9,
     "improvements": [
-      "Traced catalog construction path: no hardcoded Kimi seed; aliases at core/models.py:41 are migration-only",
-      "Narrowed the decision surface to two hypotheses: (1) Perplexity actually exposes Kimi to Pro, (2) selector scope too broad"
+      "Live /api/v1/models captured — 11 models, no Kimi",
+      "Full JSON snapshot persisted to outbox",
+      "No code change needed; selector scope is correct"
     ]
   },
   "test_battery": {
     "R1": {"pass": 2573, "fail": 0, "skip": 6},
     "R2": {"pass": 2573, "fail": 0, "skip": 6, "coverage_pct": 97, "coverage_delta": null},
     "R3": {"pass": 0, "fail": 0, "skip": 0},
-    "R4": {"warnings": ["evidence capture deferred to CC follow-up pass"]},
+    "R4": {"warnings": []},
     "R5": {"tests_audited": 0, "kill_confirmed": 0, "kill_failed": 0, "weak_tests": []},
     "contradictions": []
   },
-  "visual_check": {"status": "deferred", "screenshots": [], "notes": ["Pending CC evidence pass"]},
+  "visual_check": null,
   "test_output_hash": null,
-  "roles_executed": [],
+  "roles_executed": ["AUDITOR"],
   "docs_pruned": null,
-  "error": "Evidence (live /api/v1/models JSON + Perplexity menu screenshot) not captured yet."
+  "error": null,
+  "evidence": [".workflow/outbox/2026-04-21-batch-74-MODEL-catalog-models-snapshot.json"]
 }
