@@ -1,0 +1,910 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>English Practice</title>
+    <link rel="stylesheet" href="/css/fonts.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg-primary: #ffffff;
+            --text-primary: #111827;
+            --text-secondary: #6b7280;
+            --text-muted: #9ca3af;
+            --accent: #f97316;
+            --accent-hover: #ea580c;
+            --accent-dim: rgba(249, 115, 22, 0.08);
+            --success: #10b981;
+            --error: #ef4444;
+            --warning: #f59e0b;
+            --border: #e5e7eb;
+        }
+
+        body {
+            font-family: 'Source Sans Pro', sans-serif;
+            font-weight: 300;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+
+        .app {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        header h1 {
+            font-family: 'Playfair Display', serif;
+            font-size: 2.2rem;
+            font-weight: 400;
+            margin-bottom: 8px;
+            color: var(--accent);
+        }
+
+        header p {
+            color: var(--text-muted);
+            font-size: 15px;
+            font-weight: 300;
+        }
+
+        /* Settings */
+        .settings {
+            margin-bottom: 24px;
+            padding-bottom: 24px;
+        }
+
+        .settings-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .setting label {
+            display: block;
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-weight: 400;
+        }
+
+        .setting select {
+            width: 100%;
+            padding: 10px 14px;
+            background: transparent;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text-primary);
+            font-size: 14px;
+            font-family: 'Source Sans Pro', sans-serif;
+            font-weight: 300;
+            cursor: pointer;
+            transition: border-color 0.2s;
+        }
+
+        .setting select:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        /* Status */
+        .status {
+            border-left: 2px solid var(--accent);
+            padding: 10px 16px;
+            margin-bottom: 24px;
+        }
+
+        .status-text {
+            font-size: 15px;
+            font-weight: 400;
+            color: var(--text-primary);
+        }
+
+        .status-subtext {
+            color: var(--text-muted);
+            font-size: 13px;
+            font-weight: 300;
+            margin-top: 2px;
+        }
+
+        /* Controls */
+        .controls {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+
+        button {
+            flex: 1;
+            padding: 8px;
+            font-size: 14px;
+            font-weight: 400;
+            font-family: 'Source Sans Pro', sans-serif;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        button:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        .btn-primary {
+            background: var(--accent);
+            color: white;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            background: var(--accent-hover);
+        }
+
+        .btn-secondary {
+            background: var(--bg-secondary, #f3f4f6);
+            color: var(--text-secondary);
+        }
+
+        .btn-secondary:hover:not(:disabled) {
+            color: var(--accent);
+        }
+
+        /* Listening indicator */
+        .listening {
+            border-left: 3px solid var(--accent);
+            border-radius: 0;
+            padding: 16px;
+            margin-bottom: 24px;
+            display: none;
+        }
+
+        .listening.active {
+            display: block;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .listening-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        .pulse {
+            width: 10px;
+            height: 10px;
+            background: var(--accent);
+            border-radius: 50%;
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.4; transform: scale(1.2); }
+        }
+
+        .listening-label {
+            font-size: 13px;
+            color: var(--accent);
+            font-weight: 400;
+        }
+
+        .transcript {
+            background: var(--accent-dim);
+            border-radius: 6px;
+            padding: 12px 14px;
+            min-height: 48px;
+            color: var(--text-muted);
+            font-size: 14px;
+            font-weight: 300;
+        }
+
+        .transcript.has-text {
+            color: var(--text-primary);
+        }
+
+        /* Chat */
+        .chat {
+            margin-bottom: 24px;
+            max-height: 420px;
+            overflow-y: auto;
+            padding: 8px 0;
+        }
+
+        .chat::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        .chat::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .chat::-webkit-scrollbar-thumb {
+            background: var(--border);
+            border-radius: 2px;
+        }
+
+        .chat-empty {
+            text-align: center;
+            color: var(--text-muted);
+            padding: 50px 20px;
+            font-size: 14px;
+            font-weight: 300;
+        }
+
+        .message {
+            margin-bottom: 16px;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(6px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .message.ai {
+            padding-right: 60px;
+        }
+
+        .message.user {
+            padding-left: 60px;
+            text-align: right;
+        }
+
+        .message-label {
+            font-size: 10px;
+            color: var(--text-muted);
+            margin-bottom: 4px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-weight: 400;
+        }
+
+        .message-bubble {
+            display: inline-block;
+            padding: 12px 16px;
+            border-radius: 12px 12px 12px 4px;
+            max-width: 100%;
+            text-align: left;
+            font-size: 14px;
+            font-weight: 300;
+            line-height: 1.7;
+        }
+
+        .message.ai .message-bubble {
+            background: var(--accent-dim);
+        }
+
+        .message.user .message-bubble {
+            background: var(--accent);
+            color: white;
+            border-radius: 12px 12px 4px 12px;
+        }
+
+        /* Analysis */
+        .analysis {
+            padding-top: 24px;
+            display: none;
+            margin-bottom: 24px;
+        }
+
+        .analysis.show {
+            display: block;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .analysis h3 {
+            font-family: 'Playfair Display', serif;
+            margin-bottom: 16px;
+            font-size: 18px;
+            font-weight: 400;
+            color: var(--accent);
+        }
+
+        .analysis-content {
+            line-height: 1.8;
+            color: var(--text-secondary);
+            font-size: 14px;
+            font-weight: 300;
+        }
+
+        .analysis-content h2 {
+            font-family: 'Playfair Display', serif;
+            color: var(--text-primary);
+            font-size: 16px;
+            font-weight: 400;
+            margin: 20px 0 10px 0;
+        }
+
+        .analysis-content h2:first-child {
+            margin-top: 0;
+        }
+
+        .analysis-content strong,
+        .analysis-content b {
+            color: var(--text-primary);
+            font-weight: 400;
+        }
+
+        .analysis-loading {
+            text-align: center;
+            padding: 24px;
+            color: var(--accent);
+            font-weight: 300;
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 18px;
+            height: 18px;
+            border: 2px solid var(--border);
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin-right: 10px;
+            vertical-align: middle;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Footer */
+        .main-footer {
+            display: flex;
+            gap: 24px;
+            justify-content: center;
+            padding: 24px 0;
+            margin-top: 36px;
+            font-size: 14px;
+        }
+
+        .main-footer a {
+            color: var(--accent);
+            text-decoration: none;
+            font-weight: 300;
+        }
+
+        .main-footer a:hover {
+            color: var(--accent-hover);
+        }
+
+        /* Mobile */
+        @media (max-width: 600px) {
+            .app {
+                padding: 24px 16px;
+            }
+
+            header h1 {
+                font-size: 1.8rem;
+            }
+
+            .settings-row {
+                grid-template-columns: 1fr;
+            }
+
+            .message.ai,
+            .message.user {
+                padding-left: 0;
+                padding-right: 0;
+            }
+        }
+        /* Dark mode */
+        .dark-mode-toggle {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            transition: all 0.2s;
+        }
+
+        body.dark-mode {
+            --bg-primary: #1a1a1a;
+            --bg-secondary: #2d2d2d;
+            --bg-tertiary: #404040;
+            --text-primary: #e4e4e4;
+            --text-secondary: #a0a0a0;
+            --text-muted: #6b7280;
+            --border: #404040;
+            --accent-dim: rgba(249, 115, 22, 0.12);
+        }
+        body.dark-mode .dark-mode-toggle { background: transparent; }
+        body.dark-mode textarea, body.dark-mode input { background: #2d2d2d; border-color: #404040; color: var(--text-primary); }
+    </style>
+</head>
+<body>
+    <div class="app">
+        <header>
+            <h1>English Practice</h1>
+            <p>Conversation practice with AI</p>
+        </header>
+
+        <div class="settings">
+            <div class="settings-row">
+                <div class="setting">
+                    <label>Topic</label>
+                    <select id="topic">
+                        <option value="casual">Casual chat</option>
+                        <option value="work">Work & career</option>
+                        <option value="travel">Travel</option>
+                        <option value="tech">Technology</option>
+                        <option value="hobbies">Hobbies & interests</option>
+                    </select>
+                </div>
+                <div class="setting">
+                    <label>Speech rate</label>
+                    <select id="rate">
+                        <option value="0.8">Slow</option>
+                        <option value="1" selected>Normal</option>
+                        <option value="1.2">Fast</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <div class="status" id="status">
+            <div class="status-text">Ready</div>
+            <div class="status-subtext">Click Start to begin</div>
+        </div>
+
+        <div class="controls">
+            <button class="btn-primary" id="startBtn">Start</button>
+            <button class="btn-secondary" id="stopBtn" disabled>Stop & Analyze</button>
+            <button class="btn-secondary" id="clearBtn" onclick="clearHistory()">Clear History</button>
+        </div>
+
+        <div class="listening" id="listening">
+            <div class="listening-header">
+                <div class="pulse"></div>
+                <span class="listening-label">Listening...</span>
+            </div>
+            <div class="transcript" id="transcript">Start speaking...</div>
+        </div>
+
+        <div class="chat" id="chat">
+            <div class="chat-empty">Your conversation will appear here</div>
+        </div>
+
+        <div class="analysis" id="analysis">
+            <h3>Analysis</h3>
+            <div class="analysis-content" id="analysisContent"></div>
+        </div>
+
+        <footer class="main-footer">
+            <a href="/">Home</a>
+            <a href="/interview.html">Interview Trainer</a>
+            <a href="/analytics.html">Analytics</a>
+            <a href="/webpage.html">Page Builder</a>
+            <a href="/rag.html">RAG Assistant</a>
+            <a href="/docs">API Documentation</a>
+        </footer>
+    </div>
+
+    <script>
+        // Dark mode toggle
+        (function() {
+            const saved = localStorage.getItem('darkMode');
+            if (saved === 'true') document.body.classList.add('dark-mode');
+            const toggle = document.createElement('button');
+            toggle.className = 'dark-mode-toggle';
+            toggle.innerHTML = saved === 'true' ? '☀️' : '🌙';
+            toggle.title = 'Toggle dark mode';
+            toggle.addEventListener('click', () => {
+                document.body.classList.toggle('dark-mode');
+                const isDark = document.body.classList.contains('dark-mode');
+                localStorage.setItem('darkMode', isDark);
+                toggle.innerHTML = isDark ? '☀️' : '🌙';
+            });
+            document.body.appendChild(toggle);
+        })();
+
+        // API URL
+        const API_URL = '/api/english';
+
+        // State
+        let recognition;
+        let synthesis = window.speechSynthesis;
+        let isActive = false;
+        let conversationHistory = loadHistory();
+        let userResponses = [];
+        let silenceTimer;
+        let finalText = '';
+
+        // Load conversation history from localStorage
+        function loadHistory() {
+            try {
+                const saved = localStorage.getItem('english_conversation');
+                return saved ? JSON.parse(saved) : [];
+            } catch (e) {
+                console.error('Error loading history:', e);
+                return [];
+            }
+        }
+
+        // Save conversation history to localStorage
+        function saveHistory() {
+            try {
+                localStorage.setItem('english_conversation', JSON.stringify(conversationHistory));
+            } catch (e) {
+                console.error('Error saving history:', e);
+            }
+        }
+
+        // Clear conversation history
+        function clearHistory() {
+            if (confirm('Clear all conversation history?')) {
+                conversationHistory = [];
+                userResponses = [];
+                localStorage.removeItem('english_conversation');
+                chat.innerHTML = '<div class="chat-empty">Your conversation will appear here</div>';
+                analysis.classList.remove('show');
+            }
+        }
+
+        // DOM
+        const status = document.getElementById('status');
+        const startBtn = document.getElementById('startBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        const listening = document.getElementById('listening');
+        const transcript = document.getElementById('transcript');
+        const chat = document.getElementById('chat');
+        const analysis = document.getElementById('analysis');
+        const analysisContent = document.getElementById('analysisContent');
+        const topicSelect = document.getElementById('topic');
+        const rateSelect = document.getElementById('rate');
+
+        // Initialize Speech Recognition
+        function initRecognition() {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+            if (!SpeechRecognition) {
+                updateStatus('Not supported', 'Use Chrome or Edge browser');
+                startBtn.disabled = true;
+                return false;
+            }
+
+            recognition = new SpeechRecognition();
+            recognition.lang = 'en-US';
+            recognition.continuous = true;
+            recognition.interimResults = true;
+
+            recognition.onresult = handleRecognitionResult;
+            recognition.onerror = handleRecognitionError;
+            recognition.onend = () => {
+                if (isActive) {
+                    try { recognition.start(); } catch (e) {}
+                }
+            };
+
+            return true;
+        }
+
+        // Update status display
+        function updateStatus(text, subtext) {
+            status.innerHTML = `
+                <div class="status-text">${text}</div>
+                <div class="status-subtext">${subtext || ''}</div>
+            `;
+        }
+
+        // Add message to chat
+        function addMessage(sender, text) {
+            const isAI = sender === 'AI';
+
+            // Remove empty state
+            const empty = chat.querySelector('.chat-empty');
+            if (empty) empty.remove();
+
+            const div = document.createElement('div');
+            div.className = `message ${isAI ? 'ai' : 'user'}`;
+            div.innerHTML = `
+                <div class="message-label">${sender}</div>
+                <div class="message-bubble">${text}</div>
+            `;
+            chat.appendChild(div);
+            chat.scrollTop = chat.scrollHeight;
+        }
+
+        // Get AI response
+        async function getAIResponse(userMessage) {
+            try {
+                const response = await fetch(`${API_URL}/respond`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        message: userMessage,
+                        topic: topicSelect.value,
+                        history: conversationHistory.slice(-6)
+                    })
+                });
+
+                if (!response.ok) {
+                    const err = await response.json();
+                    throw new Error(err.detail || 'API error');
+                }
+
+                const data = await response.json();
+
+                // Save to history
+                if (userMessage) {
+                    conversationHistory.push({ role: 'user', content: userMessage });
+                }
+                conversationHistory.push({ role: 'assistant', content: data.response });
+
+                // Persist to localStorage
+                saveHistory();
+
+                // Display
+                addMessage('AI', data.response);
+
+                // Speak
+                await speak(data.response);
+
+                // Continue listening
+                if (isActive) {
+                    startListening();
+                }
+
+            } catch (error) {
+                console.error('Error:', error);
+                updateStatus('Error', error.message);
+            }
+        }
+
+        // Analyze with orchestrator
+        async function analyzeResponses() {
+            if (userResponses.length === 0) {
+                updateStatus('Nothing to analyze', 'No responses recorded');
+                return;
+            }
+
+            analysis.classList.add('show');
+            analysisContent.innerHTML = '<div class="analysis-loading"><span class="spinner"></span>Analyzing...</div>';
+
+            try {
+                const response = await fetch(`${API_URL}/analyze`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ responses: userResponses })
+                });
+
+                if (!response.ok) {
+                    const err = await response.json();
+                    throw new Error(err.detail || 'Analysis failed');
+                }
+
+                const data = await response.json();
+
+                // Format and display
+                let html = data.analysis
+                    .replace(/##\s+(.+)/g, '<h2>$1<\/h2>')
+                    .replace(/\n\n/g, '<br><br>')
+                    .replace(/\n/g, '<br>')
+                    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                    .replace(/"(.*?)"/g, '"<strong>$1</strong>"');
+
+                analysisContent.innerHTML = html;
+
+                updateStatus('Analysis complete', '');
+
+            } catch (error) {
+                console.error('Analysis error:', error);
+                analysisContent.innerHTML = `<div style="color: var(--error);">Error: ${error.message}</div>`;
+            }
+        }
+
+        // Speech synthesis
+        function speak(text) {
+            return new Promise((resolve) => {
+                synthesis.cancel();
+
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.lang = 'en-US';
+                utterance.rate = parseFloat(rateSelect.value);
+
+                // Find good English voice
+                const voices = synthesis.getVoices();
+                const englishVoice = voices.find(v =>
+                    v.lang === 'en-US' && v.name.includes('Google')
+                ) || voices.find(v => v.lang.startsWith('en'));
+
+                if (englishVoice) {
+                    utterance.voice = englishVoice;
+                }
+
+                utterance.onend = resolve;
+                utterance.onerror = resolve;
+
+                synthesis.speak(utterance);
+            });
+        }
+
+        // Handle speech recognition results
+        function handleRecognitionResult(event) {
+            let interim = '';
+
+            for (let i = event.resultIndex; i < event.results.length; i++) {
+                if (event.results[i].isFinal) {
+                    finalText += event.results[i][0].transcript + ' ';
+                } else {
+                    interim += event.results[i][0].transcript;
+                }
+            }
+
+            const displayText = finalText + interim;
+            transcript.textContent = displayText || 'Listening...';
+            transcript.classList.toggle('has-text', !!displayText.trim());
+
+            // Reset silence timer
+            clearTimeout(silenceTimer);
+            if (finalText.trim()) {
+                silenceTimer = setTimeout(() => {
+                    processUserResponse();
+                }, 2000);
+            }
+        }
+
+        function handleRecognitionError(event) {
+            console.error('Recognition error:', event.error);
+            if (event.error !== 'no-speech' && event.error !== 'aborted') {
+                updateStatus('Mic error', event.error);
+            }
+        }
+
+        // Process completed user response
+        function processUserResponse() {
+            const text = finalText.trim();
+            if (!text) return;
+
+            try { recognition.stop(); } catch (e) {}
+            listening.classList.remove('active');
+
+            userResponses.push(text);
+            addMessage('You', text);
+
+            finalText = '';
+
+            updateStatus('Thinking…', 'Getting response…');
+            getAIResponse(text);
+        }
+
+        // Start listening
+        function startListening() {
+            listening.classList.add('active');
+            transcript.textContent = 'Start speaking...';
+            transcript.classList.remove('has-text');
+            finalText = '';
+
+            updateStatus('Your turn', 'Speak naturally…');
+
+            try {
+                recognition.start();
+            } catch (e) {
+                // Already started
+            }
+        }
+
+        // Start conversation
+        async function startConversation() {
+            isActive = true;
+            // Don't clear history anymore - keep accumulating
+            // conversationHistory = [];
+            userResponses = [];
+            if (conversationHistory.length === 0) {
+                chat.innerHTML = '<div class="chat-empty">Your conversation will appear here</div>';
+            } else {
+                // Restore previous messages
+                restoreChatMessages();
+            }
+            analysis.classList.remove('show');
+
+            startBtn.disabled = true;
+            stopBtn.disabled = false;
+
+            updateStatus('Starting…', 'AI is preparing…');
+
+            // Get first message from AI
+            await getAIResponse('');
+        }
+
+        // Stop and analyze
+        async function stopConversation() {
+            isActive = false;
+
+            try { recognition.stop(); } catch (e) {}
+            synthesis.cancel();
+            listening.classList.remove('active');
+            clearTimeout(silenceTimer);
+
+            startBtn.disabled = false;
+            stopBtn.disabled = true;
+
+            updateStatus('Analyzing…', 'Getting feedback…');
+
+            await analyzeResponses();
+        }
+
+        // Event listeners
+        // Restore chat messages from history
+        function restoreChatMessages() {
+            chat.innerHTML = '';
+            conversationHistory.forEach(msg => {
+                addMessage(msg.role === 'user' ? 'You' : 'AI', msg.content);
+            });
+        }
+
+        // Initialize - restore messages if history exists
+        if (conversationHistory.length > 0) {
+            restoreChatMessages();
+        }
+
+        startBtn.addEventListener('click', startConversation);
+        stopBtn.addEventListener('click', stopConversation);
+
+        // Initialize
+        window.addEventListener('load', () => {
+            if (initRecognition()) {
+                updateStatus('Ready', 'Click Start to begin');
+            }
+
+            // Load voices
+            if (synthesis.onvoiceschanged !== undefined) {
+                synthesis.onvoiceschanged = () => synthesis.getVoices();
+            }
+        });
+    </script>
+
+    <!-- Help -->
+    <button class="help-btn" onclick="document.getElementById('helpOverlay').classList.add('active')" title="Справка">?</button>
+    <div class="help-overlay" id="helpOverlay" onclick="if(event.target===this)this.classList.remove('active')">
+        <div class="help-modal">
+            <button class="help-close" onclick="document.getElementById('helpOverlay').classList.remove('active')">&times;</button>
+            <h2>English Practice</h2>
+            <p>Тренажёр разговорного английского с AI-анализом ваших ответов.</p>
+
+            <h3>Как это работает</h3>
+            <p>Вы ведёте диалог с AI на выбранную тему. AI играет роль собеседника и после каждого вашего ответа анализирует:</p>
+            <ul>
+                <li><strong>Grammar</strong> — грамматические ошибки с объяснением правила</li>
+                <li><strong>Vocabulary</strong> — более естественные альтернативы для ваших фраз</li>
+                <li><strong>Fluency</strong> — насколько ответ звучит как речь носителя языка</li>
+                <li><strong>Suggestions</strong> — конкретные улучшения формулировок</li>
+            </ul>
+
+            <h3>Голосовой ввод</h3>
+            <p>Поддерживается Web Speech API — можно говорить в микрофон, и речь автоматически преобразуется в текст. Это помогает тренировать именно разговорную речь, а не письмо.</p>
+
+            <h3>Модели</h3>
+            <p>Используется одна из моделей Perplexity Pro (по умолчанию Claude Sonnet 4.6) через браузерную автоматизацию. Модель получает системный промпт с инструкцией быть терпеливым учителем английского.</p>
+        </div>
+    </div>
+</body>
+</html>

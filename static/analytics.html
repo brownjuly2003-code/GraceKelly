@@ -1,0 +1,712 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GraceKelly Analytics</title>
+    <link rel="stylesheet" href="/css/fonts.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --bg-primary: #ffffff;
+            --bg-secondary: #f3f4f6;
+            --text-primary: #111827;
+            --text-secondary: #6b7280;
+            --text-muted: #9ca3af;
+            --accent-primary: #f97316;
+            --accent-hover: #ea580c;
+            --border-color: #e5e7eb;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --error: #ef4444;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Source Sans Pro', -apple-system, BlinkMacSystemFont, sans-serif;
+            font-weight: 300;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2.5rem;
+            padding-bottom: 1rem;
+        }
+
+        h1 {
+            font-family: 'Playfair Display', serif;
+            font-size: 2rem;
+            font-weight: 400;
+            color: var(--accent-primary);
+        }
+
+        .back-link {
+            color: var(--accent-primary);
+            text-decoration: none;
+            font-weight: 300;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .back-link:hover {
+            color: var(--accent-hover);
+        }
+
+        /* Summary Cards */
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 2rem;
+            margin-bottom: 2.5rem;
+        }
+
+        .summary-card {
+            text-align: center;
+        }
+
+        .summary-value {
+            font-size: 2.2rem;
+            font-weight: 300;
+            color: var(--accent-primary);
+            margin-bottom: 4px;
+        }
+
+        .summary-label {
+            font-size: 12px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            font-weight: 400;
+        }
+
+        /* Charts Grid */
+        .charts-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 2rem;
+            margin-bottom: 2.5rem;
+        }
+
+        @media (max-width: 1024px) {
+            .charts-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .chart-card {
+            padding-bottom: 1rem;
+        }
+
+        .chart-card h3 {
+            font-family: 'Playfair Display', serif;
+            font-size: 16px;
+            font-weight: 400;
+            margin-bottom: 1rem;
+            color: var(--text-primary);
+        }
+
+        .chart-container {
+            position: relative;
+            height: 280px;
+        }
+
+        /* Tables */
+        .table-card {
+            margin-bottom: 2rem;
+        }
+
+        .table-card h3 {
+            font-family: 'Playfair Display', serif;
+            font-size: 16px;
+            font-weight: 400;
+            margin-bottom: 1rem;
+            color: var(--text-primary);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th, td {
+            padding: 10px 12px;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        th {
+            font-size: 11px;
+            font-weight: 400;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        td {
+            font-size: 14px;
+            font-weight: 300;
+        }
+
+        td strong {
+            font-weight: 400;
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 2px 10px;
+            border-radius: 9999px;
+            font-size: 12px;
+            font-weight: 400;
+        }
+
+        .status-active {
+            color: var(--success);
+        }
+
+        .status-cooldown {
+            color: var(--warning);
+        }
+
+        /* Loading */
+        .loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 200px;
+            color: var(--text-muted);
+            font-weight: 300;
+        }
+
+        .main-footer {
+            display: flex;
+            gap: 24px;
+            justify-content: center;
+            padding: 24px 0;
+            margin-top: 36px;
+            font-size: 14px;
+        }
+
+        .main-footer a {
+            color: var(--accent-primary);
+            text-decoration: none;
+            font-weight: 300;
+        }
+
+        .main-footer a:hover { color: var(--accent-hover); }
+
+        /* Refresh button */
+        .refresh-btn {
+            background: var(--bg-secondary);
+            border: none;
+            color: var(--text-secondary);
+            padding: 6px 14px;
+            border-radius: 6px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 13px;
+            font-weight: 300;
+            font-family: inherit;
+        }
+
+        .refresh-btn:hover {
+            color: var(--accent-primary);
+        }
+
+        .refresh-btn svg {
+            stroke: currentColor;
+        }
+
+        .last-updated {
+            font-size: 12px;
+            color: var(--text-muted);
+            font-weight: 300;
+        }
+
+        /* Dark mode */
+        .dark-mode-toggle {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            transition: all 0.2s;
+        }
+
+        body.dark-mode {
+            --bg-primary: #1a1a1a;
+            --text-primary: #e4e4e4;
+            --text-secondary: #a0a0a0;
+            --text-muted: #6b7280;
+            --bg-secondary: #2d2d2d;
+            --border-color: #404040;
+        }
+        body.dark-mode .dark-mode-toggle { background: transparent; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div>
+                <h1>Аналитика</h1>
+                <span class="last-updated" id="last-updated">Загрузка...</span>
+            </div>
+            <div style="display: flex; gap: 1rem; align-items: center;">
+                <button class="refresh-btn" onclick="loadAllData()">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M23 4v6h-6M1 20v-6h6M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/>
+                    </svg>
+                    Обновить
+                </button>
+                <a href="/" class="back-link">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M19 12H5M12 19l-7-7 7-7"/>
+                    </svg>
+                    Назад в GraceKelly
+                </a>
+            </div>
+        </header>
+
+        <!-- Summary Cards -->
+        <div class="summary-grid">
+            <div class="summary-card">
+                <div class="summary-value" id="total-queries">-</div>
+                <div class="summary-label">Всего запросов</div>
+            </div>
+            <div class="summary-card">
+                <div class="summary-value" id="queries-24h">-</div>
+                <div class="summary-label">За последние 24ч</div>
+            </div>
+            <div class="summary-card">
+                <div class="summary-value" id="success-rate">-</div>
+                <div class="summary-label">Успешных</div>
+            </div>
+            <div class="summary-card">
+                <div class="summary-value" id="avg-duration">-</div>
+                <div class="summary-label">Среднее время</div>
+            </div>
+        </div>
+
+        <!-- Charts -->
+        <div class="charts-grid">
+            <div class="chart-card">
+                <h3>Запросы по паттернам</h3>
+                <div class="chart-container">
+                    <canvas id="patternChart"></canvas>
+                </div>
+            </div>
+            <div class="chart-card">
+                <h3>Запросы по часам (24ч)</h3>
+                <div class="chart-container">
+                    <canvas id="hourlyChart"></canvas>
+                </div>
+            </div>
+            <div class="chart-card" style="grid-column: span 2;">
+                <h3>Тренд за 7 дней</h3>
+                <div class="chart-container">
+                    <canvas id="trendChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Models Table -->
+        <div class="table-card">
+            <h3>Модели</h3>
+            <table id="models-table">
+                <thead>
+                    <tr>
+                        <th>Модель</th>
+                        <th>Запросов</th>
+                        <th>Успешных</th>
+                        <th>Среднее время</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td colspan="4" class="loading">Загрузка...</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Accounts Table -->
+        <div class="table-card">
+            <h3>Аккаунты</h3>
+            <table id="accounts-table">
+                <thead>
+                    <tr>
+                        <th>Аккаунт</th>
+                        <th>Запросов</th>
+                        <th>Успешных</th>
+                        <th>Статус</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td colspan="4" class="loading">Загрузка...</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <footer class="main-footer">
+            <a href="/">Home</a>
+            <a href="/english.html">English Practice</a>
+            <a href="/interview.html">Interview Trainer</a>
+            <a href="/webpage.html">Page Builder</a>
+            <a href="/rag.html">RAG Assistant</a>
+            <a href="/docs">API Documentation</a>
+        </footer>
+    </div>
+
+    <script>
+        // Dark mode toggle
+        (function() {
+            const saved = localStorage.getItem('darkMode');
+            if (saved === 'true') document.body.classList.add('dark-mode');
+            const toggle = document.createElement('button');
+            toggle.className = 'dark-mode-toggle';
+            toggle.innerHTML = saved === 'true' ? '☀️' : '🌙';
+            toggle.title = 'Toggle dark mode';
+            toggle.addEventListener('click', () => {
+                document.body.classList.toggle('dark-mode');
+                const isDark = document.body.classList.contains('dark-mode');
+                localStorage.setItem('darkMode', isDark);
+                toggle.innerHTML = isDark ? '☀️' : '🌙';
+            });
+            document.body.appendChild(toggle);
+        })();
+
+        // Chart instances
+        let patternChart, hourlyChart, trendChart;
+
+        // Chart.js default options — light theme
+        Chart.defaults.color = '#9ca3af';
+        Chart.defaults.borderColor = '#e5e7eb';
+
+        // Update Chart.js colors for dark mode
+        if (localStorage.getItem('darkMode') === 'true') {
+            Chart.defaults.color = '#a0a0a0';
+            Chart.defaults.borderColor = '#404040';
+        }
+        Chart.defaults.font.family = "'Source Sans Pro', sans-serif";
+        Chart.defaults.font.weight = 300;
+
+        const chartColors = {
+            orange: '#f97316',
+            orangeLight: 'rgba(249, 115, 22, 0.06)',
+            green: '#10b981',
+            blue: '#3b82f6',
+            purple: '#8b5cf6',
+            yellow: '#f59e0b'
+        };
+
+        // Shared tick config: horizontal only, no rotation
+        const horizontalTicks = {
+            maxRotation: 0,
+            minRotation: 0,
+            font: { size: 11, weight: 300 }
+        };
+
+        // Initialize charts
+        function initCharts() {
+            // Pattern Distribution (Doughnut)
+            const patternCtx = document.getElementById('patternChart').getContext('2d');
+            patternChart = new Chart(patternCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        data: [],
+                        backgroundColor: [
+                            chartColors.orange,
+                            chartColors.blue,
+                            chartColors.green,
+                            chartColors.purple,
+                            chartColors.yellow
+                        ],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '65%',
+                    plugins: {
+                        legend: {
+                            position: 'right',
+                            labels: { font: { size: 12, weight: 300 }, padding: 12 }
+                        }
+                    }
+                }
+            });
+
+            // Hourly Distribution (Line)
+            const hourlyCtx = document.getElementById('hourlyChart').getContext('2d');
+            hourlyChart = new Chart(hourlyCtx, {
+                type: 'line',
+                data: {
+                    labels: Array.from({length: 24}, (_, i) => i.toString().padStart(2, '0') + ':00'),
+                    datasets: [{
+                        label: 'Queries',
+                        data: [],
+                        borderColor: chartColors.orange,
+                        borderWidth: 1.5,
+                        backgroundColor: chartColors.orangeLight,
+                        fill: true,
+                        tension: 0.4,
+                        pointRadius: 0,
+                        pointHitRadius: 8
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: { ticks: horizontalTicks, grid: { display: false } },
+                        y: { beginAtZero: true, ticks: { font: { size: 11, weight: 300 } } }
+                    },
+                    plugins: {
+                        legend: { display: false }
+                    }
+                }
+            });
+
+            // Trend (Line)
+            const trendCtx = document.getElementById('trendChart').getContext('2d');
+            trendChart = new Chart(trendCtx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Запросы',
+                        data: [],
+                        borderColor: chartColors.orange,
+                        borderWidth: 1.5,
+                        backgroundColor: chartColors.orangeLight,
+                        fill: true,
+                        tension: 0.4,
+                        pointRadius: 0,
+                        pointHitRadius: 8,
+                        yAxisID: 'y'
+                    }, {
+                        label: 'Среднее время (с)',
+                        data: [],
+                        borderColor: chartColors.green,
+                        borderWidth: 1.5,
+                        tension: 0.4,
+                        pointRadius: 0,
+                        pointHitRadius: 8,
+                        yAxisID: 'y1'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: { ticks: horizontalTicks, grid: { display: false } },
+                        y: {
+                            type: 'linear',
+                            position: 'left',
+                            beginAtZero: true,
+                            ticks: { font: { size: 11, weight: 300 } }
+                        },
+                        y1: {
+                            type: 'linear',
+                            position: 'right',
+                            beginAtZero: true,
+                            ticks: { font: { size: 11, weight: 300 } },
+                            grid: { drawOnChartArea: false }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            labels: { font: { size: 12, weight: 300 }, padding: 16 }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Load overview data
+        async function loadOverview() {
+            try {
+                const response = await fetch('/api/analytics/overview');
+                const data = await response.json();
+
+                // Update summary cards
+                document.getElementById('total-queries').textContent = data.summary.total_queries.toLocaleString();
+                document.getElementById('queries-24h').textContent = data.summary.queries_24h.toLocaleString();
+                document.getElementById('success-rate').textContent = data.summary.success_rate + '%';
+                document.getElementById('avg-duration').textContent = (data.summary.avg_duration_ms / 1000).toFixed(1) + 's';
+
+                // Update last updated
+                document.getElementById('last-updated').textContent = 'Обновлено: ' + new Date().toLocaleTimeString('ru-RU');
+
+                // Update pattern chart
+                const patterns = Object.keys(data.queries_by_pattern);
+                const patternCounts = Object.values(data.queries_by_pattern);
+                patternChart.data.labels = patterns.map(p => p.charAt(0).toUpperCase() + p.slice(1));
+                patternChart.data.datasets[0].data = patternCounts;
+                patternChart.update();
+
+                // Update hourly chart
+                const hourlyData = Array.from({length: 24}, (_, i) => {
+                    const hour = i.toString().padStart(2, '0');
+                    return data.queries_per_hour[hour] || 0;
+                });
+                hourlyChart.data.datasets[0].data = hourlyData;
+                hourlyChart.update();
+
+            } catch (error) {
+                console.error('Error loading overview:', error);
+            }
+        }
+
+        // Load trends data
+        async function loadTrends() {
+            try {
+                const response = await fetch('/api/analytics/trends?days=7');
+                const data = await response.json();
+
+                const labels = data.daily_data.map(d => d.date.split('-').slice(1).join('/'));
+                const queries = data.daily_data.map(d => d.queries);
+                const durations = data.daily_data.map(d => (d.avg_duration_ms / 1000).toFixed(1));
+
+                trendChart.data.labels = labels;
+                trendChart.data.datasets[0].data = queries;
+                trendChart.data.datasets[1].data = durations;
+                trendChart.update();
+
+            } catch (error) {
+                console.error('Error loading trends:', error);
+            }
+        }
+
+        // Load models data
+        async function loadModels() {
+            try {
+                const response = await fetch('/api/analytics/models');
+                const data = await response.json();
+
+                const tbody = document.querySelector('#models-table tbody');
+                if (data.models.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="4" class="loading">Нет данных</td></tr>';
+                } else {
+                    tbody.innerHTML = data.models.map(m => `
+                        <tr>
+                            <td><strong>${m.name}</strong></td>
+                            <td>${m.total_queries.toLocaleString()}</td>
+                            <td>${m.success_rate}%</td>
+                            <td>${(m.avg_duration_ms / 1000).toFixed(1)}с</td>
+                        </tr>
+                    `).join('');
+                }
+
+            } catch (error) {
+                console.error('Error loading models:', error);
+            }
+        }
+
+        // Load accounts data
+        async function loadAccounts() {
+            try {
+                const response = await fetch('/api/analytics/accounts');
+                const data = await response.json();
+
+                const tbody = document.querySelector('#accounts-table tbody');
+                if (data.accounts.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="4" class="loading">Нет данных</td></tr>';
+                } else {
+                    tbody.innerHTML = data.accounts.slice(0, 15).map(a => `
+                        <tr>
+                            <td><strong>${a.id}</strong></td>
+                            <td>${a.total_queries.toLocaleString()}</td>
+                            <td>${a.success_rate}%</td>
+                            <td>
+                                <span class="status-badge status-${a.status}">
+                                    ${a.status === 'active' ? 'Активен' : 'Охлаждение'}
+                                </span>
+                            </td>
+                        </tr>
+                    `).join('');
+                }
+
+            } catch (error) {
+                console.error('Error loading accounts:', error);
+            }
+        }
+
+        // Load all data
+        async function loadAllData() {
+            await Promise.all([
+                loadOverview(),
+                loadTrends(),
+                loadModels(),
+                loadAccounts()
+            ]);
+        }
+
+        // Initialize on load
+        document.addEventListener('DOMContentLoaded', () => {
+            initCharts();
+            loadAllData();
+
+            // Auto-refresh every 30 seconds
+            setInterval(loadAllData, 30000);
+        });
+    </script>
+
+    <!-- Help -->
+    <button class="help-btn" onclick="document.getElementById('helpOverlay').classList.add('active')" title="Справка">?</button>
+    <div class="help-overlay" id="helpOverlay" onclick="if(event.target===this)this.classList.remove('active')">
+        <div class="help-modal">
+            <button class="help-close" onclick="document.getElementById('helpOverlay').classList.remove('active')">&times;</button>
+            <h2>Analytics Dashboard</h2>
+            <p>Дашборд аналитики использования оркестратора GraceKelly.</p>
+
+            <h3>Что показывает</h3>
+            <ul>
+                <li><strong>Запросы по моделям</strong> — распределение использования GPT-5.4, Claude, Gemini, Grok и других</li>
+                <li><strong>Паттерны</strong> — как часто используются SONAR, SINGLE, DUAL, CONSENSUS и другие паттерны</li>
+                <li><strong>Время отклика</strong> — среднее время ответа для каждой модели и паттерна</li>
+                <li><strong>Аккаунты</strong> — загрузка по аккаунтам Perplexity Pro</li>
+                <li><strong>Ошибки</strong> — частота и типы ошибок (таймауты, crashes, block-листы)</li>
+            </ul>
+
+            <h3>Источник данных</h3>
+            <p>Все данные берутся из SQLite базы analytics.db. Дашборд автоматически обновляется каждые 30 секунд.</p>
+
+            <h3>Фильтры</h3>
+            <p>Можно выбрать период (сегодня, неделя, месяц, всё время) и конкретную модель для детального анализа.</p>
+        </div>
+    </div>
+</body>
+</html>

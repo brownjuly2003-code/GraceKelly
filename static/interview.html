@@ -1,0 +1,1191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interview Trainer</title>
+    <link rel="stylesheet" href="/css/fonts.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg-primary: #ffffff;
+            --bg-secondary: #f9fafb;
+            --bg-tertiary: #f3f4f6;
+            --text-primary: #111827;
+            --text-secondary: #6b7280;
+            --text-muted: #9ca3af;
+            --accent: #f97316;
+            --accent-hover: #ea580c;
+            --accent-dim: rgba(249, 115, 22, 0.08);
+            --success: #10b981;
+            --error: #ef4444;
+            --warning: #f59e0b;
+            --orange: #f97316;
+            --border: #e5e7eb;
+        }
+
+        body {
+            font-family: 'Source Sans Pro', sans-serif;
+            font-weight: 300;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+
+        .app {
+            max-width: 720px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 36px;
+        }
+
+        header h1 {
+            font-family: 'Playfair Display', serif;
+            font-size: 1.6rem;
+            font-weight: 400;
+            margin-bottom: 6px;
+            color: var(--accent);
+        }
+
+        header p {
+            color: var(--text-muted);
+            font-size: 15px;
+            font-weight: 300;
+        }
+
+        /* Screens */
+        .screen { display: none; }
+        .screen.active {
+            display: block;
+            animation: fadeIn 0.3s ease;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(8px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        /* --- Setup --- */
+        .field-group { margin-bottom: 22px; }
+
+        .field-label {
+            display: block;
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-weight: 400;
+        }
+
+        .text-input {
+            width: 100%;
+            padding: 12px 14px;
+            background: var(--bg-primary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text-primary);
+            font-size: 15px;
+            font-family: 'Source Sans Pro', sans-serif;
+            outline: none;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        .text-input:focus {
+            border-color: var(--accent);
+            box-shadow: none;
+        }
+
+        .text-input::placeholder { color: var(--text-secondary); }
+
+        .count-input {
+            text-align: center;
+            -moz-appearance: textfield;
+        }
+        .count-input::-webkit-inner-spin-button,
+        .count-input::-webkit-outer-spin-button { opacity: 1; }
+
+        .row-fields { display: flex; gap: 16px; }
+        .flex-1 { flex: 1; }
+
+        /* Level grid */
+        .level-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+        }
+
+        .level-card {
+            background: transparent;
+            border: none;
+            border-radius: 6px;
+            padding: 10px 10px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .level-card:hover { background: var(--accent-dim); }
+
+        .level-card.selected {
+            background: var(--accent-dim);
+        }
+
+        .level-card .level-name {
+            font-size: 14px;
+            font-weight: 400;
+            color: var(--text-primary);
+        }
+
+        .level-card .level-desc {
+            font-size: 11px;
+            color: var(--text-secondary);
+            margin-top: 3px;
+            line-height: 1.35;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        /* Buttons */
+        .btn-primary {
+            width: 100%;
+            padding: 10px;
+            border: none;
+            border-radius: 6px;
+            background: var(--accent);
+            color: #fff;
+            font-family: 'Source Sans Pro', sans-serif;
+            font-size: 14px;
+            font-weight: 400;
+            cursor: pointer;
+            transition: background 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+
+        .btn-primary:hover:not(:disabled) { background: var(--accent-hover); }
+
+        .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+
+        .btn-secondary {
+            width: 100%;
+            padding: 10px;
+            border: none;
+            border-radius: 6px;
+            background: var(--bg-secondary);
+            color: var(--text-secondary);
+            font-family: 'Source Sans Pro', sans-serif;
+            font-size: 14px;
+            font-weight: 400;
+            cursor: pointer;
+            transition: background 0.2s;
+            margin-top: 8px;
+        }
+
+        .btn-secondary:hover { background: var(--bg-tertiary); color: var(--text-primary); }
+
+        .link-btn {
+            background: none;
+            border: none;
+            color: var(--accent);
+            font-family: 'Source Sans Pro', sans-serif;
+            font-size: 14px;
+            cursor: pointer;
+            padding: 0;
+            transition: opacity 0.2s;
+        }
+
+        .link-btn:hover { opacity: 0.7; }
+
+        /* --- Generating --- */
+        .generating-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 48px 0;
+        }
+
+        .progress-ring-wrap {
+            position: relative;
+            width: 80px;
+            height: 80px;
+            margin-bottom: 16px;
+        }
+
+        .progress-ring { transform: rotate(-90deg); }
+        .progress-ring-bg { fill: none; stroke: var(--bg-tertiary); stroke-width: 5; }
+        .progress-ring-fg {
+            fill: none; stroke: var(--accent); stroke-width: 5;
+            stroke-linecap: round;
+            stroke-dasharray: 213.63; stroke-dashoffset: 213.63;
+            transition: stroke-dashoffset 0.6s ease;
+        }
+
+        .progress-percent {
+            position: absolute; inset: 0;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 16px; font-weight: 400; color: var(--text-primary);
+        }
+
+        .gen-status {
+            font-size: 17px; font-weight: 400;
+            color: var(--text-primary);
+            margin-bottom: 6px;
+        }
+
+        .gen-detail {
+            font-size: 14px;
+            color: var(--text-secondary);
+        }
+
+        /* --- Question screen --- */
+        .question-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .question-counter {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            font-size: 14px;
+            color: var(--text-muted);
+            font-weight: 300;
+        }
+
+        .timer { font-variant-numeric: tabular-nums; }
+
+        .question-meta {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-bottom: 20px;
+        }
+
+        .badge {
+            padding: 4px 12px;
+            border-radius: 100px;
+            font-size: 12px;
+            font-weight: 400;
+            letter-spacing: 0.2px;
+        }
+
+        .badge-topic { background: var(--accent-dim); color: var(--accent); }
+        .badge-level { background: rgba(40, 167, 69, 0.1); color: var(--success); }
+        .badge-subtopic { background: var(--bg-secondary); color: var(--text-secondary); }
+
+        .question-text {
+            font-family: 'Playfair Display', serif;
+            font-size: 18px;
+            font-weight: 400;
+            line-height: 1.5;
+            margin-bottom: 20px;
+            color: var(--text-primary);
+        }
+
+        .answer-area { margin-bottom: 16px; }
+
+        .answer-area textarea {
+            width: 100%;
+            min-height: 180px;
+            padding: 14px 16px;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            font-family: 'Source Sans Pro', sans-serif;
+            font-size: 15px;
+            line-height: 1.6;
+            resize: vertical;
+            outline: none;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        .answer-area textarea:focus {
+            border-color: var(--accent);
+            box-shadow: none;
+        }
+
+        .answer-area textarea::placeholder { color: var(--text-secondary); }
+
+        .voice-controls {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 14px;
+        }
+
+        .mic-btn {
+            width: 34px; height: 34px;
+            border-radius: 50%;
+            border: none;
+            background: var(--bg-secondary);
+            color: var(--text-secondary);
+            cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            transition: opacity 0.2s;
+            flex-shrink: 0;
+        }
+
+        .mic-btn:hover { opacity: 0.7; }
+
+        .mic-btn.recording {
+            background: rgba(220, 53, 69, 0.08);
+            color: var(--error);
+            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.2); }
+            50% { box-shadow: 0 0 0 10px rgba(220, 53, 69, 0); }
+        }
+
+        .voice-status {
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+
+        /* Loading */
+        .loading-box { display: none; text-align: center; padding: 48px 0; }
+        .loading-box.active { display: block; }
+
+        .spinner {
+            display: inline-block;
+            width: 28px; height: 28px;
+            border: 2.5px solid var(--border);
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin-bottom: 14px;
+        }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .loading-box p {
+            color: var(--text-secondary);
+            font-size: 15px;
+        }
+
+        /* --- Result --- */
+        .score-display {
+            text-align: center;
+            margin-bottom: 28px;
+        }
+
+        .score-circle {
+            width: 56px; height: 56px;
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center; justify-content: center;
+            font-size: 18px; font-weight: 400;
+            margin-bottom: 8px;
+        }
+
+        .score-circle.excellent { background: rgba(40, 167, 69, 0.1); color: var(--success); }
+        .score-circle.good { background: var(--accent-dim); color: var(--accent); }
+        .score-circle.ok { background: rgba(230, 168, 23, 0.1); color: var(--warning); }
+        .score-circle.weak { background: rgba(230, 126, 34, 0.1); color: var(--orange); }
+        .score-circle.bad { background: rgba(220, 53, 69, 0.08); color: var(--error); }
+
+        .verdict {
+            font-family: 'Playfair Display', serif;
+            font-size: 16px; font-weight: 400;
+            color: var(--text-primary);
+        }
+
+        .result-section {
+            background: transparent;
+            border-top: none;
+            border-radius: 0;
+            padding: 12px 0;
+            margin-bottom: 0;
+        }
+
+        .result-section h3 {
+            font-size: 12px; font-weight: 400;
+            text-transform: uppercase; letter-spacing: 0.5px;
+            color: var(--text-muted);
+            margin-bottom: 10px;
+        }
+
+        .result-section ul { list-style: none; }
+
+        .result-section li {
+            padding: 3px 0 3px 18px;
+            position: relative;
+            font-size: 15px; line-height: 1.5;
+        }
+
+        .result-section li::before {
+            position: absolute; left: 0;
+            font-size: 13px; font-weight: 700;
+        }
+
+        .strengths li::before { content: "+"; color: var(--success); }
+        .gaps li::before { content: "\2013"; color: var(--error); }
+
+        .spoiler-content {
+            display: none;
+            margin-top: 10px;
+            font-size: 15px; line-height: 1.7;
+            color: var(--text-secondary);
+        }
+
+        .spoiler.open .spoiler-content { display: block; }
+
+        .spoiler-toggle {
+            font-size: 14px;
+            color: var(--accent);
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+
+        .spoiler-toggle:hover { opacity: 0.7; }
+
+        .follow-up-box {
+            border-left: none;
+            padding: 8px 0;
+            margin-bottom: 12px;
+            font-size: 14px; line-height: 1.5;
+            font-weight: 300;
+        }
+
+        .follow-up-box .follow-label {
+            font-size: 12px; font-weight: 400;
+            text-transform: uppercase; letter-spacing: 0.5px;
+            color: var(--text-muted);
+            margin-bottom: 4px;
+        }
+
+        .result-actions { margin-top: 16px; }
+
+        /* --- Summary --- */
+        .summary-header {
+            text-align: center;
+            margin-bottom: 28px;
+        }
+
+        .summary-title {
+            font-family: 'Playfair Display', serif;
+            font-size: 18px; font-weight: 400;
+            margin-bottom: 4px;
+        }
+
+        .summary-meta {
+            font-size: 14px;
+            color: var(--text-secondary);
+        }
+
+        .summary-list { margin-bottom: 24px; }
+
+        .summary-item {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding: 10px 0;
+            background: transparent;
+            border-bottom: none;
+            border-radius: 0;
+            margin-bottom: 0;
+        }
+
+        .summary-item-num {
+            width: 28px;
+            font-size: 13px; font-weight: 300;
+            color: var(--text-muted);
+            flex-shrink: 0; text-align: center;
+        }
+
+        .summary-item-text { flex: 1; min-width: 0; }
+
+        .summary-item-question {
+            font-size: 14px; font-weight: 300;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+
+        .summary-item-subtopic {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        .summary-item-score {
+            width: 36px; height: 36px;
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 14px; font-weight: 700;
+            flex-shrink: 0;
+        }
+
+        /* Error */
+        .error-msg {
+            background: transparent;
+            border: none;
+            border-radius: 0;
+            padding: 8px 0;
+            color: var(--error);
+            font-size: 13px;
+            margin-top: 10px;
+            display: none;
+        }
+
+        /* Footer */
+        .main-footer {
+            display: flex;
+            gap: 24px;
+            justify-content: center;
+            padding: 24px 0;
+            margin-top: 36px;
+            font-size: 14px;
+        }
+
+        .main-footer a {
+            color: var(--accent);
+            text-decoration: none;
+            font-weight: 300;
+        }
+
+        .main-footer a:hover { color: var(--accent-hover); }
+
+        /* Mobile */
+        @media (max-width: 600px) {
+            .app { padding: 24px 16px; }
+            header h1 { font-size: 1.8rem; }
+            .level-grid { grid-template-columns: repeat(2, 1fr); }
+            .row-fields { flex-direction: column; gap: 0; }
+            .question-text { font-size: 17px; }
+        }
+
+        /* Dark mode */
+        .dark-mode-toggle {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            transition: all 0.2s;
+        }
+
+        body.dark-mode {
+            --bg-primary: #1a1a1a;
+            --bg-secondary: #2d2d2d;
+            --bg-tertiary: #404040;
+            --text-primary: #e4e4e4;
+            --text-secondary: #a0a0a0;
+            --text-muted: #6b7280;
+            --border: #404040;
+            --accent-dim: rgba(249, 115, 22, 0.12);
+        }
+        body.dark-mode .dark-mode-toggle { background: transparent; }
+        body.dark-mode .text-input { background: #2d2d2d; border-color: #404040; color: var(--text-primary); }
+        body.dark-mode .mic-btn { background: #2d2d2d; }
+        body.dark-mode .answer-area textarea { background: #2d2d2d; border-color: #404040; color: var(--text-primary); }
+    </style>
+</head>
+<body>
+    <div class="app">
+        <header>
+            <h1>Interview Trainer</h1>
+            <p>Practice any topic. Get evaluated.</p>
+        </header>
+
+        <!-- Screen 1: Setup -->
+        <div id="screen-setup" class="screen active">
+            <div class="field-group">
+                <label class="field-label" for="topic-input">Topic</label>
+                <input id="topic-input" type="text" class="text-input"
+                       placeholder="e.g. Machine Learning, Corporate Finance, React.js..."
+                       maxlength="200" autocomplete="off">
+            </div>
+
+            <div class="field-group">
+                <label class="field-label">Level</label>
+                <div id="level-grid" class="level-grid"></div>
+            </div>
+
+            <div class="row-fields">
+                <div class="field-group flex-1">
+                    <label class="field-label" for="count-input">Questions</label>
+                    <input id="count-input" type="number" class="text-input count-input"
+                           value="10" min="1" max="50">
+                </div>
+            </div>
+
+            <button id="btn-generate" class="btn-primary" disabled>Generate</button>
+            <div id="error-setup" class="error-msg"></div>
+        </div>
+
+        <!-- Screen 2: Generating -->
+        <div id="screen-generating" class="screen">
+            <div class="generating-container">
+                <div class="progress-ring-wrap">
+                    <svg class="progress-ring" width="80" height="80">
+                        <circle class="progress-ring-bg" cx="40" cy="40" r="34"/>
+                        <circle id="progress-circle" class="progress-ring-fg" cx="40" cy="40" r="34"/>
+                    </svg>
+                    <div id="progress-percent" class="progress-percent">0%</div>
+                </div>
+                <div id="gen-status" class="gen-status">Validating topic...</div>
+                <div id="gen-detail" class="gen-detail"></div>
+            </div>
+        </div>
+
+        <!-- Screen 3: Question -->
+        <div id="screen-question" class="screen">
+            <div class="question-header">
+                <button id="btn-stop" class="link-btn">End session</button>
+                <div class="question-counter">
+                    <span id="q-counter">1 / 10</span>
+                    <span id="timer" class="timer">00:00</span>
+                </div>
+            </div>
+
+            <div class="question-meta">
+                <span id="q-topic" class="badge badge-topic"></span>
+                <span id="q-level" class="badge badge-level"></span>
+                <span id="q-subtopic" class="badge badge-subtopic"></span>
+            </div>
+
+            <div id="q-text" class="question-text"></div>
+
+            <div id="question-form">
+                <div class="voice-controls">
+                    <button id="btn-mic" class="mic-btn" title="Voice input">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+                             stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                             stroke-linejoin="round">
+                            <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+                            <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+                            <line x1="12" y1="19" x2="12" y2="23"/>
+                            <line x1="8" y1="23" x2="16" y2="23"/>
+                        </svg>
+                    </button>
+                    <span id="voice-status" class="voice-status">Tap to record</span>
+                </div>
+
+                <div class="answer-area">
+                    <textarea id="answer-input" placeholder="Type or dictate your answer..."
+                              rows="8"></textarea>
+                </div>
+
+                <button id="btn-submit" class="btn-primary">Submit</button>
+            </div>
+
+            <div id="loading" class="loading-box">
+                <div class="spinner"></div>
+                <p>Evaluating...</p>
+            </div>
+
+            <div id="error-question" class="error-msg"></div>
+        </div>
+
+        <!-- Screen 4: Result -->
+        <div id="screen-result" class="screen">
+            <div class="score-display">
+                <div id="score-circle" class="score-circle">
+                    <span id="score-value">0/10</span>
+                </div>
+                <div id="verdict" class="verdict"></div>
+            </div>
+
+            <div class="result-section strengths">
+                <h3>Strengths</h3>
+                <ul id="strengths-list"></ul>
+            </div>
+
+            <div class="result-section gaps">
+                <h3>Gaps</h3>
+                <ul id="gaps-list"></ul>
+            </div>
+
+            <div class="result-section">
+                <div id="ideal-spoiler" class="spoiler">
+                    <span id="ideal-toggle" class="spoiler-toggle">Show ideal answer</span>
+                    <div class="spoiler-content">
+                        <p id="ideal-answer-text"></p>
+                    </div>
+                </div>
+            </div>
+
+            <div id="follow-up-box" class="follow-up-box" style="display:none">
+                <div class="follow-label">Follow-up</div>
+                <div id="follow-up-text"></div>
+            </div>
+
+            <div class="result-actions">
+                <button id="btn-next" class="btn-primary">Next question</button>
+                <button id="btn-finish" class="btn-secondary" style="display:none">Finish</button>
+            </div>
+        </div>
+
+        <!-- Screen 5: Summary -->
+        <div id="screen-summary" class="screen">
+            <div class="summary-header">
+                <div id="summary-avg-circle" class="score-circle">
+                    <span id="summary-avg">0</span>
+                </div>
+                <div class="summary-title">Session complete</div>
+                <div id="summary-meta" class="summary-meta"></div>
+            </div>
+
+            <div id="summary-list" class="summary-list"></div>
+
+            <button id="btn-new-session" class="btn-primary">New session</button>
+        </div>
+
+        <footer class="main-footer">
+            <a href="/">Home</a>
+            <a href="/english.html">English Practice</a>
+            <a href="/analytics.html">Analytics</a>
+            <a href="/webpage.html">Page Builder</a>
+            <a href="/rag.html">RAG Assistant</a>
+            <a href="/docs">API Documentation</a>
+        </footer>
+    </div>
+
+    <script>
+        const API = '/api/interview';
+
+        // State
+        let sessionId = null;
+        let currentIndex = 0;
+        let totalCount = 0;
+        let currentQuestion = null;
+        let selectedLevel = null;
+        let timerInterval = null;
+        let timerSeconds = 0;
+        let recognition = null;
+        let isRecording = false;
+        let levels = [];
+        let pollInterval = null;
+
+        // DOM helpers
+        const $ = id => document.getElementById(id);
+
+        const screens = {
+            setup: $('screen-setup'),
+            generating: $('screen-generating'),
+            question: $('screen-question'),
+            result: $('screen-result'),
+            summary: $('screen-summary')
+        };
+
+        function showScreen(name) {
+            Object.values(screens).forEach(s => s.classList.remove('active'));
+            screens[name].classList.add('active');
+        }
+
+        function showError(id, msg) {
+            const el = $(id);
+            if (el) { el.textContent = msg; el.style.display = 'block'; }
+        }
+
+        function clearError(id) {
+            const el = $(id);
+            if (el) el.style.display = 'none';
+        }
+
+        function escapeHtml(str) {
+            const d = document.createElement('div');
+            d.textContent = str;
+            return d.innerHTML;
+        }
+
+        // Init
+        async function init() {
+            try {
+                const r = await fetch(API + '/levels');
+                levels = await r.json();
+            } catch (e) {
+                levels = [];
+            }
+            renderLevels();
+            initVoice();
+            bindEvents();
+            showScreen('setup');
+        }
+
+        function renderLevels() {
+            const grid = $('level-grid');
+            grid.innerHTML = '';
+            levels.forEach(l => {
+                const card = document.createElement('div');
+                card.className = 'level-card';
+                card.dataset.level = l.id;
+                card.innerHTML = `<div class="level-name">${l.en}</div><div class="level-desc">${l.desc_en}</div>`;
+                card.onclick = () => {
+                    grid.querySelectorAll('.level-card').forEach(c => c.classList.remove('selected'));
+                    card.classList.add('selected');
+                    selectedLevel = l.id;
+                    updateGenerateBtn();
+                };
+                grid.appendChild(card);
+            });
+        }
+
+        function bindEvents() {
+            $('topic-input').addEventListener('input', updateGenerateBtn);
+            $('btn-generate').onclick = startGeneration;
+            $('btn-submit').onclick = submitAnswer;
+            $('btn-mic').onclick = toggleRecording;
+            $('btn-next').onclick = () => loadQuestion(currentIndex + 1);
+            $('btn-finish').onclick = showSummary;
+            $('btn-stop').onclick = showSummary;
+            $('btn-new-session').onclick = () => { sessionId = null; currentIndex = 0; showScreen('setup'); };
+            $('ideal-toggle').onclick = () => {
+                const sp = $('ideal-spoiler');
+                sp.classList.toggle('open');
+                $('ideal-toggle').textContent = sp.classList.contains('open') ? 'Hide ideal answer' : 'Show ideal answer';
+            };
+        }
+
+        function updateGenerateBtn() {
+            $('btn-generate').disabled = !($('topic-input').value.trim() && selectedLevel);
+        }
+
+        // Generation
+        async function startGeneration() {
+            const topic = $('topic-input').value.trim();
+            const count = parseInt($('count-input').value) || 10;
+            clearError('error-setup');
+            $('btn-generate').disabled = true;
+
+            try {
+                const r = await fetch(API + '/start', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ topic, level: selectedLevel, count })
+                });
+                const d = await r.json();
+
+                if (d.session_id) {
+                    sessionId = d.session_id;
+                    totalCount = count;
+                    currentIndex = 0;
+                    showScreen('generating');
+                    updateProgress(0, count, 'Validating topic...');
+                    startPolling();
+                } else {
+                    showError('error-setup', d.reason || 'Failed to start');
+                }
+            } catch (e) {
+                showError('error-setup', e.message);
+            } finally {
+                $('btn-generate').disabled = false;
+                updateGenerateBtn();
+            }
+        }
+
+        function startPolling() {
+            if (pollInterval) clearInterval(pollInterval);
+            pollInterval = setInterval(pollStatus, 2500);
+        }
+
+        async function pollStatus() {
+            if (!sessionId) return;
+            try {
+                const r = await fetch(API + '/status/' + sessionId);
+                const d = await r.json();
+
+                if (d.status === 'validating') {
+                    updateProgress(0, d.total || totalCount, 'Validating topic...');
+                } else if (d.status === 'generating') {
+                    updateProgress(d.ready || 0, d.total, `Generating... ${d.ready || 0}/${d.total}`);
+                } else if (d.status === 'ready') {
+                    clearInterval(pollInterval);
+                    totalCount = d.total;
+                    updateProgress(d.total, d.total, 'Ready');
+                    setTimeout(() => loadQuestion(0), 500);
+                } else if (d.status === 'invalid' || d.status === 'error') {
+                    clearInterval(pollInterval);
+                    showScreen('setup');
+                    showError('error-setup', d.error || 'Error');
+                }
+            } catch (e) { /* retry on next poll */ }
+        }
+
+        function updateProgress(current, total, statusText) {
+            const pct = total > 0 ? Math.round(current / total * 100) : 0;
+            $('progress-percent').textContent = pct + '%';
+            $('gen-status').textContent = statusText;
+            $('gen-detail').textContent = total > 0 ? current + ' / ' + total : '';
+            $('progress-circle').style.strokeDashoffset = 213.63 - (pct / 100) * 213.63;
+        }
+
+        // Question
+        async function loadQuestion(index) {
+            try {
+                const r = await fetch(`${API}/question/${sessionId}/${index}`);
+                const d = await r.json();
+
+                if (d.error) { showSummary(); return; }
+
+                currentQuestion = d;
+                currentIndex = index;
+
+                const lv = levels.find(l => l.id === currentQuestion.level);
+                $('q-counter').textContent = `${currentIndex + 1} / ${totalCount}`;
+                $('q-topic').textContent = currentQuestion.topic;
+                $('q-level').textContent = lv ? lv.en : currentQuestion.level;
+                $('q-subtopic').textContent = currentQuestion.subtopic || '';
+                $('q-text').textContent = currentQuestion.question;
+                $('answer-input').value = '';
+                $('btn-submit').disabled = false;
+                clearError('error-question');
+                $('loading').classList.remove('active');
+                $('question-form').style.display = '';
+                showScreen('question');
+                startTimer();
+            } catch (e) {
+                showError('error-question', e.message);
+            }
+        }
+
+        // Timer
+        function startTimer() {
+            timerSeconds = 0;
+            clearInterval(timerInterval);
+            updateTimerDisplay();
+            timerInterval = setInterval(() => { timerSeconds++; updateTimerDisplay(); }, 1000);
+        }
+
+        function stopTimer() { clearInterval(timerInterval); }
+
+        function updateTimerDisplay() {
+            $('timer').textContent =
+                String(Math.floor(timerSeconds / 60)).padStart(2, '0') + ':' +
+                String(timerSeconds % 60).padStart(2, '0');
+        }
+
+        // Voice
+        function initVoice() {
+            const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+            if (!SR) {
+                $('voice-status').textContent = 'Not supported';
+                $('btn-mic').style.display = 'none';
+                return;
+            }
+
+            recognition = new SR();
+            recognition.lang = 'en-US';
+            recognition.interimResults = true;
+            recognition.continuous = true;
+
+            let finalText = '';
+
+            recognition.onresult = e => {
+                let interim = '';
+                for (let i = e.resultIndex; i < e.results.length; i++) {
+                    if (e.results[i].isFinal) finalText += e.results[i][0].transcript + ' ';
+                    else interim += e.results[i][0].transcript;
+                }
+                const ta = $('answer-input');
+                ta.value = (ta.dataset.pre || '') + finalText + interim;
+            };
+
+            recognition.onend = () => { if (isRecording) recognition.start(); };
+            recognition.onerror = e => { if (e.error !== 'no-speech') stopRecording(); };
+        }
+
+        function toggleRecording() { isRecording ? stopRecording() : startRecording(); }
+
+        function startRecording() {
+            if (!recognition) return;
+            isRecording = true;
+            $('answer-input').dataset.pre = $('answer-input').value;
+            $('btn-mic').classList.add('recording');
+            $('voice-status').textContent = 'Recording...';
+            recognition.start();
+        }
+
+        function stopRecording() {
+            isRecording = false;
+            if (recognition) recognition.stop();
+            $('btn-mic').classList.remove('recording');
+            $('voice-status').textContent = 'Tap to record';
+        }
+
+        // Submit
+        async function submitAnswer() {
+            const answer = $('answer-input').value.trim();
+            if (!answer) { showError('error-question', 'Please enter an answer'); return; }
+            if (isRecording) stopRecording();
+            stopTimer();
+
+            $('btn-submit').disabled = true;
+            $('question-form').style.display = 'none';
+            $('loading').classList.add('active');
+
+            try {
+                const r = await fetch(API + '/evaluate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ session_id: sessionId, question_index: currentIndex, answer })
+                });
+                const d = await r.json();
+                renderResult(d);
+                showScreen('result');
+            } catch (e) {
+                $('loading').classList.remove('active');
+                $('question-form').style.display = '';
+                $('btn-submit').disabled = false;
+                showError('error-question', e.message);
+            }
+        }
+
+        // Score class
+        function scoreClass(s) {
+            return s >= 9 ? 'excellent' : s >= 7 ? 'good' : s >= 5 ? 'ok' : s >= 3 ? 'weak' : 'bad';
+        }
+
+        // Result
+        function renderResult(d) {
+            const s = d.score || 0;
+            $('score-value').textContent = s + '/10';
+            $('score-circle').className = 'score-circle ' + scoreClass(s);
+            $('verdict').textContent = d.verdict || '';
+
+            const sl = $('strengths-list');
+            sl.innerHTML = '';
+            (d.strengths || []).forEach(x => {
+                const li = document.createElement('li');
+                li.textContent = x;
+                sl.appendChild(li);
+            });
+
+            const gl = $('gaps-list');
+            gl.innerHTML = '';
+            (d.gaps || []).forEach(x => {
+                const li = document.createElement('li');
+                li.textContent = x;
+                gl.appendChild(li);
+            });
+
+            $('ideal-answer-text').textContent = d.ideal_answer_summary || '';
+            $('ideal-spoiler').classList.remove('open');
+            $('ideal-toggle').textContent = 'Show ideal answer';
+
+            const fb = $('follow-up-box');
+            if (d.follow_up) {
+                fb.style.display = '';
+                $('follow-up-text').textContent = d.follow_up;
+            } else {
+                fb.style.display = 'none';
+            }
+
+            const isLast = currentIndex >= totalCount - 1;
+            $('btn-next').style.display = isLast ? 'none' : '';
+            $('btn-finish').style.display = '';
+        }
+
+        // Summary
+        async function showSummary() {
+            stopTimer();
+            if (isRecording) stopRecording();
+
+            try {
+                const r = await fetch(API + '/summary/' + sessionId);
+                const d = await r.json();
+                renderSummary(d);
+            } catch (e) {
+                renderSummary({ average_score: 0, questions: [], topic: '', answered: 0 });
+            }
+            showScreen('summary');
+        }
+
+        function renderSummary(d) {
+            const avg = d.average_score || 0;
+            $('summary-avg-circle').className = 'score-circle ' + scoreClass(avg);
+            $('summary-avg').textContent = avg.toFixed(1);
+            $('summary-meta').textContent =
+                `${d.topic || ''} \u00b7 ${d.answered || 0} questions \u00b7 ${avg.toFixed(1)} average`;
+
+            const list = $('summary-list');
+            list.innerHTML = '';
+            (d.questions || []).forEach((q, i) => {
+                const item = document.createElement('div');
+                item.className = 'summary-item';
+                item.innerHTML = `
+                    <div class="summary-item-num">${i + 1}</div>
+                    <div class="summary-item-text">
+                        <div class="summary-item-question">${escapeHtml(q.question || '')}</div>
+                        <div class="summary-item-subtopic">${escapeHtml(q.subtopic || '')}</div>
+                    </div>
+                    <div class="summary-item-score score-circle ${q.score != null ? scoreClass(q.score) : ''}"
+                         style="width:36px;height:36px;font-size:14px">
+                        ${q.score != null ? q.score : '\u2014'}
+                    </div>`;
+                list.appendChild(item);
+            });
+        }
+
+        // Dark mode toggle
+        (function() {
+            const saved = localStorage.getItem('darkMode');
+            if (saved === 'true') document.body.classList.add('dark-mode');
+            const toggle = document.createElement('button');
+            toggle.className = 'dark-mode-toggle';
+            toggle.innerHTML = saved === 'true' ? '☀️' : '🌙';
+            toggle.title = 'Toggle dark mode';
+            toggle.addEventListener('click', () => {
+                document.body.classList.toggle('dark-mode');
+                const isDark = document.body.classList.contains('dark-mode');
+                localStorage.setItem('darkMode', isDark);
+                toggle.innerHTML = isDark ? '☀️' : '🌙';
+            });
+            document.body.appendChild(toggle);
+        })();
+
+        init();
+    </script>
+
+    <!-- Help -->
+    <button class="help-btn" onclick="document.getElementById('helpOverlay').classList.add('active')" title="Справка">?</button>
+    <div class="help-overlay" id="helpOverlay" onclick="if(event.target===this)this.classList.remove('active')">
+        <div class="help-modal">
+            <button class="help-close" onclick="document.getElementById('helpOverlay').classList.remove('active')">&times;</button>
+            <h2>Interview Trainer</h2>
+            <p>Симулятор технического и поведенческого интервью с AI-оценкой.</p>
+
+            <h3>Как это работает</h3>
+            <ul>
+                <li><strong>Выбор типа</strong> — техническое (алгоритмы, системный дизайн) или поведенческое (STAR-метод)</li>
+                <li><strong>Количество вопросов</strong> — от 3 до 10 за сессию</li>
+                <li><strong>AI задаёт вопросы</strong> последовательно, каждый следующий адаптируется к предыдущим ответам</li>
+                <li><strong>Оценка</strong> — после каждого ответа AI оценивает: полноту, глубину, структурированность</li>
+            </ul>
+
+            <h3>Итоговая оценка</h3>
+            <p>В конце сессии AI формирует общий отчёт:</p>
+            <ul>
+                <li>Общий балл (1-10)</li>
+                <li>Сильные стороны</li>
+                <li>Области для улучшения</li>
+                <li>Конкретные рекомендации по подготовке</li>
+            </ul>
+
+            <h3>Модели</h3>
+            <p>Используются модели Perplexity Pro. Для технических вопросов лучше всего работают модели с reasoning (GPT-5.4, Claude Sonnet 4.6).</p>
+        </div>
+    </div>
+</body>
+</html>

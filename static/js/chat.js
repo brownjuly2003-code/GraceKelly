@@ -169,6 +169,7 @@ function getModelSelection() {
     pattern: document.getElementById("pattern-select")?.value || "single",
     model: modelSelect?.value || "",
     models: null,
+    analyze: true,
   };
 }
 
@@ -455,12 +456,25 @@ async function hydrateTaskData(taskId, fallbackMeta, fallbackText) {
 
   try {
     const task = await window.api.get(`/api/v1/tasks/${taskId}`);
+    const stepResponses = Array.isArray(task.steps)
+      ? task.steps.map((step) => ({
+          model_id: step.model_id,
+          status: step.status,
+          text: step.output_text || "",
+        }))
+      : [];
     const completedStep = Array.isArray(task.steps)
       ? task.steps.find((step) => step.status === "completed") || task.steps[0]
       : null;
 
     if (!text && typeof task.output_text === "string") {
       text = task.output_text;
+    }
+    if (!text && stepResponses.length > 1) {
+      text = stepResponses
+        .filter((step) => step.text)
+        .map((step) => `${step.model_id}:\n${step.text}`)
+        .join("\n\n");
     }
     if (!meta.model_id) {
       meta.model_id = task.model?.id || completedStep?.model_id || meta.model_id;
@@ -485,6 +499,9 @@ async function hydrateTaskData(taskId, fallbackMeta, fallbackText) {
     }
     if (!meta.trace_id && typeof task.metadata?.trace_id === "string") {
       meta.trace_id = task.metadata.trace_id;
+    }
+    if (!Array.isArray(meta.model_responses) || meta.model_responses.length === 0) {
+      meta.model_responses = stepResponses;
     }
     if (completedStep) {
       if (typeof completedStep.input_tokens === "number") {
@@ -752,6 +769,48 @@ function buildCompareFallback(answers) {
     .join("\n\n");
 }
 
+async function runMultiModelOrchestrate({
+  prompt,
+  sessionId,
+  dryRun,
+  models,
+  analyze,
+}) {
+  const requestedModels = Array.isArray(models) ? models.filter(Boolean) : [];
+  if (!requestedModels.length) {
+    throw new Error("No models selected for orchestration.");
+  }
+
+  const result = await window.api.post("/api/v1/orchestrate", {
+    prompt,
+    session_id: sessionId,
+    dry_run: dryRun,
+    models: requestedModels,
+    quorum: requestedModels.length,
+    merge_strategy: "concat",
+    cancel_on_quorum: false,
+    reasoning: true,
+    decompose: false,
+  });
+  const taskId = result.task_id || null;
+  const taskData = await hydrateTaskData(taskId, normalizeMeta(result, requestedModels[0]), result.output_text || "");
+  const meta = taskData.meta || {};
+  meta.analyze = analyze;
+  if (!Array.isArray(meta.model_responses) || meta.model_responses.length === 0) {
+    meta.model_responses = normalizeModelResponses(result);
+  }
+
+  const responseText = analyze
+    ? (taskData.text || result.output_text || buildCompareFallback(meta.model_responses))
+    : buildCompareFallback(meta.model_responses) || taskData.text || result.output_text || "";
+
+  return {
+    responseText,
+    meta,
+    taskId,
+  };
+}
+
 function showLoading(message = "Processing...", pct = 0) {
   document.getElementById("loading-state")?.classList.remove("hidden");
   updateLoading(message, pct);
@@ -854,6 +913,7 @@ async function sendMessage(rawText, requestOptions = null) {
   const pattern = selection.pattern || "single";
   const modelId = selection.model || "";
   const modelIds = Array.isArray(selection.models) ? selection.models.filter(Boolean) : [];
+  const analyze = selection.analyze !== false;
   const dryRun = typeof requestOptions?.dryRun === "boolean" ? requestOptions.dryRun : Boolean(dryRunCheck?.checked);
   const files = Array.isArray(requestOptions?.files) ? [...requestOptions.files] : [...window.chatState.pendingFiles];
   const retryingAuth = Boolean(requestOptions?.retryingAuth);
@@ -864,6 +924,7 @@ async function sendMessage(rawText, requestOptions = null) {
       pattern,
       model: modelId,
       models: [...modelIds],
+      analyze,
     },
     dryRun,
     files: [...files],
@@ -894,6 +955,10 @@ async function sendMessage(rawText, requestOptions = null) {
   } else if (pattern === "single" || pattern === "sonar") {
     acceptedMessage = "Подключение к модели...";
     processingMessage = "Генерация ответа...";
+  } else if (pattern === "dual" || pattern === "five_models" || pattern === "five_models_compare" || pattern === "maximum") {
+    acceptedMessage = "Ð—Ð°Ð¿ÑƒÑÐº Ð¿Ð°Ñ€Ð°Ð»Ð»ÐµÐ»ÑŒÐ½Ñ‹Ñ… Ð¼Ð¾Ð´ÐµÐ»ÐµÐ¹...";
+    processingMessage = analyze ? "ÐžÐ±Ñ€Ð°Ð±Ð¾Ñ‚ÐºÐ° Ð¸ ÑÐ²ÐµÐ´ÐµÐ½Ð¸Ðµ Ð¾Ñ‚Ð²ÐµÑ‚Ð¾Ð²..." : "Ð¡Ð±Ð¾Ñ€ Ð¾Ñ‚Ð²ÐµÑ‚Ð¾Ð² Ð¼Ð¾Ð´ÐµÐ»ÐµÐ¹...";
+    renderingMessage = analyze ? "Ð ÐµÐ½Ð´ÐµÑ€Ð¸Ð½Ð³ ÑÑ€Ð°Ð²Ð½ÐµÐ½Ð¸Ñ..." : "Ð ÐµÐ½Ð´ÐµÑ€Ð¸Ð½Ð³ Ð¾Ñ‚Ð²ÐµÑ‚Ð¾Ð²...";
   } else if (pattern === "consensus") {
     acceptedMessage = "Запуск консенсуса...";
     processingMessage = "Обработка результатов...";
@@ -969,6 +1034,20 @@ async function sendMessage(rawText, requestOptions = null) {
       const taskData = await hydrateTaskData(taskId, normalizeMeta(finalEvent, modelId), responseText);
       responseText = taskData.text || responseText;
       meta = taskData.meta;
+    } else if (pattern === "dual" || pattern === "five_models" || pattern === "five_models_compare" || pattern === "maximum") {
+      updateLoading(processingMessage, 40);
+      bubble.el.textContent = "...";
+      const orchestration = await runMultiModelOrchestrate({
+        prompt: text,
+        sessionId,
+        dryRun,
+        models: modelIds.length ? modelIds : modelId ? [modelId] : [],
+        analyze,
+      });
+      updateLoading(renderingMessage, 90);
+      responseText = orchestration.responseText;
+      meta = orchestration.meta;
+      taskId = orchestration.taskId;
     } else if (pattern === "consensus") {
       updateLoading(processingMessage, 40);
       bubble.el.textContent = "...";

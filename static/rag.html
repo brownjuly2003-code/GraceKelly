@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RAG Support Assistant</title>
+    <link rel="stylesheet" href="/css/fonts.css">
+    <style>
+        :root {
+            --bg: #ffffff;
+            --bg-alt: #f9fafb;
+            --bg-code: #f3f4f6;
+            --text: #111827;
+            --text2: #374151;
+            --muted: #6b7280;
+            --accent: #f97316;
+            --accent-hover: #ea580c;
+            --blue: #3b82f6;
+            --green: #10b981;
+            --yellow: #f59e0b;
+            --red: #ef4444;
+            --purple: #8b5cf6;
+            --border: #e5e7eb;
+            --font: 'Source Sans Pro', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            --serif: 'Playfair Display', Georgia, serif;
+            --mono: 'SF Mono', 'Monaco', 'Inconsolata', 'Courier New', monospace;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: var(--font); background: var(--bg); color: var(--text); line-height: 1.7; }
+
+        .page { max-width: 900px; margin: 0 auto; padding: 40px 24px 20px; }
+
+        h1 { font-family: var(--serif); font-size: 36px; color: var(--accent); margin-bottom: 8px; }
+        .subtitle { font-size: 16px; color: var(--muted); margin-bottom: 40px; }
+
+        h2 { font-family: var(--serif); font-size: 24px; color: var(--text); margin: 48px 0 16px; padding-bottom: 8px; border-bottom: 2px solid var(--accent); }
+        h3 { font-family: var(--font); font-size: 18px; color: var(--text); margin: 28px 0 12px; font-weight: 600; }
+        h4 { font-family: var(--font); font-size: 15px; color: var(--text2); margin: 20px 0 8px; font-weight: 600; }
+
+        p { margin-bottom: 12px; color: var(--text2); }
+
+        .card { background: var(--bg-alt); border-radius: 12px; padding: 24px; margin: 16px 0; border-left: 4px solid var(--accent); }
+        .card.blue { border-left-color: var(--blue); }
+        .card.green { border-left-color: var(--green); }
+        .card.purple { border-left-color: var(--purple); }
+        .card.yellow { border-left-color: var(--yellow); }
+        .card.red { border-left-color: var(--red); }
+
+        .card-title { font-weight: 600; font-size: 15px; color: var(--text); margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
+        .card-title .badge { font-size: 11px; padding: 2px 8px; border-radius: 10px; color: white; font-weight: 500; }
+        .badge-l1 { background: var(--blue); }
+        .badge-l2 { background: var(--green); }
+        .badge-l3 { background: var(--purple); }
+
+        .formula { background: var(--bg-code); padding: 16px 20px; border-radius: 8px; font-family: var(--mono); font-size: 14px; margin: 12px 0; overflow-x: auto; color: var(--text); }
+
+        .metric-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin: 16px 0; }
+        @media (max-width: 700px) { .metric-grid { grid-template-columns: 1fr; } }
+
+        .metric-box { background: var(--bg-alt); border-radius: 12px; padding: 20px; text-align: center; }
+        .metric-box .metric-name { font-weight: 600; font-size: 14px; color: var(--text); margin-bottom: 4px; }
+        .metric-box .metric-value { font-size: 28px; font-weight: 700; margin: 8px 0; }
+        .metric-box .metric-desc { font-size: 12px; color: var(--muted); }
+        .metric-box.recall .metric-value { color: var(--blue); }
+        .metric-box.mrr .metric-value { color: var(--green); }
+        .metric-box.precision .metric-value { color: var(--purple); }
+
+        .pipeline { display: flex; flex-wrap: wrap; gap: 0; align-items: center; margin: 20px 0; }
+        .pipeline .node { background: var(--bg-alt); border: 1px solid var(--border); border-radius: 8px; padding: 8px 14px; font-size: 13px; font-weight: 500; white-space: nowrap; }
+        .pipeline .node.active { background: var(--accent); color: white; border-color: var(--accent); }
+        .pipeline .arrow { color: var(--muted); padding: 0 4px; font-size: 18px; }
+
+        .example { background: #eff6ff; border-radius: 8px; padding: 16px 20px; margin: 12px 0; font-size: 14px; }
+        .example .example-title { font-weight: 600; color: var(--blue); margin-bottom: 6px; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; }
+
+        table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 14px; }
+        th { background: var(--bg-alt); font-weight: 600; text-align: left; padding: 10px 14px; border-bottom: 2px solid var(--border); }
+        td { padding: 10px 14px; border-bottom: 1px solid var(--border); color: var(--text2); }
+
+        .toc { background: var(--bg-alt); border-radius: 12px; padding: 24px; margin-bottom: 32px; }
+        .toc-title { font-weight: 600; font-size: 14px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px; }
+        .toc a { display: block; color: var(--accent); text-decoration: none; padding: 4px 0; font-size: 14px; }
+        .toc a:hover { color: var(--accent-hover); text-decoration: underline; }
+        .toc .indent { padding-left: 20px; }
+
+        details { margin: 12px 0; }
+        details summary { cursor: pointer; font-weight: 500; color: var(--accent); padding: 8px 0; }
+        details summary:hover { color: var(--accent-hover); }
+
+        .footer { display: flex; gap: 24px; justify-content: center; padding: 24px 0; margin-top: 48px; border-top: 1px solid var(--border); font-size: 14px; flex-wrap: wrap; }
+        .footer a { color: var(--accent); text-decoration: none; font-weight: 300; }
+        .footer a:hover { color: var(--accent-hover); }
+
+        .dark-toggle { position: fixed; top: 20px; right: 20px; z-index: 100; width: 40px; height: 40px; border-radius: 50%; border: none; background: transparent; cursor: pointer; font-size: 20px; }
+
+        body.dark { --bg: #1a1a1a; --bg-alt: #2d2d2d; --bg-code: #333; --text: #e4e4e4; --text2: #b0b0b0; --muted: #888; --border: #404040; }
+    </style>
+</head>
+<body>
+    <button class="dark-toggle" onclick="document.body.classList.toggle('dark')" title="Dark mode">&#9790;</button>
+
+    <div class="page">
+        <h1>RAG Support Assistant</h1>
+        <p class="subtitle">Retrieval-Augmented Generation: трёхуровневая система для интеллектуальной поддержки пользователей</p>
+
+        <div class="toc">
+            <div class="toc-title">Содержание</div>
+            <a href="#what-is-rag">Что такое RAG и зачем он нужен</a>
+            <a href="#architecture">Архитектура системы</a>
+            <a href="#level1">Level 1: Hybrid Search + Reranking</a>
+            <a class="indent" href="#bge">BGE-M3 Embeddings</a>
+            <a class="indent" href="#bm25">BM25 Keyword Retrieval</a>
+            <a class="indent" href="#rrf">Reciprocal Rank Fusion</a>
+            <a class="indent" href="#reranker">Cross-Encoder Reranker</a>
+            <a href="#level2">Level 2: Corrective & Self-RAG</a>
+            <a class="indent" href="#query-transform">Query Transformation</a>
+            <a class="indent" href="#doc-grading">Document Grading</a>
+            <a class="indent" href="#self-rag">Self-RAG Retry Loop</a>
+            <a class="indent" href="#semantic-chunking">Semantic Chunking</a>
+            <a class="indent" href="#chunk-optimizer">Chunk Size Optimizer (метрики)</a>
+            <a href="#level3">Level 3: Advanced Retrieval</a>
+            <a class="indent" href="#contextual">Contextual Retrieval</a>
+            <a class="indent" href="#parent-doc">Parent Document Store</a>
+            <a class="indent" href="#multi-query">Multi-Query Retrieval</a>
+            <a class="indent" href="#conversation">Conversation Memory</a>
+            <a href="#metrics">Метрики качества: подробный разбор</a>
+            <a class="indent" href="#recall">Recall@k</a>
+            <a class="indent" href="#mrr">MRR (Mean Reciprocal Rank)</a>
+            <a class="indent" href="#precision">Precision@k</a>
+            <a class="indent" href="#composite">Composite Score</a>
+            <a href="#ragas">RAGAS Evaluation</a>
+            <a href="#api">API и Web Chat</a>
+        </div>
+
+        <!-- ============================== WHAT IS RAG ============================== -->
+        <h2 id="what-is-rag">Что такое RAG и зачем он нужен</h2>
+        <p>
+            <strong>RAG (Retrieval-Augmented Generation)</strong> — подход, при котором LLM (языковая модель)
+            не придумывает ответ из своих весов, а <em>сначала ищет</em> релевантные фрагменты в базе знаний,
+            и только потом генерирует ответ <em>строго на основе найденного</em>.
+        </p>
+
+        <div class="card blue">
+            <div class="card-title">Зачем это нужно?</div>
+            <p>Без RAG модель "галлюцинирует" — придумывает правдоподобные, но ложные факты.
+            RAG решает это: модель видит реальные документы и отвечает только по ним.
+            Если нужной информации нет — честно говорит об этом.</p>
+        </div>
+
+        <p>Наша система реализует RAG в три уровня сложности, каждый следующий улучшает качество:</p>
+
+        <div class="pipeline">
+            <span class="node active">Вопрос</span>
+            <span class="arrow">&rarr;</span>
+            <span class="node">Transform</span>
+            <span class="arrow">&rarr;</span>
+            <span class="node">Retrieve</span>
+            <span class="arrow">&rarr;</span>
+            <span class="node">Grade</span>
+            <span class="arrow">&rarr;</span>
+            <span class="node">Generate</span>
+            <span class="arrow">&rarr;</span>
+            <span class="node">Evaluate</span>
+            <span class="arrow">&rarr;</span>
+            <span class="node active">Ответ</span>
+        </div>
+
+        <!-- ============================== ARCHITECTURE ============================== -->
+        <h2 id="architecture">Архитектура системы</h2>
+
+        <table>
+            <tr><th>Компонент</th><th>Файл</th><th>Назначение</th></tr>
+            <tr><td>State</td><td>state.py</td><td>GraphState — типизированное состояние пайплайна</td></tr>
+            <tr><td>Prompts</td><td>prompts.py</td><td>8 промптов: QA, self-eval, doc grading, query rewrite...</td></tr>
+            <tr><td>Graph</td><td>graph.py</td><td>LangGraph StateGraph с условными переходами</td></tr>
+            <tr><td>Manager</td><td>manager.py</td><td>Vector store, embeddings, reranker, hybrid search</td></tr>
+            <tr><td>Chunking</td><td>chunking.py</td><td>Chunk Size Optimizer с метриками Recall/MRR/Precision</td></tr>
+            <tr><td>Ingestion</td><td>ingestion/</td><td>DocumentLoader (PDF, DOCX, TXT, JSON, CSV) + IngestPipeline</td></tr>
+            <tr><td>Evaluation</td><td>evaluation/</td><td>RAGAS-style метрики (faithfulness, relevancy, precision, recall)</td></tr>
+            <tr><td>Cache</td><td>cache.py</td><td>LRU in-memory + disk persistence с TTL</td></tr>
+            <tr><td>API</td><td>api/app.py</td><td>FastAPI REST endpoints + Web Chat UI</td></tr>
+        </table>
+
+        <!-- ============================== LEVEL 1 ============================== -->
+        <h2 id="level1">Level 1: Hybrid Search + Reranking</h2>
+        <p>Базовый уровень решает главную задачу: находить правильные документы и генерировать точный ответ.</p>
+
+        <h3 id="bge">BGE-M3 Embeddings</h3>
+        <div class="card blue">
+            <div class="card-title">BAAI/bge-m3 <span class="badge badge-l1">Level 1</span></div>
+            <p>Мультиязычная модель эмбеддингов (570M параметров, 1024 измерения).
+            Поддерживает 100+ языков, включая русский. Превращает текст в вектор чисел,
+            так что похожие по смыслу тексты имеют близкие векторы.</p>
+            <p><strong>Время загрузки:</strong> ~12 секунд на CPU. Модель кэшируется после первой загрузки.</p>
+        </div>
+
+        <h3 id="bm25">BM25 Keyword Retrieval</h3>
+        <p>BM25 (Best Matching 25) — классический алгоритм текстового поиска. Он ищет по <em>точному совпадению слов</em>,
+        учитывая частоту слова в документе и редкость слова в коллекции.</p>
+
+        <div class="example">
+            <div class="example-title">Когда BM25 лучше векторного поиска</div>
+            Запрос: "ошибка E20" &mdash; BM25 найдёт документы с точной строкой "E20",
+            тогда как векторный поиск может вернуть документы про "ошибки" в целом.
+        </div>
+
+        <h3 id="rrf">Reciprocal Rank Fusion (RRF)</h3>
+        <p>RRF объединяет результаты BM25 и векторного поиска в один ранжированный список:</p>
+
+        <div class="formula">
+RRF_score(d) = &Sigma; 1 / (k + rank<sub>i</sub>(d))
+
+где k = 60 (константа сглаживания), rank<sub>i</sub>(d) — позиция документа d в i-м списке
+        </div>
+
+        <div class="example">
+            <div class="example-title">Пример RRF</div>
+            Документ "E20" стоит на 1-м месте в BM25 и на 5-м в векторном поиске:
+            <br>RRF = 1/(60+1) + 1/(60+5) = 0.0164 + 0.0154 = 0.0318
+            <br>Документ "перегрев" на 3-м месте в BM25 и 1-м в векторном:
+            <br>RRF = 1/(60+3) + 1/(60+1) = 0.0159 + 0.0164 = 0.0323 &larr; выше!
+        </div>
+
+        <h3 id="reranker">Cross-Encoder Reranker</h3>
+        <p>После RRF топ-20 документов перескоряются с помощью <code>cross-encoder/ms-marco-MiniLM-L-6-v2</code>.
+        В отличие от bi-encoder (BGE-M3), cross-encoder видит <em>пару</em> (вопрос, документ) целиком
+        и даёт более точную оценку релевантности. Итоговый топ-5 отдаётся модели.</p>
+
+        <!-- ============================== LEVEL 2 ============================== -->
+        <h2 id="level2">Level 2: Corrective & Self-RAG</h2>
+        <p>Второй уровень добавляет "самопроверку" на каждом этапе: фильтрация плохих документов,
+        оценка качества ответа, повторная попытка при низком качестве.</p>
+
+        <h3 id="query-transform">Query Transformation</h3>
+        <div class="card green">
+            <div class="card-title">Трансформация запроса <span class="badge badge-l2">Level 2</span></div>
+            <p>Прежде чем искать, LLM переформулирует вопрос пользователя в оптимальный поисковый запрос:</p>
+            <ul style="padding-left: 20px; margin: 8px 0;">
+                <li>Убирает разговорный стиль</li>
+                <li>Добавляет синонимы и альтернативные термины</li>
+                <li>Расширяет аббревиатуры</li>
+                <li>Коды ошибок (E20, E21) оставляет как есть</li>
+            </ul>
+        </div>
+
+        <h3 id="doc-grading">Document Grading (Corrective RAG)</h3>
+        <p>После retrieval каждый документ проверяется LLM на релевантность вопросу.
+        Модель отвечает YES или NO. Нерелевантные документы отбрасываются,
+        чтобы не "отравлять" контекст мусором.</p>
+
+        <h3 id="self-rag">Self-RAG Retry Loop</h3>
+        <p>После генерации ответа LLM сама себя оценивает по шкале 1-100.
+        Если оценка ниже порога (по умолчанию 70), запрос переформулируется и весь цикл повторяется.</p>
+
+        <div class="pipeline">
+            <span class="node">Generate</span>
+            <span class="arrow">&rarr;</span>
+            <span class="node">Evaluate (1-100)</span>
+            <span class="arrow">&rarr;</span>
+            <span class="node" style="background:#fef3c7;border-color:#f59e0b;">score &lt; 70?</span>
+            <span class="arrow">&rarr;</span>
+            <span class="node" style="background:#fee2e2;border-color:#ef4444;">Rewrite &amp; Retry</span>
+        </div>
+        <p>Максимум 2 попытки (настраиваемо). Если после всех попыток оценка низкая — ответ эскалируется к человеку (route: "human").</p>
+
+        <h3 id="semantic-chunking">Semantic Chunking</h3>
+        <p>Вместо разбиения текста по фиксированному количеству символов, semantic chunking анализирует
+        <em>смысловые переходы</em> между предложениями. Граница чанка ставится там,
+        где косинусное сходство между эмбеддингами соседних предложений резко падает.</p>
+
+        <div class="card green">
+            <div class="card-title">Как работает</div>
+            <p>1. Каждое предложение превращается в эмбеддинг (BGE-M3)</p>
+            <p>2. Считается cosine similarity между соседними предложениями</p>
+            <p>3. Если similarity &lt; порога — здесь граница чанка</p>
+            <p>4. Результат: чанки, где каждый охватывает одну логическую тему</p>
+        </div>
+
+        <!-- ============================== CHUNK OPTIMIZER ============================== -->
+        <h3 id="chunk-optimizer">Chunk Size Optimizer</h3>
+        <p>Размер чанка — один из самых важных гиперпараметров RAG-системы.
+        Слишком маленький чанк теряет контекст, слишком большой — размывает релевантность.
+        <strong>Оптимальный размер подбирается экспериментально по метрикам, а не угадывается.</strong></p>
+
+        <div class="card yellow">
+            <div class="card-title">Почему нельзя просто задать размер "на глаз"?</div>
+            <p>Оптимальный chunk_size зависит от: языка текста, длины типичных абзацев,
+            размера контекстного окна модели, специфики вопросов.
+            Для русского технического текста он обычно в диапазоне 300-700 символов,
+            но конкретное значение определяется <em>только метриками</em>.</p>
+        </div>
+
+        <p>Chunk Size Optimizer перебирает сетку значений и для каждого замеряет три метрики:</p>
+
+        <div class="metric-grid">
+            <div class="metric-box recall">
+                <div class="metric-name">Recall@k</div>
+                <div class="metric-value">0.6</div>
+                <div class="metric-desc">Вес в composite score</div>
+            </div>
+            <div class="metric-box mrr">
+                <div class="metric-name">MRR</div>
+                <div class="metric-value">0.3</div>
+                <div class="metric-desc">Вес в composite score</div>
+            </div>
+            <div class="metric-box precision">
+                <div class="metric-name">Precision@k</div>
+                <div class="metric-value">0.1</div>
+                <div class="metric-desc">Вес в composite score</div>
+            </div>
+        </div>
+
+        <p>Сетка значений по умолчанию (НЕ степени двойки, т.к. текст — не двоичные данные):</p>
+        <div class="formula">chunk_sizes = [300, 400, 500, 600, 700, 900, 1200]
+overlap_ratio = 0.25 (overlap = chunk_size * 0.25)</div>
+
+        <!-- ============================== METRICS DETAIL ============================== -->
+        <h2 id="metrics">Метрики качества: подробный разбор</h2>
+        <p>Каждая метрика измеряет отдельный аспект качества retrieval. Вместе они дают полную картину.</p>
+
+        <h3 id="recall">Recall@k (полнота)</h3>
+        <div class="card blue">
+            <div class="card-title">Что измеряет</div>
+            <p><strong>Какую долю релевантных документов мы нашли?</strong></p>
+            <p>Если по данному вопросу в базе есть 4 подходящих чанка, а retriever вернул 3 из них — Recall@5 = 3/4 = 0.75</p>
+        </div>
+
+        <div class="formula">
+Recall@k = |{релевантные документы в топ-k}| / |{все релевантные документы в базе}|
+        </div>
+
+        <div class="example">
+            <div class="example-title">Пример: Recall@5</div>
+            Вопрос: "Как устранить ошибку E20?"
+            <br>В базе 3 релевантных документа: [errors_e20.txt, troubleshooting.txt, manual_ch5.txt]
+            <br>Retriever вернул топ-5: [errors_e20.txt, faq.txt, troubleshooting.txt, pricing.txt, warranty.txt]
+            <br>Из 3 релевантных найдены 2 (errors_e20, troubleshooting)
+            <br><strong>Recall@5 = 2/3 = 0.667</strong>
+        </div>
+
+        <h4>Почему Recall@k важнее других метрик (вес 0.6)</h4>
+        <p>Если релевантный документ <em>не найден</em> вообще, модель не сможет ответить —
+        никакие последующие этапы (grading, generation) это не исправят.
+        Пропуск документа — фатальная ошибка. Поэтому Recall имеет наибольший вес.</p>
+
+        <h3 id="mrr">MRR (Mean Reciprocal Rank)</h3>
+        <div class="card green">
+            <div class="card-title">Что измеряет</div>
+            <p><strong>Насколько высоко в списке стоит первый правильный документ?</strong></p>
+            <p>Если первый релевантный документ на 1-й позиции — MRR = 1.0. На 3-й — MRR = 0.33.</p>
+        </div>
+
+        <div class="formula">
+MRR = 1 / rank(первого релевантного документа)
+
+Для N вопросов: MRR = (1/N) &times; &Sigma; 1/rank<sub>i</sub>
+        </div>
+
+        <div class="example">
+            <div class="example-title">Пример: MRR</div>
+            Вопрос 1: первый релевантный на позиции 1 &rarr; RR = 1/1 = 1.0
+            <br>Вопрос 2: первый релевантный на позиции 3 &rarr; RR = 1/3 = 0.333
+            <br>Вопрос 3: первый релевантный на позиции 2 &rarr; RR = 1/2 = 0.5
+            <br><strong>MRR = (1.0 + 0.333 + 0.5) / 3 = 0.611</strong>
+        </div>
+
+        <h4>Почему MRR на втором месте (вес 0.3)</h4>
+        <p>MRR показывает, насколько быстро пользователь (или модель) найдёт ответ.
+        Если первый правильный документ на 1-м месте, модель сразу получает лучший контекст.
+        Если на 5-м — контекст "разбавлен" нерелевантными фрагментами.</p>
+
+        <h3 id="precision">Precision@k (точность)</h3>
+        <div class="card purple">
+            <div class="card-title">Что измеряет</div>
+            <p><strong>Какая доля возвращённых документов действительно релевантна?</strong></p>
+            <p>Если из 5 возвращённых документов 3 релевантны — Precision@5 = 3/5 = 0.6</p>
+        </div>
+
+        <div class="formula">
+Precision@k = |{релевантные документы в топ-k}| / k
+        </div>
+
+        <div class="example">
+            <div class="example-title">Пример: Precision@5</div>
+            Retriever вернул 5 документов: [errors_e20.txt, faq.txt, troubleshooting.txt, pricing.txt, warranty.txt]
+            <br>Релевантные: errors_e20.txt, troubleshooting.txt (2 из 5)
+            <br><strong>Precision@5 = 2/5 = 0.4</strong>
+        </div>
+
+        <h4>Почему Precision@k на третьем месте (вес 0.1)</h4>
+        <p>Низкая Precision означает, что модель получает "мусорные" документы в контексте.
+        Это не так критично, потому что: (а) Document Grading (Level 2) отфильтрует мусор,
+        (б) хорошая модель проигнорирует нерелевантный контекст. Но при очень низкой Precision
+        контекстное окно засоряется, что ухудшает качество ответа.</p>
+
+        <h3 id="composite">Composite Score</h3>
+        <p>Три метрики объединяются в одну оценку с настраиваемыми весами:</p>
+
+        <div class="formula">
+Composite = 0.6 &times; Recall@k + 0.3 &times; MRR + 0.1 &times; Precision@k
+        </div>
+
+        <p>Optimizer перебирает все конфигурации (chunk_size, overlap) из сетки,
+        для каждой вычисляет Composite Score на тестовом наборе, и выбирает конфигурацию
+        с наивысшим баллом.</p>
+
+        <div class="example">
+            <div class="example-title">Пример результата оптимизации</div>
+            <table>
+                <tr><th>chunk_size</th><th>overlap</th><th>Recall@5</th><th>MRR</th><th>Prec@5</th><th>Composite</th></tr>
+                <tr><td>300</td><td>75</td><td>0.83</td><td>0.90</td><td>0.60</td><td>0.828</td></tr>
+                <tr><td>400</td><td>100</td><td>0.92</td><td>0.95</td><td>0.55</td><td><strong>0.892</strong></td></tr>
+                <tr><td>500</td><td>125</td><td>0.88</td><td>0.85</td><td>0.50</td><td>0.833</td></tr>
+                <tr><td>700</td><td>175</td><td>0.75</td><td>0.80</td><td>0.45</td><td>0.735</td></tr>
+                <tr><td>1200</td><td>300</td><td>0.60</td><td>0.70</td><td>0.40</td><td>0.610</td></tr>
+            </table>
+            <p>Победитель: chunk_size=400, overlap=100 (Composite = 0.892)</p>
+        </div>
+
+        <div class="card red">
+            <div class="card-title">Миф: "Размер чанка должен быть степенью двойки"</div>
+            <p>Степени двойки (128, 256, 512, 1024) — это конвенция из мира GPU,
+            где выравнивание памяти имеет значение.
+            Для текстовых чанков <em>нет никакого преимущества</em> у степеней двойки.
+            Текст — не бинарные данные. Chunk_size=400 ничуть не хуже 512,
+            а часто лучше, потому что 400 символов ближе к типичной длине
+            параграфа в русском техническом тексте.</p>
+        </div>
+
+        <!-- ============================== LEVEL 3 ============================== -->
+        <h2 id="level3">Level 3: Advanced Retrieval</h2>
+
+        <h3 id="contextual">Contextual Retrieval</h3>
+        <div class="card purple">
+            <div class="card-title">Метод Anthropic <span class="badge badge-l3">Level 3</span></div>
+            <p>Каждый чанк дополняется автоматически сгенерированным заголовком,
+            описывающим его место в документе. Это даёт +49% к точности retrieval
+            (по данным Anthropic).</p>
+        </div>
+
+        <div class="example">
+            <div class="example-title">До и после</div>
+            <strong>Без контекста:</strong> "Проверьте уровень охлаждающей жидкости и убедитесь, что вентилятор работает."
+            <br><br><strong>С контекстом:</strong> "[Документ: Руководство по устранению ошибок. Секция: Ошибка E20 - перегрев двигателя. Этот фрагмент описывает шаги по устранению причин перегрева.]
+            <br>Проверьте уровень охлаждающей жидкости и убедитесь, что вентилятор работает."
+        </div>
+
+        <h3 id="parent-doc">Parent Document Store</h3>
+        <p>Проблема: маленькие чанки точнее находятся, но содержат мало контекста.
+        Большие чанки дают контекст, но хуже ищутся.</p>
+        <p><strong>Решение:</strong> индексируем маленькие чанки (child, ~200 символов),
+        но при нахождении возвращаем большой родительский чанк (parent, ~1000 символов).
+        Точность поиска + широта контекста.</p>
+
+        <h3 id="multi-query">Multi-Query Retrieval</h3>
+        <p>Сложный вопрос разбивается на 2-3 подвопроса. Для каждого выполняется отдельный поиск.
+        Результаты объединяются через RRF.</p>
+
+        <div class="example">
+            <div class="example-title">Пример декомпозиции</div>
+            <strong>Вопрос:</strong> "Что делать при ошибке E20 и покрывает ли это гарантия?"
+            <br><strong>Подвопрос 1:</strong> "ошибка E20 устранение перегрев"
+            <br><strong>Подвопрос 2:</strong> "гарантия покрытие ремонт перегрев"
+        </div>
+
+        <h3 id="conversation">Conversation Memory</h3>
+        <p>Класс <code>ConversationSession</code> хранит историю диалога (до 10 сообщений).
+        Уточняющие вопросы ("А покрывает ли это гарантия?") автоматически
+        раскрываются в полноценный запрос с учётом предыдущего контекста.</p>
+
+        <!-- ============================== RAGAS ============================== -->
+        <h2 id="ragas">RAGAS Evaluation</h2>
+        <p>Система оценки качества RAG-пайплайна по 4 метрикам (реализовано без зависимости от пакета ragas):</p>
+
+        <table>
+            <tr><th>Метрика</th><th>Что измеряет</th><th>Метод</th></tr>
+            <tr><td><strong>Faithfulness</strong></td><td>Ответ использует только факты из контекста?</td><td>Доля предложений ответа, подтверждённых контекстом</td></tr>
+            <tr><td><strong>Answer Relevancy</strong></td><td>Ответ отвечает на вопрос?</td><td>Доля ключевых слов вопроса, найденных в ответе</td></tr>
+            <tr><td><strong>Context Precision</strong></td><td>Найденные документы релевантны?</td><td>Взвешенное (по рангу) перекрытие keywords</td></tr>
+            <tr><td><strong>Context Recall</strong></td><td>Все нужные факты найдены?</td><td>Доля expected_keywords в контексте</td></tr>
+        </table>
+
+        <p>При наличии LLM метрики Faithfulness и Answer Relevancy используют модель для более точной оценки,
+        с автоматическим fallback на keyword-based метод.</p>
+
+        <!-- ============================== API ============================== -->
+        <h2 id="api">API и Web Chat</h2>
+
+        <table>
+            <tr><th>Endpoint</th><th>Метод</th><th>Назначение</th></tr>
+            <tr><td>/api/ask</td><td>POST</td><td>Задать вопрос (с session_id для multi-turn)</td></tr>
+            <tr><td>/api/upload</td><td>POST</td><td>Загрузить документ (PDF, DOCX, TXT, MD)</td></tr>
+            <tr><td>/api/sessions/{id}/history</td><td>GET</td><td>История диалога сессии</td></tr>
+            <tr><td>/api/sessions/{id}</td><td>DELETE</td><td>Очистить сессию</td></tr>
+            <tr><td>/api/health</td><td>GET</td><td>Статус: vector store, pipeline, sessions</td></tr>
+        </table>
+
+        <p>Web Chat UI доступен по адресу <code>/chat</code>. Поддерживает: сессии, загрузку файлов (drag & drop),
+        тёмную тему, бейджи качества и маршрутизации, раскрывающийся список источников.</p>
+
+        <!-- ============================== FOOTER ============================== -->
+        <footer class="footer main-footer">
+            <a href="/">Home</a>
+            <a href="/english.html">English Practice</a>
+            <a href="/interview.html">Interview Trainer</a>
+            <a href="/analytics.html">Analytics</a>
+            <a href="/webpage.html">Page Builder</a>
+            <a href="/docs">API Documentation</a>
+        </footer>
+    </div>
+</body>
+</html>

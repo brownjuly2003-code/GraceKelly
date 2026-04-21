@@ -1,257 +1,443 @@
-const PATTERNS = [
+const MENU_GROUPS = [
   {
-    category: "Поиск",
+    title: "",
     items: [
-      { id: "sonar", label: "Sonar", icon: "search", pattern: "sonar", model: null, meta: "Поиск с быстрым ответом" },
-      { id: "best", label: "Best", icon: "star", pattern: "sonar", model: "best", meta: "Поиск с приоритетом качества" },
+      {
+        id: "sonar",
+        pattern: "sonar",
+        label: "Sonar",
+        desc: "быстрый поиск без reasoning",
+        icon: "search",
+        model: "sonar",
+        match: "sonar",
+      },
+      {
+        id: "best",
+        pattern: "single",
+        label: "Best",
+        desc: "оркестрация Perplexity",
+        icon: "search",
+        model: "best",
+        match: "best",
+      },
     ],
   },
   {
-    category: "1 модель",
+    title: "1 модель",
     items: [
-      { id: "single-claude", label: "Claude", icon: "flash", pattern: "single", model: "claude-sonnet-4-6", match: "claude", meta: "Один сильный ответ" },
-      { id: "single-gpt", label: "GPT", icon: "chip", pattern: "single", model: "gpt-4o", match: "gpt", meta: "Быстрая универсальная модель" },
-      { id: "single-gemini", label: "Gemini", icon: "spark", pattern: "single", model: "gemini-2-5-pro", match: "gemini", meta: "Длинный контекст" },
-      { id: "single-kimi", label: "Kimi", icon: "moon", pattern: "single", model: "kimi-k2", match: "kimi", meta: "Альтернативный single route" },
+      {
+        id: "claude",
+        pattern: "single",
+        label: "Claude 4.6",
+        desc: "reasoning",
+        icon: "flash",
+        model: "claude-sonnet-4-6",
+        match: "claude",
+      },
+      {
+        id: "gpt",
+        pattern: "single",
+        label: "GPT-5.4",
+        desc: "reasoning",
+        icon: "flash",
+        model: "gpt-5-4",
+        match: "gpt",
+      },
+      {
+        id: "gemini",
+        pattern: "single",
+        label: "Gemini 3.1",
+        desc: "reasoning",
+        icon: "flash",
+        model: "gemini-3-1-pro",
+        match: "gemini",
+      },
+      {
+        id: "kimi",
+        pattern: "single",
+        label: "Kimi K2.5",
+        desc: "reasoning",
+        icon: "flash",
+        model: "kimi-k2-5",
+        match: "kimi",
+      },
     ],
   },
   {
-    category: "2 модели",
+    title: "2 модели",
     items: [
-      { id: "dual-cg", label: "Claude + GPT", icon: "merge", pattern: "compare", models: ["claude-sonnet-4-6", "gpt-4o"], match: ["claude", "gpt"], meta: "Сравнить два ответа" },
-      { id: "dual-cgm", label: "Claude + Gemini", icon: "merge", pattern: "compare", models: ["claude-sonnet-4-6", "gemini-2-5-pro"], match: ["claude", "gemini"], meta: "Два сильных мнения" },
+      {
+        id: "claude+gpt",
+        pattern: "dual",
+        label: "Claude + GPT",
+        desc: "параллельно",
+        icon: "merge",
+        matches: ["claude", "gpt"],
+        models: ["claude-sonnet-4-6", "gpt-5-4"],
+        recommended: true,
+      },
+      {
+        id: "claude+gemini",
+        pattern: "dual",
+        label: "Claude + Gemini",
+        desc: "параллельно",
+        icon: "merge",
+        matches: ["claude", "gemini"],
+        models: ["claude-sonnet-4-6", "gemini-3-1-pro"],
+      },
+      {
+        id: "claude+best",
+        pattern: "dual",
+        label: "Claude + Best",
+        desc: "параллельно",
+        icon: "merge",
+        matches: ["claude", "best"],
+        models: ["claude-sonnet-4-6", "best"],
+      },
+      {
+        id: "gpt+best",
+        pattern: "dual",
+        label: "GPT + Best",
+        desc: "параллельно",
+        icon: "merge",
+        matches: ["gpt", "best"],
+        models: ["gpt-5-4", "best"],
+      },
     ],
   },
   {
-    category: "Мульти",
+    title: "5 моделей",
     items: [
-      { id: "consensus", label: "Consensus", icon: "target", pattern: "consensus", model: null, meta: "Свести ответы к консенсусу" },
-      { id: "debate", label: "Debate", icon: "swords", pattern: "debate", model: null, meta: "Столкнуть позиции" },
-      { id: "smart", label: "Smart", icon: "brain", pattern: "smart", model: null, meta: "Автовыбор маршрута" },
+      {
+        id: "five_models",
+        pattern: "five_models",
+        label: "5М.Все мнения",
+        desc: "без анализа",
+        icon: "cpu",
+        analyze: false,
+        strategy: "all",
+      },
+      {
+        id: "five_models_compare",
+        pattern: "five_models_compare",
+        label: "5М.Сравнение",
+        desc: "5 + Analyzer",
+        icon: "cpu",
+        analyze: true,
+        strategy: "all",
+        recommended: true,
+      },
+      {
+        id: "maximum",
+        pattern: "maximum",
+        label: "5М.Консенсус",
+        desc: "5 × 3 параллельно",
+        icon: "target",
+        analyze: true,
+        strategy: "all",
+      },
     ],
   },
 ];
 
+const MODEL_PRIORITY = [
+  { match: "best", fallback: "best" },
+  { match: "claude", fallback: "claude-sonnet-4-6" },
+  { match: "gpt", fallback: "gpt-5-4" },
+  { match: "gemini", fallback: "gemini-3-1-pro" },
+  { match: "kimi", fallback: "kimi-k2-5" },
+  { match: "max", fallback: "max" },
+  { match: "nemotron", fallback: "nemotron-3-super" },
+  { match: "opus", fallback: "claude-opus-4-7" },
+];
+
 const ICONS = {
-  search: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg>',
-  star: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2L12 17.4 6.4 20.2l1.1-6.2L3 9.6l6.2-.9L12 3z"></path></svg>',
-  flash: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13 2 4 13h6l-1 9 9-11h-6l1-9z"></path></svg>',
-  chip: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="7" width="10" height="10" rx="2"></rect><path d="M9 1v3M15 1v3M9 20v3M15 20v3M1 9h3M1 15h3M20 9h3M20 15h3"></path></svg>',
-  spark: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2v4M12 18v4M4.9 4.9l2.8 2.8M16.3 16.3l2.8 2.8M2 12h4M18 12h4M4.9 19.1l2.8-2.8M16.3 7.7l2.8-2.8"></path><circle cx="12" cy="12" r="3"></circle></svg>',
-  moon: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"></path></svg>',
-  merge: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="6" cy="5" r="2"></circle><circle cx="18" cy="5" r="2"></circle><circle cx="12" cy="19" r="2"></circle><path d="M6 7c0 5 3.2 8.3 6 10M18 7c0 5-3.2 8.3-6 10"></path></svg>',
-  target: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><circle cx="12" cy="12" r="5"></circle><circle cx="12" cy="12" r="1.5"></circle></svg>',
-  swords: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 4 5 5M13 11l7-7M8 14l-4 4M10 16l3 3M5 19l4-4M14 10l5 5"></path></svg>',
-  brain: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4a3 3 0 0 0-3 3v1a2.5 2.5 0 0 0 0 5v1a3 3 0 0 0 3 3h1v-4H8m7-9a3 3 0 0 1 3 3v1a2.5 2.5 0 0 1 0 5v1a3 3 0 0 1-3 3h-1v-4h2M12 4v16"></path></svg>',
+  chip: `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+    <rect x="6" y="6" width="12" height="12" rx="2"></rect>
+    <line x1="7" y1="4" x2="7" y2="6"></line>
+    <line x1="10" y1="4" x2="10" y2="6"></line>
+    <line x1="14" y1="4" x2="14" y2="6"></line>
+    <line x1="17" y1="4" x2="17" y2="6"></line>
+    <line x1="7" y1="18" x2="7" y2="20"></line>
+    <line x1="10" y1="18" x2="10" y2="20"></line>
+    <line x1="14" y1="18" x2="14" y2="20"></line>
+    <line x1="17" y1="18" x2="17" y2="20"></line>
+    <line x1="4" y1="7" x2="6" y2="7"></line>
+    <line x1="4" y1="10" x2="6" y2="10"></line>
+    <line x1="4" y1="14" x2="6" y2="14"></line>
+    <line x1="4" y1="17" x2="6" y2="17"></line>
+    <line x1="18" y1="7" x2="20" y2="7"></line>
+    <line x1="18" y1="10" x2="20" y2="10"></line>
+    <line x1="18" y1="14" x2="20" y2="14"></line>
+    <line x1="18" y1="17" x2="20" y2="17"></line>
+  </svg>`,
+  search: `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+    <circle cx="11" cy="11" r="8"></circle>
+    <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+  </svg>`,
+  flash: `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+    <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+  </svg>`,
+  merge: `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+    <circle cx="6" cy="4" r="3"></circle>
+    <circle cx="18" cy="4" r="3"></circle>
+    <circle cx="12" cy="20" r="3"></circle>
+    <path d="M6 7C6 13 10 16 12 17"></path>
+    <path d="M18 7C18 13 14 16 12 17"></path>
+  </svg>`,
+  target: `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+    <circle cx="12" cy="12" r="10"></circle>
+    <circle cx="12" cy="12" r="6"></circle>
+    <circle cx="12" cy="12" r="2"></circle>
+  </svg>`,
+  cpu: `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+    <rect x="4" y="4" width="16" height="16" rx="2"></rect>
+    <rect x="9" y="9" width="6" height="6"></rect>
+    <line x1="9" y1="1" x2="9" y2="4"></line>
+    <line x1="15" y1="1" x2="15" y2="4"></line>
+    <line x1="9" y1="20" x2="9" y2="23"></line>
+    <line x1="15" y1="20" x2="15" y2="23"></line>
+    <line x1="20" y1="9" x2="23" y2="9"></line>
+    <line x1="20" y1="14" x2="23" y2="14"></line>
+    <line x1="1" y1="9" x2="4" y2="9"></line>
+    <line x1="1" y1="14" x2="4" y2="14"></line>
+  </svg>`,
 };
+
+function normalizeModelEntry(model) {
+  if (typeof model === "string") {
+    return {
+      id: model,
+      label: model,
+      haystack: model.toLowerCase(),
+      aliases: [],
+    };
+  }
+
+  const aliases = Array.isArray(model?.aliases) ? model.aliases.map((item) => String(item)) : [];
+  const id = String(model?.model_id || model?.id || "");
+  const label = String(model?.display_name || id);
+  return {
+    id,
+    label,
+    haystack: `${id} ${label} ${aliases.join(" ")}`.toLowerCase(),
+    aliases,
+  };
+}
 
 class ModelChipMenu {
   constructor() {
     this.container = document.getElementById("model-selector");
-    this.currentItem = PATTERNS[1].items[0];
     this.availableModels = [];
+    this.visibleItems = [];
+    this.currentItemId = "claude+gpt";
+
     if (!this.container) {
       return;
     }
 
     this._ensureShell();
-    this._ensureSupportNodes();
-    this.popup = document.getElementById("model-popup");
     this.trigger = document.getElementById("model-trigger");
-    this.label = document.getElementById("model-trigger-label");
+    this.popup = document.getElementById("model-popup");
+    this.select = document.getElementById("model-select");
 
-    this._build();
     this._bind();
-    this._updateTrigger();
+    this._build();
   }
 
   _ensureShell() {
-    if (this.container.querySelector("#model-trigger") && this.container.querySelector("#model-popup")) {
-      return;
-    }
-
     this.container.innerHTML = `
       <button class="model-trigger" id="model-trigger" type="button" title="Выбрать модель">
-        <span class="model-trigger-label" id="model-trigger-label"></span>
-        <svg viewBox="0 0 24 24" aria-hidden="true">
-          <path d="M7 10l5 5 5-5"></path>
-        </svg>
+        ${ICONS.chip}
       </button>
       <div class="model-popup hidden" id="model-popup"></div>
+      <select id="model-select" class="hidden" aria-hidden="true" tabindex="-1"></select>
     `;
   }
 
-  _ensureSupportNodes() {
-    if (!document.getElementById("model-select")) {
-      const select = document.createElement("select");
-      select.id = "model-select";
-      select.className = "hidden";
-      select.setAttribute("aria-hidden", "true");
-      select.tabIndex = -1;
-      this.container.appendChild(select);
-    }
-
-    if (!document.getElementById("model-banner")) {
-      const banner = document.createElement("div");
-      const chatArea = document.getElementById("chat-area") || document.getElementById("chat-messages");
-      const parent = chatArea?.parentElement;
-
-      banner.id = "model-banner";
-      banner.className = "model-banner hidden";
-      if (parent && chatArea) {
-        parent.insertBefore(banner, chatArea);
-      }
-    }
-  }
-
-  _build() {
-    this.popup.innerHTML = "";
-
-    PATTERNS.forEach((group) => {
-      const category = document.createElement("div");
-      category.className = "popup-category";
-      category.textContent = group.category;
-      this.popup.appendChild(category);
-
-      group.items.forEach((item) => {
-        const element = document.createElement("div");
-        const icon = document.createElement("span");
-        const copy = document.createElement("div");
-        const label = document.createElement("span");
-        const meta = document.createElement("span");
-
-        element.className = "popup-item";
-        element.dataset.id = item.id;
-        icon.className = "popup-icon";
-        icon.innerHTML = ICONS[item.icon] || ICONS.chip;
-
-        copy.className = "popup-copy";
-        label.className = "popup-label";
-        label.textContent = item.label;
-        meta.className = "popup-meta";
-        meta.textContent = item.meta || "";
-
-        copy.appendChild(label);
-        copy.appendChild(meta);
-        element.appendChild(icon);
-        element.appendChild(copy);
-        element.addEventListener("click", () => this.select(item));
-        this.popup.appendChild(element);
-      });
-    });
-  }
-
   _bind() {
-    this.trigger.addEventListener("click", (event) => {
+    this.trigger?.addEventListener("click", (event) => {
       event.stopPropagation();
-      this.popup.classList.toggle("hidden");
+      this.popup?.classList.toggle("hidden");
     });
 
-    this.popup.addEventListener("click", (event) => {
-      event.stopPropagation();
-    });
-
-    document.addEventListener("click", () => {
-      this.popup.classList.add("hidden");
+    document.addEventListener("click", (event) => {
+      if (!this.container.contains(event.target)) {
+        this.popup?.classList.add("hidden");
+      }
     });
   }
 
-  _normalizeModelEntry(model) {
-    if (typeof model === "string") {
-      return {
-        id: model,
-        label: model,
-        haystack: model.toLowerCase(),
-      };
-    }
-
-    const id = model?.model_id || model?.id || "";
-    const label = model?.display_name || id;
-    return {
-      id,
-      label,
-      haystack: `${id} ${label}`.toLowerCase(),
-    };
-  }
-
-  _catalogTokens(model) {
-    if (typeof model === "string") {
-      return [model];
-    }
-
-    const aliases = Array.isArray(model?.aliases) ? model.aliases : [];
-    return [
-      model?.id,
-      model?.model_id,
-      model?.display_name,
-      ...aliases,
-    ].filter(Boolean);
-  }
-
-  _syncWindowModelCatalog() {
-    const currentCatalog = window.modelCatalog;
-    if (!currentCatalog || currentCatalog.unavailable) {
-      return;
-    }
-
-    const ids = new Set(currentCatalog.ids instanceof Set ? Array.from(currentCatalog.ids) : []);
-    this.availableModels.forEach((model) => {
-      this._catalogTokens(model).forEach((token) => ids.add(String(token).trim()));
-    });
-
-    window.modelCatalog = {
-      ...currentCatalog,
-      items: this.availableModels,
-      ids,
-    };
-  }
-
-  _resolveSingleMatch(match, fallback) {
-    if (!Array.isArray(this.availableModels) || !this.availableModels.length) {
+  _resolveModel(match, fallback) {
+    if (!this.availableModels.length) {
       return fallback || null;
     }
 
-    const entries = this.availableModels
-      .map((model) => this._normalizeModelEntry(model))
-      .filter((model) => model.id);
-
     const exactNeedle = String(fallback || "").toLowerCase();
-    const matchNeedle = String(match || "").toLowerCase();
+    const fuzzyNeedle = String(match || "").toLowerCase();
+    const entries = this.availableModels.map((model) => normalizeModelEntry(model)).filter((model) => model.id);
 
-    const exact = entries.find((model) => model.id.toLowerCase() === exactNeedle);
+    const exact = entries.find((entry) => entry.id.toLowerCase() === exactNeedle);
     if (exact) {
       return exact.id;
     }
 
-    const fuzzy = entries.find((model) => model.haystack.includes(matchNeedle));
-    return fuzzy ? fuzzy.id : fallback || null;
+    const fuzzy = entries.find((entry) => entry.haystack.includes(fuzzyNeedle));
+    return fuzzy ? fuzzy.id : null;
+  }
+
+  _resolveAllModels() {
+    const resolved = [];
+    for (const item of MODEL_PRIORITY) {
+      const modelId = this._resolveModel(item.match, item.fallback);
+      if (modelId && !resolved.includes(modelId)) {
+        resolved.push(modelId);
+        if (resolved.length >= 5) {
+          break;
+        }
+      }
+    }
+    return resolved;
   }
 
   _resolveItem(item) {
-    if (Array.isArray(item.models)) {
+    if (item.strategy === "all") {
+      const models = this._resolveAllModels();
+      const available = this.availableModels.length === 0 || models.length >= 5;
       return {
         ...item,
-        resolvedModels: item.models.map((model, index) => this._resolveSingleMatch(item.match?.[index], model)),
+        available,
+        resolvedModel: null,
+        resolvedModels: models,
       };
     }
 
+    if (Array.isArray(item.matches)) {
+      const models = item.matches
+        .map((match, index) => this._resolveModel(match, item.models?.[index] || null))
+        .filter(Boolean);
+      const available = this.availableModels.length === 0 || models.length === item.matches.length;
+      return {
+        ...item,
+        available,
+        resolvedModel: null,
+        resolvedModels: models,
+      };
+    }
+
+    const modelId = this._resolveModel(item.match, item.model);
+    const available = this.availableModels.length === 0 || Boolean(modelId);
     return {
       ...item,
-      resolvedModel: this._resolveSingleMatch(item.match, item.model),
+      available,
+      resolvedModel: modelId,
+      resolvedModels: null,
     };
   }
 
-  _resolvedCurrentItem() {
-    return this._resolveItem(this.currentItem);
+  _resolveGroups() {
+    return MENU_GROUPS.map((group) => {
+      const items = group.items.map((item) => this._resolveItem(item)).filter((item) => item.available);
+      return { title: group.title, items };
+    }).filter((group) => group.items.length > 0);
   }
 
-  _updateTrigger() {
-    const current = this._resolvedCurrentItem();
-    this.label.innerHTML = `${ICONS[current.icon] || ICONS.chip}<span>${current.label}</span>`;
+  _currentItem() {
+    return this.visibleItems.find((item) => item.id === this.currentItemId) || this.visibleItems[0] || null;
+  }
 
-    this.popup.querySelectorAll(".popup-item").forEach((element) => {
-      element.classList.toggle("active", element.dataset.id === this.currentItem.id);
+  _syncLegacySelect() {
+    if (!this.select) {
+      return;
+    }
+
+    const current = this._currentItem();
+    const preferredModels = current?.resolvedModels || (current?.resolvedModel ? [current.resolvedModel] : []);
+    const options = this._resolveAllModels();
+
+    this.select.innerHTML = "";
+    options.forEach((modelId) => {
+      const option = document.createElement("option");
+      option.value = modelId;
+      option.textContent = modelId;
+      this.select.appendChild(option);
     });
+
+    if (preferredModels.length) {
+      this.select.value = preferredModels[0];
+    }
+  }
+
+  _build() {
+    if (!this.popup) {
+      return;
+    }
+
+    const groups = this._resolveGroups();
+    this.visibleItems = groups.flatMap((group) => group.items);
+    if (!this._currentItem()) {
+      this.currentItemId = this.visibleItems[0]?.id || "";
+    }
+
+    this.popup.innerHTML = "";
+    groups.forEach((group) => {
+      const section = document.createElement("div");
+      section.className = "model-section";
+
+      if (group.title) {
+        const title = document.createElement("div");
+        title.className = "model-section-title";
+        title.textContent = group.title;
+        section.appendChild(title);
+      }
+
+      group.items.forEach((item) => {
+        const element = document.createElement("div");
+        const icon = document.createElement("div");
+        const content = document.createElement("div");
+        const label = document.createElement("div");
+        const desc = document.createElement("div");
+
+        element.className = "model-item";
+        element.classList.toggle("selected", item.id === this.currentItemId);
+        icon.className = "model-item-icon chip-icon";
+        icon.innerHTML = ICONS[item.icon] || ICONS.chip;
+        content.className = "model-item-content";
+        label.className = "model-item-label";
+        label.textContent = item.label;
+        desc.className = "model-item-desc";
+        desc.textContent = item.desc || "";
+
+        content.appendChild(label);
+        content.appendChild(desc);
+        element.appendChild(icon);
+        element.appendChild(content);
+
+        if (item.recommended) {
+          const badge = document.createElement("span");
+          badge.className = "model-badge";
+          badge.textContent = "HOT";
+          element.appendChild(badge);
+        }
+
+        element.addEventListener("click", () => {
+          this.currentItemId = item.id;
+          this.popup.classList.add("hidden");
+          this._build();
+          this._emitSelection();
+        });
+
+        section.appendChild(element);
+      });
+
+      this.popup.appendChild(section);
+    });
+
+    const current = this._currentItem();
+    if (this.trigger && current) {
+      this.trigger.title = current.label;
+    }
+    this._syncLegacySelect();
   }
 
   _emitSelection() {
@@ -262,22 +448,26 @@ class ModelChipMenu {
     );
   }
 
-  select(item) {
-    this.currentItem = item;
-    this._updateTrigger();
-    this.popup.classList.add("hidden");
-    this._emitSelection();
-  }
-
   setAvailableModels(models) {
     this.availableModels = Array.isArray(models) ? models : [];
-    this._syncWindowModelCatalog();
-    this._updateTrigger();
+    this._build();
     this._emitSelection();
   }
 
   getSelection() {
-    const current = this._resolvedCurrentItem();
+    const current = this._currentItem();
+    if (!current) {
+      return {
+        id: "",
+        label: "",
+        icon: "chip",
+        pattern: "single",
+        model: null,
+        models: null,
+        analyze: true,
+      };
+    }
+
     return {
       id: current.id,
       label: current.label,
@@ -285,6 +475,7 @@ class ModelChipMenu {
       pattern: current.pattern,
       model: current.resolvedModel || null,
       models: current.resolvedModels || null,
+      analyze: current.analyze !== false,
     };
   }
 }

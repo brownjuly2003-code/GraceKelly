@@ -1,0 +1,1788 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Web Page Builder</title>
+    <link rel="stylesheet" href="/css/fonts.css">
+    <style>
+        /* ── Variables — matches GraceKelly main.css ── */
+        :root {
+            --bg-primary: #ffffff;
+            --bg-secondary: #f9fafb;
+            --bg-tertiary: #f3f4f6;
+            --bg-hover: #e5e7eb;
+            --text-primary: #111827;
+            --text-secondary: #374151;
+            --text-muted: #6b7280;
+            --accent-primary: #f97316;
+            --accent-hover: #ea580c;
+            --accent-light: #fb923c;
+            --accent-dim: rgba(249, 115, 22, 0.08);
+            --border-color: #e5e7eb;
+            --border-hover: #d1d5db;
+            --success: #10b981;
+            --error: #ef4444;
+            --font-family: 'Source Sans Pro', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            --font-serif: 'Playfair Display', Georgia, serif;
+            --border-radius-sm: 6px;
+            --border-radius-md: 8px;
+            --border-radius-lg: 12px;
+            --shadow-sm: 0 1px 2px 0 rgba(0,0,0,0.05);
+            --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: var(--font-family);
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            line-height: 1.6;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        h1, h2, h3 {
+            font-family: var(--font-serif);
+            font-weight: 600;
+            letter-spacing: -0.02em;
+            line-height: 1.2;
+        }
+
+        .app {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 40px 20px 80px;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 32px;
+        }
+
+        header h1 {
+            font-size: 36px;
+            font-weight: 400;
+            margin-bottom: 6px;
+            color: var(--accent-primary);
+        }
+
+        header p {
+            color: var(--text-muted);
+            font-size: 15px;
+        }
+
+        /* ── Progress Bar ── */
+        .progress-bar {
+            display: flex;
+            gap: 4px;
+            margin-bottom: 36px;
+        }
+        .progress-step {
+            flex: 1;
+            height: 4px;
+            background: var(--bg-tertiary);
+            border-radius: 2px;
+            transition: background 0.3s;
+        }
+        .progress-step.done { background: var(--accent-primary); }
+        .progress-step.current { background: var(--accent-primary); opacity: 0.5; }
+
+        .step-labels {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 24px;
+        }
+        .step-label {
+            font-size: 11px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .step-label.active { color: var(--accent-primary); font-weight: 600; }
+
+        /* ── Screens ── */
+        .screen { display: none; }
+        .screen.active {
+            display: block;
+            animation: fadeIn 0.3s ease;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(8px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        .screen-title {
+            font-size: 24px;
+            font-weight: 600;
+            margin-bottom: 6px;
+        }
+        .screen-desc {
+            color: var(--text-muted);
+            font-size: 15px;
+            margin-bottom: 28px;
+        }
+
+        /* ── Card Selector ── */
+        .card-selector {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+        .card-option {
+            border: none;
+            border-radius: var(--border-radius-md);
+            padding: 16px;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: center;
+            background: var(--bg-secondary);
+        }
+        .card-option:hover {
+            background: var(--bg-tertiary);
+        }
+        .card-option.selected {
+            background: var(--accent-dim);
+        }
+        .card-option .card-name {
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 4px;
+            color: var(--text-primary);
+        }
+        .card-option .card-desc {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        /* ── Form Fields ── */
+        .field-group { margin-bottom: 22px; }
+        .field-label {
+            display: block;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-muted);
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-family: var(--font-family);
+        }
+        input[type="text"], textarea, select {
+            width: 100%;
+            padding: 10px 14px;
+            border: 1px solid var(--border-color);
+            border-radius: var(--border-radius-md);
+            font-family: var(--font-family);
+            font-size: 14px;
+            color: var(--text-primary);
+            background: var(--bg-primary);
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+        input[type="text"]:focus, textarea:focus, select:focus {
+            outline: none;
+            border-color: var(--accent-primary);
+            box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.1);
+        }
+        textarea { resize: vertical; min-height: 80px; }
+
+        /* ── Toggle ── */
+        .toggle-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+        .toggle {
+            width: 44px;
+            height: 24px;
+            background: var(--bg-tertiary);
+            border-radius: 12px;
+            cursor: pointer;
+            position: relative;
+            transition: background 0.2s;
+            flex-shrink: 0;
+        }
+        .toggle.on { background: var(--accent-primary); }
+        .toggle::after {
+            content: '';
+            position: absolute;
+            width: 18px;
+            height: 18px;
+            background: #fff;
+            border-radius: 50%;
+            top: 3px;
+            left: 3px;
+            transition: transform 0.2s;
+        }
+        .toggle.on::after { transform: translateX(20px); }
+        .toggle-label { font-size: 14px; color: var(--text-secondary); }
+
+        /* ── Palette Swatches ── */
+        .palette-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+        .palette-option {
+            border: none;
+            border-radius: var(--border-radius-md);
+            padding: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+            background: var(--bg-secondary);
+        }
+        .palette-option:hover { background: var(--bg-tertiary); }
+        .palette-option.selected { background: var(--accent-dim); }
+        .palette-swatches {
+            display: flex;
+            gap: 4px;
+            margin-bottom: 8px;
+        }
+        .palette-dot {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            border: 1px solid rgba(0,0,0,0.08);
+        }
+        .palette-name {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+        .palette-desc-text {
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+
+        /* ── Custom Color Pickers ── */
+        .color-pickers {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+            margin-bottom: 24px;
+            padding: 16px;
+            border: none;
+            border-radius: var(--border-radius-md);
+            background: var(--bg-secondary);
+        }
+        .color-picker-group { text-align: center; }
+        .color-picker-group label {
+            display: block;
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-bottom: 6px;
+        }
+        .color-picker-group input[type="color"] {
+            width: 48px;
+            height: 32px;
+            border: 1px solid var(--border-color);
+            border-radius: var(--border-radius-sm);
+            cursor: pointer;
+            padding: 0;
+            background: none;
+        }
+
+        /* ── Font Pair Selector ── */
+        .font-pair-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+        .font-pair-option {
+            border: none;
+            border-radius: var(--border-radius-md);
+            padding: 14px;
+            cursor: pointer;
+            transition: all 0.2s;
+            background: var(--bg-secondary);
+        }
+        .font-pair-option:hover { background: var(--bg-tertiary); }
+        .font-pair-option.selected { background: var(--accent-dim); }
+        .font-pair-option.hidden { display: none; }
+        .fp-name { font-size: 13px; font-weight: 600; margin-bottom: 4px; color: var(--text-primary); }
+        .fp-sample { font-size: 14px; margin-bottom: 2px; color: var(--text-secondary); }
+        .fp-desc { font-size: 11px; color: var(--text-muted); }
+
+        /* ── Section Reorder ── */
+        .section-list { margin-bottom: 24px; }
+        .section-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 14px;
+            border: none;
+            border-radius: var(--border-radius-sm);
+            margin-bottom: 6px;
+            background: var(--bg-secondary);
+        }
+        .section-item .section-name { flex: 1; font-size: 14px; font-weight: 500; }
+        .section-item button {
+            background: var(--bg-tertiary);
+            border: none;
+            border-radius: var(--border-radius-sm);
+            width: 28px;
+            height: 28px;
+            cursor: pointer;
+            font-size: 14px;
+            color: var(--text-muted);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+        .section-item button:hover { background: var(--bg-hover); color: var(--accent-primary); }
+
+        .add-section-area {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            padding: 16px;
+            border: none;
+            border-radius: var(--border-radius-md);
+            margin-bottom: 24px;
+            background: var(--bg-secondary);
+        }
+        .add-section-btn {
+            padding: 6px 14px;
+            font-size: 13px;
+            border: none;
+            border-radius: var(--border-radius-sm);
+            background: var(--bg-tertiary);
+            cursor: pointer;
+            color: var(--text-muted);
+            transition: all 0.2s;
+            font-family: var(--font-family);
+        }
+        .add-section-btn:hover {
+            color: var(--accent-primary);
+            background: var(--accent-dim);
+        }
+
+        /* ── Content Accordion ── */
+        .content-sections { margin-bottom: 24px; }
+        .content-section {
+            border: none;
+            border-radius: var(--border-radius-md);
+            margin-bottom: 8px;
+            overflow: hidden;
+            background: var(--bg-secondary);
+        }
+        .content-section-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 16px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            font-family: var(--font-family);
+        }
+        .content-section-header .chevron {
+            transition: transform 0.2s;
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+        .content-section.open .chevron { transform: rotate(180deg); }
+        .content-section-body {
+            display: none;
+            padding: 16px;
+        }
+        .content-section.open .content-section-body { display: block; }
+
+        /* ── Repeater ── */
+        .repeater-items { margin-bottom: 8px; }
+        .repeater-item {
+            padding: 12px;
+            border: 1px solid var(--bg-tertiary);
+            border-radius: var(--border-radius-sm);
+            margin-bottom: 8px;
+            position: relative;
+            background: var(--bg-secondary);
+        }
+        .repeater-item .remove-item {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            font-size: 16px;
+            transition: color 0.2s;
+        }
+        .repeater-item .remove-item:hover { color: var(--error); }
+        .add-item-btn {
+            padding: 8px 16px;
+            font-size: 13px;
+            border: none;
+            border-radius: var(--border-radius-sm);
+            background: var(--bg-tertiary);
+            cursor: pointer;
+            color: var(--text-muted);
+            width: 100%;
+            font-family: var(--font-family);
+            transition: all 0.2s;
+        }
+        .add-item-btn:hover { background: var(--accent-dim); color: var(--accent-primary); }
+
+        /* ── CSV Input ── */
+        .csv-input-area { position: relative; }
+        .csv-input-area textarea { font-family: 'SF Mono', 'Monaco', monospace; font-size: 13px; min-height: 120px; }
+        .csv-upload-btn {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            padding: 4px 10px;
+            font-size: 12px;
+            border: none;
+            border-radius: var(--border-radius-sm);
+            background: var(--bg-tertiary);
+            cursor: pointer;
+            color: var(--text-muted);
+            font-family: var(--font-family);
+            transition: all 0.2s;
+        }
+        .csv-upload-btn:hover { background: var(--accent-dim); color: var(--accent-primary); }
+
+        /* ── AI Buttons ── */
+        .ai-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 14px;
+            font-size: 12px;
+            border: none;
+            border-radius: var(--border-radius-sm);
+            background: var(--accent-dim);
+            cursor: pointer;
+            color: var(--accent-primary);
+            font-family: var(--font-family);
+            transition: all 0.2s;
+        }
+        .ai-btn:hover { background: rgba(249, 115, 22, 0.15); }
+        .ai-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .ai-btn .spinner {
+            width: 12px; height: 12px;
+            border: 2px solid var(--accent-primary);
+            border-top-color: transparent;
+            border-radius: 50%;
+            animation: spin 0.6s linear infinite;
+            display: none;
+        }
+        .ai-btn.loading .spinner { display: inline-block; }
+        .ai-btn.loading span { display: none; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* ── Buttons ── */
+        .btn-row {
+            display: flex;
+            gap: 12px;
+            justify-content: space-between;
+            margin-top: 32px;
+        }
+        .btn {
+            padding: 10px 28px;
+            font-size: 14px;
+            font-weight: 500;
+            border-radius: var(--border-radius-sm);
+            cursor: pointer;
+            font-family: var(--font-family);
+            transition: all 0.2s;
+        }
+        .btn-primary {
+            background: var(--accent-primary);
+            color: #fff;
+            border: none;
+        }
+        .btn-primary:hover { background: var(--accent-hover); }
+        .btn-secondary {
+            background: var(--bg-secondary);
+            color: var(--text-secondary);
+            border: none;
+        }
+        .btn-secondary:hover { background: var(--bg-tertiary); color: var(--accent-primary); }
+
+        /* ── Preview ── */
+        .preview-container {
+            border: none;
+            border-radius: var(--border-radius-lg);
+            overflow: hidden;
+            margin-bottom: 24px;
+            background: var(--bg-secondary);
+        }
+        .preview-container iframe {
+            width: 100%;
+            height: 600px;
+            border: none;
+        }
+        .export-actions {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        /* ── Toast ── */
+        .toast {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            padding: 12px 20px;
+            border-radius: var(--border-radius-md);
+            font-size: 14px;
+            color: #fff;
+            z-index: 10000;
+            animation: slideUp 0.3s ease;
+            display: none;
+            box-shadow: var(--shadow-md);
+        }
+        .toast.show { display: block; }
+        .toast.success { background: var(--success); }
+        .toast.error { background: var(--error); }
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(12px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        /* ── Footer — matches main.css ── */
+        .main-footer {
+            padding: 24px 32px;
+            margin-top: 48px;
+            border-top: none;
+            display: flex;
+            gap: 24px;
+            font-size: 14px;
+            justify-content: center;
+        }
+        .main-footer a {
+            color: var(--accent-primary);
+            text-decoration: none;
+            font-weight: 300;
+        }
+        .main-footer a:hover { color: var(--accent-hover); }
+
+        /* ── Grid Type Cards ── */
+        .grid-type-selector {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+
+        /* ── Inline field + AI button ── */
+        .field-with-ai {
+            display: flex;
+            gap: 8px;
+            align-items: flex-start;
+        }
+        .field-with-ai input,
+        .field-with-ai textarea { flex: 1; }
+
+        /* ── Language toggle inline ── */
+        .lang-toggle {
+            display: inline-flex;
+            border: none;
+            border-radius: var(--border-radius-sm);
+            overflow: hidden;
+            background: var(--bg-tertiary);
+        }
+        .lang-toggle button {
+            padding: 6px 16px;
+            font-size: 13px;
+            border: none;
+            background: none;
+            cursor: pointer;
+            color: var(--text-muted);
+            transition: all 0.2s;
+            font-family: var(--font-family);
+        }
+        .lang-toggle button.active {
+            background: var(--accent-primary);
+            color: #fff;
+        }
+
+        /* ── Dark Mode Toggle ── */
+        .dark-mode-toggle {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            transition: all 0.2s;
+        }
+
+        /* ── Dark Mode ── */
+        body.dark-mode {
+            --bg-primary: #1a1a1a;
+            --bg-secondary: #2d2d2d;
+            --bg-tertiary: #404040;
+            --bg-hover: #505050;
+            --text-primary: #e4e4e4;
+            --text-secondary: #a0a0a0;
+            --text-muted: #6b7280;
+            --border-color: #404040;
+            --border-hover: #505050;
+        }
+        body.dark-mode .dark-mode-toggle {
+            background: transparent;
+        }
+        body.dark-mode .card-option,
+        body.dark-mode .palette-option,
+        body.dark-mode .font-pair-option {
+            background: #2d2d2d;
+        }
+        body.dark-mode input[type="text"],
+        body.dark-mode textarea,
+        body.dark-mode select {
+            background: #2d2d2d;
+            border-color: #404040;
+            color: var(--text-primary);
+        }
+        body.dark-mode .section-item,
+        body.dark-mode .add-section-btn,
+        body.dark-mode .csv-upload-btn {
+            background: #2d2d2d;
+        }
+        body.dark-mode .content-section-header {
+            background: #2d2d2d;
+        }
+        body.dark-mode .repeater-item {
+            background: #333;
+            border-color: #404040;
+        }
+
+        /* ── Scrollbar — matches main.css ── */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: var(--bg-secondary); }
+        ::-webkit-scrollbar-thumb { background: var(--bg-tertiary); border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--bg-hover); }
+    </style>
+</head>
+<body>
+    <button class="dark-mode-toggle" onclick="toggleDarkMode()" title="Toggle dark mode">🌙</button>
+
+    <div class="app">
+        <header>
+            <h1>Web Page Builder</h1>
+            <p>Create professional HTML pages with charts, KPIs, and tables</p>
+        </header>
+
+        <!-- Progress -->
+        <div class="progress-bar">
+            <div class="progress-step current" data-step="0"></div>
+            <div class="progress-step" data-step="1"></div>
+            <div class="progress-step" data-step="2"></div>
+            <div class="progress-step" data-step="3"></div>
+            <div class="progress-step" data-step="4"></div>
+        </div>
+        <div class="step-labels">
+            <span class="step-label active" data-step="0">Purpose</span>
+            <span class="step-label" data-step="1">Identity</span>
+            <span class="step-label" data-step="2">Layout</span>
+            <span class="step-label" data-step="3">Content</span>
+            <span class="step-label" data-step="4">Export</span>
+        </div>
+
+        <!-- ═══════════ SCREEN 1: PURPOSE ═══════════ -->
+        <div class="screen active" id="screen-0">
+            <h2 class="screen-title">What is this page for?</h2>
+            <p class="screen-desc">Define the purpose, audience, and goal of your page.</p>
+
+            <div class="field-group">
+                <label class="field-label">Page Type</label>
+                <div class="card-selector" id="page-type-selector"></div>
+            </div>
+
+            <div class="field-group">
+                <label class="field-label">Audience</label>
+                <div class="card-selector" id="audience-selector"></div>
+            </div>
+
+            <div class="field-group">
+                <label class="field-label">Main Message (what viewer understands in 5 seconds)</label>
+                <input type="text" id="main-message" placeholder="e.g. Revenue grew 23% this quarter">
+            </div>
+
+            <div class="field-group">
+                <label class="field-label">Action Goal</label>
+                <div class="card-selector" id="action-goal-selector"></div>
+            </div>
+
+            <div style="margin-top:16px;">
+                <button class="ai-btn" id="ai-suggest-btn" onclick="aiSuggest()">
+                    <div class="spinner"></div>
+                    <span>Ask AI for design recommendations</span>
+                </button>
+                <span id="ai-suggest-status" style="font-size:12px; color:var(--text-muted); margin-left:8px;"></span>
+            </div>
+
+            <div class="btn-row">
+                <div></div>
+                <button class="btn btn-primary" onclick="nextScreen()">Next: Visual Identity</button>
+            </div>
+        </div>
+
+        <!-- ═══════════ SCREEN 2: VISUAL IDENTITY ═══════════ -->
+        <div class="screen" id="screen-1">
+            <h2 class="screen-title">Visual Identity</h2>
+            <p class="screen-desc">Choose colors, fonts, and language.</p>
+
+            <!-- Language -->
+            <div class="field-group">
+                <label class="field-label">Language</label>
+                <div class="lang-toggle">
+                    <button class="active" onclick="setLanguage('en', this)">EN</button>
+                    <button onclick="setLanguage('ru', this)">RU</button>
+                </div>
+            </div>
+
+            <!-- Palette -->
+            <div class="field-group">
+                <label class="field-label">Color Palette</label>
+                <div class="palette-grid" id="palette-grid"></div>
+                <!-- Custom -->
+                <div class="toggle-row">
+                    <div class="toggle" id="custom-colors-toggle" onclick="toggleCustomColors()"></div>
+                    <span class="toggle-label">Custom colors</span>
+                </div>
+                <div class="color-pickers" id="custom-colors-area" style="display:none;">
+                    <div class="color-picker-group">
+                        <label>Background</label>
+                        <input type="color" id="custom-bg" value="#FAFAFA">
+                    </div>
+                    <div class="color-picker-group">
+                        <label>Text</label>
+                        <input type="color" id="custom-text" value="#1A1A1A">
+                    </div>
+                    <div class="color-picker-group">
+                        <label>Accent</label>
+                        <input type="color" id="custom-accent" value="#2563EB">
+                    </div>
+                    <div class="color-picker-group">
+                        <label>Accent 2</label>
+                        <input type="color" id="custom-accent2" value="#059669">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Fonts -->
+            <div class="field-group">
+                <label class="field-label">Font Pair</label>
+                <div class="font-pair-grid" id="font-pair-grid"></div>
+            </div>
+
+            <div class="btn-row">
+                <button class="btn btn-secondary" onclick="prevScreen()">Back</button>
+                <button class="btn btn-primary" onclick="nextScreen()">Next: Layout</button>
+            </div>
+        </div>
+
+        <!-- ═══════════ SCREEN 3: LAYOUT ═══════════ -->
+        <div class="screen" id="screen-2">
+            <h2 class="screen-title">Layout & Sections</h2>
+            <p class="screen-desc">Choose grid type, width, and arrange sections.</p>
+
+            <!-- Grid Type -->
+            <div class="field-group">
+                <label class="field-label">Grid Type</label>
+                <div class="grid-type-selector card-selector" id="grid-type-selector"></div>
+            </div>
+
+            <!-- Max Width -->
+            <div class="field-group">
+                <label class="field-label">Max Width</label>
+                <select id="max-width-select">
+                    <option value="1100px">1100px (Report)</option>
+                    <option value="1400px">1400px (Dashboard)</option>
+                    <option value="100%">Full Width</option>
+                </select>
+            </div>
+
+            <!-- Nav / Footer toggles -->
+            <div class="toggle-row">
+                <div class="toggle" id="nav-toggle" onclick="toggleEl(this)"></div>
+                <span class="toggle-label">Show navigation bar</span>
+            </div>
+            <div class="toggle-row">
+                <div class="toggle" id="footer-toggle" onclick="toggleEl(this)"></div>
+                <span class="toggle-label">Show footer</span>
+            </div>
+
+            <!-- Sections -->
+            <div class="field-group">
+                <label class="field-label">Sections (drag to reorder)</label>
+                <div class="section-list" id="section-list"></div>
+                <label class="field-label" style="margin-top:16px;">Add Section</label>
+                <div class="add-section-area" id="add-section-area"></div>
+            </div>
+
+            <div class="btn-row">
+                <button class="btn btn-secondary" onclick="prevScreen()">Back</button>
+                <button class="btn btn-primary" onclick="goToContent()">Next: Content</button>
+            </div>
+        </div>
+
+        <!-- ═══════════ SCREEN 4: CONTENT ═══════════ -->
+        <div class="screen" id="screen-3">
+            <h2 class="screen-title">Content</h2>
+            <p class="screen-desc">Fill in text, data, and configure each section.</p>
+
+            <div class="field-group">
+                <label class="field-label">Page Title (browser tab)</label>
+                <input type="text" id="page-title-input" value="My Page" placeholder="Page Title">
+            </div>
+
+            <div class="content-sections" id="content-sections"></div>
+
+            <div class="btn-row">
+                <button class="btn btn-secondary" onclick="prevScreen()">Back</button>
+                <button class="btn btn-primary" onclick="generatePage()">Generate Page</button>
+            </div>
+        </div>
+
+        <!-- ═══════════ SCREEN 5: EXPORT ═══════════ -->
+        <div class="screen" id="screen-4">
+            <h2 class="screen-title">Export</h2>
+            <p class="screen-desc">Preview and download your generated page.</p>
+
+            <div class="preview-container">
+                <iframe id="preview-iframe" sandbox="allow-scripts allow-same-origin"></iframe>
+            </div>
+
+            <div class="export-actions">
+                <button class="btn btn-primary" id="download-btn" onclick="downloadPage()">Download HTML</button>
+                <button class="btn btn-secondary" onclick="copyToClipboard()">Copy to Clipboard</button>
+                <button class="btn btn-secondary" onclick="regenerate()">Regenerate</button>
+                <button class="btn btn-secondary" onclick="startOver()">Start Over</button>
+            </div>
+
+            <div class="btn-row">
+                <button class="btn btn-secondary" onclick="prevScreen()">Back to Content</button>
+                <div></div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <footer class="main-footer">
+            <a href="/">Home</a>
+            <a href="/english.html">English Practice</a>
+            <a href="/interview.html">Interview Trainer</a>
+            <a href="/analytics.html">Analytics</a>
+            <a href="/rag.html">RAG Assistant</a>
+            <a href="/docs">API Documentation</a>
+        </footer>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <!-- Hidden file inputs -->
+    <input type="file" id="csv-file-input" accept=".csv,.txt" style="display:none;">
+
+    <script>
+    // ═══════════════════════════════════════════════════
+    // STATE
+    // ═══════════════════════════════════════════════════
+
+    let currentScreen = 0;
+    let presets = null;
+    let state = {
+        page_type: 'dashboard',
+        audience: 'analyst',
+        action_goal: 'learn',
+        main_message: '',
+        palette_id: 'analytics_light',
+        custom_colors: false,
+        custom_bg: '#FAFAFA',
+        custom_text: '#1A1A1A',
+        custom_accent: '#2563EB',
+        custom_accent2: '#059669',
+        font_pair_id: 'strict_analytical',
+        language: 'en',
+        grid_type: 'A',
+        max_width: '1100px',
+        show_nav: false,
+        show_footer: false,
+        sections: [],
+        page_title: 'My Page',
+    };
+    let generatedSessionId = null;
+
+    // ═══════════════════════════════════════════════════
+    // INIT
+    // ═══════════════════════════════════════════════════
+
+    async function init() {
+        try {
+            const res = await fetch('/api/webpage/presets');
+            presets = await res.json();
+        } catch (e) {
+            // Use fallback presets
+            presets = getFallbackPresets();
+        }
+        renderPageTypes();
+        renderAudiences();
+        renderActionGoals();
+        renderPalettes();
+        renderFontPairs();
+        renderGridTypes();
+        setDefaultSections();
+        renderSections();
+        renderAddSectionArea();
+    }
+
+    function getFallbackPresets() {
+        return {
+            palettes: {
+                analytics_light: { name: 'Analytics Light', desc: 'Clean light theme', bg: '#FAFAFA', text: '#1A1A1A', accent: '#2563EB', accent2: '#059669', muted: '#6B7280', data: ['#2563EB','#059669','#D97706','#7C3AED'] },
+                analytics_dark: { name: 'Analytics Dark', desc: 'Dark dashboard theme', bg: '#0D0D0D', text: '#E8E8E8', accent: '#C9A96E', accent2: '#7A9EC2', muted: '#8A8578', data: ['#C9A96E','#7A9EC2','#A0C4A0','#D4A0A0'] },
+            },
+            font_pairs: {
+                strict_analytical: { name: 'Strict Analytical', desc: 'Commissioner + Inter', display: 'Commissioner', body: 'Inter', supports_cyrillic: true },
+                modern_tech: { name: 'Modern Tech', desc: 'Manrope', display: 'Manrope', body: 'Manrope', supports_cyrillic: true },
+            },
+            grid_types: {
+                A: { name: 'Report / Long-read', desc: 'Single column, alternating sections' },
+                B: { name: 'Dashboard Cards', desc: 'Card grid layout' },
+                C: { name: 'Schema / Diagram', desc: 'Free positioning' },
+                D: { name: 'Landing', desc: 'Asymmetric hero-focused' },
+            },
+            page_types: {
+                dashboard: { name: 'Dashboard / Report', default_grid: 'B', default_sections: ['hero','kpi_cards','chart_text','table'] },
+                report: { name: 'Analytical Report', default_grid: 'A', default_sections: ['hero','kpi_cards','chart_text','full_chart','table'] },
+                landing: { name: 'Landing Page', default_grid: 'D', default_sections: ['hero','features_grid','testimonials','cta'] },
+                portfolio: { name: 'Portfolio', default_grid: 'D', default_sections: ['hero','features_grid','timeline','team_grid','cta'] },
+                data_story: { name: 'Data Story', default_grid: 'A', default_sections: ['hero','chart_text','full_chart','chart_text','table'] },
+                documentation: { name: 'Documentation', default_grid: 'A', default_sections: ['hero','faq','table'] },
+            },
+            section_templates: {
+                hero: { name: 'Hero' }, kpi_cards: { name: 'KPI Cards' },
+                chart_text: { name: 'Chart + Text' }, full_chart: { name: 'Full-width Chart' },
+                table: { name: 'Data Table' }, features_grid: { name: 'Features Grid' },
+                timeline: { name: 'Timeline' }, testimonials: { name: 'Testimonials' },
+                faq: { name: 'FAQ' }, team_grid: { name: 'Team Grid' },
+                cta: { name: 'CTA' }, custom_html: { name: 'Custom HTML' },
+            },
+            chart_types: {
+                line: { name: 'Line Chart' }, bar: { name: 'Bar Chart' },
+                horizontal_bar: { name: 'Horizontal Bar' }, stacked_bar: { name: 'Stacked Bar' },
+                area: { name: 'Area Chart' }, scatter: { name: 'Scatter Plot' },
+                pie: { name: 'Pie Chart' }, donut: { name: 'Donut Chart' },
+                heatmap: { name: 'Heatmap' }, waterfall: { name: 'Waterfall' },
+                dual_axis: { name: 'Dual Axis' }, sparkline: { name: 'Sparkline' },
+            },
+            audiences: { executive: 'Executive', analyst: 'Analyst', client: 'Client', public: 'Public' },
+            action_goals: { approve: 'Approve', decide: 'Decide', learn: 'Learn', convert: 'Convert' },
+        };
+    }
+
+    // ═══════════════════════════════════════════════════
+    // NAVIGATION
+    // ═══════════════════════════════════════════════════
+
+    function showScreen(n) {
+        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+        document.getElementById('screen-' + n).classList.add('active');
+        currentScreen = n;
+
+        // Update progress
+        document.querySelectorAll('.progress-step').forEach(s => {
+            const step = parseInt(s.dataset.step);
+            s.classList.remove('done', 'current');
+            if (step < n) s.classList.add('done');
+            if (step === n) s.classList.add('current');
+        });
+        document.querySelectorAll('.step-label').forEach(s => {
+            s.classList.toggle('active', parseInt(s.dataset.step) === n);
+        });
+
+        window.scrollTo(0, 0);
+    }
+
+    function nextScreen() {
+        if (currentScreen < 4) showScreen(currentScreen + 1);
+    }
+
+    function prevScreen() {
+        if (currentScreen > 0) showScreen(currentScreen - 1);
+    }
+
+    function goToContent() {
+        // Update state from screen 2
+        state.max_width = document.getElementById('max-width-select').value;
+        state.show_nav = document.getElementById('nav-toggle').classList.contains('on');
+        state.show_footer = document.getElementById('footer-toggle').classList.contains('on');
+        renderContentSections();
+        nextScreen();
+    }
+
+    // ═══════════════════════════════════════════════════
+    // RENDER: SCREEN 1
+    // ═══════════════════════════════════════════════════
+
+    function renderCardSelector(containerId, items, stateKey) {
+        const container = document.getElementById(containerId);
+        container.innerHTML = '';
+        Object.entries(items).forEach(([key, val]) => {
+            const div = document.createElement('div');
+            div.className = 'card-option' + (state[stateKey] === key ? ' selected' : '');
+            div.innerHTML = `<div class="card-name">${val.name || val}</div>
+                ${val.desc ? '<div class="card-desc">' + val.desc + '</div>' : ''}`;
+            div.onclick = () => {
+                state[stateKey] = key;
+                container.querySelectorAll('.card-option').forEach(c => c.classList.remove('selected'));
+                div.classList.add('selected');
+                // If page type changed, update default sections & grid
+                if (stateKey === 'page_type') {
+                    const pt = presets.page_types[key];
+                    if (pt) {
+                        state.grid_type = pt.default_grid || 'A';
+                        state.sections = (pt.default_sections || ['hero']).map(t => ({type: t, data: {}}));
+                        renderGridTypes();
+                        renderSections();
+                    }
+                }
+            };
+            container.appendChild(div);
+        });
+    }
+
+    function renderPageTypes() {
+        renderCardSelector('page-type-selector', presets.page_types, 'page_type');
+    }
+
+    function renderAudiences() {
+        const items = {};
+        Object.entries(presets.audiences).forEach(([k,v]) => { items[k] = {name: v}; });
+        renderCardSelector('audience-selector', items, 'audience');
+    }
+
+    function renderActionGoals() {
+        const items = {};
+        Object.entries(presets.action_goals).forEach(([k,v]) => { items[k] = {name: v}; });
+        renderCardSelector('action-goal-selector', items, 'action_goal');
+    }
+
+    // ═══════════════════════════════════════════════════
+    // RENDER: SCREEN 2
+    // ═══════════════════════════════════════════════════
+
+    function renderPalettes() {
+        const grid = document.getElementById('palette-grid');
+        grid.innerHTML = '';
+        Object.entries(presets.palettes).forEach(([key, pal]) => {
+            const div = document.createElement('div');
+            div.className = 'palette-option' + (state.palette_id === key ? ' selected' : '');
+            const colors = [pal.bg, pal.text, pal.accent, pal.accent2, pal.muted || pal.accent];
+            div.innerHTML = `
+                <div class="palette-swatches">
+                    ${colors.map(c => `<div class="palette-dot" style="background:${c}"></div>`).join('')}
+                </div>
+                <div class="palette-name">${pal.name}</div>
+                <div class="palette-desc-text">${pal.desc || ''}</div>
+            `;
+            div.onclick = () => {
+                state.palette_id = key;
+                state.custom_colors = false;
+                document.getElementById('custom-colors-toggle').classList.remove('on');
+                document.getElementById('custom-colors-area').style.display = 'none';
+                grid.querySelectorAll('.palette-option').forEach(c => c.classList.remove('selected'));
+                div.classList.add('selected');
+            };
+            grid.appendChild(div);
+        });
+    }
+
+    function toggleCustomColors() {
+        const toggle = document.getElementById('custom-colors-toggle');
+        const area = document.getElementById('custom-colors-area');
+        toggle.classList.toggle('on');
+        state.custom_colors = toggle.classList.contains('on');
+        area.style.display = state.custom_colors ? 'grid' : 'none';
+        if (state.custom_colors) {
+            state.palette_id = 'custom';
+            document.querySelectorAll('.palette-option').forEach(c => c.classList.remove('selected'));
+        }
+    }
+
+    function renderFontPairs() {
+        const grid = document.getElementById('font-pair-grid');
+        grid.innerHTML = '';
+        Object.entries(presets.font_pairs).forEach(([key, fp]) => {
+            const div = document.createElement('div');
+            const hidden = (state.language === 'ru' && fp.supports_cyrillic === false);
+            div.className = 'font-pair-option' + (state.font_pair_id === key ? ' selected' : '') + (hidden ? ' hidden' : '');
+            div.dataset.key = key;
+            div.dataset.cyrillic = fp.supports_cyrillic ? 'true' : 'false';
+            const sample = state.language === 'ru' ? 'Заголовок — текст' : 'Heading — body text';
+            div.innerHTML = `
+                <div class="fp-name">${fp.name}</div>
+                <div class="fp-sample">${sample}</div>
+                <div class="fp-desc">${fp.desc || ''}</div>
+            `;
+            div.onclick = () => {
+                state.font_pair_id = key;
+                grid.querySelectorAll('.font-pair-option').forEach(c => c.classList.remove('selected'));
+                div.classList.add('selected');
+            };
+            grid.appendChild(div);
+        });
+    }
+
+    function setLanguage(lang, btn) {
+        state.language = lang;
+        btn.parentNode.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        // Filter font pairs for cyrillic
+        document.querySelectorAll('.font-pair-option').forEach(div => {
+            if (lang === 'ru' && div.dataset.cyrillic === 'false') {
+                div.classList.add('hidden');
+                if (state.font_pair_id === div.dataset.key) {
+                    state.font_pair_id = 'strict_analytical';
+                    document.querySelectorAll('.font-pair-option').forEach(c => c.classList.remove('selected'));
+                    const fallback = document.querySelector('.font-pair-option[data-key="strict_analytical"]');
+                    if (fallback) fallback.classList.add('selected');
+                }
+            } else {
+                div.classList.remove('hidden');
+            }
+        });
+    }
+
+    // ═══════════════════════════════════════════════════
+    // RENDER: SCREEN 3
+    // ═══════════════════════════════════════════════════
+
+    function renderGridTypes() {
+        const container = document.getElementById('grid-type-selector');
+        container.innerHTML = '';
+        Object.entries(presets.grid_types).forEach(([key, gt]) => {
+            const div = document.createElement('div');
+            div.className = 'card-option' + (state.grid_type === key ? ' selected' : '');
+            div.innerHTML = `<div class="card-name">Type ${key}</div>
+                <div class="card-desc">${gt.name}<br>${gt.desc}</div>`;
+            div.onclick = () => {
+                state.grid_type = key;
+                container.querySelectorAll('.card-option').forEach(c => c.classList.remove('selected'));
+                div.classList.add('selected');
+                // Update max width default
+                const mw = gt.max_width_default || '1100px';
+                document.getElementById('max-width-select').value = mw;
+                state.max_width = mw;
+            };
+            container.appendChild(div);
+        });
+    }
+
+    function toggleEl(el) { el.classList.toggle('on'); }
+
+    function setDefaultSections() {
+        const pt = presets.page_types[state.page_type];
+        if (pt && pt.default_sections) {
+            state.sections = pt.default_sections.map(t => ({type: t, data: {}}));
+        } else {
+            state.sections = [{type: 'hero', data: {}}];
+        }
+    }
+
+    function renderSections() {
+        const list = document.getElementById('section-list');
+        list.innerHTML = '';
+        state.sections.forEach((sec, i) => {
+            const tpl = presets.section_templates[sec.type] || {name: sec.type};
+            const div = document.createElement('div');
+            div.className = 'section-item';
+            div.innerHTML = `
+                <span class="section-name">${tpl.name || sec.type}</span>
+                <button onclick="moveSectionUp(${i})" title="Move up">&uarr;</button>
+                <button onclick="moveSectionDown(${i})" title="Move down">&darr;</button>
+                <button onclick="removeSection(${i})" title="Remove">&times;</button>
+            `;
+            list.appendChild(div);
+        });
+    }
+
+    function moveSectionUp(i) {
+        if (i <= 0) return;
+        [state.sections[i-1], state.sections[i]] = [state.sections[i], state.sections[i-1]];
+        renderSections();
+    }
+
+    function moveSectionDown(i) {
+        if (i >= state.sections.length - 1) return;
+        [state.sections[i], state.sections[i+1]] = [state.sections[i+1], state.sections[i]];
+        renderSections();
+    }
+
+    function removeSection(i) {
+        state.sections.splice(i, 1);
+        renderSections();
+    }
+
+    function addSection(type) {
+        state.sections.push({type, data: {}});
+        renderSections();
+    }
+
+    function renderAddSectionArea() {
+        const area = document.getElementById('add-section-area');
+        area.innerHTML = '';
+        Object.entries(presets.section_templates).forEach(([key, tpl]) => {
+            const btn = document.createElement('button');
+            btn.className = 'add-section-btn';
+            btn.textContent = '+ ' + (tpl.name || key);
+            btn.onclick = () => addSection(key);
+            area.appendChild(btn);
+        });
+    }
+
+    // ═══════════════════════════════════════════════════
+    // RENDER: SCREEN 4 (CONTENT)
+    // ═══════════════════════════════════════════════════
+
+    function renderContentSections() {
+        const container = document.getElementById('content-sections');
+        container.innerHTML = '';
+
+        state.sections.forEach((sec, secIdx) => {
+            const tpl = presets.section_templates[sec.type];
+            if (!tpl || !tpl.fields) {
+                // Minimal template for unknown sections
+                const div = document.createElement('div');
+                div.className = 'content-section';
+                div.innerHTML = `<div class="content-section-header" onclick="toggleContentSection(this)">
+                    <span>${sec.type}</span><span class="chevron">&#9660;</span>
+                </div><div class="content-section-body"><p style="color:var(--text-muted)">No fields defined.</p></div>`;
+                container.appendChild(div);
+                return;
+            }
+
+            const div = document.createElement('div');
+            div.className = 'content-section';
+            div.dataset.secIdx = secIdx;
+
+            let fieldsHtml = '';
+            tpl.fields.forEach(field => {
+                fieldsHtml += renderField(field, secIdx, sec.data);
+            });
+
+            div.innerHTML = `
+                <div class="content-section-header" onclick="toggleContentSection(this)">
+                    <span>${tpl.name} (#${secIdx + 1})</span>
+                    <span class="chevron">&#9660;</span>
+                </div>
+                <div class="content-section-body">${fieldsHtml}</div>
+            `;
+            container.appendChild(div);
+        });
+    }
+
+    function renderField(field, secIdx, data) {
+        const val = data[field.id] !== undefined ? data[field.id] : (field.default || '');
+
+        if (field.type === 'repeater') {
+            return renderRepeater(field, secIdx, data);
+        }
+
+        if (field.type === 'csv') {
+            return `<div class="field-group">
+                <label class="field-label">${field.label}</label>
+                <div class="csv-input-area">
+                    <textarea data-sec="${secIdx}" data-field="${field.id}"
+                        placeholder="${field.placeholder || ''}">${escHtml(String(val))}</textarea>
+                    <button class="csv-upload-btn" onclick="triggerCsvUpload(${secIdx}, '${field.id}')">Upload CSV</button>
+                </div>
+                <div style="margin-top:6px;">
+                    <button class="ai-btn" onclick="aiChartSuggest(${secIdx}, '${field.id}')">
+                        <div class="spinner"></div><span>Suggest chart type</span>
+                    </button>
+                </div>
+            </div>`;
+        }
+
+        if (field.type === 'select') {
+            const opts = (field.options || []).map(o => {
+                const label = (presets.chart_types && presets.chart_types[o]) ? presets.chart_types[o].name : o;
+                return `<option value="${o}" ${val === o ? 'selected' : ''}>${label}</option>`;
+            }).join('');
+            return `<div class="field-group">
+                <label class="field-label">${field.label}</label>
+                <select data-sec="${secIdx}" data-field="${field.id}">${opts}</select>
+            </div>`;
+        }
+
+        if (field.type === 'textarea') {
+            return `<div class="field-group">
+                <label class="field-label">${field.label}</label>
+                <div class="field-with-ai">
+                    <textarea data-sec="${secIdx}" data-field="${field.id}"
+                        placeholder="${field.placeholder || ''}">${escHtml(String(val))}</textarea>
+                    <button class="ai-btn" onclick="aiContent(${secIdx}, '${field.id}', '${field.type}')">
+                        <div class="spinner"></div><span>AI</span>
+                    </button>
+                </div>
+            </div>`;
+        }
+
+        // Default: text input
+        return `<div class="field-group">
+            <label class="field-label">${field.label}</label>
+            <div class="field-with-ai">
+                <input type="text" data-sec="${secIdx}" data-field="${field.id}"
+                    value="${escHtml(String(val))}" placeholder="${field.placeholder || ''}">
+                <button class="ai-btn" onclick="aiContent(${secIdx}, '${field.id}', '${field.type}')">
+                    <div class="spinner"></div><span>AI</span>
+                </button>
+            </div>
+        </div>`;
+    }
+
+    function renderRepeater(field, secIdx, data) {
+        const items = data[field.id] || [];
+        const defaultCount = field.default_count || 3;
+
+        // Ensure minimum items with defaults
+        while (items.length < defaultCount) {
+            const item = {};
+            (field.item_fields || []).forEach(f => { item[f.id] = f.default || ''; });
+            items.push(item);
+        }
+        data[field.id] = items;
+
+        let html = `<div class="field-group">
+            <label class="field-label">${field.label}</label>
+            <div class="repeater-items" id="repeater-${secIdx}-${field.id}">`;
+
+        items.forEach((item, itemIdx) => {
+            html += `<div class="repeater-item">
+                <button class="remove-item" onclick="removeRepeaterItem(${secIdx}, '${field.id}', ${itemIdx})">&times;</button>`;
+            (field.item_fields || []).forEach(f => {
+                const v = item[f.id] !== undefined ? item[f.id] : (f.default || '');
+                if (f.type === 'textarea') {
+                    html += `<div class="field-group">
+                        <label class="field-label">${f.label}</label>
+                        <textarea data-sec="${secIdx}" data-field="${field.id}" data-item="${itemIdx}" data-subfield="${f.id}"
+                            placeholder="${f.placeholder || ''}">${escHtml(String(v))}</textarea>
+                    </div>`;
+                } else if (f.type === 'select') {
+                    const opts = (f.options || []).map(o => `<option value="${o}" ${v === o ? 'selected' : ''}>${o}</option>`).join('');
+                    html += `<div class="field-group">
+                        <label class="field-label">${f.label}</label>
+                        <select data-sec="${secIdx}" data-field="${field.id}" data-item="${itemIdx}" data-subfield="${f.id}">${opts}</select>
+                    </div>`;
+                } else {
+                    html += `<div class="field-group">
+                        <label class="field-label">${f.label}</label>
+                        <input type="text" data-sec="${secIdx}" data-field="${field.id}" data-item="${itemIdx}" data-subfield="${f.id}"
+                            value="${escHtml(String(v))}" placeholder="${f.placeholder || ''}">
+                    </div>`;
+                }
+            });
+            html += '</div>';
+        });
+
+        html += `</div>
+            <button class="add-item-btn" onclick="addRepeaterItem(${secIdx}, '${field.id}')">+ Add Item</button>
+        </div>`;
+        return html;
+    }
+
+    function addRepeaterItem(secIdx, fieldId) {
+        const sec = state.sections[secIdx];
+        const tpl = presets.section_templates[sec.type];
+        const fieldDef = tpl.fields.find(f => f.id === fieldId);
+        if (!fieldDef) return;
+
+        if (!sec.data[fieldId]) sec.data[fieldId] = [];
+        const item = {};
+        (fieldDef.item_fields || []).forEach(f => { item[f.id] = f.default || ''; });
+        sec.data[fieldId].push(item);
+        renderContentSections();
+    }
+
+    function removeRepeaterItem(secIdx, fieldId, itemIdx) {
+        const items = state.sections[secIdx].data[fieldId];
+        if (items && items.length > 1) {
+            items.splice(itemIdx, 1);
+            renderContentSections();
+        }
+    }
+
+    function toggleContentSection(header) {
+        header.parentElement.classList.toggle('open');
+    }
+
+    // ═══════════════════════════════════════════════════
+    // COLLECT STATE FROM DOM
+    // ═══════════════════════════════════════════════════
+
+    function collectContentState() {
+        // Collect all field values from the DOM back into state
+        document.querySelectorAll('#content-sections [data-sec]').forEach(el => {
+            const secIdx = parseInt(el.dataset.sec);
+            const fieldId = el.dataset.field;
+            const sec = state.sections[secIdx];
+            if (!sec) return;
+
+            if (el.dataset.item !== undefined) {
+                // Repeater sub-field
+                const itemIdx = parseInt(el.dataset.item);
+                const subfield = el.dataset.subfield;
+                if (!sec.data[fieldId]) sec.data[fieldId] = [];
+                if (!sec.data[fieldId][itemIdx]) sec.data[fieldId][itemIdx] = {};
+                sec.data[fieldId][itemIdx][subfield] = el.value;
+            } else {
+                sec.data[fieldId] = el.value;
+            }
+        });
+        state.page_title = document.getElementById('page-title-input').value || 'My Page';
+    }
+
+    // ═══════════════════════════════════════════════════
+    // GENERATE
+    // ═══════════════════════════════════════════════════
+
+    async function generatePage() {
+        collectContentState();
+
+        // Custom colors
+        if (state.custom_colors) {
+            state.custom_bg = document.getElementById('custom-bg').value;
+            state.custom_text = document.getElementById('custom-text').value;
+            state.custom_accent = document.getElementById('custom-accent').value;
+            state.custom_accent2 = document.getElementById('custom-accent2').value;
+        }
+
+        const config = {
+            palette_id: state.custom_colors ? 'custom' : state.palette_id,
+            custom_bg: state.custom_bg,
+            custom_text: state.custom_text,
+            custom_accent: state.custom_accent,
+            custom_accent2: state.custom_accent2,
+            font_pair_id: state.font_pair_id,
+            language: state.language,
+            grid_type: state.grid_type,
+            max_width: state.max_width,
+            show_nav: state.show_nav,
+            nav_brand: state.page_title,
+            show_footer: state.show_footer,
+            footer_text: state.page_title + ' — Generated with Web Page Builder',
+            page_title: state.page_title,
+            sections: state.sections,
+        };
+
+        try {
+            const res = await fetch('/api/webpage/generate', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({config}),
+            });
+            const data = await res.json();
+
+            if (data.success) {
+                generatedSessionId = data.session_id;
+                document.getElementById('preview-iframe').src = data.preview_url;
+                document.getElementById('download-btn').onclick = () => {
+                    window.open(data.download_url, '_blank');
+                };
+                showScreen(4);
+                showToast('Page generated successfully!', 'success');
+            } else {
+                showToast('Error: ' + (data.error || 'Generation failed'), 'error');
+            }
+        } catch (e) {
+            showToast('Network error: ' + e.message, 'error');
+        }
+    }
+
+    function regenerate() {
+        generatePage();
+    }
+
+    function startOver() {
+        state.page_type = 'dashboard';
+        state.palette_id = 'analytics_light';
+        state.font_pair_id = 'strict_analytical';
+        state.language = 'en';
+        state.grid_type = 'A';
+        state.sections = [];
+        generatedSessionId = null;
+        setDefaultSections();
+        renderPageTypes();
+        renderPalettes();
+        renderFontPairs();
+        renderGridTypes();
+        renderSections();
+        showScreen(0);
+    }
+
+    async function downloadPage() {
+        if (!generatedSessionId) return;
+        window.open('/api/webpage/download/' + generatedSessionId, '_blank');
+    }
+
+    async function copyToClipboard() {
+        if (!generatedSessionId) return;
+        try {
+            const res = await fetch('/api/webpage/preview/' + generatedSessionId);
+            const html = await res.text();
+            await navigator.clipboard.writeText(html);
+            showToast('HTML copied to clipboard!', 'success');
+        } catch (e) {
+            showToast('Failed to copy: ' + e.message, 'error');
+        }
+    }
+
+    // ═══════════════════════════════════════════════════
+    // AI FEATURES
+    // ═══════════════════════════════════════════════════
+
+    async function aiSuggest() {
+        const btn = document.getElementById('ai-suggest-btn');
+        const status = document.getElementById('ai-suggest-status');
+        btn.classList.add('loading');
+        btn.disabled = true;
+        status.textContent = 'Asking AI...';
+
+        try {
+            const res = await fetch('/api/webpage/ai-suggest', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    topic: document.getElementById('main-message').value || '',
+                    audience: state.audience,
+                    page_type: state.page_type,
+                    action_goal: state.action_goal,
+                }),
+            });
+            const data = await res.json();
+
+            if (data.success && data.suggestion) {
+                const s = data.suggestion;
+                if (s.palette_id && presets.palettes[s.palette_id]) {
+                    state.palette_id = s.palette_id;
+                    renderPalettes();
+                }
+                if (s.font_pair_id && presets.font_pairs[s.font_pair_id]) {
+                    state.font_pair_id = s.font_pair_id;
+                    renderFontPairs();
+                }
+                if (s.grid_type && presets.grid_types[s.grid_type]) {
+                    state.grid_type = s.grid_type;
+                    renderGridTypes();
+                }
+                if (s.sections && Array.isArray(s.sections)) {
+                    state.sections = s.sections.map(t => ({type: t, data: {}}));
+                    renderSections();
+                }
+                if (s.language) {
+                    state.language = s.language;
+                }
+                status.textContent = 'Applied! ' + (s.reasoning || '');
+                showToast('AI design applied! Review in next screens.', 'success');
+            } else {
+                status.textContent = data.error || 'AI unavailable';
+                showToast('AI unavailable — choose manually', 'error');
+            }
+        } catch (e) {
+            status.textContent = 'Orchestrator unavailable';
+            showToast('Orchestrator unavailable — use the library instead', 'error');
+        }
+
+        btn.classList.remove('loading');
+        btn.disabled = false;
+    }
+
+    async function aiContent(secIdx, fieldId, fieldType) {
+        const el = document.querySelector(`[data-sec="${secIdx}"][data-field="${fieldId}"]:not([data-item])`);
+        if (!el) return;
+        const btn = el.closest('.field-with-ai')?.querySelector('.ai-btn');
+        if (btn) { btn.classList.add('loading'); btn.disabled = true; }
+
+        try {
+            const sec = state.sections[secIdx];
+            const res = await fetch('/api/webpage/ai-content', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    field_type: fieldId,
+                    section_type: sec.type,
+                    topic: document.getElementById('main-message').value || state.page_title,
+                    audience: state.audience,
+                    language: state.language,
+                    context: el.value || '',
+                }),
+            });
+            const data = await res.json();
+            if (data.success && data.content) {
+                el.value = data.content;
+                sec.data[fieldId] = data.content;
+            } else {
+                showToast('AI unavailable for this field', 'error');
+            }
+        } catch (e) {
+            showToast('Orchestrator unavailable', 'error');
+        }
+
+        if (btn) { btn.classList.remove('loading'); btn.disabled = false; }
+    }
+
+    async function aiChartSuggest(secIdx, csvFieldId) {
+        const textarea = document.querySelector(`textarea[data-sec="${secIdx}"][data-field="${csvFieldId}"]`);
+        if (!textarea || !textarea.value.trim()) {
+            showToast('Paste CSV data first', 'error');
+            return;
+        }
+        const btn = textarea.closest('.field-group')?.querySelector('.ai-btn');
+        if (btn) { btn.classList.add('loading'); btn.disabled = true; }
+
+        try {
+            const res = await fetch('/api/webpage/ai-chart', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    csv_data: textarea.value,
+                    topic: document.getElementById('main-message')?.value || '',
+                    language: state.language,
+                }),
+            });
+            const data = await res.json();
+            if (data.success && data.suggestion) {
+                // Set chart type
+                const chartTypeSelect = document.querySelector(`select[data-sec="${secIdx}"][data-field="chart_type"]`);
+                if (chartTypeSelect && data.suggestion.chart_type) {
+                    chartTypeSelect.value = data.suggestion.chart_type;
+                    state.sections[secIdx].data.chart_type = data.suggestion.chart_type;
+                }
+                // Set chart title
+                const titleInput = document.querySelector(`[data-sec="${secIdx}"][data-field="chart_title"]`);
+                if (titleInput && data.suggestion.chart_title) {
+                    titleInput.value = data.suggestion.chart_title;
+                    state.sections[secIdx].data.chart_title = data.suggestion.chart_title;
+                }
+                showToast('Chart suggestion applied: ' + data.suggestion.chart_type, 'success');
+            } else {
+                showToast('AI chart suggestion unavailable', 'error');
+            }
+        } catch (e) {
+            showToast('Orchestrator unavailable', 'error');
+        }
+
+        if (btn) { btn.classList.remove('loading'); btn.disabled = false; }
+    }
+
+    // ═══════════════════════════════════════════════════
+    // CSV UPLOAD
+    // ═══════════════════════════════════════════════════
+
+    let csvUploadTarget = null;
+
+    function triggerCsvUpload(secIdx, fieldId) {
+        csvUploadTarget = { secIdx, fieldId };
+        document.getElementById('csv-file-input').click();
+    }
+
+    document.getElementById('csv-file-input').addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (!file || !csvUploadTarget) return;
+        const reader = new FileReader();
+        reader.onload = function(ev) {
+            const textarea = document.querySelector(
+                `textarea[data-sec="${csvUploadTarget.secIdx}"][data-field="${csvUploadTarget.fieldId}"]`
+            );
+            if (textarea) {
+                textarea.value = ev.target.result;
+                state.sections[csvUploadTarget.secIdx].data[csvUploadTarget.fieldId] = ev.target.result;
+            }
+            csvUploadTarget = null;
+        };
+        reader.readAsText(file);
+        e.target.value = '';
+    });
+
+    // ═══════════════════════════════════════════════════
+    // UTILITIES
+    // ═══════════════════════════════════════════════════
+
+    function escHtml(s) {
+        const d = document.createElement('div');
+        d.textContent = s;
+        return d.innerHTML;
+    }
+
+    function showToast(msg, type) {
+        const toast = document.getElementById('toast');
+        toast.textContent = msg;
+        toast.className = 'toast show ' + type;
+        setTimeout(() => { toast.classList.remove('show'); }, 3500);
+    }
+
+    // ═══════════════════════════════════════════════════
+    // DARK MODE
+    // ═══════════════════════════════════════════════════
+
+    function toggleDarkMode() {
+        document.body.classList.toggle('dark-mode');
+        const btn = document.querySelector('.dark-mode-toggle');
+        const isDark = document.body.classList.contains('dark-mode');
+        btn.innerHTML = isDark ? '☀️' : '🌙';
+        localStorage.setItem('darkMode', isDark);
+    }
+
+    // Restore dark mode preference
+    if (localStorage.getItem('darkMode') === 'true') {
+        document.body.classList.add('dark-mode');
+        document.querySelector('.dark-mode-toggle').innerHTML = '☀️';
+    }
+
+    // ═══════════════════════════════════════════════════
+    // BOOT
+    // ═══════════════════════════════════════════════════
+
+    init();
+    </script>
+
+    <!-- Help -->
+    <button class="help-btn" onclick="document.getElementById('helpOverlay').classList.add('active')" title="Справка">?</button>
+    <div class="help-overlay" id="helpOverlay" onclick="if(event.target===this)this.classList.remove('active')">
+        <div class="help-modal">
+            <button class="help-close" onclick="document.getElementById('helpOverlay').classList.remove('active')">&times;</button>
+            <h2>Page Builder</h2>
+            <p>Генератор веб-страниц на основе AI. Вы описываете, что хотите — AI создаёт готовую HTML-страницу.</p>
+
+            <h3>Как использовать</h3>
+            <ul>
+                <li><strong>Опишите страницу</strong> — введите описание (например, "лендинг для курсов программирования с ценами")</li>
+                <li><strong>Выберите пресет</strong> — landing page, portfolio, blog, documentation</li>
+                <li><strong>Настройте стиль</strong> — цветовая палитра, шрифты, layout</li>
+                <li><strong>Сгенерируйте</strong> — AI создаст полный HTML с CSS, адаптивным дизайном</li>
+            </ul>
+
+            <h3>Возможности</h3>
+            <ul>
+                <li>Предпросмотр в iframe прямо на странице</li>
+                <li>Редактирование HTML/CSS в real-time</li>
+                <li>Скачивание готового файла</li>
+                <li>Итеративное улучшение — "добавь секцию FAQ", "сделай header sticky"</li>
+            </ul>
+
+            <h3>Модели</h3>
+            <p>Лучшие результаты дают Claude Sonnet 4.6 и GPT-5.4 — они генерируют чистый, валидный HTML без артефактов.</p>
+        </div>
+    </div>
+</body>
+</html>

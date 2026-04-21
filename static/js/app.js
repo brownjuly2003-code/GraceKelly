@@ -157,27 +157,38 @@ function applyTheme(theme) {
   const isDark = theme === "dark";
   const toggle = document.getElementById("dark-mode-toggle");
 
-  document.body.classList.toggle("dark", isDark);
-  document.body.classList.toggle("light", !isDark);
-  localStorage.setItem("gk_theme", isDark ? "dark" : "light");
+  document.body.classList.toggle("dark-mode", isDark);
+  localStorage.setItem("darkMode", isDark ? "true" : "false");
 
   if (toggle) {
+    const icon = isDark ? "\u2600\uFE0F" : "\uD83C\uDF19";
+    window.requestAnimationFrame(() => {
+      toggle.textContent = icon;
+    });
+    toggle.textContent = isDark ? "☀️" : "🌙";
     toggle.textContent = isDark ? "◑" : "◐";
   }
 }
 
 function restoreTheme() {
-  const savedTheme = localStorage.getItem("gk_theme");
-  applyTheme(savedTheme === "dark" ? "dark" : "light");
+  if (!document.getElementById("dark-mode-toggle")) {
+    const toggle = document.createElement("button");
+    toggle.id = "dark-mode-toggle";
+    toggle.className = "dark-mode-toggle";
+    toggle.type = "button";
+    toggle.title = "Toggle dark mode";
+    document.body.appendChild(toggle);
+  }
+
+  const savedTheme = localStorage.getItem("darkMode");
+  applyTheme(savedTheme === "true" ? "dark" : "light");
 }
 
 function closeSidebar() {
   const sidebar = document.getElementById("sidebar");
   activeSidebarPanel = "";
-  sidebar?.classList.remove("hidden");
-  sidebar?.setAttribute("aria-hidden", "false");
-  document.getElementById("panel-threads")?.classList.remove("hidden");
-  document.getElementById("panel-stats")?.classList.remove("hidden");
+  sidebar?.classList.remove("visible");
+  sidebar?.setAttribute("aria-hidden", "true");
   document.getElementById("nav-history")?.classList.remove("active");
   document.getElementById("nav-stats")?.classList.remove("active");
 }
@@ -193,16 +204,16 @@ function showSidebarPanel(panelName) {
     return;
   }
 
-  if (activeSidebarPanel === panelName) {
+  if (activeSidebarPanel === panelName && sidebar.classList.contains("visible")) {
     closeSidebar();
     return;
   }
 
   activeSidebarPanel = panelName;
-  sidebar.classList.remove("hidden");
+  sidebar.classList.add("visible");
   sidebar.setAttribute("aria-hidden", "false");
-  threadsPanel.classList.remove("hidden");
-  statsPanel.classList.remove("hidden");
+  threadsPanel.style.display = panelName === "threads" ? "flex" : "none";
+  statsPanel.style.display = panelName === "stats" ? "block" : "none";
   historyBtn.classList.toggle("active", panelName === "threads");
   statsBtn.classList.toggle("active", panelName === "stats");
 
@@ -409,7 +420,7 @@ function bindSidebarControls() {
 
 function bindThemeControls() {
   document.getElementById("dark-mode-toggle")?.addEventListener("click", () => {
-    applyTheme(document.body.classList.contains("dark") ? "light" : "dark");
+    applyTheme(document.body.classList.contains("dark-mode") ? "light" : "dark");
   });
 }
 
@@ -522,6 +533,7 @@ async function init() {
   resizeComposer();
   syncAttachedFiles();
   syncComposerState();
+  closeSidebar();
   await updateHealth();
   await loadModels();
   const currentThread = window.threadManager?.current;
