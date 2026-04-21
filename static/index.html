@@ -4,49 +4,82 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>GraceKelly</title>
+  <link
+    rel="icon"
+    href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='28' fill='%230d1117'/%3E%3Cpath d='M32 18v28M18 32h28' stroke='%23f97316' stroke-width='5' stroke-linecap='round'/%3E%3C/svg%3E"
+  >
+  <link rel="stylesheet" href="/css/fonts.css">
   <link rel="stylesheet" href="/css/style.css">
 </head>
-<body class="light">
-  <div id="app">
-    <nav class="icon-nav" aria-label="Основная навигация">
-      <button class="icon-btn" id="nav-new-thread" type="button" title="Новый диалог">+</button>
-      <div class="icon-nav-divider"></div>
-      <button class="icon-btn" id="nav-history" type="button" title="История" data-panel="threads">H</button>
-      <button class="icon-btn" id="nav-stats" type="button" title="Статистика" data-panel="stats">S</button>
-      <div class="icon-nav-spacer"></div>
-      <button class="icon-btn" id="dark-mode-toggle" type="button" title="Переключить тему">◐</button>
+<body>
+  <div class="app-container">
+    <nav class="icon-nav">
+      <button class="icon-nav-btn" id="nav-new-thread" type="button" title="Начать новую ветку">
+        <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true">
+          <circle cx="12" cy="12" r="10"></circle>
+          <line x1="12" y1="8" x2="12" y2="16"></line>
+          <line x1="8" y1="12" x2="16" y2="12"></line>
+        </svg>
+      </button>
+      <button class="icon-nav-btn" id="nav-history" type="button" title="История запросов">
+        <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M12 8v5l3 2"></path>
+          <path d="M3.05 11A9 9 0 1 1 5.16 16.83"></path>
+          <path d="M3 4v7h7"></path>
+        </svg>
+      </button>
+      <button class="icon-nav-btn" id="nav-stats" type="button" title="Статистика">
+        <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true">
+          <line x1="6" y1="20" x2="6" y2="10"></line>
+          <line x1="12" y1="20" x2="12" y2="4"></line>
+          <line x1="18" y1="20" x2="18" y2="13"></line>
+        </svg>
+      </button>
+      <button class="icon-nav-btn" id="nav-help" type="button" title="Справка">
+        <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M9.09 9a3 3 0 1 1 5.82 1c0 2-3 3-3 3"></path>
+          <path d="M12 17h.01"></path>
+          <circle cx="12" cy="12" r="9"></circle>
+        </svg>
+      </button>
     </nav>
 
-    <aside class="sidebar hidden" id="sidebar" aria-hidden="true">
-      <div class="sidebar-panel" id="panel-threads">
+    <aside class="sidebar" id="sidebar" aria-hidden="false">
+      <div class="sidebar-threads sidebar-panel" id="panel-threads">
         <div class="sidebar-header">
-          <span>Диалоги</span>
-          <button class="icon-btn small" id="close-sidebar" type="button" title="Закрыть">✕</button>
+          <h2>История</h2>
+          <button class="btn-new-thread" id="btn-new-thread" type="button">+ Новая ветка</button>
         </div>
-        <div id="thread-list" class="thread-list"></div>
+
+        <div class="thread-list" id="thread-list">
+          <div class="thread-item active" data-thread-id="current">
+            <div class="thread-indicator"></div>
+            <div class="thread-content">
+              <div class="thread-title">Текущий запрос</div>
+              <div class="thread-meta">сейчас</div>
+            </div>
+          </div>
+        </div>
       </div>
 
-      <div class="sidebar-panel hidden" id="panel-stats">
-        <div class="sidebar-header">
-          <span>Статистика</span>
-          <button class="icon-btn small" id="close-sidebar-stats" type="button" title="Закрыть">✕</button>
-        </div>
-        <div id="stats-cards" class="stats-cards">
+      <div class="sidebar-stats sidebar-panel" id="panel-stats">
+        <h3 class="stats-title">Статистика</h3>
+        <div class="stats-grid">
           <div class="stat-card">
-            <div class="stat-value" id="stat-total">—</div>
-            <div class="stat-label">Запросов</div>
+            <div class="stat-value" id="stat-total">0</div>
+            <div class="stat-label">ВСЕГО ЗАПРОСОВ</div>
           </div>
           <div class="stat-card">
-            <div class="stat-value" id="stat-success">—</div>
-            <div class="stat-label">Успешных</div>
+            <div class="stat-value" id="stat-success">0%</div>
+            <div class="stat-label">УСПЕШНЫХ</div>
           </div>
           <div class="stat-card">
-            <div class="stat-value" id="stat-avg-time">—</div>
-            <div class="stat-label">Ср. время</div>
+            <div class="stat-value" id="stat-time">0ms</div>
+            <div class="stat-label">СРЕДНЕЕ ВРЕМЯ</div>
           </div>
           <div class="stat-card">
-            <div class="stat-value" id="stat-models">—</div>
-            <div class="stat-label">Моделей</div>
+            <div class="stat-value" id="stat-accounts">23</div>
+            <div class="stat-label">АККАУНТОВ</div>
           </div>
         </div>
       </div>
@@ -54,62 +87,127 @@
 
     <main class="main-content">
       <header class="main-header">
-        <span class="brand">GraceKelly</span>
-        <div class="header-status">
-          <span id="health-dot" class="health-dot">●</span>
-          <span id="health-text" class="health-text">Проверка...</span>
+        <div class="main-heading">
+          <h1 class="brand">GraceKelly</h1>
+          <span class="session-chip" id="session-id-short" aria-live="polite"></span>
+        </div>
+        <div class="header-status" aria-live="polite">
+          <span class="health-dot" id="health-dot" aria-hidden="true">●</span>
+          <span id="health-text">Проверка сервиса...</span>
         </div>
       </header>
 
-      <div id="chat-messages" class="chat-area"></div>
-
-      <div id="loading-state" class="loading-state hidden">
-        <div class="spinner"></div>
-        <div id="loading-status" class="loading-status">Обработка запроса...</div>
-        <div class="progress-bar">
-          <div id="progress-fill" class="progress-fill"></div>
+      <div class="chat-area" id="chat-area">
+        <div class="loading-state hidden" id="loading-state">
+          <div class="spinner"></div>
+          <p id="loading-status">Обработка запроса...</p>
+          <div class="progress-bar">
+            <div class="progress-fill" id="progress-fill"></div>
+          </div>
         </div>
       </div>
 
       <div class="input-bar">
-        <div class="model-selector" id="model-selector">
-          <button class="model-trigger" id="model-trigger" type="button" title="Выбрать паттерн и модель">
-            <span id="model-trigger-label">🟣 Claude</span>
-            <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">
-              <path d="M2 4l4 4 4-4" stroke="currentColor" stroke-width="1.5" fill="none"/>
+        <input type="file" id="file-input" multiple hidden accept=".pdf,.txt,.docx,.csv,.xlsx,.png,.jpg,.jpeg">
+        <div class="attached-files" id="attached-files"></div>
+
+        <textarea
+          class="query-input"
+          id="query-input"
+          placeholder="Введите ваш вопрос или задачу..."
+          rows="2"
+        ></textarea>
+
+        <div class="action-bar">
+          <div class="model-selector" id="model-selector"></div>
+
+          <label for="file-input" class="btn-attach" title="Прикрепить файл">
+            <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path>
+            </svg>
+          </label>
+
+          <button class="action-btn" id="btn-voice" type="button" title="Голосовой ввод (V)">
+            <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
+              <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+              <line x1="12" y1="19" x2="12" y2="23"></line>
+              <line x1="8" y1="23" x2="16" y2="23"></line>
             </svg>
           </button>
-          <div class="model-popup hidden" id="model-popup"></div>
-        </div>
 
-        <input
-          type="file"
-          id="file-input"
-          multiple
-          accept=".txt,.md,.csv,.json,.py,.pdf,.jpg,.jpeg,.png,.gif,.webp"
-          hidden
-        >
+          <button class="btn-download" id="btn-download" type="button" title="Скачать результат (.txt)">
+            <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <polyline points="7 10 12 15 17 10"></polyline>
+              <line x1="12" y1="15" x2="12" y2="3"></line>
+            </svg>
+          </button>
 
-        <div class="input-wrapper">
-          <div id="attached-files" class="attached-files"></div>
-          <textarea
-            id="chat-input"
-            rows="2"
-            placeholder="Введите вопрос... (Enter — отправить, Shift+Enter — новая строка)"
-          ></textarea>
-        </div>
-
-        <div class="action-btns">
-          <button class="action-btn" id="attach-btn" type="button" title="Прикрепить файл">📎</button>
-          <button class="action-btn primary" id="send-btn" type="button" title="Отправить">→</button>
+          <button class="btn-submit" id="btn-submit" type="button" title="Отправить запрос">
+            <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M5 12h14"></path>
+              <path d="M12 5l7 7-7 7"></path>
+            </svg>
+          </button>
         </div>
       </div>
 
-      <div id="file-preview-bar" class="file-preview-bar" style="display:none;">
-        <span id="file-preview-name"></span>
-        <button id="file-clear-btn" type="button" title="Убрать файл">✕</button>
-      </div>
+      <footer class="main-footer">
+        <a href="#" title="English placeholder">English</a>
+        <a href="#" title="Interview placeholder">Interview</a>
+        <a href="#" title="Analytics placeholder">Analytics</a>
+        <a href="#" title="RAG placeholder">RAG</a>
+        <a href="#" title="Webpage placeholder">Webpage</a>
+        <a href="#" title="Juhub placeholder">Juhub</a>
+      </footer>
     </main>
+  </div>
+
+  <button class="help-btn" type="button" title="Справка">
+    <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M9.09 9a3 3 0 1 1 5.82 1c0 2-3 3-3 3"></path>
+      <path d="M12 17h.01"></path>
+      <circle cx="12" cy="12" r="9"></circle>
+    </svg>
+  </button>
+  <div class="help-overlay" id="helpOverlay">
+    <div class="help-modal">
+      <button class="help-close" type="button" aria-label="Закрыть справку">
+        <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true">
+          <line x1="6" y1="6" x2="18" y2="18"></line>
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+        </svg>
+      </button>
+      <h2>GraceKelly Orchestrator</h2>
+      <p>Инструмент для минимизации ошибок LLM через множественный запрос разным моделям Perplexity Pro.</p>
+
+      <h3>Паттерны</h3>
+      <ul>
+        <li><strong>SONAR</strong> — быстрый ответ через Sonar (собственная модель Perplexity с поиском)</li>
+        <li><strong>SINGLE</strong> — один запрос к выбранной модели (GPT-5.4, Claude Sonnet 4.6, Gemini 3.1, Grok 4.1 и др.)</li>
+        <li><strong>DUAL</strong> — два запроса к двум разным моделям, результаты рядом для сравнения</li>
+        <li><strong>FIVE MODELS</strong> — 5 моделей по одному запросу каждой, все ответы параллельно</li>
+        <li><strong>FIVE MODELS COMPARE</strong> — 5 моделей + 6-й вызов Claude для анализа расхождений между ответами</li>
+        <li><strong>CONSENSUS</strong> — 5 моделей × 3 вариации промпта = 15 ответов → Mistral embeddings → кластеризация → синтез</li>
+        <li><strong>MAXIMUM</strong> — как CONSENSUS, но с итерациями до достижения консенсуса 95%+</li>
+      </ul>
+
+      <h3>Как работает CONSENSUS</h3>
+      <p>1. PLANNER обогащает задачу контекстом и уточняющими вопросами</p>
+      <p>2. Каждая из 5 моделей получает 3 варианта промпта (нейтральный, критический, креативный)</p>
+      <p>3. 12 ответов преобразуются в эмбеддинги (Mistral) и группируются в кластеры</p>
+      <p>4. SYNTHESIZER объединяет ответы из доминирующего кластера в финальный ответ</p>
+
+      <h3>Дополнительные функции</h3>
+      <ul>
+        <li>Голосовой ввод (Web Speech API)</li>
+        <li>Прикрепление файлов к запросу</li>
+        <li>История тредов (сохранение и переключение)</li>
+        <li>Отправка результата в Telegram</li>
+        <li>Скачивание ответа в файл</li>
+      </ul>
+    </div>
   </div>
 
   <script src="/js/api.js"></script>
@@ -117,7 +215,5 @@
   <script src="/js/threads.js"></script>
   <script src="/js/app.js"></script>
   <script src="/js/chat.js"></script>
-  <script src="/js/history.js"></script>
-  <script src="/js/playground.js"></script>
 </body>
 </html>
