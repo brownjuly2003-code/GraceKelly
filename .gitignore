@@ -35,6 +35,7 @@ pytest-temp/
 
 # Tmp scratch files
 .tmp/
+.tmp_diag_*
 .tmp_*.log
 *.tmp.log
 
