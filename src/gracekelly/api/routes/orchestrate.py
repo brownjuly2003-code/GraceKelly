@@ -8,6 +8,7 @@ import logging
 from datetime import datetime
 from pathlib import Path as FilePath
 from typing import cast
+from uuid import uuid4
 
 from fastapi import APIRouter, File, Form, HTTPException, Path, Query, Request, Response, UploadFile
 
@@ -282,6 +283,31 @@ async def orchestrate(payload: OrchestrateRequest, request: Request, response: R
                 )
             )
             raise HTTPException(status_code=504, detail="Orchestration request timed out.") from exc
+        try:
+            requested_models = _requested_models_from_request(payload)
+        except ValueError:
+            requested_models = [
+                ModelView(id=step.model_id, display_name=step.model_display_name)
+                for step in snapshot.steps
+            ]
+        logger.info(
+            log_message(
+                "orchestrate.accepted",
+                task_id=snapshot.task.task_id,
+                status=snapshot.task.status,
+                execution_mode=snapshot.task.execution_mode,
+                adapter_hint=snapshot.task.adapter_hint,
+                dry_run=snapshot.task.dry_run,
+                model_count=snapshot.task.model_count,
+                trace_id=trace_id,
+            )
+        )
+        return OrchestrateResponse.from_task(
+            snapshot.task,
+            snapshot.steps,
+            [],
+            requested_models_override=requested_models,
+        )
     except StorageUnavailableError as exc:
         logger.warning(
             log_message(
@@ -316,24 +342,27 @@ async def orchestrate(payload: OrchestrateRequest, request: Request, response: R
             )
         )
         raise HTTPException(status_code=501, detail="Requested capability is not available.") from exc
-    logger.info(
-        log_message(
-            "orchestrate.accepted",
-            task_id=snapshot.task.task_id,
-            status=snapshot.task.status,
-            execution_mode=snapshot.task.execution_mode,
-            adapter_hint=snapshot.task.adapter_hint,
-            dry_run=snapshot.task.dry_run,
-            model_count=snapshot.task.model_count,
-            trace_id=trace_id,
+    except HTTPException:
+        raise
+    except Exception as exc:
+        trace_id = trace_id or str(uuid4())
+        logger.exception(
+            log_message(
+                "orchestrate.failed",
+                dry_run=payload.dry_run,
+                model_count=len(payload.requested_model_names()),
+                trace_id=trace_id,
+            )
         )
-    )
-    return OrchestrateResponse.from_task(
-        snapshot.task,
-        snapshot.steps,
-        [],
-        requested_models_override=_requested_models_from_request(payload),
-    )
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "code": FailureCode.UNKNOWN_ERROR.value,
+                "message": "Internal server error.",
+                "trace_id": trace_id,
+            },
+            headers={"x-trace-id": trace_id},
+        ) from exc
 
 
 @router.post(
@@ -373,6 +402,9 @@ async def orchestrate_with_files(
         session_id=session_id,
         dry_run=dry_run,
     )
+    trace_id = trace_id_from_metadata(payload.metadata)
+    if trace_id:
+        response.headers["x-trace-id"] = trace_id
     logger.info(
         log_message(
             "orchestrate.upload.request",
@@ -421,6 +453,35 @@ async def orchestrate_with_files(
                 )
             )
             raise HTTPException(status_code=504, detail="Orchestration request timed out.") from exc
+        try:
+            requested_models = _requested_models_from_request(payload)
+        except ValueError:
+            requested_models = [
+                ModelView(id=step.model_id, display_name=step.model_display_name)
+                for step in snapshot.steps
+            ]
+        if payload_for_submission.metadata != payload.metadata:
+            snapshot.task.metadata = dict(payload.metadata)
+            events = await asyncio.to_thread(service.list_task_events, snapshot.task.task_id)
+            await asyncio.to_thread(service._repository.replace_task_snapshot, snapshot.task, snapshot.steps, events)
+
+        logger.info(
+            log_message(
+                "orchestrate.upload.accepted",
+                task_id=snapshot.task.task_id,
+                status=snapshot.task.status,
+                execution_mode=snapshot.task.execution_mode,
+                dry_run=snapshot.task.dry_run,
+                model_count=snapshot.task.model_count,
+                attachment_count=len(attachments),
+            )
+        )
+        return OrchestrateResponse.from_task(
+            snapshot.task,
+            snapshot.steps,
+            [],
+            requested_models_override=requested_models,
+        )
     except StorageUnavailableError as exc:
         logger.warning(
             log_message(
@@ -452,31 +513,30 @@ async def orchestrate_with_files(
             )
         )
         raise HTTPException(status_code=501, detail="Requested capability is not available.") from exc
+    except HTTPException:
+        raise
+    except Exception as exc:
+        trace_id = trace_id or str(uuid4())
+        logger.exception(
+            log_message(
+                "orchestrate.upload.failed",
+                dry_run=payload.dry_run,
+                model_count=len(payload.requested_model_names()),
+                attachment_count=len(attachments),
+                trace_id=trace_id,
+            )
+        )
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "code": FailureCode.UNKNOWN_ERROR.value,
+                "message": "Internal server error.",
+                "trace_id": trace_id,
+            },
+            headers={"x-trace-id": trace_id},
+        ) from exc
     finally:
         discard_registered_attachments(attachment_token)
-
-    if payload_for_submission.metadata != payload.metadata:
-        snapshot.task.metadata = dict(payload.metadata)
-        events = await asyncio.to_thread(service.list_task_events, snapshot.task.task_id)
-        await asyncio.to_thread(service._repository.replace_task_snapshot, snapshot.task, snapshot.steps, events)
-
-    logger.info(
-        log_message(
-            "orchestrate.upload.accepted",
-            task_id=snapshot.task.task_id,
-            status=snapshot.task.status,
-            execution_mode=snapshot.task.execution_mode,
-            dry_run=snapshot.task.dry_run,
-            model_count=snapshot.task.model_count,
-            attachment_count=len(attachments),
-        )
-    )
-    return OrchestrateResponse.from_task(
-        snapshot.task,
-        snapshot.steps,
-        [],
-        requested_models_override=_requested_models_from_request(payload),
-    )
 
 
 @router.get(

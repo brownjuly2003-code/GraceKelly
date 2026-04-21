@@ -188,6 +188,64 @@ class OrchestratorServiceTests(unittest.TestCase):
         self.assertEqual(events[-1].payload["details"]["completed_step_count"], 1)
         self.assertEqual(events[-1].payload["details"]["failed_step_count"], 0)
 
+    def test_submit_snapshot_executes_browser_only_live_plan_inline(self) -> None:
+        class FakeBrowserAdapter(ExecutionAdapter):
+            name = "browser.perplexity"
+
+            def execute(self, request: ExecutionRequest) -> ExecutionResult:
+                return ExecutionResult(
+                    adapter_name=self.name,
+                    model_id=request.step.model.id,
+                    model_display_name=request.step.model.display_name,
+                    execution_mode=ExecutionMode.BROWSER,
+                    status=StepStatus.COMPLETED,
+                    output_text="browser inline result",
+                )
+
+        class InlineBrowserRouter(ExecutionRouter):
+            def __init__(self) -> None:
+                super().__init__(
+                    dry_run_adapter=DryRunExecutionAdapter(),
+                    browser_adapter=FakeBrowserAdapter(),
+                )
+                self.execute_calls = 0
+                self.dispatch_calls = 0
+
+            def execute(
+                self,
+                *,
+                task_id: str,
+                prompt: str,
+                plan: ExecutionPlan,
+                reasoning: bool,
+                metadata: dict[str, object],
+            ) -> ExecutionBatchResult:
+                self.execute_calls += 1
+                raise AssertionError("browser-only live plans should execute inline")
+
+            def _dispatch_step(self, step: Any, request: ExecutionRequest) -> ExecutionResult:
+                self.dispatch_calls += 1
+                return super()._dispatch_step(step, request)
+
+        router = InlineBrowserRouter()
+        service = OrchestratorService(self.repository, execution_router=router)
+
+        snapshot = service.submit_snapshot(
+            OrchestrateRequest(
+                prompt="browser inline",
+                model="Kimi K2",
+                dry_run=False,
+            )
+        )
+
+        self.assertEqual(snapshot.task.status, TaskStatus.COMPLETED)
+        self.assertEqual(snapshot.task.execution_mode, ExecutionMode.BROWSER)
+        self.assertEqual(snapshot.task.output_text, "browser inline result")
+        self.assertEqual(len(snapshot.steps), 1)
+        self.assertEqual(snapshot.steps[0].status, StepStatus.COMPLETED)
+        self.assertEqual(router.execute_calls, 0)
+        self.assertEqual(router.dispatch_calls, 1)
+
     def test_complex_prompt_triggers_decomposition(self) -> None:
         complex_prompt = (
             "Compare distributed tracing approaches and also explain deployment trade-offs, "

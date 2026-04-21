@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import threading
 import unittest
 from collections.abc import Callable
 from typing import Any, cast
@@ -281,6 +282,34 @@ class PlaywrightDriverTests(unittest.TestCase):
         self.assertFalse(status.logged_in)
         assert status.reason is not None
         self.assertIn("Sign-in prompt", status.reason)
+
+    def test_select_model_raises_permission_error_when_sign_in_overlay_blocks_click(self) -> None:
+        driver = PlaywrightBrowserAutomation(
+            runtime=PlaywrightBrowserRuntimeConfig(poll_interval_seconds=0),
+            sync_playwright_factory=lambda: object(),
+        )
+
+        class _SignedOutOverlayPage(_FakePage):
+            def __init__(self) -> None:
+                super().__init__()
+                self.model_button = _FakeLocator(
+                    visible=True,
+                    inner_text="Model",
+                    on_click=lambda: (_ for _ in ()).throw(RuntimeError("click intercepted")),
+                )
+
+            def inner_text(self, selector: str) -> str:
+                if selector == "body":
+                    return "Sign in or create an account\nContinue with Google"
+                return ""
+
+        driver._page = _SignedOutOverlayPage()
+
+        with self.assertRaises(PermissionError):
+            driver.select_model(
+                provider_model_id="GPT-5.4",
+                policy=ModelVerificationPolicy(wait_attempts=1),
+            )
 
     def test_pick_response_text_prefers_cleaned_answer_over_shell_noise(self) -> None:
         driver = PlaywrightBrowserAutomation(sync_playwright_factory=lambda: object())
@@ -606,6 +635,46 @@ class PlaywrightDriverTests(unittest.TestCase):
         self.assertTrue(playwright.stopped)
         self.assertIsNone(driver._context)
         self.assertIsNone(driver._playwright)
+
+    def test_close_skips_thread_bound_runtime_handles_from_different_thread(self) -> None:
+        driver = PlaywrightBrowserAutomation(sync_playwright_factory=lambda: object())
+        owner_thread_id = threading.get_ident() + 1
+
+        class _ThreadBoundContext:
+            def __init__(self) -> None:
+                self.closed = False
+
+            def close(self) -> None:
+                if threading.get_ident() != owner_thread_id:
+                    raise RuntimeError("cannot switch to a different thread")
+                self.closed = True
+
+        class _ThreadBoundPlaywright:
+            def __init__(self) -> None:
+                self.stopped = False
+
+            def stop(self) -> None:
+                if threading.get_ident() != owner_thread_id:
+                    raise RuntimeError("cannot switch to a different thread")
+                self.stopped = True
+
+        context = _ThreadBoundContext()
+        playwright = _ThreadBoundPlaywright()
+        driver._context = context
+        driver._page = object()
+        driver._playwright = playwright
+        driver._playwright_manager = object()
+        driver._session_thread_id = owner_thread_id
+
+        driver.close()
+
+        self.assertFalse(context.closed)
+        self.assertFalse(playwright.stopped)
+        self.assertIsNone(driver._context)
+        self.assertIsNone(driver._page)
+        self.assertIsNone(driver._playwright)
+        self.assertIsNone(driver._playwright_manager)
+        self.assertIsNone(driver._session_thread_id)
 
     def test_ensure_session_raises_profile_busy_error_when_profile_is_locked(self) -> None:
         driver = PlaywrightBrowserAutomation(sync_playwright_factory=lambda: _CrashingPlaywrightManager())

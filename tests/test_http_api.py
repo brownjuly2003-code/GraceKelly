@@ -18,6 +18,7 @@ else:
 if HAS_TEST_CLIENT:
     from gracekelly.config import Settings
     from gracekelly.core.contracts import ExecutionRequest, StreamChunk
+    from gracekelly.core.models import build_browser_catalog
     from gracekelly.core.orchestrator import OrchestratorService, StorageUnavailableError
     from gracekelly.main import create_app
     from gracekelly.storage.base import TaskEventRecord, TaskRecord, TaskStepRecord
@@ -28,6 +29,7 @@ if TYPE_CHECKING:
 
     from gracekelly.config import Settings
     from gracekelly.core.contracts import ExecutionRequest, StreamChunk
+    from gracekelly.core.models import build_browser_catalog
     from gracekelly.core.orchestrator import OrchestratorService
     from gracekelly.main import create_app
     from gracekelly.storage.base import TaskEventRecord, TaskRecord, TaskStepRecord
@@ -301,21 +303,38 @@ class HttpApiSmokeTests(unittest.TestCase):
         self.assertIn('status="degraded"', captured.output[0])
 
     def test_models_endpoint_returns_aliases_and_reasoning_capability(self) -> None:
-        response = self.client.get("/api/v1/models")
+        repository = InMemoryTaskRepository()
+        repository.save_model_catalog_snapshot(
+            build_browser_catalog(
+                (
+                    "Best",
+                    "Sonar",
+                    "Claude Opus 4.6",
+                    "Max",
+                    "Nemotron 3 Super",
+                    "Kimi K2.5",
+                ),
+                checked_at=datetime(2026, 4, 20, 12, 0, tzinfo=UTC),
+                source="perplexity-model-menu",
+            )
+        )
+        client = self._build_client_with_repository(repository)
+        response = client.get("/api/v1/models")
 
         self.assertEqual(response.status_code, 200)
         payload = response.json()
-        self.assertGreaterEqual(len(payload), 3)
-        best = next(item for item in payload if item["id"] == "best")
-        sonar = next(item for item in payload if item["id"] == "sonar")
-        opus = next(item for item in payload if item["id"] == "claude-opus-4-6")
-        max_model = next(item for item in payload if item["id"] == "max")
-        nemotron = next(item for item in payload if item["id"] == "nemotron-3-super")
-        kimi = next(item for item in payload if item["id"] == "kimi-k2-5")
-        mistral = next(item for item in payload if item["id"] == "mistral-small")
-        gpt_api = next(item for item in payload if item["id"] == "gpt-5-4-api")
+        catalog = payload["models"]
+        self.assertGreaterEqual(len(catalog), 3)
+        best = next(item for item in catalog if item["id"] == "best")
+        sonar = next(item for item in catalog if item["id"] == "sonar")
+        opus = next(item for item in catalog if item["id"] == "claude-opus-4-6")
+        max_model = next(item for item in catalog if item["id"] == "max")
+        nemotron = next(item for item in catalog if item["id"] == "nemotron-3-super")
+        kimi = next(item for item in catalog if item["id"] == "kimi-k2-5")
+        mistral = next(item for item in catalog if item["id"] == "mistral-small")
+        gpt_api = next(item for item in catalog if item["id"] == "gpt-5-4-api")
         self.assertEqual(best["adapter_kind"], "browser")
-        self.assertEqual(best["availability_status"], "unknown")
+        self.assertEqual(best["availability_status"], "observed_unverified")
         self.assertTrue(best["reasoning_capable"])
         self.assertEqual(sonar["provider"], "perplexity")
         self.assertEqual(opus["display_name"], "Claude Opus 4.6")
@@ -328,10 +347,10 @@ class HttpApiSmokeTests(unittest.TestCase):
         self.assertEqual(kimi["timeout_seconds"], 60)
         self.assertEqual(kimi["expected_latency_class"], "slow")
         self.assertEqual(kimi["concurrency_limit"], 1)
-        self.assertIsNone(kimi["available"])
-        self.assertEqual(kimi["availability_status"], "unknown")
-        self.assertIsNone(kimi["availability_checked_at"])
-        self.assertIsNone(kimi["availability_source"])
+        self.assertTrue(kimi["available"])
+        self.assertEqual(kimi["availability_status"], "observed_unverified")
+        self.assertEqual(kimi["availability_checked_at"], "2026-04-20T12:00:00Z")
+        self.assertEqual(kimi["availability_source"], "perplexity-model-menu")
         self.assertIsNone(kimi["last_verified_at"])
         self.assertEqual(mistral["adapter_kind"], "api")
         self.assertEqual(mistral["provider"], "mistral")
@@ -349,6 +368,8 @@ class HttpApiSmokeTests(unittest.TestCase):
         self.assertEqual(gpt_api["provider"], "openai")
         self.assertEqual(gpt_api["availability_status"], "static")
         self.assertIsNone(gpt_api["last_verified_at"])
+        self.assertEqual(payload["last_checked"], "2026-04-20T12:00:00Z")
+        self.assertEqual(payload["source"], "perplexity-model-menu")
 
     def test_models_endpoint_annotates_browser_availability_from_observed_menu(self) -> None:
         app = create_app(
@@ -361,6 +382,14 @@ class HttpApiSmokeTests(unittest.TestCase):
                 browser_enabled=True,
                 browser_profile_dir=r"D:\GraceKelly\tmp\browser-recon\perplexity-profile",
                 browser_base_url="https://www.perplexity.ai",
+            )
+        )
+        app.state.task_repository = InMemoryTaskRepository()
+        app.state.task_repository.save_model_catalog_snapshot(
+            build_browser_catalog(
+                ("Kimi K2.5", "GPT-5.4", "Best"),
+                checked_at=datetime(2026, 3, 17, 18, 45, tzinfo=UTC),
+                source="perplexity-model-menu",
             )
         )
 
@@ -384,10 +413,9 @@ class HttpApiSmokeTests(unittest.TestCase):
             response = client.get("/api/v1/models")
 
             self.assertEqual(response.status_code, 200)
-            payload = response.json()
+            payload = response.json()["models"]
             kimi = next(item for item in payload if item["id"] == "kimi-k2-5")
             gpt = next(item for item in payload if item["id"] == "gpt-5-4")
-            claude = next(item for item in payload if item["id"] == "claude-sonnet-4-6")
             mistral = next(item for item in payload if item["id"] == "mistral-small")
             self.assertEqual(kimi["availability_status"], "observed_unverified")
             self.assertEqual(kimi["available"], True)
@@ -397,9 +425,6 @@ class HttpApiSmokeTests(unittest.TestCase):
             self.assertEqual(gpt["availability_status"], "observed_available")
             self.assertEqual(gpt["available"], True)
             self.assertEqual(gpt["last_verified_at"], "2026-03-17T18:46:00Z")
-            self.assertEqual(claude["availability_status"], "observed_unavailable")
-            self.assertEqual(claude["available"], False)
-            self.assertIsNone(claude["last_verified_at"])
             self.assertEqual(mistral["availability_status"], "static")
             self.assertIsNone(mistral["available"])
 
@@ -414,6 +439,14 @@ class HttpApiSmokeTests(unittest.TestCase):
                 browser_enabled=True,
                 browser_profile_dir=r"D:\GraceKelly\tmp\browser-recon\perplexity-profile",
                 browser_base_url="https://www.perplexity.ai",
+            )
+        )
+        app.state.task_repository = InMemoryTaskRepository()
+        app.state.task_repository.save_model_catalog_snapshot(
+            build_browser_catalog(
+                ("Kimi K2.5", "GPT-5.4", "Best"),
+                checked_at=datetime(2026, 3, 17, 18, 45, tzinfo=UTC),
+                source="perplexity-model-menu",
             )
         )
 
@@ -437,10 +470,9 @@ class HttpApiSmokeTests(unittest.TestCase):
             response = client.get("/api/v1/models")
 
             self.assertEqual(response.status_code, 200)
-            payload = response.json()
+            payload = response.json()["models"]
             kimi = next(item for item in payload if item["id"] == "kimi-k2-5")
             gpt = next(item for item in payload if item["id"] == "gpt-5-4")
-            claude = next(item for item in payload if item["id"] == "claude-sonnet-4-6")
 
             self.assertEqual(kimi["availability_status"], "observed_unverified")
             self.assertEqual(kimi["available"], True)
@@ -451,10 +483,6 @@ class HttpApiSmokeTests(unittest.TestCase):
             self.assertEqual(gpt["available"], True)
             self.assertEqual(gpt["availability_checked_at"], "2026-03-17T18:50:00Z")
             self.assertEqual(gpt["last_verified_at"], "2026-03-17T18:46:00Z")
-
-            self.assertEqual(claude["availability_status"], "observed_unavailable")
-            self.assertEqual(claude["available"], False)
-            self.assertEqual(claude["availability_checked_at"], "2026-03-17T18:45:00Z")
 
     def test_orchestrate_and_fetch_task_in_dry_run(self) -> None:
         response = self.client.post(
@@ -971,6 +999,102 @@ class HttpApiSmokeTests(unittest.TestCase):
         self.assertEqual(response.status_code, 501)
         self.assertEqual(response.json()["detail"], "Requested capability is not available.")
 
+    def test_orchestrate_returns_traceable_500_when_submit_snapshot_crashes(self) -> None:
+        with TestClient(self.client.app, raise_server_exceptions=False) as client:
+            with self.assertLogs("gracekelly.api.routes.orchestrate", level="ERROR") as captured:
+                with patch.object(
+                    OrchestratorService,
+                    "submit_snapshot",
+                    side_effect=RuntimeError("unexpected crash"),
+                ):
+                    response = client.post(
+                        "/api/v1/orchestrate",
+                        json={
+                            "prompt": "boom",
+                            "model": "Kimi K2",
+                            "dry_run": True,
+                            "metadata": {"trace_id": "trace-json-500"},
+                        },
+                    )
+
+        self.assertEqual(response.status_code, 500)
+        payload = response.json()
+        self.assertEqual(payload["detail"]["code"], "unknown_error")
+        self.assertEqual(payload["detail"]["trace_id"], "trace-json-500")
+        self.assertEqual(payload["detail"]["message"], "Internal server error.")
+        self.assertIn("unexpected crash", captured.output[0])
+
+    def test_orchestrate_response_does_not_reresolve_requested_models_after_submit(self) -> None:
+        from gracekelly.core.contracts import AdapterHint, ExecutionMode, MergeStrategy, StepStatus, TaskStatus
+        from gracekelly.core.models import clear_browser_catalog, install_browser_catalog
+        from gracekelly.core.orchestrator import SubmissionSnapshot
+
+        snapshot = SubmissionSnapshot(
+            task=TaskRecord(
+                task_id="task-orchestrate-catalog-drift",
+                status=TaskStatus.COMPLETED,
+                accepted_at=datetime(2026, 4, 20, 12, 0, tzinfo=UTC),
+                completed_at=datetime(2026, 4, 20, 12, 0, tzinfo=UTC),
+                duration_ms=25,
+                prompt="catalog drift",
+                reasoning=False,
+                execution_mode=ExecutionMode.BROWSER,
+                dry_run=False,
+                model_count=1,
+                quorum=1,
+                merge_strategy=MergeStrategy.FIRST_SUCCESS,
+                adapter_hint=AdapterHint.AUTO,
+                cancel_on_quorum=True,
+                output_text="browser answer",
+            ),
+            steps=[
+                TaskStepRecord(
+                    task_id="task-orchestrate-catalog-drift",
+                    step_index=1,
+                    model_id="kimi-k2-5",
+                    model_display_name="Kimi K2.5",
+                    backend="browser",
+                    provider="perplexity",
+                    status=StepStatus.COMPLETED,
+                    output_text="browser answer",
+                    duration_ms=25,
+                )
+            ],
+        )
+        catalog_snapshot = build_browser_catalog(
+            ("Kimi K2.5",),
+            checked_at=datetime(2026, 4, 20, 12, 0, tzinfo=UTC),
+            source="test-fixture",
+        )
+
+        def submit_snapshot_and_clear_catalog(*args: Any, **kwargs: Any) -> Any:
+            clear_browser_catalog()
+            return snapshot
+
+        try:
+            install_browser_catalog(catalog_snapshot)
+            with TestClient(self.client.app, raise_server_exceptions=False) as client:
+                with patch.object(
+                    OrchestratorService,
+                    "submit_snapshot",
+                    side_effect=submit_snapshot_and_clear_catalog,
+                ):
+                    response = client.post(
+                        "/api/v1/orchestrate",
+                        json={
+                            "prompt": "catalog drift",
+                            "model": "Kimi K2",
+                            "dry_run": False,
+                        },
+                    )
+        finally:
+            install_browser_catalog(catalog_snapshot)
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload["requested_models"], [{"id": "kimi-k2-5", "display_name": "Kimi K2.5"}])
+        self.assertEqual(payload["output_text"], "browser answer")
+
     def test_upload_accepts_text_file_and_models_form_value(self) -> None:
         response = self.client.post(
             "/api/v1/orchestrate/upload",
@@ -1138,6 +1262,98 @@ class HttpApiSmokeTests(unittest.TestCase):
 
         self.assertEqual(response.status_code, 501)
         self.assertEqual(response.json()["detail"], "Requested capability is not available.")
+
+    def test_upload_returns_traceable_500_when_submit_snapshot_crashes(self) -> None:
+        with TestClient(self.client.app, raise_server_exceptions=False) as client:
+            with self.assertLogs("gracekelly.api.routes.orchestrate", level="ERROR") as captured:
+                with patch.object(
+                    OrchestratorService,
+                    "submit_snapshot",
+                    side_effect=RuntimeError("upload crash"),
+                ):
+                    response = client.post(
+                        "/api/v1/orchestrate/upload",
+                        data={"prompt": "boom", "model": "Kimi K2", "dry_run": "true"},
+                    )
+
+        self.assertEqual(response.status_code, 500)
+        payload = response.json()
+        trace_id = payload["detail"]["trace_id"]
+        self.assertTrue(trace_id)
+        self.assertEqual(payload["detail"]["code"], "unknown_error")
+        self.assertEqual(payload["detail"]["message"], "Internal server error.")
+        self.assertIn("upload crash", captured.output[0])
+
+    def test_upload_response_does_not_reresolve_requested_models_after_submit(self) -> None:
+        from gracekelly.core.contracts import AdapterHint, ExecutionMode, MergeStrategy, StepStatus, TaskStatus
+        from gracekelly.core.models import clear_browser_catalog, install_browser_catalog
+        from gracekelly.core.orchestrator import SubmissionSnapshot
+
+        snapshot = SubmissionSnapshot(
+            task=TaskRecord(
+                task_id="task-upload-catalog-drift",
+                status=TaskStatus.COMPLETED,
+                accepted_at=datetime(2026, 4, 20, 12, 0, tzinfo=UTC),
+                completed_at=datetime(2026, 4, 20, 12, 0, tzinfo=UTC),
+                duration_ms=30,
+                prompt="catalog drift upload",
+                reasoning=False,
+                execution_mode=ExecutionMode.BROWSER,
+                dry_run=False,
+                model_count=1,
+                quorum=1,
+                merge_strategy=MergeStrategy.FIRST_SUCCESS,
+                adapter_hint=AdapterHint.AUTO,
+                cancel_on_quorum=True,
+                output_text="upload browser answer",
+            ),
+            steps=[
+                TaskStepRecord(
+                    task_id="task-upload-catalog-drift",
+                    step_index=1,
+                    model_id="kimi-k2-5",
+                    model_display_name="Kimi K2.5",
+                    backend="browser",
+                    provider="perplexity",
+                    status=StepStatus.COMPLETED,
+                    output_text="upload browser answer",
+                    duration_ms=30,
+                )
+            ],
+        )
+        catalog_snapshot = build_browser_catalog(
+            ("Kimi K2.5",),
+            checked_at=datetime(2026, 4, 20, 12, 0, tzinfo=UTC),
+            source="test-fixture",
+        )
+
+        def submit_snapshot_and_clear_catalog(*args: Any, **kwargs: Any) -> Any:
+            clear_browser_catalog()
+            return snapshot
+
+        try:
+            install_browser_catalog(catalog_snapshot)
+            with TestClient(self.client.app, raise_server_exceptions=False) as client:
+                with patch.object(
+                    OrchestratorService,
+                    "submit_snapshot",
+                    side_effect=submit_snapshot_and_clear_catalog,
+                ):
+                    response = client.post(
+                        "/api/v1/orchestrate/upload",
+                        data={
+                            "prompt": "catalog drift upload",
+                            "model": "Kimi K2",
+                            "dry_run": "false",
+                        },
+                    )
+        finally:
+            install_browser_catalog(catalog_snapshot)
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload["requested_models"], [{"id": "kimi-k2-5", "display_name": "Kimi K2.5"}])
+        self.assertEqual(payload["output_text"], "upload browser answer")
 
     def test_browser_execution_can_run_through_scripted_backend(self) -> None:
         app = create_app(

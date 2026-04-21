@@ -5,6 +5,7 @@ from collections import deque
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from time import perf_counter
 from typing import Any, cast
 from uuid import uuid4
 
@@ -13,6 +14,7 @@ from gracekelly.core.complexity import assess_complexity
 from gracekelly.core.contracts import (
     CancellationToken,
     EventType,
+    ExecutionBackend,
     ExecutionBatchResult,
     ExecutionMode,
     ExecutionPlan,
@@ -110,7 +112,16 @@ class OrchestratorService:
                 },
             )
         else:
-            batch_result = self._execution_router.execute(task_id=task_id, prompt=active_request.prompt, plan=execution_plan, reasoning=request.reasoning, metadata=dict(request.metadata))
+            if not execution_plan.dry_run and execution_plan.steps and all(step.backend == ExecutionBackend.BROWSER for step in execution_plan.steps):
+                batch_result = self._execute_browser_plan_inline(
+                    task_id=task_id,
+                    prompt=active_request.prompt,
+                    plan=execution_plan,
+                    reasoning=request.reasoning,
+                    metadata=dict(request.metadata),
+                )
+            else:
+                batch_result = self._execution_router.execute(task_id=task_id, prompt=active_request.prompt, plan=execution_plan, reasoning=request.reasoning, metadata=dict(request.metadata))
         completed_at = datetime.now(UTC)
         duration_ms = max(0, int((completed_at - accepted_at).total_seconds() * 1000))
         task = TaskRecord(status=batch_result.task_status, completed_at=completed_at, duration_ms=duration_ms, execution_mode=batch_result.execution_mode, failure_code=batch_result.failure_code, failure_message=batch_result.failure_message, output_text=batch_result.output_text, was_decomposed=was_decomposed, subtask_count=subtask_count, **cast(Any, base_task))
@@ -178,6 +189,37 @@ class OrchestratorService:
             return result.output_text or ""
 
         return execute_fn
+
+    def _execute_browser_plan_inline(
+        self,
+        *,
+        task_id: str,
+        prompt: str,
+        plan: ExecutionPlan,
+        reasoning: bool,
+        metadata: dict[str, object],
+    ) -> ExecutionBatchResult:
+        cancellation = CancellationToken()
+        results: list[ExecutionResult] = []
+        for step in plan.steps:
+            if cancellation.is_cancelled:
+                results.append(self._execution_router._cancelled_result(step))
+                continue
+            request = ExecutionRequest(
+                task_id=task_id,
+                prompt=prompt,
+                plan=plan,
+                step=step,
+                reasoning=reasoning,
+                metadata=dict(metadata),
+                cancellation=cancellation,
+            )
+            started = perf_counter()
+            result = self._execution_router._dispatch_step(step, request)
+            results.append(self._execution_router._stamp_duration(result, started))
+            if plan.cancel_on_quorum and self._execution_router._successful_count(tuple(results)) >= plan.quorum:
+                cancellation.request_cancel()
+        return self._execution_router._aggregate(plan, tuple(results))
 
     def _flush_buffer(self) -> None:
         while self._event_buffer:

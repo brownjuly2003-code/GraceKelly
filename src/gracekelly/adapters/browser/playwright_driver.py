@@ -4,6 +4,7 @@ import logging
 import os
 import re
 import tempfile
+import threading
 import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
@@ -74,21 +75,58 @@ class PlaywrightBrowserAutomation(BrowserAutomationPort):
         self._context: Any | None = None
         self._page: Any | None = None
         self._base_url: str | None = None
+        self._session_thread_id: int | None = None
         self._observed_model_menu: tuple[str, ...] = ()
         self._observed_model_menu_at: datetime | None = None
         self._verified_model_labels_at: dict[str, datetime] = {}
         self._last_model_picker_unavailable_at: datetime | None = None
+
+    def inspect_model_catalog(self) -> tuple[str, ...]:
+        page = self._page_or_raise()
+        model_button = self._resolve_model_button(page, attempts=3)
+        if model_button is None and self._navigate_home_for_model_selection(page):
+            model_button = self._resolve_model_button(page, attempts=3)
+        if model_button is None and self._reset_to_new_thread(page):
+            model_button = self._resolve_model_button(page, attempts=3)
+        if model_button is None:
+            self._last_model_picker_unavailable_at = datetime.now(UTC)
+            raise RuntimeError("Perplexity model picker is unavailable.")
+        if self._body_has_signed_out_marker(page):
+            raise PermissionError("Perplexity sign-in overlay blocked model catalog inspection.")
+
+        try:
+            model_button.click()
+        except Exception as exc:
+            if self._body_has_signed_out_marker(page):
+                raise PermissionError("Perplexity sign-in overlay blocked model catalog inspection.") from exc
+            raise
+        time.sleep(self._runtime.poll_interval_seconds)
+        menu_texts = self._model_menu_texts(page)
+        self._record_model_menu_snapshot(menu_texts)
+        labels = self._extract_catalog_labels(menu_texts)
+        page.keyboard.press("Escape")
+        if not labels:
+            raise RuntimeError("Unable to extract browser model labels from Perplexity menu.")
+        return tuple(labels)
 
     def ensure_session(self, session_manager: BrowserSessionManager) -> None:
         state = session_manager.state
         if not state.configured:
             raise NotImplementedError("Browser session is not configured yet.")
         self._base_url = state.base_url
+        current_thread_id = threading.get_ident()
         if self._page is not None:
             is_closed = getattr(self._page, "is_closed", None)
             if callable(is_closed) and not is_closed():
-                logger.debug("Reusing existing Playwright browser session")
-                return
+                if self._session_thread_id in (None, current_thread_id):
+                    logger.debug("Reusing existing Playwright browser session")
+                    return
+                logger.warning(
+                    "Discarding Playwright browser session created on thread %s before reopening on thread %s",
+                    self._session_thread_id,
+                    current_thread_id,
+                )
+                self._clear_runtime_handles()
 
         if state.profile_dir is not None:
             lock_marker = _profile_is_locked(state.profile_dir)
@@ -134,6 +172,7 @@ class PlaywrightBrowserAutomation(BrowserAutomationPort):
         self._playwright = playwright
         self._context = context
         self._page = page
+        self._session_thread_id = current_thread_id
         self._wait_for_shell()
         self._screenshot("01-session-ready")
 
@@ -213,7 +252,14 @@ class PlaywrightBrowserAutomation(BrowserAutomationPort):
         model_button_text_before = self._locator_inner_text(model_button)
         logger.info("Selecting Perplexity model '%s' through Playwright", provider_model_id)
         self._screenshot(f"03-model-before-{provider_model_id}")
-        model_button.click()
+        if self._body_has_signed_out_marker(page):
+            raise PermissionError("Perplexity sign-in overlay blocked model selection.")
+        try:
+            model_button.click()
+        except Exception as exc:
+            if self._body_has_signed_out_marker(page):
+                raise PermissionError("Perplexity sign-in overlay blocked model selection.") from exc
+            raise
         menu_texts = self._model_menu_texts(page)
         self._record_model_menu_snapshot(menu_texts)
         self._screenshot(f"04-model-menu-open-{provider_model_id}")
@@ -226,6 +272,8 @@ class PlaywrightBrowserAutomation(BrowserAutomationPort):
             )
         )
         if option is None:
+            if self._body_has_signed_out_marker(page):
+                raise PermissionError("Perplexity sign-in overlay blocked model selection.")
             actual_label = self._infer_active_model_label(menu_texts)
             logger.warning(
                 "Perplexity model option '%s' was not found; current menu appears to start with '%s'.",
@@ -248,7 +296,12 @@ class PlaywrightBrowserAutomation(BrowserAutomationPort):
                 },
             )
 
-        option.click()
+        try:
+            option.click()
+        except Exception as exc:
+            if self._body_has_signed_out_marker(page):
+                raise PermissionError("Perplexity sign-in overlay blocked model selection.") from exc
+            raise
         time.sleep(self._runtime.poll_interval_seconds)
         self._screenshot(f"05-model-after-{provider_model_id}")
         model_button_text_after = self._locator_inner_text(model_button)
@@ -424,16 +477,29 @@ class PlaywrightBrowserAutomation(BrowserAutomationPort):
         }
 
     def close(self) -> None:
+        owner_thread_id = self._session_thread_id
+        current_thread_id = threading.get_ident()
         context = self._context
         playwright = self._playwright
-        self._page = None
-        self._context = None
-        self._playwright = None
-        self._playwright_manager = None
+        self._clear_runtime_handles()
+        if owner_thread_id is not None and owner_thread_id != current_thread_id:
+            logger.warning(
+                "Skipping direct Playwright shutdown on thread %s; runtime was created on thread %s",
+                current_thread_id,
+                owner_thread_id,
+            )
+            return
         if context is not None:
             context.close()
         if playwright is not None:
             playwright.stop()
+
+    def _clear_runtime_handles(self) -> None:
+        self._page = None
+        self._context = None
+        self._playwright = None
+        self._playwright_manager = None
+        self._session_thread_id = None
 
     def _screenshot(self, step_name: str) -> str | None:
         """Save a page screenshot to configured dir. Returns saved path, or None if disabled/failed."""
@@ -604,6 +670,44 @@ class PlaywrightBrowserAutomation(BrowserAutomationPort):
                 if normalized:
                     return normalized
         return None
+
+    def _extract_catalog_labels(self, menu_texts: list[str]) -> list[str]:
+        labels: list[str] = []
+        for block in menu_texts:
+            for line in block.splitlines():
+                normalized = line.strip()
+                if not self._looks_like_model_label(normalized):
+                    continue
+                if normalized not in labels:
+                    labels.append(normalized)
+        return labels
+
+    def _looks_like_model_label(self, label: str) -> bool:
+        if not label or len(label) > 48:
+            return False
+        normalized = " ".join(label.split())
+        blocked = {"thinking", "models", "all models", "reasoning"}
+        if normalized.casefold() in blocked:
+            return False
+
+        allowed_lowercase = {"mini", "pro", "max", "small", "medium", "large", "preview", "flash"}
+        tokens = normalized.split(" ")
+        if len(tokens) > 5:
+            return False
+
+        for token in tokens:
+            cleaned = token.strip("()[],:")
+            if not cleaned:
+                return False
+            if any(char.isdigit() for char in cleaned):
+                continue
+            if cleaned.casefold() in allowed_lowercase:
+                continue
+            if cleaned[0].isupper():
+                continue
+            return False
+
+        return True
 
     def _wait_for_response_text(self, *, page: Any, prompt: str, timeout_seconds: int) -> dict[str, Any]:
         deadline = time.monotonic() + timeout_seconds
