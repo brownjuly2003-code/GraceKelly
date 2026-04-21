@@ -2,20 +2,29 @@ window.chatState = window.chatState || { messages: [], pendingFiles: [] };
 window.chatState.messages = Array.isArray(window.chatState.messages) ? window.chatState.messages : [];
 window.chatState.pendingFiles = Array.isArray(window.chatState.pendingFiles) ? window.chatState.pendingFiles : [];
 
-const chatMessages = document.getElementById("chat-messages");
-const chatInput = document.getElementById("chat-input");
-const sendBtn = document.getElementById("send-btn");
-const attachBtn = document.getElementById("attach-btn");
+const chatMessages = document.getElementById("chat-area") || document.getElementById("chat-messages");
+const chatInput = document.getElementById("query-input") || document.getElementById("chat-input");
+const sendBtn = document.getElementById("btn-submit") || document.getElementById("send-btn");
+const attachBtn = document.getElementById("attach-btn") || document.querySelector(".btn-attach");
 const fileInput = document.getElementById("file-input");
 const filePreviewBar = document.getElementById("file-preview-bar");
 const filePreviewName = document.getElementById("file-preview-name");
 const fileClearBtn = document.getElementById("file-clear-btn");
 const exportBar = document.getElementById("export-bar");
 const exportBtn = document.getElementById("export-btn");
+const btnDownload = document.getElementById("btn-download");
+const btnVoice = document.getElementById("btn-voice");
+const navHelpBtn = document.getElementById("nav-help");
+const floatingHelpBtn = document.querySelector(".help-btn");
+const helpOverlay = document.getElementById("helpOverlay") || document.getElementById("help-overlay");
+const helpCloseBtn = helpOverlay?.querySelector(".help-close");
 const dryRunCheck = document.getElementById("dry-run-check");
 const modelSelect = document.getElementById("model-select");
 
 let isSending = false;
+let voiceRecognition = null;
+let isRecording = false;
+const defaultPlaceholder = chatInput?.getAttribute("placeholder") || "Введите ваш вопрос или задачу...";
 
 function scrollMessages() {
   if (chatMessages) {
@@ -32,6 +41,10 @@ function syncExportState() {
   if (exportBtn) {
     exportBtn.disabled = !hasMessages;
     exportBtn.style.opacity = hasMessages ? "1" : "0.45";
+  }
+  if (btnDownload) {
+    btnDownload.disabled = !hasMessages;
+    btnDownload.style.opacity = hasMessages ? "1" : "0.45";
   }
 }
 
@@ -136,7 +149,21 @@ function formatMeta(meta) {
   return parts.join(" · ");
 }
 
+function isModelMissingFromCatalog(modelId) {
+  const normalized = String(modelId || "").trim();
+  const catalog = window.modelCatalog;
+  if (!normalized || !catalog || catalog.unavailable) {
+    return false;
+  }
+
+  return catalog.ids instanceof Set && catalog.ids.size > 0 && !catalog.ids.has(normalized);
+}
+
 function syncComposerState() {
+  if (!sendBtn || !chatInput) {
+    return;
+  }
+
   sendBtn.disabled = isSending || chatInput.value.trim().length === 0;
 }
 
@@ -158,6 +185,216 @@ function clearPendingFiles() {
   window.chatState.pendingFiles = [];
   fileInput.value = "";
   updateFilePreview();
+}
+
+function restoreVoicePlaceholder() {
+  if (chatInput) {
+    chatInput.setAttribute("placeholder", defaultPlaceholder);
+  }
+}
+
+function stopVoiceInput() {
+  isRecording = false;
+  btnVoice?.classList.remove("recording");
+  restoreVoicePlaceholder();
+}
+
+function appendVoiceTranscript(text) {
+  if (!chatInput) {
+    return;
+  }
+
+  const transcript = String(text || "").trim();
+  if (!transcript) {
+    return;
+  }
+
+  const separator = chatInput.value && !chatInput.value.endsWith(" ") ? " " : "";
+  chatInput.value = `${chatInput.value}${separator}${transcript}`;
+  chatInput.dispatchEvent(new Event("input", { bubbles: true }));
+}
+
+function toggleVoiceInput() {
+  if (!voiceRecognition) {
+    showToast("Web Speech API недоступен в этом браузере", "error");
+    return;
+  }
+
+  if (isRecording) {
+    voiceRecognition.stop();
+    stopVoiceInput();
+    return;
+  }
+
+  try {
+    voiceRecognition.start();
+    isRecording = true;
+    btnVoice?.classList.add("recording");
+    chatInput?.focus();
+  } catch (_error) {
+    showToast("Не удалось запустить голосовой ввод", "error");
+  }
+}
+
+function isTypingTarget(target) {
+  return target instanceof HTMLElement
+    && (target.isContentEditable || /^(input|textarea|select)$/i.test(target.tagName));
+}
+
+function isHelpOverlayOpen() {
+  return Boolean(helpOverlay?.classList.contains("active"));
+}
+
+function openHelpOverlay() {
+  if (!helpOverlay) {
+    return;
+  }
+
+  helpOverlay.classList.add("active");
+  helpOverlay.setAttribute("aria-hidden", "false");
+}
+
+function closeHelpOverlay() {
+  if (!helpOverlay) {
+    return;
+  }
+
+  helpOverlay.classList.remove("active");
+  helpOverlay.setAttribute("aria-hidden", "true");
+}
+
+function toggleHelpOverlay() {
+  if (isHelpOverlayOpen()) {
+    closeHelpOverlay();
+    return;
+  }
+
+  openHelpOverlay();
+}
+
+function initVoiceInput() {
+  if (!btnVoice) {
+    return;
+  }
+
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRecognition || !chatInput) {
+    btnVoice.disabled = true;
+    btnVoice.title = "Голосовой ввод недоступен";
+    return;
+  }
+
+  voiceRecognition = new SpeechRecognition();
+  voiceRecognition.lang = "ru-RU";
+  voiceRecognition.continuous = true;
+  voiceRecognition.interimResults = true;
+
+  voiceRecognition.onresult = (event) => {
+    let finalTranscript = "";
+    let interimTranscript = "";
+
+    for (let index = event.resultIndex; index < event.results.length; index += 1) {
+      const transcript = event.results[index][0]?.transcript || "";
+      if (event.results[index].isFinal) {
+        finalTranscript += transcript;
+      } else {
+        interimTranscript += transcript;
+      }
+    }
+
+    if (finalTranscript) {
+      appendVoiceTranscript(finalTranscript);
+    }
+
+    chatInput.setAttribute("placeholder", interimTranscript ? `${interimTranscript.trim()}...` : defaultPlaceholder);
+  };
+
+  voiceRecognition.onerror = () => {
+    showToast("Ошибка голосового ввода", "error");
+    stopVoiceInput();
+  };
+
+  voiceRecognition.onend = () => {
+    stopVoiceInput();
+  };
+
+  btnVoice.addEventListener("click", toggleVoiceInput);
+}
+
+function initHelpOverlay() {
+  if (!helpOverlay) {
+    return;
+  }
+
+  helpOverlay.setAttribute("aria-hidden", isHelpOverlayOpen() ? "false" : "true");
+
+  navHelpBtn?.addEventListener("click", toggleHelpOverlay);
+  floatingHelpBtn?.addEventListener("click", toggleHelpOverlay);
+  helpCloseBtn?.addEventListener("click", closeHelpOverlay);
+  helpOverlay.addEventListener("click", (event) => {
+    if (event.target === helpOverlay) {
+      closeHelpOverlay();
+    }
+  });
+}
+
+function getMessagesForExport() {
+  const messages = window.threadManager?.getMessages() || window.chatState.messages;
+  return Array.isArray(messages) ? messages : [];
+}
+
+function buildExportText() {
+  const messages = getMessagesForExport();
+  if (!messages.length) {
+    return "";
+  }
+
+  const header = [
+    "GraceKelly Thread Export",
+    `Date: ${new Date().toISOString()}`,
+    "",
+  ];
+
+  const body = messages.flatMap((message, index) => {
+    const role = message.role === "user" ? "User" : "Assistant";
+    const meta = formatMeta(message.meta);
+    const lines = [`${index + 1}. ${role}`];
+    if (meta) {
+      lines.push(meta);
+    }
+    lines.push(String(message.content || "").trim());
+    lines.push("");
+    return lines;
+  });
+
+  return header.concat(body).join("\n");
+}
+
+function formatExportDate(date = new Date()) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function exportCurrentThread() {
+  const content = buildExportText();
+  if (!content) {
+    showToast("Нет результата для экспорта", "error");
+    return;
+  }
+
+  const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+
+  link.href = url;
+  link.download = `gracekelly-thread-${formatExportDate()}.txt`;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+  showToast("Тред экспортирован", "info");
 }
 
 async function hydrateTaskData(taskId, fallbackMeta, fallbackText) {
@@ -228,6 +465,13 @@ function appendMetaBelow(container, meta) {
     const badge = document.createElement("div");
     badge.className = "decomp-badge";
     badge.textContent = `Decomposed into ${meta.subtask_count || "?"} subtasks`;
+    container.appendChild(badge);
+  }
+
+  if (isModelMissingFromCatalog(meta?.model_id)) {
+    const badge = document.createElement("div");
+    badge.className = "model-warning-badge";
+    badge.textContent = "Model missing from current catalog";
     container.appendChild(badge);
   }
 }
@@ -737,12 +981,13 @@ function resetChatUi() {
   chatInput.value = "";
   clearPendingFiles();
   window.chatState.messages = [];
+  closeHelpOverlay();
   syncExportState();
   syncComposerState();
 }
 
-attachBtn.addEventListener("click", () => {
-  if (!attachBtn.disabled) {
+attachBtn?.addEventListener("click", () => {
+  if (!fileInput.disabled) {
     fileInput.click();
   }
 });
@@ -757,24 +1002,45 @@ fileInput.addEventListener("change", (event) => {
   syncComposerState();
 });
 
-fileClearBtn.addEventListener("click", () => {
+fileClearBtn?.addEventListener("click", () => {
   clearPendingFiles();
   syncComposerState();
 });
 
-sendBtn.addEventListener("click", () => {
+btnDownload?.addEventListener("click", exportCurrentThread);
+
+sendBtn?.addEventListener("click", () => {
   void sendMessage(chatInput.value);
 });
 
-chatInput.addEventListener("input", syncComposerState);
-chatInput.addEventListener("keydown", (event) => {
+chatInput?.addEventListener("input", syncComposerState);
+chatInput?.addEventListener("keydown", (event) => {
   if (event.key === "Enter" && !event.shiftKey) {
     event.preventDefault();
     void sendMessage(chatInput.value);
   }
 });
 
+document.addEventListener("keydown", (event) => {
+  if (event.repeat || event.ctrlKey || event.metaKey || event.altKey) {
+    return;
+  }
+
+  if (event.key === "Escape" && isHelpOverlayOpen()) {
+    event.preventDefault();
+    closeHelpOverlay();
+    return;
+  }
+
+  if (String(event.key).toLowerCase() === "v" && !isTypingTarget(event.target)) {
+    event.preventDefault();
+    toggleVoiceInput();
+  }
+});
+
 document.addEventListener("chat:reset", resetChatUi);
+initVoiceInput();
+initHelpOverlay();
 
 if (window.threadManager && typeof window.threadManager.renderCurrent === "function") {
   window.threadManager.renderCurrent();
