@@ -1,6 +1,6 @@
 # Phased Roadmap
 
-Last updated: 2026-03-29
+Last updated: 2026-04-21
 
 ## Phase 0: Clean foundation
 
@@ -244,3 +244,75 @@ Deliverables:
 
 Remaining (deferred):
 - Async adapters (async httpx.AsyncClient) — current sync adapters already wrapped in asyncio.to_thread, deferred as low-risk high-complexity
+
+---
+
+## Phase 15: Async adapters, observability, HTML SPA UI
+
+Status: complete
+
+Scope: replace Streamlit frontend with an HTML SPA, finish async adapter work,
+plug in optional observability and rate-limiting backends.
+
+Delivered:
+- `feat: async adapters` (`4fbfe26`) — `execute_async()` on adapter ABC, `AsyncClient` in `BaseApiAdapter`, routes updated to await
+- `feat: Sentry error tracking + Redis rate limiting (optional, env-driven)` (`8fc51fe`)
+- `feat: OpenTelemetry tracing (optional, env-driven)` (`ba2ca8d`)
+- `feat: model refresh endpoint, modern UI, chat robustness` (`2757daf`)
+- `feat: context truncation (3000 chars) + chat error recovery` (`df5bfb4`)
+- `fix: browser model routing in stream, chat dry_run toggle, UI cleanup` (`0b632b4`)
+- `feat: session chain (20 turns), auto-decomposition, file attachments` (`d03bb58`)
+- `fix: 3 smoke-дефекта — dry_run output_text, stream ValueError, extra fields 422` (`316242c`)
+- `feat: Playwright image upload, UI file uploader, async tests, live smoke` (`466fc80`)
+- `refactor: orchestrator split + session chain + file attachments` (`cf2562d`)
+- `feat: HTML SPA UI replaces Streamlit (PO2 design)` (`88b8106`)
+- `chore: CI hardening + security dependency upgrades` (`3e0c0cd`)
+- `fix: smoke regressions — dry_run propagation, healthz/live, stream task_id` (`f7838b7`)
+- `feat: browser profile safety + screenshot debugging` (`9da447e`)
+
+mypy-only hardening batches (mypy tests passing under --strict):
+- `8340ba7` refactor: remove hasattr guards + async cleanup (-421 errors)
+- `9b6cfe2` fix: mypy tests -190 errors
+- `38a7c52` fix: mypy src/ tests/ → 0 errors
+- `b1bdb6d` fix: coverage 95.66%→97%+, CI mypy src/ tests/ lockdown
+
+## Phase 16: Browser-backed orchestration hardening
+
+Status: complete (batches 69 through 74)
+
+Scope: close the 500-on-browser-adapter gap, rebuild the PO2 HTML shell, keep
+the browser-side model catalog in sync with what Perplexity actually exposes,
+and formalise the auth-overlay handling.
+
+Delivered:
+- **batch-69 DIAG-orchestrate-500**: map `PermissionError` and adapter timeouts to structured failure on both sync and async routes (`810b4c1`, `f3fc848`)
+- **batch-69 UI1-UI3 PO2 rebuild**: PO2 HTML skeleton, styles, chat.js features restored (`c9751d1`, `f7b067b`, `b6c05ca`)
+- **batch-69 MODEL-dynamic-catalog**: runtime snapshot replaces the static browser model registry (`e87498c`)
+- **batch-70 CLOSE-69**: ledger + cleanup of 69 scope (`745e66f`, `332f20d`, `d95b7d9`, `36fbbc5`, `8cd7603`)
+- **AUTH1/AUTH2 + AUTH-FIX1/FIX2/FIX3**: sync returns `HTTP 503 {"code":"model_auth_required"}`, async task captures the same code in `task.error`; inline UI banner with Retry; shared constants and Playwright regression (`8763c19`, `0aa592d`, `f19ed1b`, `ae4f07e`, `4f7ed1a`)
+- **batch-72 BOOTSTRAP-onboarding**: dedicated Chrome profile bootstrap helper + onboarding doc; `chrome-profile/` now gitignored (`014493e`, `2bf3bab`)
+- **batch-72/73 consolidated**: catalog async lifespan, profile safety validator, logger visibility fix (`67fc496`)
+- **batch-73 SMOKE-rerun**: live Perplexity single-pattern smoke returns `200` (`cffa4fc`)
+- **batch-74 UI-PO2-parity-rework**: copy PO2 icons + pages + align DOM/CSS/JS (`48710aa`)
+- **batch-74 FLAKY-postgres-test-triage**: hypothesis + bisect plan recorded, fix deferred (`412cee4`)
+- **chore**: drain timed-out orchestrate submissions so unhandled futures don't leak into unrelated tests (`772ef34`)
+- **batch-74 closure + evidence**: workflow done marker refresh, UI parity screenshots, live catalog snapshot (11 models, no Kimi) (`88e1738`, `e1f7185`)
+
+## Phase 17: Live UI smoke and workflow hygiene
+
+Status: in progress
+
+Scope: validate complex browser scenarios (file upload, decomposition, debate)
+against the real Perplexity UI, and keep the `.workflow/` task queue clean.
+
+Delivered:
+- **batch-76 UI-SMOKE-prep + upload**: `/` lives at `http://127.0.0.1:8011/`; live Claude 4.6 single-pattern smoke with attachment returns `200` and the sentinel in `output_text`
+- **batch-75 FLAKY-postgres-fix**: flaky `test_main_rejects_checksum_mismatch` no longer reproduces on the current tip; full suite runs `2579 passed / 0 failed` twice back-to-back, no skip/xfail/ordering workaround added (`98b8835`)
+- **batch-75 INBOX-cleanup**: six processed task specs archived, `.ready` cleared, batch-75 spec moved to `.workflow/done/` (`2b909d6`, `deebc5a`)
+
+Blocked / deferred:
+- **batch-76 UI-SMOKE-smart-decomposition** and **UI-SMOKE-debate**: the current `/` model-menu does not expose `smart` or `debate` as selectable patterns — the pattern is now carried by `window.modelMenu.getSelection()` rather than a dedicated dropdown, so these scenarios cannot be driven through the real user UI without patching client state. The API endpoints themselves remain green under unit coverage.
+
+Remaining:
+- Extend the PO2 model menu with `smart` and `debate` patterns (or restore `#pattern-select`) so batch-76 SMART + DEBATE scenarios can run end-to-end through the real UI.
+- Replace the browser-API upload hop (`/api/v1/orchestrate/upload`) live smoke with a smaller fixture once the above lands, so live Perplexity quota is only spent on coverage gaps.

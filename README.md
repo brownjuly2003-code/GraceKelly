@@ -19,7 +19,7 @@ uvicorn gracekelly.main:create_app --factory --host 127.0.0.1 --port 8011
 
 **2. Open the web UI:**
 
-Open http://localhost:8000
+Open http://localhost:8011
 
 **Docker alternative:**
 ```bash
@@ -61,14 +61,17 @@ Full reference: `.env.example`
 
 ## UI
 
-Built-in web UI at `http://localhost:8000`. Supports 4 execution patterns:
+Built-in HTML SPA served at `http://localhost:8011/` by the same FastAPI
+process. Pattern is chosen from the model menu at the top of the main panel:
 
-- **Single** - one model, streaming output
-- **Consensus** - multiple rounds, majority-vote best answer
-- **Debate** - devil's advocate challenge/defense/improvement
-- **Compare** - side-by-side answers from multiple models + analysis
+- **Sonar**, **Best**, **Claude 4.6**, **GPT-5.4**, **Gemini 3.1** — single-model patterns streaming into the chat panel
+- **Claude + GPT**, **Claude + Gemini**, **Claude + Best**, **GPT + Best** — pairwise consensus
+- **5М.Все мнения**, **5М.Сравнение**, **5М.Консенсус** — five-model compare / consensus bundles
 
-Sidebar shows task history with drill-down into steps and events.
+Sidebar: task history with drill-down into steps and events, voice capture,
+export, file attachments. The `/api/v1/smart` and `/api/v1/debate` endpoints
+remain live but are not surfaced in the current model-menu UI — drive them
+through the API directly or via the task-replay flow.
 
 ## API
 
