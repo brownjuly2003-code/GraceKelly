@@ -1,4 +1,4 @@
-"""Live SMART end-to-end smoke against a running uvicorn + Perplexity Pro profile.
+"""Live SMART/DEBATE end-to-end smoke against uvicorn + Perplexity Pro profile.
 
 Preconditions (script does not start these for you):
   1. uvicorn on http://127.0.0.1:8011 launched with the live profile env:
@@ -55,10 +55,13 @@ FORBIDDEN_MARKERS = (
     "Thinking",
 )
 BASE_URL = "http://127.0.0.1:8011"
+PATTERN_MENU_LABEL = {"smart": "Умный выбор", "debate": "Дебаты"}
+PATTERN_API_PATH = {"smart": "/api/v1/smart", "debate": "/api/v1/debate"}
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
+    parser.add_argument("--pattern", choices=("smart", "debate"), default="smart")
     parser.add_argument("--prompt", default=DEFAULT_PROMPT)
     parser.add_argument("--ascii-fallback", action="store_true", help="Use ASCII prompt instead of cyrillic.")
     parser.add_argument("--outdir", default=".workflow/outbox")
@@ -75,16 +78,16 @@ def check_uvicorn_alive() -> bool:
     return response.status_code == 200
 
 
-def select_smart_pattern(page: Any) -> bool:
+def select_pattern(page: Any, pattern: str) -> bool:
     trigger = page.locator("#model-trigger").first
     trigger.wait_for(state="visible", timeout=10_000)
     trigger.click()
     popup = page.locator("#model-popup").first
     popup.wait_for(state="visible", timeout=5_000)
-    # Click the .model-item whose label contains "Умный выбор".
-    smart_item = page.locator(".model-item", has_text="Умный выбор").first
-    smart_item.wait_for(state="visible", timeout=5_000)
-    smart_item.click()
+    menu_label = PATTERN_MENU_LABEL[pattern]
+    item = page.locator(".model-item", has_text=menu_label).first
+    item.wait_for(state="visible", timeout=5_000)
+    item.click()
     return True
 
 
@@ -96,13 +99,13 @@ def submit_prompt(page: Any, prompt: str) -> None:
     page.locator("#btn-submit").first.click()
 
 
-def wait_for_smart_response(page: Any, timeout_seconds: int) -> dict[str, Any] | None:
-    # Poll the network for the /api/v1/smart response body.
+def wait_for_pattern_response(page: Any, pattern: str, timeout_seconds: int) -> dict[str, Any] | None:
+    api_path = PATTERN_API_PATH[pattern]
     deadline = time.monotonic() + timeout_seconds
     captured: dict[str, Any] = {}
 
     def _on_response(response: Any) -> None:
-        if "/api/v1/smart" in response.url and response.request.method == "POST" and not captured:
+        if api_path in response.url and response.request.method == "POST" and not captured:
             try:
                 body = response.json()
             except Exception:
@@ -116,14 +119,20 @@ def wait_for_smart_response(page: Any, timeout_seconds: int) -> dict[str, Any] |
     return captured or None
 
 
-def evaluate(response: dict[str, Any] | None) -> tuple[bool, list[str]]:
+def evaluate(response: dict[str, Any] | None, pattern: str) -> tuple[bool, list[str]]:
     reasons: list[str] = []
     if response is None:
-        return False, ["No /api/v1/smart response captured within timeout"]
+        return False, [f"No {PATTERN_API_PATH[pattern]} response captured within timeout"]
     if response.get("status_code") != 200:
         reasons.append(f"status_code={response.get('status_code')}")
     body = response.get("body_json") or {}
-    answer = str(body.get("answer") or body.get("output_text") or "")
+    answer = str(
+        body.get("answer")
+        or body.get("improved_response")
+        or body.get("output_text")
+        or body.get("best_response")
+        or ""
+    )
     if len(answer) < 500:
         reasons.append(f"answer too short ({len(answer)} chars, need >=500)")
     for marker in FORBIDDEN_MARKERS:
@@ -134,9 +143,18 @@ def evaluate(response: dict[str, Any] | None) -> tuple[bool, list[str]]:
     return len(reasons) == 0, reasons
 
 
-def write_report(outdir: Path, tag: str, ok: bool, reasons: list[str], prompt: str, duration_s: float) -> None:
+def write_report(
+    outdir: Path,
+    tag: str,
+    ok: bool,
+    reasons: list[str],
+    prompt: str,
+    duration_s: float,
+    pattern: str,
+) -> None:
+    suffix = pattern.upper()
     lines = [
-        f"# Live SMART smoke — {tag}",
+        f"# Live {suffix} smoke — {tag}",
         "",
         f"Status: {'success' if ok else 'failure'}",
         f"Prompt: {prompt!r}",
@@ -149,7 +167,7 @@ def write_report(outdir: Path, tag: str, ok: bool, reasons: list[str], prompt: s
     else:
         for reason in reasons:
             lines.append(f"- {reason}")
-    (outdir / f"{tag}-SMART-report.md").write_text("\n".join(lines), encoding="utf-8")
+    (outdir / f"{tag}-{suffix}-report.md").write_text("\n".join(lines), encoding="utf-8")
 
 
 def main() -> int:
@@ -174,25 +192,30 @@ def main() -> int:
         try:
             page.goto(BASE_URL, wait_until="domcontentloaded")
             page.wait_for_timeout(2_000)
-            page.screenshot(path=str(outdir / f"{args.tag}-SMART-before.png"), full_page=False)
-            if not select_smart_pattern(page):
-                print("ERROR: could not open model menu to select 'Умный выбор'", file=sys.stderr)
+            suffix = args.pattern.upper()
+            page.screenshot(path=str(outdir / f"{args.tag}-{suffix}-before.png"), full_page=False)
+            if not select_pattern(page, args.pattern):
+                print(
+                    f"ERROR: could not open model menu to select '{PATTERN_MENU_LABEL[args.pattern]}'",
+                    file=sys.stderr,
+                )
                 return 1
             submit_prompt(page, prompt)
-            response_payload = wait_for_smart_response(page, timeout_seconds=args.timeout)
+            response_payload = wait_for_pattern_response(page, args.pattern, timeout_seconds=args.timeout)
             page.wait_for_timeout(1_000)
-            page.screenshot(path=str(outdir / f"{args.tag}-SMART-after.png"), full_page=False)
+            page.screenshot(path=str(outdir / f"{args.tag}-{suffix}-after.png"), full_page=False)
         finally:
             context.close()
             browser.close()
 
-    (outdir / f"{args.tag}-SMART-response.json").write_text(
+    suffix = args.pattern.upper()
+    (outdir / f"{args.tag}-{suffix}-response.json").write_text(
         json.dumps(response_payload or {}, ensure_ascii=False, indent=2),
         encoding="utf-8",
     )
-    ok, reasons = evaluate(response_payload)
+    ok, reasons = evaluate(response_payload, args.pattern)
     duration = time.monotonic() - started
-    write_report(outdir, args.tag, ok, reasons, prompt, duration)
+    write_report(outdir, args.tag, ok, reasons, prompt, duration, args.pattern)
     print(f"{'OK' if ok else 'FAIL'} — {args.tag} — {duration:.1f}s", file=sys.stderr)
     for reason in reasons:
         print(f"  · {reason}", file=sys.stderr)
