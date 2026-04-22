@@ -283,6 +283,76 @@ class PlaywrightDriverTests(unittest.TestCase):
         assert status.reason is not None
         self.assertIn("Sign-in prompt", status.reason)
 
+    def test_auth_status_recovers_when_prompt_input_settles_after_wait(self) -> None:
+        driver = PlaywrightBrowserAutomation(
+            runtime=PlaywrightBrowserRuntimeConfig(poll_interval_seconds=0),
+            sync_playwright_factory=lambda: object(),
+        )
+        transient = _TransientLocator(visible_sequence=[False, True])
+
+        class _TransientPage(_FakePage):
+            def __init__(self) -> None:
+                super().__init__()
+                self.url = "https://www.perplexity.ai/search/abcd1234"
+
+            def locator(self, selector: str) -> _FakeLocator:
+                if selector == 'div#ask-input[role="textbox"][contenteditable="true"]':
+                    return transient
+                return super().locator(selector)
+
+            def inner_text(self, selector: str) -> str:
+                if selector == "body":
+                    return "Quick answer body text without sign-in markers"
+                return ""
+
+            def title(self) -> str:
+                return "Perplexity"
+
+        driver._page = _TransientPage()
+
+        status = driver.auth_status(AuthRecoveryPolicy())
+
+        self.assertTrue(status.logged_in)
+
+    def test_auth_status_emits_diagnostic_log_when_logged_out(self) -> None:
+        driver = PlaywrightBrowserAutomation(
+            runtime=PlaywrightBrowserRuntimeConfig(poll_interval_seconds=0),
+            sync_playwright_factory=lambda: object(),
+        )
+
+        class _HiddenInputPage(_FakePage):
+            def __init__(self) -> None:
+                super().__init__()
+                self.url = "https://www.perplexity.ai/search/xyz"
+                self._hidden = _FakeLocator(visible=False, count_value=1)
+
+            def locator(self, selector: str) -> _FakeLocator:
+                if selector == 'div#ask-input[role="textbox"][contenteditable="true"]':
+                    return self._hidden
+                return super().locator(selector)
+
+            def inner_text(self, selector: str) -> str:
+                if selector == "body":
+                    return "Loading spinner shell without any markers " * 5
+                return ""
+
+            def title(self) -> str:
+                return "Perplexity — thread"
+
+        driver._page = _HiddenInputPage()
+
+        with self.assertLogs("gracekelly.adapters.browser.playwright_driver", level="WARNING") as captured:
+            status = driver.auth_status(AuthRecoveryPolicy())
+
+        self.assertFalse(status.logged_in)
+        self.assertTrue(any("browser_auth_unknown" in record for record in captured.output))
+        diagnostic = next(record for record in captured.output if "browser_auth_unknown" in record)
+        self.assertIn("url=https://www.perplexity.ai/search/xyz", diagnostic)
+        self.assertIn("title=Perplexity", diagnostic)
+        self.assertIn("prompt_input_visible=False", diagnostic)
+        self.assertIn("prompt_input_count=1", diagnostic)
+        self.assertIn("signed_out_markers_matched=[]", diagnostic)
+
     def test_select_model_raises_permission_error_when_sign_in_overlay_blocks_click(self) -> None:
         driver = PlaywrightBrowserAutomation(
             runtime=PlaywrightBrowserRuntimeConfig(poll_interval_seconds=0),

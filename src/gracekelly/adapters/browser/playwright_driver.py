@@ -192,11 +192,29 @@ class PlaywrightBrowserAutomation(BrowserAutomationPort):
         page = self._page_or_raise()
         body_text = self._body_text(page)
         prompt_input_visible = self._locator_is_visible(page.locator(self._selectors.prompt_input))
+        signed_out_visible = any(marker in body_text for marker in self._selectors.signed_out_markers)
+        # Perplexity briefly hides the home ask-input after a response lands (navigation to
+        # thread URL). Without a settle, back-to-back sub-execs in smart decomposition hit
+        # "unknown login state" and degrade to [auth_failed]. _wait_for_shell polls up to 10s
+        # for prompt_input visibility; bounded, no effect on real logouts.
+        if not signed_out_visible and not prompt_input_visible:
+            try:
+                self._wait_for_shell()
+            except TimeoutError:
+                pass
+            body_text = self._body_text(page)
+            prompt_input_visible = self._locator_is_visible(page.locator(self._selectors.prompt_input))
         status = self._infer_auth_status(
             body_text=body_text,
             prompt_input_visible=prompt_input_visible,
             policy=policy,
         )
+        if not status.logged_in:
+            self._log_auth_unknown_diagnostics(
+                page=page,
+                body_text=body_text,
+                prompt_input_visible=prompt_input_visible,
+            )
         self._screenshot("02-auth-logged-in" if status.logged_in else "02-auth-signed-out")
         return status
 
@@ -737,6 +755,47 @@ class PlaywrightBrowserAutomation(BrowserAutomationPort):
         else:
             candidates.append(("body", body_text))
         return candidates
+
+    def _log_auth_unknown_diagnostics(
+        self,
+        *,
+        page: Any,
+        body_text: str,
+        prompt_input_visible: bool,
+    ) -> None:
+        url = ""
+        title = ""
+        prompt_input_count = -1
+        try:
+            url = str(getattr(page, "url", "") or "")
+        except Exception:
+            url = ""
+        try:
+            title_fn = getattr(page, "title", None)
+            if callable(title_fn):
+                title = str(title_fn() or "")
+        except Exception:
+            title = ""
+        try:
+            locator = page.locator(self._selectors.prompt_input)
+            count_fn = getattr(locator, "count", None)
+            if callable(count_fn):
+                prompt_input_count = int(count_fn())
+        except Exception:
+            prompt_input_count = -1
+        markers_matched = [m for m in self._selectors.signed_out_markers if m in body_text]
+        logger.warning(
+            "browser_auth_unknown url=%s title=%s body_length=%d "
+            "prompt_input_visible=%s prompt_input_count=%d "
+            "signed_out_markers_matched=%s body_prefix=%r",
+            url,
+            title,
+            len(body_text),
+            prompt_input_visible,
+            prompt_input_count,
+            markers_matched,
+            body_text[:300],
+        )
 
     def _infer_auth_status(
         self,
