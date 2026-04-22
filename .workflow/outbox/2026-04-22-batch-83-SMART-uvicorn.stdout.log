@@ -1,0 +1,36 @@
+INFO:     127.0.0.1:34573 - "GET /api/v1/models HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34572 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44728 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44728 - "GET /api/v1/models HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52472 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52472 - "GET /css/fonts.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:20190 - "GET /css/style.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44460 - "GET /js/api.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:8936 - "GET /js/model-menu.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46368 - "GET /js/threads.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:39684 - "GET /js/app.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52472 - "GET /js/chat.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:25856 - "GET /api/v1/models HTTP/1.1" 200 OK
+INFO:     127.0.0.1:25856 - "GET /favicon.ico HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:39747 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:2534 - "GET /css/fonts.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57534 - "GET /css/style.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:28346 - "GET /js/api.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:7474 - "GET /js/model-menu.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:6023 - "GET /js/threads.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:14355 - "GET /js/app.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:2534 - "GET /js/chat.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:2534 - "GET /api/v1/models HTTP/1.1" 200 OK
+INFO:     127.0.0.1:2534 - "GET /favicon.ico HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:8349 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:8349 - "GET /api/v1/models HTTP/1.1" 200 OK
+INFO:     127.0.0.1:6175 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:6175 - "GET /css/fonts.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:31551 - "GET /css/style.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:12919 - "GET /js/api.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:27812 - "GET /js/threads.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:26187 - "GET /js/model-menu.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53114 - "GET /js/app.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:6175 - "GET /js/chat.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:6175 - "GET /api/v1/models HTTP/1.1" 200 OK
+INFO:     127.0.0.1:6175 - "GET /favicon.ico HTTP/1.1" 404 Not Found

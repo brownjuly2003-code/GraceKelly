@@ -1,0 +1,61 @@
+﻿🎭 Playwright Skill - Universal Executor
+
+⚡ Executing inline code
+🚀 Starting automation...
+
+{
+  "stage": "before",
+  "payload": {
+    "currentItemId": "claude+gpt",
+    "selection": {
+      "id": "claude+gpt",
+      "label": "Claude + GPT",
+      "icon": "merge",
+      "pattern": "dual",
+      "model": null,
+      "models": [
+        "claude-sonnet-4-6",
+        "gpt-5-4"
+      ],
+      "analyze": true
+    },
+    "smartItem": {
+      "id": "smart",
+      "pattern": "smart",
+      "label": "Умный выбор",
+      "desc": "авто-декомпозиция",
+      "icon": "target",
+      "pinned_model": "claude-sonnet-4-6",
+      "available": true,
+      "resolvedModel": "claude-sonnet-4-6",
+      "resolvedModels": null
+    }
+  }
+}
+{
+  "stage": "after",
+  "payload": {
+    "currentItemId": "smart",
+    "selection": {
+      "id": "smart",
+      "label": "Умный выбор",
+      "icon": "target",
+      "pattern": "smart",
+      "model": "claude-sonnet-4-6",
+      "models": null,
+      "analyze": true
+    },
+    "smartItem": {
+      "id": "smart",
+      "pattern": "smart",
+      "label": "Умный выбор",
+      "desc": "авто-декомпозиция",
+      "icon": "target",
+      "pinned_model": "claude-sonnet-4-6",
+      "available": true,
+      "resolvedModel": "claude-sonnet-4-6",
+      "resolvedModels": null
+    }
+  }
+}
+

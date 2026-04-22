@@ -1,0 +1,40 @@
+{
+  "task_id": "SMOKE-smart-live",
+  "status": "failure",
+  "files_modified": [
+    ".workflow/outbox/2026-04-22-batch-83-SMART-report.md",
+    ".workflow/outbox/2026-04-22-batch-83-SMART-response.json",
+    ".workflow/outbox/2026-04-22-batch-83-SMART-uvicorn.stdout.log",
+    ".workflow/outbox/2026-04-22-batch-83-SMART-uvicorn.stderr.log",
+    ".workflow/outbox/screenshots/batch-83/smart-before-1280x800.png",
+    ".workflow/outbox/screenshots/batch-83/smart-after-1280x800.png",
+    ".workflow/outbox/2026-04-22-batch-83-SMOKE-smart-live-test-output.log",
+    ".workflow/outbox/2026-04-22-batch-83-SMART-diag-test-output.log"
+  ],
+  "lint_clean": true,
+  "self_review": {
+    "iterations": 2,
+    "initial_score": 5,
+    "final_score": 7,
+    "improvements": [
+      "Replaced the flaky popup click-path with a deterministic modelMenu state switch before spending the live submit.",
+      "Captured the exact failure boundary: the UI accepted the Cyrillic prompt and entered smart execution, but the route never produced a captured response within the batch window."
+    ]
+  },
+  "visual_check": {
+    "status": "failed",
+    "screenshots": [
+      ".workflow/outbox/screenshots/batch-83/smart-before-1280x800.png",
+      ".workflow/outbox/screenshots/batch-83/smart-after-1280x800.png"
+    ],
+    "notes": [
+      "Selection before submit was smart/claude-sonnet-4-6 and the UI showed the Cyrillic prompt correctly.",
+      "The live submit consumed quota, but the harness never observed a completed /api/v1/smart response; server-side evidence showed smart browser execution flapping between 60s timeouts and one intermediate extracted response."
+    ]
+  },
+  "roles_executed": [
+    "RUNNER",
+    "AUDITOR"
+  ],
+  "error": "SMART live submit consumed quota, but the request never yielded a captured /api/v1/smart response inside the batch window. Acceptance criteria were not met, so no retry was allowed and the batch stopped after SMART."
+}

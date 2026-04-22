@@ -1,0 +1,269 @@
+{
+  "task_id": "SMOKE-smart-live",
+  "observed_at": "2026-04-22T15:52:54.994Z",
+  "target_url": "http://127.0.0.1:8011/",
+  "prompt_variant": "cyrillic",
+  "prompt_delivery": "page.fill() from JS string literal with Unicode escapes",
+  "readiness": {
+    "status": 200,
+    "text": "{\"status\":\"degraded\"}"
+  },
+  "models": {
+    "status": 200,
+    "text": "{\"last_checked\":\"2026-04-22T15:48:20.422722Z\",\"source\":\"perplexity-model-menu\",\"models\":[{\"id\":\"best\",\"display_name\":\"Best\",\"aliases\":[\"Best\",\"best\"],\"adapter_kind\":\"browser\",\"provider\":\"perplexity\",\"reasoning_capable\":true,\"timeout_seconds\":60,\"expected_latency_class\":\"slow\",\"concurrency_limit\":1,\"available\":true,\"availability_status\":\"observed_unverified\",\"availability_checked_at\":\"2026-04-22T15:48:27.815691Z\",\"availability_source\":\"perplexity-model-menu\",\"last_verified_at\":null},{\"id\":\"sonar\",\"display_name\":\"Sonar\",\"aliases\":[\"Sonar\",\"sonar\"],\"adapter_kind\":\"browser\",\"provider\":\"perplexity\",\"reasoning_capable\":false,\"timeout_seconds\":60,\"expected_latency_class\":\"fast\",\"concurrency_limit\":1,\"available\":true,\"availability_status\":\"observed_unverified\",\"availability_checked_at\":\"2026-04-22T15:48:27.815691Z\",\"availability_source\":\"perplexity-model-menu\",\"last_verified_at\":null},{\"id\":\"gpt-5-4\",\"display_name\":\"GPT-5.4\",\"aliases\":[\"GPT-5.4\",\"gpt-5-4\",\"GPT 5.4\",\"GPT-5\"],\"adapter_kind\":\"browser\",\"provider\":\"perplexity\",\"reasoning_capable\":true,\"timeout_seconds\":60,\"expected_latency_class\":\"slow\",\"concurrency_limit\":1,\"available\":true,\"availability_status\":\"observed_unverified\",\"availability_checked_at\":\"2026-04-22T15:48:27.815691Z\",\"availability_source\":\"perplexity-model-menu\",\"last_verified_at\":null},{\"id\":\"gemini-3-1-pro\",\"display_name\":\"Gemini 3.1 Pro\",\"aliases\":[\"Gemini 3.1 Pro\",\"gemini-3-1-pro\",\"Gemini Pro 3.1\",\"Gemini Pro\"],\"adapter_kind\":\"browser\",\"provider\":\"perplexity\",\"reasoning_capable\":true,\"timeout_seconds\":60,\"expected_latency_class\":\"slow\",\"concurrency_limit\":1,\"available\":true,\"availability_status\":\"observed_unverified\",\"availability_checked_at\":\"2026-04-22T15:48:27.815691Z\",\"availability_source\":\"perplexity-model-menu\",\"last_verified_at\":null},{\"id\":\"claude-sonnet-4-6\",\"display_name\":\"Claude Sonnet 4.6\",\"aliases\":[\"Claude Sonnet 4.6\",\"claude-sonnet-4-6\",\"Claude 4.6\",\"Claude Sonnet\"],\"adapter_kind\":\"browser\",\"provider\":\"perplexity\",\"reasoning_capable\":true,\"timeout_seconds\":60,\"expected_latency_class\":\"slow\",\"concurrency_limit\":1,\"available\":true,\"availability_status\":\"observed_unverified\",\"availability_checked_at\":\"2026-04-22T15:48:27.815691Z\",\"availability_source\":\"perplexity-model-menu\",\"last_verified_at\":null},{\"id\":\"claude-opus-4-7\",\"display_name\":\"Claude Opus 4.7\",\"aliases\":[\"Claude Opus 4.7\",\"claude-opus-4-7\"],\"adapter_kind\":\"browser\",\"provider\":\"perplexity\",\"reasoning_capable\":true,\"timeout_seconds\":60,\"expected_latency_class\":\"slow\",\"concurrency_limit\":1,\"available\":true,\"availability_status\":\"observed_unverified\",\"availability_checked_at\":\"2026-04-22T15:48:27.815691Z\",\"availability_source\":\"perplexity-model-menu\",\"last_verified_at\":null},{\"id\":\"max\",\"display_name\":\"Max\",\"aliases\":[\"Max\",\"max\"],\"adapter_kind\":\"browser\",\"provider\":\"perplexity\",\"reasoning_capable\":true,\"timeout_seconds\":60,\"expected_latency_class\":\"slow\",\"concurrency_limit\":1,\"available\":true,\"availability_status\":\"observed_unverified\",\"availability_checked_at\":\"2026-04-22T15:48:27.815691Z\",\"availability_source\":\"perplexity-model-menu\",\"last_verified_at\":null},{\"id\":\"nemotron-3-super\",\"display_name\":\"Nemotron 3 Super\",\"aliases\":[\"Nemotron 3 Super\",\"nemotron-3-super\",\"Nemotron 3\"],\"adapter_kind\":\"browser\",\"provider\":\"perplexity\",\"reasoning_capable\":true,\"timeout_seconds\":60,\"expected_latency_class\":\"slow\",\"concurrency_limit\":1,\"available\":true,\"availability_status\":\"observed_unverified\",\"availability_checked_at\":\"2026-04-22T15:48:27.815691Z\",\"availability_source\":\"perplexity-model-menu\",\"last_verified_at\":null},{\"id\":\"mistral-small\",\"display_name\":\"Mistral Small\",\"aliases\":[\"Mistral Small\",\"Mistral\",\"Mistral API\"],\"adapter_kind\":\"api\",\"provider\":\"mistral\",\"reasoning_capable\":false,\"timeout_seconds\":30,\"expected_latency_class\":\"medium\",\"concurrency_limit\":4,\"available\":null,\"availability_status\":\"static\",\"availability_checked_at\":null,\"availability_source\":null,\"last_verified_at\":null},{\"id\":\"gpt-5-4-api\",\"display_name\":\"GPT-5.4 API\",\"aliases\":[\"GPT-5.4 API\",\"GPT 5.4 API\",\"OpenAI GPT-5.4\"],\"adapter_kind\":\"api\",\"provider\":\"openai\",\"reasoning_capable\":true,\"timeout_seconds\":60,\"expected_latency_class\":\"slow\",\"concurrency_limit\":4,\"available\":null,\"availability_status\":\"static\",\"availability_checked_at\":null,\"availability_source\":null,\"last_verified_at\":null},{\"id\":\"claude-sonnet-4-6-api\",\"display_name\":\"Claude Sonnet 4.6 API\",\"aliases\":[\"Claude Sonnet 4.6 API\",\"Claude API\",\"Anthropic Claude\"],\"adapter_kind\":\"api\",\"provider\":\"anthropic\",\"reasoning_capable\":true,\"timeout_seconds\":120,\"expected_latency_class\":\"slow\",\"concurrency_limit\":4,\"available\":null,\"availability_status\":\"static\",\"availability_checked_at\":null,\"availability_source\":null,\"last_verified_at\":null}]}",
+    "json": {
+      "last_checked": "2026-04-22T15:48:20.422722Z",
+      "source": "perplexity-model-menu",
+      "models": [
+        {
+          "id": "best",
+          "display_name": "Best",
+          "aliases": [
+            "Best",
+            "best"
+          ],
+          "adapter_kind": "browser",
+          "provider": "perplexity",
+          "reasoning_capable": true,
+          "timeout_seconds": 60,
+          "expected_latency_class": "slow",
+          "concurrency_limit": 1,
+          "available": true,
+          "availability_status": "observed_unverified",
+          "availability_checked_at": "2026-04-22T15:48:27.815691Z",
+          "availability_source": "perplexity-model-menu",
+          "last_verified_at": null
+        },
+        {
+          "id": "sonar",
+          "display_name": "Sonar",
+          "aliases": [
+            "Sonar",
+            "sonar"
+          ],
+          "adapter_kind": "browser",
+          "provider": "perplexity",
+          "reasoning_capable": false,
+          "timeout_seconds": 60,
+          "expected_latency_class": "fast",
+          "concurrency_limit": 1,
+          "available": true,
+          "availability_status": "observed_unverified",
+          "availability_checked_at": "2026-04-22T15:48:27.815691Z",
+          "availability_source": "perplexity-model-menu",
+          "last_verified_at": null
+        },
+        {
+          "id": "gpt-5-4",
+          "display_name": "GPT-5.4",
+          "aliases": [
+            "GPT-5.4",
+            "gpt-5-4",
+            "GPT 5.4",
+            "GPT-5"
+          ],
+          "adapter_kind": "browser",
+          "provider": "perplexity",
+          "reasoning_capable": true,
+          "timeout_seconds": 60,
+          "expected_latency_class": "slow",
+          "concurrency_limit": 1,
+          "available": true,
+          "availability_status": "observed_unverified",
+          "availability_checked_at": "2026-04-22T15:48:27.815691Z",
+          "availability_source": "perplexity-model-menu",
+          "last_verified_at": null
+        },
+        {
+          "id": "gemini-3-1-pro",
+          "display_name": "Gemini 3.1 Pro",
+          "aliases": [
+            "Gemini 3.1 Pro",
+            "gemini-3-1-pro",
+            "Gemini Pro 3.1",
+            "Gemini Pro"
+          ],
+          "adapter_kind": "browser",
+          "provider": "perplexity",
+          "reasoning_capable": true,
+          "timeout_seconds": 60,
+          "expected_latency_class": "slow",
+          "concurrency_limit": 1,
+          "available": true,
+          "availability_status": "observed_unverified",
+          "availability_checked_at": "2026-04-22T15:48:27.815691Z",
+          "availability_source": "perplexity-model-menu",
+          "last_verified_at": null
+        },
+        {
+          "id": "claude-sonnet-4-6",
+          "display_name": "Claude Sonnet 4.6",
+          "aliases": [
+            "Claude Sonnet 4.6",
+            "claude-sonnet-4-6",
+            "Claude 4.6",
+            "Claude Sonnet"
+          ],
+          "adapter_kind": "browser",
+          "provider": "perplexity",
+          "reasoning_capable": true,
+          "timeout_seconds": 60,
+          "expected_latency_class": "slow",
+          "concurrency_limit": 1,
+          "available": true,
+          "availability_status": "observed_unverified",
+          "availability_checked_at": "2026-04-22T15:48:27.815691Z",
+          "availability_source": "perplexity-model-menu",
+          "last_verified_at": null
+        },
+        {
+          "id": "claude-opus-4-7",
+          "display_name": "Claude Opus 4.7",
+          "aliases": [
+            "Claude Opus 4.7",
+            "claude-opus-4-7"
+          ],
+          "adapter_kind": "browser",
+          "provider": "perplexity",
+          "reasoning_capable": true,
+          "timeout_seconds": 60,
+          "expected_latency_class": "slow",
+          "concurrency_limit": 1,
+          "available": true,
+          "availability_status": "observed_unverified",
+          "availability_checked_at": "2026-04-22T15:48:27.815691Z",
+          "availability_source": "perplexity-model-menu",
+          "last_verified_at": null
+        },
+        {
+          "id": "max",
+          "display_name": "Max",
+          "aliases": [
+            "Max",
+            "max"
+          ],
+          "adapter_kind": "browser",
+          "provider": "perplexity",
+          "reasoning_capable": true,
+          "timeout_seconds": 60,
+          "expected_latency_class": "slow",
+          "concurrency_limit": 1,
+          "available": true,
+          "availability_status": "observed_unverified",
+          "availability_checked_at": "2026-04-22T15:48:27.815691Z",
+          "availability_source": "perplexity-model-menu",
+          "last_verified_at": null
+        },
+        {
+          "id": "nemotron-3-super",
+          "display_name": "Nemotron 3 Super",
+          "aliases": [
+            "Nemotron 3 Super",
+            "nemotron-3-super",
+            "Nemotron 3"
+          ],
+          "adapter_kind": "browser",
+          "provider": "perplexity",
+          "reasoning_capable": true,
+          "timeout_seconds": 60,
+          "expected_latency_class": "slow",
+          "concurrency_limit": 1,
+          "available": true,
+          "availability_status": "observed_unverified",
+          "availability_checked_at": "2026-04-22T15:48:27.815691Z",
+          "availability_source": "perplexity-model-menu",
+          "last_verified_at": null
+        },
+        {
+          "id": "mistral-small",
+          "display_name": "Mistral Small",
+          "aliases": [
+            "Mistral Small",
+            "Mistral",
+            "Mistral API"
+          ],
+          "adapter_kind": "api",
+          "provider": "mistral",
+          "reasoning_capable": false,
+          "timeout_seconds": 30,
+          "expected_latency_class": "medium",
+          "concurrency_limit": 4,
+          "available": null,
+          "availability_status": "static",
+          "availability_checked_at": null,
+          "availability_source": null,
+          "last_verified_at": null
+        },
+        {
+          "id": "gpt-5-4-api",
+          "display_name": "GPT-5.4 API",
+          "aliases": [
+            "GPT-5.4 API",
+            "GPT 5.4 API",
+            "OpenAI GPT-5.4"
+          ],
+          "adapter_kind": "api",
+          "provider": "openai",
+          "reasoning_capable": true,
+          "timeout_seconds": 60,
+          "expected_latency_class": "slow",
+          "concurrency_limit": 4,
+          "available": null,
+          "availability_status": "static",
+          "availability_checked_at": null,
+          "availability_source": null,
+          "last_verified_at": null
+        },
+        {
+          "id": "claude-sonnet-4-6-api",
+          "display_name": "Claude Sonnet 4.6 API",
+          "aliases": [
+            "Claude Sonnet 4.6 API",
+            "Claude API",
+            "Anthropic Claude"
+          ],
+          "adapter_kind": "api",
+          "provider": "anthropic",
+          "reasoning_capable": true,
+          "timeout_seconds": 120,
+          "expected_latency_class": "slow",
+          "concurrency_limit": 4,
+          "available": null,
+          "availability_status": "static",
+          "availability_checked_at": null,
+          "availability_source": null,
+          "last_verified_at": null
+        }
+      ]
+    }
+  },
+  "selection_after_click": {
+    "id": "smart",
+    "label": "Умный выбор",
+    "icon": "target",
+    "pattern": "smart",
+    "model": "claude-sonnet-4-6",
+    "models": null,
+    "analyze": true
+  },
+  "ui": {
+    "auth_banner_before": {
+      "visible": false,
+      "text": "\n                \n                    Perplexity session expired — open perplexity.ai and sign in, then retry\n                    Open Perplexity\n                \n                Retry\n            "
+    },
+    "input_value_before_submit": "Сравни рынки EV в Европе, США и Китае по ключевым метрикам: adoption rate, charger coverage, subsidies — верни структурированный обзор."
+  },
+  "selection_before_submit": {
+    "id": "smart",
+    "label": "Умный выбор",
+    "icon": "target",
+    "pattern": "smart",
+    "model": "claude-sonnet-4-6",
+    "models": null,
+    "analyze": true
+  },
+  "error": {
+    "message": "page.waitForResponse: Timeout 180000ms exceeded while waiting for event \"response\"",
+    "stack": "page.waitForResponse: Timeout 180000ms exceeded while waiting for event \"response\"\n    at C:\\Users\\uedom\\.agents\\skills\\playwright\\.temp-execution-1776873174160.js:111:34"
+  }
+}
