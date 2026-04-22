@@ -1,0 +1,17 @@
+$ uv run pytest D:\GraceKelly\tests\test_config.py -q
+...........                                                              [100%]
+11 passed in 0.57s
+
+$ uv run pytest D:\GraceKelly\tests\test_browser_adapter.py -q
+.........................                                                [100%]
+25 passed in 0.58s
+
+$ uv run ruff check D:\GraceKelly\src D:\GraceKelly\tests
+All checks passed!
+
+$ uv run mypy D:\GraceKelly\src
+pyproject.toml: note: unused section(s): module = ['test_app_startup', 'test_orchestrate_timeout', 'test_postgres_live']
+Success: no issues found in 105 source files
+
+$ uv run python -m pytest --tb=short -q
+2594 passed, 6 skipped, 11 subtests passed in 793.12s (0:13:13)

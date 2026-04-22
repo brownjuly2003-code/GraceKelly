@@ -98,6 +98,7 @@ class BrowserAdapterTests(unittest.TestCase):
         self.assertEqual(result.status, StepStatus.COMPLETED)
         self.assertEqual(result.output_text, "browser success")
         self.assertEqual(result.details["actual_model_label"], "Kimi K2.5")
+        self.assertEqual(result.details["timeout_seconds"], 120)
 
     def test_browser_adapter_attaches_files_before_prompt_submission(self) -> None:
         attachment = FileAttachment(name="photo.png", content_type="image/png", data=b"png-bytes")

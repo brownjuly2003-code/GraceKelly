@@ -18,6 +18,7 @@ from gracekelly.adapters.browser.policy import (
     SubmitPolicy,
 )
 from gracekelly.adapters.browser.session import BrowserSessionManager
+from gracekelly.config import settings as runtime_settings
 from gracekelly.core.contracts import (
     ExecutionAdapter,
     ExecutionMode,
@@ -50,6 +51,7 @@ class PerplexityBrowserAdapter(ExecutionAdapter):
         self._auth_policy = auth_recovery_policy or AuthRecoveryPolicy()
         self._model_policy = model_verification_policy or ModelVerificationPolicy()
         self._submit_policy = submit_policy or SubmitPolicy()
+        self._call_timeout_seconds = runtime_settings.browser_call_timeout_seconds
 
     @property
     def session_manager(self) -> BrowserSessionManager:
@@ -138,7 +140,7 @@ class PerplexityBrowserAdapter(ExecutionAdapter):
             output = self._automation.submit_prompt(
                 prompt=request.prompt,
                 policy=self._submit_policy,
-                timeout_seconds=model.timeout_seconds,
+                timeout_seconds=self._call_timeout_seconds,
             )
             if request.cancellation and request.cancellation.is_cancelled and not output.output_text.strip():
                 return self._cancelled(model.id, model.display_name)
@@ -175,7 +177,7 @@ class PerplexityBrowserAdapter(ExecutionAdapter):
                 model_id=model.id,
                 model_display_name=model.display_name,
                 failure_code=FailureCode.TIMEOUT,
-                message=f"Browser execution timed out after {model.timeout_seconds}s.",
+                message=f"Browser execution timed out after {self._call_timeout_seconds}s.",
             )
         except PermissionError as exc:
             return self._failure(

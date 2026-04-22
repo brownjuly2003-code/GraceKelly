@@ -1,0 +1,63 @@
+{
+  "task_id": "ADAPTER-raise-call-timeout",
+  "status": "success",
+  "files_modified": [
+    "src/gracekelly/config.py",
+    "src/gracekelly/adapters/browser/perplexity.py",
+    "tests/test_config.py",
+    "tests/test_browser_adapter.py",
+    ".env.example",
+    ".workflow/outbox/2026-04-22-batch-85-ADAPTER-raise-call-timeout-report.md",
+    ".workflow/outbox/2026-04-22-batch-85-ADAPTER-raise-call-timeout.result.json",
+    ".workflow/outbox/2026-04-22-batch-85-ADAPTER-raise-call-timeout-test-output.log"
+  ],
+  "lint_clean": true,
+  "self_review": {
+    "iterations": 1,
+    "initial_score": 8,
+    "final_score": 9,
+    "improvements": [
+      "Поднял browser per-call timeout на уровне adapter/config, не меняя route-логику и публичный model catalog."
+    ]
+  },
+  "test_battery": {
+    "R1": {
+      "pass": 2594,
+      "fail": 0,
+      "skip": 6,
+      "note": "Full pytest green after browser adapter timeout change."
+    },
+    "R2": {
+      "pass": 0,
+      "fail": 0,
+      "skip": 0,
+      "coverage_pct": 0,
+      "coverage_delta": "n/a"
+    },
+    "R3": {
+      "pass": 36,
+      "fail": 0,
+      "skip": 0
+    },
+    "R4": {
+      "warnings": []
+    },
+    "R5": {
+      "tests_audited": 4,
+      "kill_confirmed": 4,
+      "kill_failed": 0,
+      "weak_tests": []
+    },
+    "contradictions": []
+  },
+  "visual_check": false,
+  "test_output_hash": "sha256:08b3e17da677700e5ca3c84706abfac3a0578f342689532a6318d0937cfcae12",
+  "roles_executed": [
+    "IMPLEMENTER",
+    "TEST AUTHOR",
+    "RUNNER",
+    "AUDITOR"
+  ],
+  "docs_pruned": null,
+  "error": null
+}

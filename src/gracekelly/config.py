@@ -78,6 +78,7 @@ class Settings:
     browser_base_url: str = "https://www.perplexity.ai"
     browser_playwright_channel: str = "chrome"
     browser_playwright_headless: bool = False
+    browser_call_timeout_seconds: int = 120
     browser_circuit_breaker_enabled: bool = True
     browser_circuit_breaker_failure_threshold: int = 3
     browser_circuit_breaker_cooldown_seconds: int = 60
@@ -150,6 +151,7 @@ class Settings:
             browser_playwright_channel=os.getenv("GRACEKELLY_BROWSER_PLAYWRIGHT_CHANNEL", "chrome"),
             browser_playwright_headless=os.getenv("GRACEKELLY_BROWSER_PLAYWRIGHT_HEADLESS", "false").lower()
             == "true",
+            browser_call_timeout_seconds=_env_int("GRACEKELLY_BROWSER_CALL_TIMEOUT_SECONDS", "120"),
             browser_circuit_breaker_enabled=os.getenv(
                 "GRACEKELLY_BROWSER_CIRCUIT_BREAKER_ENABLED",
                 "true",
