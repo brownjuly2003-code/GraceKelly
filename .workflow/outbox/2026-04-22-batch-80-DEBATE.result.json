@@ -1,0 +1,57 @@
+{
+  "task_id": "SMOKE-debate-live",
+  "status": "blocked",
+  "files_modified": [
+    ".workflow/outbox/2026-04-22-batch-80-DEBATE-report.md",
+    ".workflow/outbox/2026-04-22-batch-80-DEBATE-test-output.log"
+  ],
+  "lint_clean": true,
+  "self_review": {
+    "iterations": 1,
+    "initial_score": 8,
+    "final_score": 8,
+    "improvements": [
+      "Stopped before consuming another live submit after SMART failed on a real browser-profile blocker."
+    ]
+  },
+  "test_battery": {
+    "R1": {
+      "pass": 0,
+      "fail": 0,
+      "skip": 1
+    },
+    "R2": {
+      "pass": 0,
+      "fail": 0,
+      "skip": 1
+    },
+    "R3": {
+      "pass": 0,
+      "fail": 0,
+      "skip": 1
+    },
+    "R4": {
+      "warnings": []
+    },
+    "R5": {
+      "tests_audited": 0,
+      "kill_confirmed": 0,
+      "kill_failed": 0,
+      "weak_tests": []
+    },
+    "contradictions": []
+  },
+  "visual_check": {
+    "status": "blocked",
+    "screenshots": [],
+    "notes": [
+      "No DEBATE submit executed because SMART live failed first."
+    ]
+  },
+  "test_output_hash": "sha256:f99cd806bce30741f85be6d2a0cd9d61d18909c8057646b10df1954095db0235",
+  "roles_executed": [
+    "AUDITOR"
+  ],
+  "docs_pruned": null,
+  "error": "Blocked by SMART live failure on browser profile lock."
+}

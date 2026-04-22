@@ -1,0 +1,23 @@
+INFO:     127.0.0.1:46595 - "GET /api/v1/models HTTP/1.1" 200 OK
+INFO:     127.0.0.1:3578 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18652 - "GET /css/fonts.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:35627 - "GET /css/style.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:12582 - "GET /js/model-menu.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33083 - "GET /js/threads.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:30799 - "GET /js/api.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:6193 - "GET /js/app.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18652 - "GET /js/chat.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18652 - "GET /api/v1/models HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18652 - "GET /favicon.ico HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:18652 - "POST /api/v1/orchestrate HTTP/1.1" 503 Service Unavailable
+INFO:     127.0.0.1:5782 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:5782 - "GET /css/fonts.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:7351 - "GET /css/style.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:4136 - "GET /js/model-menu.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52456 - "GET /js/api.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:41579 - "GET /js/threads.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:25962 - "GET /js/app.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:5782 - "GET /js/chat.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:7338 - "GET /api/v1/models HTTP/1.1" 200 OK
+INFO:     127.0.0.1:7338 - "GET /favicon.ico HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:7338 - "POST /api/v1/smart HTTP/1.1" 200 OK

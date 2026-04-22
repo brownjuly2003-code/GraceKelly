@@ -1,0 +1,40 @@
+2026-04-22 16:44:55,932 WARNING gracekelly.middleware: API key authentication is not configured — all endpoints are open
+INFO:     Started server process [23528]
+INFO:     Waiting for application startup.
+2026-04-22 16:44:55,953 INFO gracekelly.adapters.browser.playwright_driver: Launching Playwright browser session for provider perplexity using profile D:/GraceKelly/chrome-profile
+2026-04-22 16:44:57,965 INFO gracekelly.adapters.browser.session: Browser session marked active for provider perplexity
+2026-04-22 16:44:59,632 INFO gracekelly.adapters.browser.session: Browser session marked idle for provider perplexity
+2026-04-22 16:44:59,634 INFO gracekelly.main: model_catalog.ready checked_at=2026-04-22T13:44:55.951950+00:00 source=perplexity-model-menu count=8
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:8011 (Press CTRL+C to quit)
+2026-04-22 16:47:13,551 INFO gracekelly.api.routes.orchestrate: orchestrate.request adapter_hint="auto" dry_run=false execution_mode="live" merge_strategy="concat" model_count=2 prompt_length=135 quorum=2 reasoning=true
+2026-04-22 16:47:13,553 INFO gracekelly.core.orchestrator: task.submit.started dry_run=false merge_strategy="concat" model_count=2 quorum=2 task_id="ea7f3725-d3e8-4b4b-8dcc-0057d311d7ee"
+2026-04-22 16:47:13,555 INFO gracekelly.adapters.browser.perplexity: Browser execution started for task ea7f3725-d3e8-4b4b-8dcc-0057d311d7ee model claude-sonnet-4-6 provider perplexity
+2026-04-22 16:47:13,557 INFO gracekelly.adapters.browser.playwright_driver: Launching Playwright browser session for provider perplexity using profile D:/GraceKelly/chrome-profile
+2026-04-22 16:47:16,247 INFO gracekelly.adapters.browser.session: Browser session marked active for provider perplexity
+2026-04-22 16:47:16,551 INFO gracekelly.adapters.browser.perplexity: Browser auth check for task ea7f3725-d3e8-4b4b-8dcc-0057d311d7ee: logged_in=True
+2026-04-22 16:47:16,751 INFO gracekelly.adapters.browser.playwright_driver: Selecting Perplexity model 'Claude Sonnet 4.6' through Playwright
+2026-04-22 16:47:17,766 INFO gracekelly.adapters.browser.perplexity: Thinking toggle for model claude-sonnet-4-6: True
+2026-04-22 16:47:17,781 INFO gracekelly.adapters.browser.playwright_driver: Submitting prompt through Playwright (timeout=60s)
+2026-04-22 16:47:18,406 INFO gracekelly.adapters.browser.playwright_driver: Response extracted via source=body length=1383
+2026-04-22 16:47:18,407 INFO gracekelly.adapters.browser.perplexity: Browser execution completed for task ea7f3725-d3e8-4b4b-8dcc-0057d311d7ee model claude-sonnet-4-6 provider perplexity duration_ms=4852 response_source=body model_verified=True
+2026-04-22 16:47:18,409 INFO gracekelly.adapters.browser.perplexity: Browser execution started for task ea7f3725-d3e8-4b4b-8dcc-0057d311d7ee model gpt-5-4 provider perplexity
+2026-04-22 16:47:18,409 INFO gracekelly.adapters.browser.session: Browser session marked active for provider perplexity
+2026-04-22 16:47:18,479 INFO gracekelly.adapters.browser.perplexity: Browser auth check for task ea7f3725-d3e8-4b4b-8dcc-0057d311d7ee: logged_in=False
+2026-04-22 16:47:18,480 WARNING gracekelly.adapters.browser.session: Browser session marked degraded for provider perplexity: Unable to determine browser login state from the current page.
+2026-04-22 16:47:18,480 WARNING gracekelly.adapters.browser.perplexity: Browser execution failed for task ea7f3725-d3e8-4b4b-8dcc-0057d311d7ee model gpt-5-4 code=auth_failed: Unable to determine browser login state from the current page.
+2026-04-22 16:47:18,482 INFO gracekelly.core.orchestrator: task.submit.completed dry_run=false event_count=4 execution_mode="browser" status="failed" step_count=2 task_id="ea7f3725-d3e8-4b4b-8dcc-0057d311d7ee" trace_id="47ad3c9e-484f-459b-bf7f-bd8bfa05275f"
+2026-04-22 16:51:47,821 INFO gracekelly.adapters.browser.perplexity: Browser execution started for task smart model best provider perplexity
+2026-04-22 16:51:47,822 WARNING gracekelly.adapters.browser.playwright_driver: Discarding Playwright browser session created on thread 16108 before reopening on thread 19004
+2026-04-22 16:51:47,824 INFO gracekelly.adapters.browser.playwright_driver: Launching Playwright browser session for provider perplexity using profile D:/GraceKelly/chrome-profile
+2026-04-22 16:51:48,797 WARNING gracekelly.adapters.browser.session: Browser session marked degraded for provider perplexity: Browser profile directory 'D:/GraceKelly/chrome-profile' is already in use by another Chrome process.
+2026-04-22 16:51:48,798 WARNING gracekelly.adapters.browser.perplexity: Browser execution failed for task smart model best code=provider_unavailable: Browser profile directory 'D:/GraceKelly/chrome-profile' is already in use by another Chrome process.
+2026-04-22 16:51:48,800 INFO gracekelly.adapters.browser.perplexity: Browser execution started for task smart model best provider perplexity
+2026-04-22 16:51:48,801 INFO gracekelly.adapters.browser.playwright_driver: Launching Playwright browser session for provider perplexity using profile D:/GraceKelly/chrome-profile
+2026-04-22 16:51:49,795 WARNING gracekelly.adapters.browser.session: Browser session marked degraded for provider perplexity: Browser profile directory 'D:/GraceKelly/chrome-profile' is already in use by another Chrome process.
+2026-04-22 16:51:49,796 WARNING gracekelly.adapters.browser.perplexity: Browser execution failed for task smart model best code=provider_unavailable: Browser profile directory 'D:/GraceKelly/chrome-profile' is already in use by another Chrome process.
+2026-04-22 16:51:49,797 INFO gracekelly.adapters.browser.perplexity: Browser execution started for task smart model best provider perplexity
+2026-04-22 16:51:49,798 INFO gracekelly.adapters.browser.playwright_driver: Launching Playwright browser session for provider perplexity using profile D:/GraceKelly/chrome-profile
+2026-04-22 16:51:50,642 WARNING gracekelly.adapters.browser.session: Browser session marked degraded for provider perplexity: Browser profile directory 'D:/GraceKelly/chrome-profile' is already in use by another Chrome process.
+2026-04-22 16:51:50,643 WARNING gracekelly.adapters.browser.perplexity: Browser execution failed for task smart model best code=provider_unavailable: Browser profile directory 'D:/GraceKelly/chrome-profile' is already in use by another Chrome process.
+2026-04-22 16:51:50,644 WARNING gracekelly.core.circuit_breaker: Circuit breaker tripped open for adapter 'browser.perplexity' after 3 consecutive failures (last_code=provider_unavailable, open_count=1)

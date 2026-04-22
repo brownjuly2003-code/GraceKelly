@@ -1,0 +1,68 @@
+{
+  "task_id": "SMOKE-smart-live",
+  "status": "failure",
+  "files_modified": [
+    ".workflow/outbox/2026-04-22-batch-80-SMART-report.md",
+    ".workflow/outbox/2026-04-22-batch-80-SMART-response.json",
+    ".workflow/outbox/2026-04-22-batch-80-SMART-test-output.log",
+    ".workflow/outbox/2026-04-22-batch-80-SMART-uvicorn.stdout.log",
+    ".workflow/outbox/2026-04-22-batch-80-SMART-uvicorn.stderr.log",
+    ".workflow/outbox/screenshots/batch-80/smart-before-1280x800.png",
+    ".workflow/outbox/screenshots/batch-80/smart-after-1280x800.png"
+  ],
+  "lint_clean": true,
+  "self_review": {
+    "iterations": 1,
+    "initial_score": 7,
+    "final_score": 7,
+    "improvements": [
+      "Confirmed that selection_before_submit is now smart/best rather than a default orchestrate preset.",
+      "Captured the exact live failure mode from /api/v1/smart and the matching server-side profile-lock evidence."
+    ]
+  },
+  "test_battery": {
+    "R1": {
+      "pass": 0,
+      "fail": 1,
+      "skip": 0
+    },
+    "R2": {
+      "pass": 0,
+      "fail": 1,
+      "skip": 0
+    },
+    "R3": {
+      "pass": 0,
+      "fail": 1,
+      "skip": 0
+    },
+    "R4": {
+      "warnings": []
+    },
+    "R5": {
+      "tests_audited": 0,
+      "kill_confirmed": 0,
+      "kill_failed": 0,
+      "weak_tests": []
+    },
+    "contradictions": []
+  },
+  "visual_check": {
+    "status": "failed",
+    "screenshots": [
+      ".workflow/outbox/screenshots/batch-80/smart-before-1280x800.png",
+      ".workflow/outbox/screenshots/batch-80/smart-after-1280x800.png"
+    ],
+    "notes": [
+      "Selection before submit was smart/best.",
+      "POST /api/v1/smart returned 200, but answer contained provider_unavailable for the locked browser profile."
+    ]
+  },
+  "test_output_hash": "sha256:010fdf3e155af4c00adabce8ffcf666ea1a9b0d3d9512dd47be61cacd81cedc3",
+  "roles_executed": [
+    "RUNNER",
+    "AUDITOR"
+  ],
+  "docs_pruned": null,
+  "error": "POST /api/v1/smart returned provider_unavailable: Browser profile directory 'D:/GraceKelly/chrome-profile' is already in use by another Chrome process."
+}
