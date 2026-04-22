@@ -72,6 +72,7 @@ const MENU_GROUPS = [
         label: "Дебаты",
         desc: "Devil's Advocate",
         icon: "merge",
+        pinned_model: "best",
       },
       {
         id: "smart",
@@ -79,6 +80,7 @@ const MENU_GROUPS = [
         label: "Умный выбор",
         desc: "авто-декомпозиция",
         icon: "target",
+        pinned_model: "best",
       },
     ],
   },
@@ -321,10 +323,13 @@ class ModelChipMenu {
 
   _resolveItem(item) {
     if (!item.match && !item.model && !item.strategy && !Array.isArray(item.matches)) {
+      const pinnedModel = item.pinned_model
+        ? this._resolveModel(item.pinned_model, item.pinned_model) || item.pinned_model
+        : null;
       return {
         ...item,
         available: true,
-        resolvedModel: null,
+        resolvedModel: pinnedModel,
         resolvedModels: null,
       };
     }

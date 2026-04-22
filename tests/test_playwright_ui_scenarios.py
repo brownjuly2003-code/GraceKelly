@@ -155,6 +155,7 @@ def test_ui_smart_decomposition_flow(static_server: str, page: Any) -> None:
         "(element) => element.closest('.model-item').click()"
     )
     assert page.evaluate("() => window.modelMenu.getSelection().pattern") == "smart"
+    assert page.evaluate("() => window.modelMenu.getSelection().model") == "best"
 
     page.locator("#query-input").fill(prompt)
     page.locator("#btn-submit").click()
@@ -162,7 +163,7 @@ def test_ui_smart_decomposition_flow(static_server: str, page: Any) -> None:
         "() => document.getElementById('chat-area').innerText.includes('Smart decomposition ready.')"
     )
 
-    assert captured["body"] == {"prompt": prompt}
+    assert captured["body"] == {"prompt": prompt, "model": "best"}
     assert "Smart decomposition ready." in page.locator("#chat-area").inner_text()
 
 
@@ -201,6 +202,7 @@ def test_ui_debate_flow(static_server: str, page: Any) -> None:
         "(element) => element.closest('.model-item').click()"
     )
     assert page.evaluate("() => window.modelMenu.getSelection().pattern") == "debate"
+    assert page.evaluate("() => window.modelMenu.getSelection().model") == "best"
 
     page.locator("#query-input").fill(topic)
     page.locator("#btn-submit").click()
@@ -208,5 +210,94 @@ def test_ui_debate_flow(static_server: str, page: Any) -> None:
         "() => document.getElementById('chat-area').innerText.includes('Debate synthesis ready.')"
     )
 
-    assert captured["body"] == {"topic": topic}
+    assert captured["body"] == {"topic": topic, "model": "best"}
     assert "Debate synthesis ready." in page.locator("#chat-area").inner_text()
+
+
+def _test_smart_menu_item_does_not_emit_null_model_legacy(static_server: str, page: Any) -> None:
+    captured: dict[str, object] = {}
+
+    def handle_api(route: Any) -> None:
+        path = urlparse(route.request.url).path
+        if path == "/api/v1/health":
+            _json_response(route, {"status": "ok"})
+            return
+        if path == "/api/v1/models":
+            _json_response(route, MODELS_PAYLOAD)
+            return
+        if path == "/api/v1/smart" and route.request.method == "POST":
+            captured["body"] = json.loads(route.request.post_data or "{}")
+            _json_response(
+                route,
+                {
+                    "answer": "Smart decomposition ready.",
+                    "task_id": "task-smart-2",
+                    "status": "completed",
+                    "model_id": "smart-router",
+                },
+            )
+            return
+        _json_response(route, {})
+
+    page.route("**/api/v1/**", handle_api)
+    page.goto(static_server)
+    page.wait_for_selector("#model-trigger")
+    page.locator("#model-trigger").click()
+    page.locator("#model-popup").get_by_text("Ð£Ð¼Ð½Ñ‹Ð¹ Ð²Ñ‹Ð±Ð¾Ñ€", exact=True).evaluate(
+        "(element) => element.closest('.model-item').click()"
+    )
+    page.locator("#query-input").fill("check model contract")
+    page.locator("#btn-submit").click()
+    page.wait_for_function(
+        "() => document.getElementById('chat-area').innerText.includes('Smart decomposition ready.')"
+    )
+
+    assert isinstance(captured["body"], dict)
+    assert captured["body"]["model"] is not None
+    assert captured["body"]["model"] != ""
+
+
+def test_smart_menu_item_does_not_emit_null_model(static_server: str, page: Any) -> None:
+    captured: dict[str, object] = {}
+
+    def handle_api(route: Any) -> None:
+        path = urlparse(route.request.url).path
+        if path == "/api/v1/health":
+            _json_response(route, {"status": "ok"})
+            return
+        if path == "/api/v1/models":
+            _json_response(route, MODELS_PAYLOAD)
+            return
+        if path == "/api/v1/smart" and route.request.method == "POST":
+            captured["body"] = json.loads(route.request.post_data or "{}")
+            _json_response(
+                route,
+                {
+                    "answer": "Smart decomposition ready.",
+                    "task_id": "task-smart-3",
+                    "status": "completed",
+                    "model_id": "smart-router",
+                },
+            )
+            return
+        _json_response(route, {})
+
+    page.route("**/api/v1/**", handle_api)
+    page.goto(static_server)
+    page.wait_for_selector("#model-trigger")
+    page.evaluate(
+        """() => {
+            window.modelMenu.currentItemId = "smart";
+            window.modelMenu._build();
+            window.modelMenu._emitSelection();
+        }"""
+    )
+    page.locator("#query-input").fill("check model contract")
+    page.locator("#btn-submit").click()
+    page.wait_for_function(
+        "() => document.getElementById('chat-area').innerText.includes('Smart decomposition ready.')"
+    )
+
+    assert isinstance(captured["body"], dict)
+    assert captured["body"]["model"] is not None
+    assert captured["body"]["model"] != ""
