@@ -55,7 +55,7 @@ API adapters are optional. Use them only if you have separate API keys and want 
 | `GRACEKELLY_STORAGE_BACKEND` | `memory` | `memory` or `postgres` |
 | `GRACEKELLY_POSTGRES_DSN` | - | PostgreSQL connection string |
 | `GRACEKELLY_API_KEY` | - | Optional bearer token for endpoint auth |
-| `GRACEKELLY_EXECUTION_PROFILE` | `dry-run` | `default` or `dry-run` |
+| `GRACEKELLY_EXECUTION_PROFILE` | `dry-run` | one of: `dry-run`, `api-only`, `hybrid` |
 
 Full reference: `.env.example`
 
