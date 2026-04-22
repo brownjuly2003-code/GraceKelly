@@ -1,0 +1,30 @@
+{
+  "status_code": 200,
+  "request": {
+    "prompt": "Сравни рынки EV в Европе, США и Китае по ключевым метрикам: adoption rate, charger coverage, subsidies — верни структурированный обзор.",
+    "model": "best"
+  },
+  "response": {
+    "answer": "Thinking\nAsk a follow-up\nModel",
+    "task_type": "general",
+    "complexity_level": "simple",
+    "pattern_used": "single",
+    "reliability_level": "quick",
+    "was_decomposed": false,
+    "used_consensus": false,
+    "used_roles": true,
+    "total_llm_calls": 3,
+    "model_id": "best"
+  },
+  "selection": {
+    "id": "smart",
+    "label": "Умный выбор",
+    "icon": "target",
+    "pattern": "smart",
+    "model": "best",
+    "models": null,
+    "analyze": true
+  },
+  "chat_text": "Сравни рынки EV в Европе, США и Китае по ключевым метрикам: adoption rate, charger coverage, subsidies — верни структурированный обзор.\nThinking\nAsk a follow-up\nModel\nbest",
+  "auth_banner_visible": false
+}

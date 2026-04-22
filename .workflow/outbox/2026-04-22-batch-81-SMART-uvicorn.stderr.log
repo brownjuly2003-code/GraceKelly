@@ -1,0 +1,34 @@
+2026-04-22 17:25:17,945 WARNING gracekelly.middleware: API key authentication is not configured — all endpoints are open
+INFO:     Started server process [23664]
+INFO:     Waiting for application startup.
+2026-04-22 17:25:17,965 INFO gracekelly.adapters.browser.playwright_driver: Launching Playwright browser session for provider perplexity using profile D:/GraceKelly/chrome-profile
+2026-04-22 17:25:20,057 INFO gracekelly.adapters.browser.session: Browser session marked active for provider perplexity
+2026-04-22 17:25:21,300 INFO gracekelly.adapters.browser.session: Browser session marked idle for provider perplexity
+2026-04-22 17:25:21,301 INFO gracekelly.main: model_catalog.ready checked_at=2026-04-22T14:25:17.964610+00:00 source=perplexity-model-menu count=8
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:8011 (Press CTRL+C to quit)
+2026-04-22 17:25:23,360 INFO gracekelly.adapters.browser.perplexity: Browser execution started for task smart model best provider perplexity
+2026-04-22 17:25:23,361 INFO gracekelly.adapters.browser.playwright_driver: Launching Playwright browser session for provider perplexity using profile D:/GraceKelly/chrome-profile
+2026-04-22 17:25:25,264 INFO gracekelly.adapters.browser.session: Browser session marked active for provider perplexity
+2026-04-22 17:25:25,464 INFO gracekelly.adapters.browser.perplexity: Browser auth check for task smart: logged_in=True
+2026-04-22 17:25:25,497 INFO gracekelly.adapters.browser.playwright_driver: Selecting Perplexity model 'Best' through Playwright
+2026-04-22 17:25:25,688 WARNING gracekelly.adapters.browser.playwright_driver: Perplexity model option 'Best' was not found; current menu appears to start with 'Sonar'.
+2026-04-22 17:25:25,694 WARNING gracekelly.adapters.browser.session: Browser session marked degraded for provider perplexity: Requested browser model 'Best' but UI shows 'Sonar'.
+2026-04-22 17:25:25,695 WARNING gracekelly.adapters.browser.perplexity: Browser execution failed for task smart model best code=model_mismatch: Requested browser model 'Best' but UI shows 'Sonar'.
+2026-04-22 17:25:25,697 INFO gracekelly.adapters.browser.perplexity: Browser execution started for task smart model best provider perplexity
+2026-04-22 17:25:25,697 INFO gracekelly.adapters.browser.session: Browser session marked active for provider perplexity
+2026-04-22 17:25:25,761 INFO gracekelly.adapters.browser.perplexity: Browser auth check for task smart: logged_in=True
+2026-04-22 17:25:25,780 INFO gracekelly.adapters.browser.playwright_driver: Selecting Perplexity model 'Best' through Playwright
+2026-04-22 17:25:25,947 WARNING gracekelly.adapters.browser.playwright_driver: Perplexity model option 'Best' was not found; current menu appears to start with 'unknown'.
+2026-04-22 17:25:26,558 WARNING gracekelly.adapters.browser.playwright_driver: Thinking toggle not found in model menu
+2026-04-22 17:25:26,581 INFO gracekelly.adapters.browser.perplexity: Thinking toggle for model best: False
+2026-04-22 17:25:26,591 INFO gracekelly.adapters.browser.playwright_driver: Submitting prompt through Playwright (timeout=60s)
+2026-04-22 17:25:27,349 INFO gracekelly.adapters.browser.playwright_driver: Response extracted via source=body_after_prompt length=30
+2026-04-22 17:25:27,350 INFO gracekelly.adapters.browser.perplexity: Browser execution completed for task smart model best provider perplexity duration_ms=1653 response_source=body_after_prompt model_verified=False
+2026-04-22 17:25:27,351 INFO gracekelly.adapters.browser.perplexity: Browser execution started for task smart model best provider perplexity
+2026-04-22 17:25:27,352 INFO gracekelly.adapters.browser.session: Browser session marked active for provider perplexity
+2026-04-22 17:25:27,423 INFO gracekelly.adapters.browser.perplexity: Browser auth check for task smart: logged_in=True
+2026-04-22 17:25:27,445 INFO gracekelly.adapters.browser.playwright_driver: Selecting Perplexity model 'Best' through Playwright
+2026-04-22 17:25:27,593 WARNING gracekelly.adapters.browser.playwright_driver: Perplexity model option 'Best' was not found; current menu appears to start with 'Sonar'.
+2026-04-22 17:25:27,599 WARNING gracekelly.adapters.browser.session: Browser session marked degraded for provider perplexity: Requested browser model 'Best' but UI shows 'Sonar'.
+2026-04-22 17:25:27,600 WARNING gracekelly.adapters.browser.perplexity: Browser execution failed for task smart model best code=model_mismatch: Requested browser model 'Best' but UI shows 'Sonar'.

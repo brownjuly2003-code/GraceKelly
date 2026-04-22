@@ -1,0 +1,12 @@
+INFO:     127.0.0.1:45819 - "GET /api/v1/models HTTP/1.1" 200 OK
+INFO:     127.0.0.1:39516 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:39516 - "GET /css/fonts.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:41112 - "GET /css/style.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59220 - "GET /js/api.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:9583 - "GET /js/model-menu.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:29455 - "GET /js/app.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:3209 - "GET /js/threads.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34001 - "GET /js/chat.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34001 - "GET /api/v1/models HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34001 - "GET /favicon.ico HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:34001 - "POST /api/v1/smart HTTP/1.1" 200 OK

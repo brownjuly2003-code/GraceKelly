@@ -1,0 +1,38 @@
+{
+  "task_id": "SMOKE-smart-live",
+  "status": "failure",
+  "files_modified": [
+    ".workflow/outbox/2026-04-22-batch-81-SMART-report.md",
+    ".workflow/outbox/2026-04-22-batch-81-SMART-response.json",
+    ".workflow/outbox/2026-04-22-batch-81-SMART-uvicorn.stdout.log",
+    ".workflow/outbox/2026-04-22-batch-81-SMART-uvicorn.stderr.log",
+    ".workflow/outbox/screenshots/batch-81/smart-before-1280x800.png",
+    ".workflow/outbox/screenshots/batch-81/smart-after-1280x800.png"
+  ],
+  "lint_clean": true,
+  "self_review": {
+    "iterations": 1,
+    "initial_score": 8,
+    "final_score": 8,
+    "improvements": [
+      "Confirmed that SMART now reaches the browser-backed route with model=best after the batch-80 backend fix.",
+      "Captured the new live blocker precisely: Perplexity menu selection for Best is not verified and fallback extraction returned shell text."
+    ]
+  },
+  "visual_check": {
+    "status": "failed",
+    "screenshots": [
+      ".workflow/outbox/screenshots/batch-81/smart-before-1280x800.png",
+      ".workflow/outbox/screenshots/batch-81/smart-after-1280x800.png"
+    ],
+    "notes": [
+      "Selection before submit was smart/best.",
+      "POST /api/v1/smart returned 200, but the answer was shell text and server logs show repeated model_mismatch for Best versus Sonar."
+    ]
+  },
+  "roles_executed": [
+    "RUNNER",
+    "AUDITOR"
+  ],
+  "error": "Browser-backed SMART hit a live model-selection blocker: requested Best, but the Perplexity UI alternated between Sonar / unknown and returned shell text instead of an answer."
+}
