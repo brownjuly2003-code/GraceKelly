@@ -1,6 +1,6 @@
 # Phased Roadmap
 
-Last updated: 2026-04-21
+Last updated: 2026-04-22
 
 ## Phase 0: Clean foundation
 
@@ -300,19 +300,33 @@ Delivered:
 
 ## Phase 17: Live UI smoke and workflow hygiene
 
-Status: in progress
+Status: closed for smart/debate arc, adapter-timeout follow-up deferred
 
 Scope: validate complex browser scenarios (file upload, decomposition, debate)
 against the real Perplexity UI, and keep the `.workflow/` task queue clean.
 
 Delivered:
-- **batch-76 UI-SMOKE-prep + upload**: `/` lives at `http://127.0.0.1:8011/`; live Claude 4.6 single-pattern smoke with attachment returns `200` and the sentinel in `output_text`
 - **batch-75 FLAKY-postgres-fix**: flaky `test_main_rejects_checksum_mismatch` no longer reproduces on the current tip; full suite runs `2579 passed / 0 failed` twice back-to-back, no skip/xfail/ordering workaround added (`98b8835`)
 - **batch-75 INBOX-cleanup**: six processed task specs archived, `.ready` cleared, batch-75 spec moved to `.workflow/done/` (`2b909d6`, `deebc5a`)
+- **batch-76 UI-SMOKE-prep + upload**: `/` lives at `http://127.0.0.1:8011/`; live Claude 4.6 single-pattern smoke with attachment returns `200` and the sentinel in `output_text` (not committed — artefacts only)
+- **batch-77 UI-MENU-extend**: smart and debate exposed as user-selectable items ("Умный выбор", "Дебаты") in the `Авто` group of the PO2 model menu (`f456067`)
+- **batch-77 UI-BROWSER-regressions**: three Playwright regression tests drive the real SPA with mocked `/api/v1/smart`, `/api/v1/debate`, `/api/v1/orchestrate/upload` — no live Perplexity dependency (`063f29b`)
+- **batch-79 FIX-ui-contract**: debate/smart items now carry `pinned_model`; `_resolveItem` short-circuit resolves it so `getSelection().model` is never null (`a89ca78`). Mock regressions extended to assert the body carries a non-empty model.
+- **batch-79 FIX-env-docs**: README corrected to describe `GRACEKELLY_EXECUTION_PROFILE` as `dry-run` / `api-only` / `hybrid` (prior value `default` was never valid) (`614b181`)
+- **batch-80 BACKEND-smart-debate-browser-support**: `/api/v1/smart` and `/api/v1/debate` accept browser-backed models via `state.browser_adapter`; unit tests cover browser-path success + API-path regression (`dd632c7`)
+- **batch-80 FLAKE-triage-http-api**: `test_list_tasks_exposes_winning_model_and_short_circuit_summary` stabilised with a deterministic cancellable adapter; three back-to-back full runs + one coverage run green (`5c62065`)
+- **batch-82 UI-PIN-claude-sonnet**: smart/debate `pinned_model` switched from the unstable `"best"` Perplexity alias to explicit `"claude-sonnet-4-6"`; mock regressions updated (`1e448e0`)
 
-Blocked / deferred:
-- **batch-76 UI-SMOKE-smart-decomposition** and **UI-SMOKE-debate**: the current `/` model-menu does not expose `smart` or `debate` as selectable patterns — the pattern is now carried by `window.modelMenu.getSelection()` rather than a dedicated dropdown, so these scenarios cannot be driven through the real user UI without patching client state. The API endpoints themselves remain green under unit coverage.
+Incidents (deprecated follow-up specs recorded for history, not in Delivered):
+- **batch-78 Live UI smoke SMART/DEBATE (first attempt)**: failed — UI did not expose the patterns; superseded by batch-77 + batch-79 work.
+- **batch-81 Live SMART on `"best"` alias**: failed — Perplexity UI non-deterministically selected Sonar instead of Best, one run extracted shell chrome text (`"Thinking / Ask a follow-up / Model"`) instead of the answer. Workaround landed in batch-82 (pin to explicit model); root-cause fix in the browser adapter is a Remaining item.
+- **batch-82 Live SMART with cyrillic prompt**: failed — CX harness' PowerShell pipeline converted the cyrillic prompt to `?` before it reached Playwright. `POST /api/v1/smart` still returned `200` with the expected model_id, confirming the batch-80 backend fix, but the acceptance (meaningful answer) could not be validated.
+- **batch-83 Live SMART with UTF-8 harness**: failed — smart auto-decomposition fired three Perplexity calls for the prompt; adapter timeout of 60s per call clipped two of them, the third extracted 2730 chars at 53s. Route-level response was not captured within the harness' outer 180s window.
 
 Remaining:
-- Extend the PO2 model menu with `smart` and `debate` patterns (or restore `#pattern-select`) so batch-76 SMART + DEBATE scenarios can run end-to-end through the real UI.
-- Replace the browser-API upload hop (`/api/v1/orchestrate/upload`) live smoke with a smaller fixture once the above lands, so live Perplexity quota is only spent on coverage gaps.
+- **Browser adapter per-call timeout is too aggressive for smart decomposition** — 60s per Perplexity call leaves no slack for complex prompts; exec #2 in batch-83 barely fit at 53s. Raising the default and/or exposing a per-endpoint budget unblocks the live smart+debate acceptance that mocks cannot cover.
+- **Browser adapter non-deterministic selection for the `"Best"` alias** — Perplexity's auto-router item is not stably picked; the workaround is to pin explicit model ids, but the auto-router path is still visible in the menu and will surface again for any user selecting "Best". DOM recon required.
+- **Response extraction occasionally returns shell chrome text** — observed once in batch-81 (`"Thinking / Ask a follow-up / Model"`). Requires tighter "message has landed" detection in the adapter.
+- **`/api/v1/smart_v2`, `/api/v1/consensus`, `/api/v1/compare` have the same browser-adapter gap** that batch-80 fixed for smart + debate (they still call `state.api_adapters.get(...)` only). Candidate for a shared helper.
+- **Cyrillic prompts via some harnesses lose encoding** (observed in batch-82) — lives on the automation side, not in GraceKelly, but worth documenting for anyone driving live smokes from PowerShell.
+- **AUTH3 persistent session reuse** — still deferred from batch-69; friction is tolerable at the current single-user local scale.
