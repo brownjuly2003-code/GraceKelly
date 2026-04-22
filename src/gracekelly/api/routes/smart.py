@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import inspect
 import logging
+from typing import cast
 
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, ConfigDict, Field
@@ -13,6 +14,7 @@ from gracekelly.core.consensus import ConsensusConfig
 from gracekelly.core.consensus_execution import ConsensusExecutionConfig, ConsensusExecutor
 from gracekelly.core.contracts import (
     AdapterHint,
+    ExecutionAdapter,
     ExecutionBackend,
     ExecutionPlan,
     ExecutionRequest,
@@ -79,11 +81,23 @@ async def run_smart(payload: SmartRequest, request: Request) -> SmartResponse:
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
 
-    adapter = state.dry_run_adapter if payload.dry_run else api_adapters.get(model_spec.provider)
+    is_browser_model = model_spec.adapter_kind == "browser"
+    browser_adapter = cast(ExecutionAdapter | None, getattr(state, "browser_adapter", None))
+    adapter: ExecutionAdapter | None
+    if payload.dry_run:
+        adapter = cast(ExecutionAdapter, state.dry_run_adapter)
+    elif is_browser_model:
+        adapter = browser_adapter
+    else:
+        adapter = api_adapters.get(model_spec.provider)
     if adapter is None:
         raise HTTPException(
             status_code=400,
-            detail=f"No API adapter for provider '{model_spec.provider}'.",
+            detail=(
+                f"No browser adapter for provider '{model_spec.provider}'."
+                if is_browser_model and not payload.dry_run
+                else f"No API adapter for provider '{model_spec.provider}'."
+            ),
         )
 
     if payload.reliability_level is not None and payload.pattern is not None:
@@ -110,7 +124,7 @@ async def run_smart(payload: SmartRequest, request: Request) -> SmartResponse:
 
     step = ExecutionStep(
         model=model_spec,
-        backend=ExecutionBackend.API,
+        backend=ExecutionBackend.BROWSER if is_browser_model else ExecutionBackend.API,
         provider=model_spec.provider,
         provider_model_id=model_spec.provider_model_id,
         step_index=0,
@@ -120,7 +134,11 @@ async def run_smart(payload: SmartRequest, request: Request) -> SmartResponse:
         quorum=1,
         merge_strategy=MergeStrategy.FIRST_SUCCESS,
         dry_run=payload.dry_run,
-        adapter_hint=AdapterHint.AUTO if payload.dry_run else AdapterHint.API,
+        adapter_hint=(
+            AdapterHint.AUTO
+            if payload.dry_run
+            else AdapterHint.BROWSER if is_browser_model else AdapterHint.API
+        ),
         cancel_on_quorum=False,
     )
 

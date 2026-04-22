@@ -7,10 +7,14 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from gracekelly.api.routes.debate import router
-from gracekelly.core.contracts import StepStatus
+from gracekelly.core.contracts import ExecutionBackend, StepStatus
 
 
-def _create_test_app() -> FastAPI:
+def _create_test_app(
+    *,
+    api_adapters: dict[str, MagicMock] | None = None,
+    browser_adapter: MagicMock | None = None,
+) -> FastAPI:
     app = FastAPI()
     app.include_router(router)
 
@@ -21,7 +25,8 @@ def _create_test_app() -> FastAPI:
         failure_code=None,
         failure_message=None,
     )
-    app.state.api_adapters = {"mistral": adapter}
+    app.state.api_adapters = {"mistral": adapter} if api_adapters is None else api_adapters
+    app.state.browser_adapter = browser_adapter
     return app
 
 
@@ -118,6 +123,34 @@ class DebateRouteTests(unittest.TestCase):
         )
         self.assertEqual(400, response.status_code)
         self.assertIn("No API adapter", response.json()["detail"])
+
+    def test_debate_browser_model_uses_browser_adapter(self) -> None:
+        browser_adapter = MagicMock()
+        browser_adapter.execute.return_value = MagicMock(
+            status=StepStatus.COMPLETED,
+            output_text="Browser debate response",
+            failure_code=None,
+            failure_message=None,
+        )
+        app = _create_test_app(browser_adapter=browser_adapter)
+        client = TestClient(app)
+
+        response = client.post(
+            "/api/v1/debate",
+            json={"topic": "AI safety", "initial_position": "AI is safe", "model": "best"},
+        )
+        body = response.json()
+
+        self.assertEqual(200, response.status_code)
+        self.assertEqual("best", body["model_id"])
+        self.assertEqual(2, browser_adapter.execute.call_count)
+        self.assertTrue(
+            all(
+                call.args[0].step.backend == ExecutionBackend.BROWSER
+                for call in browser_adapter.execute.call_args_list
+            )
+        )
+        self.assertEqual(0, app.state.api_adapters["mistral"].execute.call_count)
 
     def test_debate_failed_adapter_result_uses_error_fallback(self) -> None:
         app = FastAPI()

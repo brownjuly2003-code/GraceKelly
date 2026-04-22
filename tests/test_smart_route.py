@@ -7,11 +7,16 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from gracekelly.api.routes.smart import router
-from gracekelly.core.contracts import StepStatus
+from gracekelly.core.contracts import ExecutionBackend, StepStatus
 from gracekelly.core.embeddings import EmbeddingsClient
 
 
-def _create_test_app(*, has_embeddings: bool = True) -> FastAPI:
+def _create_test_app(
+    *,
+    has_embeddings: bool = True,
+    api_adapters: dict[str, MagicMock] | None = None,
+    browser_adapter: MagicMock | None = None,
+) -> FastAPI:
     app = FastAPI()
     app.include_router(router)
 
@@ -22,7 +27,8 @@ def _create_test_app(*, has_embeddings: bool = True) -> FastAPI:
         failure_code=None,
         failure_message=None,
     )
-    app.state.api_adapters = {"mistral": adapter}
+    app.state.api_adapters = {"mistral": adapter} if api_adapters is None else api_adapters
+    app.state.browser_adapter = browser_adapter
 
     if has_embeddings:
         embeddings = MagicMock(spec=EmbeddingsClient)
@@ -184,6 +190,47 @@ class SmartRouteTests(unittest.TestCase):
         response = client.post(
             "/api/v1/smart",
             json={"prompt": "Hello", "model": "Claude Sonnet 4.6 API"},
+        )
+        self.assertEqual(400, response.status_code)
+        self.assertIn("No API adapter", response.json()["detail"])
+
+    def test_smart_browser_model_uses_browser_adapter(self) -> None:
+        browser_adapter = MagicMock()
+        browser_adapter.execute.return_value = MagicMock(
+            status=StepStatus.COMPLETED,
+            output_text="Browser response",
+            failure_code=None,
+            failure_message=None,
+        )
+        app = _create_test_app(browser_adapter=browser_adapter)
+        client = TestClient(app)
+
+        response = client.post(
+            "/api/v1/smart",
+            json={"prompt": "Hello", "model": "best", "pattern": "single"},
+        )
+        payload = response.json()
+
+        self.assertEqual(200, response.status_code)
+        self.assertEqual("Browser response", payload["answer"])
+        self.assertEqual("best", payload["model_id"])
+        self.assertEqual(ExecutionBackend.BROWSER, browser_adapter.execute.call_args.args[0].step.backend)
+        self.assertEqual(0, app.state.api_adapters["mistral"].execute.call_count)
+
+    def test_smart_browser_model_without_browser_adapter_returns_400(self) -> None:
+        client = TestClient(_create_test_app())
+        response = client.post(
+            "/api/v1/smart",
+            json={"prompt": "Hello", "model": "best", "pattern": "single"},
+        )
+        self.assertEqual(400, response.status_code)
+        self.assertIn("perplexity", response.json()["detail"])
+
+    def test_smart_api_model_without_api_adapter_still_returns_400(self) -> None:
+        client = TestClient(_create_test_app(api_adapters={}))
+        response = client.post(
+            "/api/v1/smart",
+            json={"prompt": "Hello", "model": "mistral-small", "pattern": "single"},
         )
         self.assertEqual(400, response.status_code)
         self.assertIn("No API adapter", response.json()["detail"])
