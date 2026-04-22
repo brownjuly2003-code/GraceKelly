@@ -1,6 +1,6 @@
 # Phased Roadmap
 
-Last updated: 2026-04-22
+Last updated: 2026-04-22 (Phase 17 auth/chrome-strip inline fixes)
 
 ## Phase 0: Clean foundation
 
@@ -317,6 +317,9 @@ Delivered:
 - **batch-80 FLAKE-triage-http-api**: `test_list_tasks_exposes_winning_model_and_short_circuit_summary` stabilised with a deterministic cancellable adapter; three back-to-back full runs + one coverage run green (`5c62065`)
 - **batch-82 UI-PIN-claude-sonnet**: smart/debate `pinned_model` switched from the unstable `"best"` Perplexity alias to explicit `"claude-sonnet-4-6"`; mock regressions updated (`1e448e0`)
 - **batch-84 BACKEND-unify-browser-adapter**: shared adapter-lookup helper across smart/debate/smart_v2/consensus/compare; `/api/v1/smart/v2`, `/api/v1/consensus`, and `/api/v1/compare` now accept browser-backed models (`e877527`)
+- **batch-85 ADAPTER-raise-call-timeout**: default browser adapter per-call timeout raised 60s → 120s with `GRACEKELLY_BROWSER_CALL_TIMEOUT_SECONDS` env override (`43d29b2`)
+- **inline AUTH-settle-unknown-state**: `auth_status` makes a bounded `_wait_for_shell` retry when neither signed-out markers nor the prompt input are visible; unblocks smart auto-decomposition sub-execs that previously hit `[auth_failed]` mid-flight after exec #1 landed. Structured `browser_auth_unknown` diagnostic log added for any remaining logged-out decisions (`66a64a8`)
+- **inline RESPONSE-strip-streaming-chrome**: `shell_noise_lines` extended with `Thinking`, `Ask a follow-up`, `Stop response`, `Regenerate`, `Sources`, `Answer` so candidate-text cleanup filters them out (`d0acbd4`)
 
 Incidents (deprecated follow-up specs recorded for history, not in Delivered):
 - **batch-78 Live UI smoke SMART/DEBATE (first attempt)**: failed — UI did not expose the patterns; superseded by batch-77 + batch-79 work.
@@ -325,8 +328,7 @@ Incidents (deprecated follow-up specs recorded for history, not in Delivered):
 - **batch-83 Live SMART with UTF-8 harness**: failed — smart auto-decomposition fired three Perplexity calls for the prompt; adapter timeout of 60s per call clipped two of them, the third extracted 2730 chars at 53s. Route-level response was not captured within the harness' outer 180s window.
 
 Remaining:
-- **Browser adapter per-call timeout is too aggressive for smart decomposition** — 60s per Perplexity call leaves no slack for complex prompts; exec #2 in batch-83 barely fit at 53s. Raising the default and/or exposing a per-endpoint budget unblocks the live smart+debate acceptance that mocks cannot cover.
+- **Live SMART/DEBATE end-to-end acceptance** — unit + mock coverage is green and the three known blockers (adapter timeout, mid-decomposition `[auth_failed]`, streaming-chrome extraction) are fixed in code. A fresh live smoke against a logged-in Perplexity profile is needed to confirm end-to-end behaviour on the real UI.
 - **Browser adapter non-deterministic selection for the `"Best"` alias** — Perplexity's auto-router item is not stably picked; the workaround is to pin explicit model ids, but the auto-router path is still visible in the menu and will surface again for any user selecting "Best". DOM recon required.
-- **Response extraction occasionally returns shell chrome text** — observed once in batch-81 (`"Thinking / Ask a follow-up / Model"`). Requires tighter "message has landed" detection in the adapter.
 - **Cyrillic prompts via some harnesses lose encoding** (observed in batch-82) — lives on the automation side, not in GraceKelly, but worth documenting for anyone driving live smokes from PowerShell.
 - **AUTH3 persistent session reuse** — still deferred from batch-69; friction is tolerable at the current single-user local scale.
