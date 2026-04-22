@@ -1,0 +1,32 @@
+$ pre-check chrome-profile
+- chrome.exe with chrome-profile: none
+- SingletonLock / SingletonSocket / SingletonCookie: none
+- port 8011 before start: free
+
+$ env
+- GRACEKELLY_BROWSER_ENABLED=true
+- GRACEKELLY_BROWSER_AUTOMATION_BACKEND=playwright
+- GRACEKELLY_BROWSER_PROFILE_DIR=D:/GraceKelly/chrome-profile
+- GRACEKELLY_EXECUTION_PROFILE=hybrid
+- GRACEKELLY_BROWSER_CALL_TIMEOUT_SECONDS=120
+
+$ cd C:\Users\uedom\.agents\skills\playwright && node run.js D:\tmp\playwright-test-batch-85-smart.js
+{"responseStatus":200,"modelId":"claude-sonnet-4-6","hasAnswer":true,"errorText":null}
+
+$ post-run payload inspection
+- response.status=200
+- response.body_json.model_id=claude-sonnet-4-6
+- response.body_json.was_decomposed=false
+- answer_len=76
+- answer="[auth_failed] Unable to determine browser login state from the current page."
+
+$ server log highlights
+- 21:11:49 Submitting prompt through Playwright (timeout=120s)
+- 21:11:50 first internal browser execution completed successfully
+- 21:11:50 second internal browser execution failed with auth_failed
+- 21:11:50 third internal browser execution failed with auth_failed
+
+$ cleanup
+- uvicorn stopped
+- chrome.exe with chrome-profile after cleanup: none
+- SingletonLock / SingletonSocket / SingletonCookie after cleanup: none

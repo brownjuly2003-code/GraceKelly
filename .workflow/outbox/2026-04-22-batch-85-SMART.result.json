@@ -1,0 +1,40 @@
+{
+  "task_id": "SMOKE-smart-live-rerun",
+  "status": "failure",
+  "files_modified": [
+    ".workflow/outbox/2026-04-22-batch-85-SMART-report.md",
+    ".workflow/outbox/2026-04-22-batch-85-SMART.result.json",
+    ".workflow/outbox/2026-04-22-batch-85-SMART-response.json",
+    ".workflow/outbox/2026-04-22-batch-85-SMART-uvicorn.stdout.log",
+    ".workflow/outbox/2026-04-22-batch-85-SMART-uvicorn.stderr.log",
+    ".workflow/outbox/2026-04-22-batch-85-SMOKE-smart-live-test-output.log",
+    ".workflow/outbox/screenshots/batch-85/smart-before-1280x800.png",
+    ".workflow/outbox/screenshots/batch-85/smart-after-1280x800.png"
+  ],
+  "lint_clean": true,
+  "self_review": {
+    "iterations": 1,
+    "initial_score": 6,
+    "final_score": 7,
+    "improvements": [
+      "Подтвердил, что timeout уже 120s, и зафиксировал точную новую границу отказа: smart flow деградирует в auth_failed после первого успешного внутреннего call."
+    ]
+  },
+  "visual_check": {
+    "status": "failed",
+    "screenshots": [
+      ".workflow/outbox/screenshots/batch-85/smart-before-1280x800.png",
+      ".workflow/outbox/screenshots/batch-85/smart-after-1280x800.png"
+    ],
+    "notes": [
+      "UI выбрал 'Умный выбор' и отправил ASCII fallback prompt через page.fill().",
+      "Route-level POST /api/v1/smart вернул 200, но payload деградировал в [auth_failed] вместо осмысленного EV-обзора."
+    ]
+  },
+  "test_output_hash": "sha256:fd65b171fbf2fec1c544e1305fb26ade19373829a076efe1a349e522f6fe728f",
+  "roles_executed": [
+    "RUNNER",
+    "AUDITOR"
+  ],
+  "error": "SMART live returned HTTP 200, but the final payload was '[auth_failed] Unable to determine browser login state from the current page.' No retry was allowed."
+}

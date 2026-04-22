@@ -1,0 +1,30 @@
+2026-04-22 21:11:27,121 WARNING gracekelly.middleware: API key authentication is not configured — all endpoints are open
+INFO:     Started server process [21068]
+INFO:     Waiting for application startup.
+2026-04-22 21:11:27,162 INFO gracekelly.adapters.browser.playwright_driver: Launching Playwright browser session for provider perplexity using profile D:/GraceKelly/chrome-profile
+2026-04-22 21:11:32,944 INFO gracekelly.adapters.browser.session: Browser session marked active for provider perplexity
+2026-04-22 21:11:36,036 INFO gracekelly.adapters.browser.session: Browser session marked idle for provider perplexity
+2026-04-22 21:11:36,039 INFO gracekelly.main: model_catalog.ready checked_at=2026-04-22T18:11:27.160549+00:00 source=perplexity-model-menu count=8
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:8011 (Press CTRL+C to quit)
+2026-04-22 21:11:36,546 WARNING gracekelly.api.routes.health: readiness.snapshot component_count=7 execution_profile="hybrid" status="degraded"
+2026-04-22 21:11:38,827 WARNING gracekelly.api.routes.health: readiness.snapshot component_count=7 execution_profile="hybrid" status="degraded"
+2026-04-22 21:11:40,415 INFO gracekelly.adapters.browser.perplexity: Browser execution started for task smart model claude-sonnet-4-6 provider perplexity
+2026-04-22 21:11:40,416 INFO gracekelly.adapters.browser.playwright_driver: Launching Playwright browser session for provider perplexity using profile D:/GraceKelly/chrome-profile
+2026-04-22 21:11:45,754 INFO gracekelly.adapters.browser.session: Browser session marked active for provider perplexity
+2026-04-22 21:11:46,730 INFO gracekelly.adapters.browser.perplexity: Browser auth check for task smart: logged_in=True
+2026-04-22 21:11:47,398 INFO gracekelly.adapters.browser.playwright_driver: Selecting Perplexity model 'Claude Sonnet 4.6' through Playwright
+2026-04-22 21:11:49,012 INFO gracekelly.adapters.browser.perplexity: Thinking toggle for model claude-sonnet-4-6: True
+2026-04-22 21:11:49,032 INFO gracekelly.adapters.browser.playwright_driver: Submitting prompt through Playwright (timeout=120s)
+2026-04-22 21:11:50,222 INFO gracekelly.adapters.browser.playwright_driver: Response extracted via source=body_after_prompt length=1326
+2026-04-22 21:11:50,223 INFO gracekelly.adapters.browser.perplexity: Browser execution completed for task smart model claude-sonnet-4-6 provider perplexity duration_ms=9808 response_source=body_after_prompt model_verified=True
+2026-04-22 21:11:50,225 INFO gracekelly.adapters.browser.perplexity: Browser execution started for task smart model claude-sonnet-4-6 provider perplexity
+2026-04-22 21:11:50,226 INFO gracekelly.adapters.browser.session: Browser session marked active for provider perplexity
+2026-04-22 21:11:50,337 INFO gracekelly.adapters.browser.perplexity: Browser auth check for task smart: logged_in=False
+2026-04-22 21:11:50,338 WARNING gracekelly.adapters.browser.session: Browser session marked degraded for provider perplexity: Unable to determine browser login state from the current page.
+2026-04-22 21:11:50,339 WARNING gracekelly.adapters.browser.perplexity: Browser execution failed for task smart model claude-sonnet-4-6 code=auth_failed: Unable to determine browser login state from the current page.
+2026-04-22 21:11:50,340 INFO gracekelly.adapters.browser.perplexity: Browser execution started for task smart model claude-sonnet-4-6 provider perplexity
+2026-04-22 21:11:50,341 INFO gracekelly.adapters.browser.session: Browser session marked active for provider perplexity
+2026-04-22 21:11:50,465 INFO gracekelly.adapters.browser.perplexity: Browser auth check for task smart: logged_in=False
+2026-04-22 21:11:50,466 WARNING gracekelly.adapters.browser.session: Browser session marked degraded for provider perplexity: Unable to determine browser login state from the current page.
+2026-04-22 21:11:50,467 WARNING gracekelly.adapters.browser.perplexity: Browser execution failed for task smart model claude-sonnet-4-6 code=auth_failed: Unable to determine browser login state from the current page.

@@ -1,0 +1,28 @@
+{
+  "task_id": "DOCS-phase-17-remaining-update",
+  "status": "blocked",
+  "files_modified": [
+    ".workflow/outbox/2026-04-22-batch-85-DOCS-phase-17-remaining-update-report.md",
+    ".workflow/outbox/2026-04-22-batch-85-DOCS-phase-17-remaining-update.result.json"
+  ],
+  "lint_clean": true,
+  "self_review": {
+    "iterations": 1,
+    "initial_score": 8,
+    "final_score": 8,
+    "improvements": [
+      "Остановил docs update после failed SMART smoke, как требует hard rule batch-а."
+    ]
+  },
+  "visual_check": {
+    "status": "blocked",
+    "screenshots": [],
+    "notes": [
+      "Roadmap refresh не выполнялся, потому что live SMART не прошёл acceptance."
+    ]
+  },
+  "roles_executed": [
+    "AUDITOR"
+  ],
+  "error": "Blocked by failed SMOKE-smart-live-rerun."
+}
