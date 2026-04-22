@@ -37,6 +37,8 @@ Copy `.env.example` and configure:
 | `GRACEKELLY_BROWSER_ENABLED` | `false` | Set `true` to enable browser execution |
 | `GRACEKELLY_BROWSER_AUTOMATION_BACKEND` | `null` | `playwright` for real browser, `scripted` for testing |
 | `GRACEKELLY_BROWSER_PROFILE_DIR` | - | Path to Chrome profile with Perplexity login |
+| `GRACEKELLY_BROWSER_CALL_TIMEOUT_SECONDS` | `120` | Per-call budget for one Perplexity submit. Raise for very long prompts; lower for aggressive fail-fast. |
+| `GRACEKELLY_BROWSER_SCREENSHOTS_DIR` | - | Directory for per-step PNGs (session start, auth, model select, submit, response). Leave empty to disable. |
 
 ### Optional: API fallbacks
 
@@ -67,11 +69,10 @@ process. Pattern is chosen from the model menu at the top of the main panel:
 - **Sonar**, **Best**, **Claude 4.6**, **GPT-5.4**, **Gemini 3.1** — single-model patterns streaming into the chat panel
 - **Claude + GPT**, **Claude + Gemini**, **Claude + Best**, **GPT + Best** — pairwise consensus
 - **5М.Все мнения**, **5М.Сравнение**, **5М.Консенсус** — five-model compare / consensus bundles
+- **Умный выбор** (smart), **Дебаты** (debate) — auto-routing patterns in the `Авто` group; both pin to `claude-sonnet-4-6` and hit `/api/v1/smart` / `/api/v1/debate`
 
 Sidebar: task history with drill-down into steps and events, voice capture,
-export, file attachments. The `/api/v1/smart` and `/api/v1/debate` endpoints
-remain live but are not surfaced in the current model-menu UI — drive them
-through the API directly or via the task-replay flow.
+export, file attachments.
 
 ## API
 
@@ -105,6 +106,25 @@ mypy src/gracekelly/                # type check (strict)
 ruff check src/ tests/              # lint
 python -m pytest --cov=gracekelly   # coverage
 ```
+
+### Live end-to-end smoke
+
+`scripts/live_smart_smoke.py` drives the SPA through a separate bundled
+chromium and captures the `/api/v1/smart` or `/api/v1/debate` response.
+It expects uvicorn already running with the browser env vars set and the
+Chrome profile signed in to Perplexity; no chrome.exe must be using the
+profile.
+
+```bash
+python scripts/live_smart_smoke.py --pattern smart --tag smoke-1
+python scripts/live_smart_smoke.py --pattern debate --tag smoke-1 \
+    --prompt "Your debate topic here."
+```
+
+Artifacts land in `.workflow/outbox/<tag>-<SMART|DEBATE>-*`
+(response.json, before/after screenshots, report.md). Exit code 0 on a
+meaningful answer that hits the topic keywords and carries no `[auth_failed]`
+or streaming-chrome markers; 1 otherwise.
 
 ## Architecture
 

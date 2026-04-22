@@ -129,6 +129,12 @@ Common task-level failure codes:
   - point runtime to that directory:
     - `set GRACEKELLY_BROWSER_PROFILE_DIR=D:\GraceKelly\tmp\browser-recon\perplexity-profile`
   - rerun the live smoke
+- Diagnostics:
+  - the adapter logs a structured `browser_auth_unknown` warning with
+    url/title/body_length/prompt_input state whenever auth still resolves
+    to logged_out after the settle retry. Grep the uvicorn log for
+    `browser_auth_unknown` to see the actual page state that defeated the
+    auth check.
 
 `provider_unavailable`:
 - browser driver missing, profile directory busy, browser disabled, or circuit breaker currently open
@@ -150,6 +156,19 @@ Common task-level failure codes:
   - inspect `browser.perplexity` health details and breaker counters
   - capture fresh DOM recon
   - rerun the live smoke with debug enabled
+- Per-call budget is controlled by `GRACEKELLY_BROWSER_CALL_TIMEOUT_SECONDS`
+  (default 120s). Raise it for very long prompts or when SMART fan-out
+  sub-calls are still within the budget but tight.
+
+Fan-out / decomposition (SMART `used_roles=True` or DEBATE):
+- each sub-exec is routed through the same browser session. The adapter
+  calls `reset_page_state()` (navigates the UI back to the home
+  ask-input) before every submit so consecutive sub-execs do not extract
+  stale `body_after_prompt` from the previous thread. If you see
+  multiple sub-execs completing with identical output lengths or
+  anomalously short durations (&lt;2s) in the log, confirm the "Navigating
+  Perplexity UI back to" log line is present between them — if missing,
+  the reset pathway itself has regressed.
 
 ## Browser recovery commands
 
