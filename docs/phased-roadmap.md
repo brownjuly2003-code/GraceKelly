@@ -1,6 +1,6 @@
 # Phased Roadmap
 
-Last updated: 2026-04-22 (Phase 17 auth/chrome-strip inline fixes)
+Last updated: 2026-04-23 (Phase 17 SMART single-shot live acceptance proven)
 
 ## Phase 0: Clean foundation
 
@@ -320,6 +320,7 @@ Delivered:
 - **batch-85 ADAPTER-raise-call-timeout**: default browser adapter per-call timeout raised 60s → 120s with `GRACEKELLY_BROWSER_CALL_TIMEOUT_SECONDS` env override (`43d29b2`)
 - **inline AUTH-settle-unknown-state**: `auth_status` makes a bounded `_wait_for_shell` retry when neither signed-out markers nor the prompt input are visible; unblocks smart auto-decomposition sub-execs that previously hit `[auth_failed]` mid-flight after exec #1 landed. Structured `browser_auth_unknown` diagnostic log added for any remaining logged-out decisions (`66a64a8`)
 - **inline RESPONSE-strip-streaming-chrome**: `shell_noise_lines` extended with `Thinking`, `Ask a follow-up`, `Stop response`, `Regenerate`, `Sources`, `Answer` so candidate-text cleanup filters them out (`d0acbd4`)
+- **inline SMOKE-live-smart-acceptance**: `scripts/live_smart_smoke.py` reusable harness drives PO2 SPA + captures `/api/v1/smart` response; inline run against a live chrome-profile returned `status=200 model_id=claude-sonnet-4-6 answer_len=990` with a structured EV-markets answer in 49.7s, no `[auth_failed]` or shell-chrome markers (`352c6b8`, `94fd2d9`)
 
 Incidents (deprecated follow-up specs recorded for history, not in Delivered):
 - **batch-78 Live UI smoke SMART/DEBATE (first attempt)**: failed — UI did not expose the patterns; superseded by batch-77 + batch-79 work.
@@ -328,7 +329,7 @@ Incidents (deprecated follow-up specs recorded for history, not in Delivered):
 - **batch-83 Live SMART with UTF-8 harness**: failed — smart auto-decomposition fired three Perplexity calls for the prompt; adapter timeout of 60s per call clipped two of them, the third extracted 2730 chars at 53s. Route-level response was not captured within the harness' outer 180s window.
 
 Remaining:
-- **Live SMART/DEBATE end-to-end acceptance** — unit + mock coverage is green and the three known blockers (adapter timeout, mid-decomposition `[auth_failed]`, streaming-chrome extraction) are fixed in code. A fresh live smoke against a logged-in Perplexity profile is needed to confirm end-to-end behaviour on the real UI.
+- **Live DEBATE end-to-end acceptance and SMART decomposition path** — SMART single-shot proven inline; SMART auto-decomposition (>=2 Perplexity sub-calls) and DEBATE live flows are not yet validated end-to-end. Fresh smoke against a longer or more ambiguous prompt is needed to exercise them.
 - **Browser adapter non-deterministic selection for the `"Best"` alias** — Perplexity's auto-router item is not stably picked; the workaround is to pin explicit model ids, but the auto-router path is still visible in the menu and will surface again for any user selecting "Best". DOM recon required.
 - **Cyrillic prompts via some harnesses lose encoding** (observed in batch-82) — lives on the automation side, not in GraceKelly, but worth documenting for anyone driving live smokes from PowerShell.
 - **AUTH3 persistent session reuse** — still deferred from batch-69; friction is tolerable at the current single-user local scale.
