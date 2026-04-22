@@ -1,0 +1,54 @@
+{
+  "task_id": "FLAKE-triage-http-api",
+  "status": "success",
+  "files_modified": [
+    "tests/test_http_api.py"
+  ],
+  "lint_clean": true,
+  "self_review": {
+    "iterations": 1,
+    "initial_score": 9,
+    "final_score": 9,
+    "improvements": []
+  },
+  "test_battery": {
+    "R1": {
+      "pass": 2587,
+      "fail": 0,
+      "skip": 6
+    },
+    "R2": {
+      "pass": 2587,
+      "fail": 0,
+      "skip": 6,
+      "coverage_pct": 97,
+      "coverage_delta": "+1%"
+    },
+    "R3": {
+      "pass": 88,
+      "fail": 0,
+      "skip": 0
+    },
+    "R4": {
+      "warnings": []
+    },
+    "R5": {
+      "tests_audited": 1,
+      "kill_confirmed": 1,
+      "kill_failed": 0,
+      "weak_tests": []
+    },
+    "contradictions": []
+  },
+  "visual_check": null,
+  "test_output_hash": "sha256:a8eb1cf8fb9f1c6311e7f4fdaa8ca0b576aa8003273fd3124b2e67e49187d68c",
+  "roles_executed": [
+    "IMPLEMENTER",
+    "TEST AUTHOR",
+    "RUNNER",
+    "ADVERSARY",
+    "AUDITOR"
+  ],
+  "docs_pruned": null,
+  "error": null
+}

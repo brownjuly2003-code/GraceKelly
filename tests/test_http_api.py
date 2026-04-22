@@ -766,6 +766,42 @@ class HttpApiSmokeTests(unittest.TestCase):
         self.assertEqual(payload[0]["execution_mode"], "api")
 
     def test_list_tasks_exposes_winning_model_and_short_circuit_summary(self) -> None:
+        from time import monotonic, sleep
+
+        from gracekelly.core.contracts import (
+            ExecutionAdapter,
+            ExecutionMode,
+            ExecutionResult,
+            FailureCode,
+            StepStatus,
+        )
+
+        class SlowCancellableAdapter(ExecutionAdapter):
+            name = "api.mistral"
+
+            def execute(self, request: Any) -> ExecutionResult:
+                deadline = monotonic() + 0.25
+                while monotonic() < deadline:
+                    if request.cancellation and request.cancellation.is_cancelled:
+                        return ExecutionResult(
+                            adapter_name=self.name,
+                            model_id=request.step.model.id,
+                            model_display_name=request.step.model.display_name,
+                            execution_mode=ExecutionMode.API,
+                            status=StepStatus.CANCELLED,
+                            details={"cancelled": True},
+                        )
+                    sleep(0.005)
+                return ExecutionResult(
+                    adapter_name=self.name,
+                    model_id=request.step.model.id,
+                    model_display_name=request.step.model.display_name,
+                    execution_mode=ExecutionMode.API,
+                    status=StepStatus.FAILED,
+                    failure_code=FailureCode.TIMEOUT,
+                    failure_message="Cancellation was not observed in time.",
+                )
+
         app = create_app(
             Settings(
                 env="test",
@@ -787,6 +823,7 @@ class HttpApiSmokeTests(unittest.TestCase):
                 browser_scripted_output_text="browser wins",
             )
         )
+        app.state.api_adapters["mistral"] = SlowCancellableAdapter()
         client = TestClient(app)
 
         response = client.post(
