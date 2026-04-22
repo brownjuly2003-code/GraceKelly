@@ -1,0 +1,65 @@
+{
+  "task_id": "2026-04-21-batch-77-UI-MENU-extend",
+  "status": "success",
+  "files_modified": [
+    "static/js/model-menu.js",
+    ".workflow/outbox/2026-04-21-batch-77-UI-MENU-extend-report.md",
+    ".workflow/outbox/2026-04-21-batch-77-UI-MENU-extend.result.json",
+    ".workflow/outbox/screenshots/batch-77/menu-open-1280x800.png",
+    ".workflow/outbox/screenshots/batch-77/smart-chat-1280x800.png",
+    ".workflow/outbox/screenshots/batch-77/debate-chat-1280x800.png"
+  ],
+  "lint_clean": false,
+  "self_review": {
+    "iterations": 2,
+    "initial_score": 8,
+    "final_score": 9,
+    "improvements": [
+      "Добавлены smart/debate как полноценные menu items без возврата к legacy pattern-select.",
+      "Исправлен регресс default selection для урезанного model catalog."
+    ]
+  },
+  "test_battery": {
+    "R1": {
+      "pass": 2582,
+      "fail": 0,
+      "skip": 6,
+      "note": "Полный pytest зелёный после добавления smart/debate и новых Playwright регрессий."
+    },
+    "R2": {
+      "pass": 0,
+      "fail": 0,
+      "skip": 0,
+      "coverage_pct": 0,
+      "coverage_delta": "n/a"
+    },
+    "R3": {
+      "pass": 0,
+      "fail": 0,
+      "skip": 0
+    },
+    "R4": {
+      "warnings": [
+        "mypy src fails outside task scope: src/gracekelly/middleware.py:120 no-untyped-call"
+      ]
+    },
+    "R5": {
+      "tests_audited": 3,
+      "kill_confirmed": 0,
+      "kill_failed": 0,
+      "weak_tests": []
+    },
+    "contradictions": [
+      "Batch quality gate still has a pre-existing mypy failure in src/gracekelly/middleware.py:120, outside UI-MENU-extend scope."
+    ]
+  },
+  "visual_check": true,
+  "test_output_hash": null,
+  "roles_executed": [
+    "IMPLEMENTER",
+    "RUNNER",
+    "AUDITOR"
+  ],
+  "docs_pruned": null,
+  "error": null
+}

@@ -64,6 +64,25 @@ const MENU_GROUPS = [
     ],
   },
   {
+    title: "Авто",
+    items: [
+      {
+        id: "debate",
+        pattern: "debate",
+        label: "Дебаты",
+        desc: "Devil's Advocate",
+        icon: "merge",
+      },
+      {
+        id: "smart",
+        pattern: "smart",
+        label: "Умный выбор",
+        desc: "авто-декомпозиция",
+        icon: "target",
+      },
+    ],
+  },
+  {
     title: "2 модели",
     items: [
       {
@@ -301,6 +320,15 @@ class ModelChipMenu {
   }
 
   _resolveItem(item) {
+    if (!item.match && !item.model && !item.strategy && !Array.isArray(item.matches)) {
+      return {
+        ...item,
+        available: true,
+        resolvedModel: null,
+        resolvedModels: null,
+      };
+    }
+
     if (item.strategy === "all") {
       const models = this._resolveAllModels();
       const available = this.availableModels.length === 0 || models.length >= 5;
