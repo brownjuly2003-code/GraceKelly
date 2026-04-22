@@ -62,6 +62,12 @@ class PerplexitySelectors:
             "Continue with Google",
             "Continue with Apple",
             "Single sign-on (SSO)",
+            "Thinking",
+            "Ask a follow-up",
+            "Stop response",
+            "Regenerate",
+            "Sources",
+            "Answer",
         )
     )
     cookie_button_names: tuple[str, ...] = ("Accept All Cookies", "Necessary Cookies")

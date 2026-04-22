@@ -417,6 +417,23 @@ class PlaywrightDriverTests(unittest.TestCase):
         self.assertEqual(response_text["source"], "main article")
         self.assertFalse(response_text["used_body_fallback"])
 
+    def test_pick_response_text_strips_perplexity_streaming_chrome_lines(self) -> None:
+        driver = PlaywrightBrowserAutomation(sync_playwright_factory=lambda: object())
+
+        # Regression for batch-81: response extraction previously returned
+        # "Thinking / Ask a follow-up / Model" shell chrome instead of the answer.
+        response_text = driver._pick_response_text(
+            prompt="Summarise EV adoption",
+            candidate_texts=[
+                ("body_after_prompt", "Summarise EV adoption\nThinking\nAsk a follow-up\nModel"),
+                ("main div.prose", "Summarise EV adoption\nThinking\nEurope leads adoption"),
+            ],
+        )
+
+        assert response_text is not None
+        self.assertEqual(response_text["text"], "Europe leads adoption")
+        self.assertEqual(response_text["source"], "main div.prose")
+
     def test_clean_candidate_text_preserves_line_breaks(self) -> None:
         driver = PlaywrightBrowserAutomation(sync_playwright_factory=lambda: object())
 
