@@ -76,35 +76,24 @@ def check_uvicorn_alive() -> bool:
 
 
 def select_smart_pattern(page: Any) -> bool:
-    # PO2 SPA exposes the model menu through the composer model button.
-    menu_triggers = (
-        'button:has-text("Авто")',
-        'button[aria-label="Model"]',
-        '[data-ask-input-container="true"] button[aria-haspopup="menu"]',
-    )
-    for selector in menu_triggers:
-        locator = page.locator(selector).first
-        if locator.is_visible():
-            locator.click()
-            break
-    else:
-        return False
-    # Pick the "Умный выбор" menu item.
-    smart_item = page.get_by_text("Умный выбор", exact=False).first
+    trigger = page.locator("#model-trigger").first
+    trigger.wait_for(state="visible", timeout=10_000)
+    trigger.click()
+    popup = page.locator("#model-popup").first
+    popup.wait_for(state="visible", timeout=5_000)
+    # Click the .model-item whose label contains "Умный выбор".
+    smart_item = page.locator(".model-item", has_text="Умный выбор").first
     smart_item.wait_for(state="visible", timeout=5_000)
     smart_item.click()
     return True
 
 
 def submit_prompt(page: Any, prompt: str) -> None:
-    prompt_input = page.locator('div#ask-input[role="textbox"][contenteditable="true"]').first
-    prompt_input.wait_for(state="visible", timeout=10_000)
-    prompt_input.click()
-    prompt_input.fill(prompt)
-    submit = page.locator('button[aria-label="Submit"]').first
-    if not submit.is_visible():
-        submit = page.get_by_role("button", name="Submit").first
-    submit.click()
+    query_input = page.locator("#query-input").first
+    query_input.wait_for(state="visible", timeout=10_000)
+    query_input.click()
+    query_input.fill(prompt)
+    page.locator("#btn-submit").first.click()
 
 
 def wait_for_smart_response(page: Any, timeout_seconds: int) -> dict[str, Any] | None:
