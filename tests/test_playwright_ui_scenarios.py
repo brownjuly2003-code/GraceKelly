@@ -155,7 +155,7 @@ def test_ui_smart_decomposition_flow(static_server: str, page: Any) -> None:
         "(element) => element.closest('.model-item').click()"
     )
     assert page.evaluate("() => window.modelMenu.getSelection().pattern") == "smart"
-    assert page.evaluate("() => window.modelMenu.getSelection().model") == "best"
+    assert page.evaluate("() => window.modelMenu.getSelection().model") == "claude-sonnet-4-6"
 
     page.locator("#query-input").fill(prompt)
     page.locator("#btn-submit").click()
@@ -163,7 +163,7 @@ def test_ui_smart_decomposition_flow(static_server: str, page: Any) -> None:
         "() => document.getElementById('chat-area').innerText.includes('Smart decomposition ready.')"
     )
 
-    assert captured["body"] == {"prompt": prompt, "model": "best"}
+    assert captured["body"] == {"prompt": prompt, "model": "claude-sonnet-4-6"}
     assert "Smart decomposition ready." in page.locator("#chat-area").inner_text()
 
 
@@ -202,7 +202,7 @@ def test_ui_debate_flow(static_server: str, page: Any) -> None:
         "(element) => element.closest('.model-item').click()"
     )
     assert page.evaluate("() => window.modelMenu.getSelection().pattern") == "debate"
-    assert page.evaluate("() => window.modelMenu.getSelection().model") == "best"
+    assert page.evaluate("() => window.modelMenu.getSelection().model") == "claude-sonnet-4-6"
 
     page.locator("#query-input").fill(topic)
     page.locator("#btn-submit").click()
@@ -210,7 +210,7 @@ def test_ui_debate_flow(static_server: str, page: Any) -> None:
         "() => document.getElementById('chat-area').innerText.includes('Debate synthesis ready.')"
     )
 
-    assert captured["body"] == {"topic": topic, "model": "best"}
+    assert captured["body"] == {"topic": topic, "model": "claude-sonnet-4-6"}
     assert "Debate synthesis ready." in page.locator("#chat-area").inner_text()
 
 
@@ -255,6 +255,7 @@ def _test_smart_menu_item_does_not_emit_null_model_legacy(static_server: str, pa
     assert isinstance(captured["body"], dict)
     assert captured["body"]["model"] is not None
     assert captured["body"]["model"] != ""
+    assert captured["body"]["model"] == "claude-sonnet-4-6"
 
 
 def test_smart_menu_item_does_not_emit_null_model(static_server: str, page: Any) -> None:

@@ -72,7 +72,7 @@ const MENU_GROUPS = [
         label: "Дебаты",
         desc: "Devil's Advocate",
         icon: "merge",
-        pinned_model: "best",
+        pinned_model: "claude-sonnet-4-6",
       },
       {
         id: "smart",
@@ -80,7 +80,7 @@ const MENU_GROUPS = [
         label: "Умный выбор",
         desc: "авто-декомпозиция",
         icon: "target",
-        pinned_model: "best",
+        pinned_model: "claude-sonnet-4-6",
       },
     ],
   },
