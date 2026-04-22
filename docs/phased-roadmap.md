@@ -1,6 +1,6 @@
 # Phased Roadmap
 
-Last updated: 2026-04-23 (Phase 17 SMART + DEBATE single-shot live acceptance proven; fan-out stale extraction surfaced for Phase 18)
+Last updated: 2026-04-23 (Phase 17 SMART + DEBATE + role-based fan-out live acceptance proven end-to-end)
 
 ## Phase 0: Clean foundation
 
@@ -322,6 +322,7 @@ Delivered:
 - **inline RESPONSE-strip-streaming-chrome**: `shell_noise_lines` extended with `Thinking`, `Ask a follow-up`, `Stop response`, `Regenerate`, `Sources`, `Answer` so candidate-text cleanup filters them out (`d0acbd4`)
 - **inline SMOKE-live-smart-acceptance**: `scripts/live_smart_smoke.py` reusable harness drives PO2 SPA + captures `/api/v1/smart` response; inline run against a live chrome-profile returned `status=200 model_id=claude-sonnet-4-6 answer_len=990` with a structured EV-markets answer in 49.7s, no `[auth_failed]` or shell-chrome markers (`352c6b8`, `94fd2d9`)
 - **inline SMOKE-live-debate-acceptance**: harness extended with `--pattern debate`; live run returned `status=200 model_id=claude-sonnet-4-6 answer_len=3293` with a full initial_position/challenge/defense/improved_response chain on an EV CO2 debate topic, 61.2s (`fc6307f`)
+- **inline BROWSER-reset-page-state-between-execs**: `PerplexityBrowserAdapter.execute` now calls `automation.reset_page_state()` (navigates to home via `_navigate_home_for_model_selection`) after `dismiss_popups`, so role-based fan-out / decomposition sub-execs no longer collide on a stale thread URL. Live SMART role-based fan-out proven: three real Perplexity sub-execs (123s/100s/53s, 9429/8962/5102 chars — each distinct), final 8962-char multi-region analysis (`66ddfdb`)
 
 Incidents (deprecated follow-up specs recorded for history, not in Delivered):
 - **batch-78 Live UI smoke SMART/DEBATE (first attempt)**: failed — UI did not expose the patterns; superseded by batch-77 + batch-79 work.
@@ -330,7 +331,6 @@ Incidents (deprecated follow-up specs recorded for history, not in Delivered):
 - **batch-83 Live SMART with UTF-8 harness**: failed — smart auto-decomposition fired three Perplexity calls for the prompt; adapter timeout of 60s per call clipped two of them, the third extracted 2730 chars at 53s. Route-level response was not captured within the harness' outer 180s window.
 
 Remaining:
-- **SMART role-based fan-out returns stale extraction on exec #1** — a live smoke with a forced-complex prompt surfaced that when SMART chooses `used_roles=True total_llm_calls=3`, the first sub-exec returned in 1.3s with 3343 chars matching the PREVIOUS request's response content, while exec #2 / exec #3 took real 17s each. The browser adapter reuses the same Perplexity page/thread across sub-execs without resetting to a new thread or waiting for a fresh "answer landed" signal, so `body_after_prompt` on the second exec can still match the prior answer. Fix direction: click New Thread / Ctrl+I between sub-execs inside `PerplexityBrowserAdapter.execute`, or assert response freshness before extraction.
 - **Browser adapter non-deterministic selection for the `"Best"` alias** — Perplexity's auto-router item is not stably picked; the workaround is to pin explicit model ids, but the auto-router path is still visible in the menu and will surface again for any user selecting "Best". DOM recon required.
 - **`actual_label=provider_model_id` always** — `PlaywrightBrowserAutomation.select_model` returns the requested label as `actual_label` even when post-click verification failed, so downstream `_model_matches_expected` cannot detect a silent mismatch. Discovered in passing during the DEBATE smoke: first exec hit `model_mismatch` (UI showed "Sonar") but only because the code path is invoked via button-text comparison, not via the returned label. Worth cleaning up alongside the Best-alias item.
 - **Cyrillic prompts via some harnesses lose encoding** (observed in batch-82) — lives on the automation side, not in GraceKelly, but worth documenting for anyone driving live smokes from PowerShell.
