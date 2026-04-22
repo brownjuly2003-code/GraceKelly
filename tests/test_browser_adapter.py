@@ -167,6 +167,35 @@ class BrowserAdapterTests(unittest.TestCase):
         self.assertEqual(result.status, StepStatus.FAILED)
         self.assertEqual(result.failure_code, FailureCode.AUTH_FAILED)
 
+    def test_browser_adapter_calls_reset_page_state_before_auth_check(self) -> None:
+        calls: list[str] = []
+
+        class _TracingAutomation(FakeBrowserAutomation):
+            def reset_page_state(self) -> bool:
+                calls.append("reset_page_state")
+                return True
+
+            def auth_status(self, policy: AuthRecoveryPolicy) -> BrowserAuthStatus:
+                calls.append("auth_status")
+                return super().auth_status(policy)
+
+            def submit_prompt(
+                self, *, prompt: str, policy: SubmitPolicy, timeout_seconds: int
+            ) -> BrowserExecutionOutput:
+                calls.append("submit_prompt")
+                return super().submit_prompt(prompt=prompt, policy=policy, timeout_seconds=timeout_seconds)
+
+        adapter = PerplexityBrowserAdapter(
+            session_manager=self.build_session_manager(),
+            automation=_TracingAutomation(),
+        )
+
+        result = adapter.execute(self.build_request())
+
+        self.assertEqual(result.status, StepStatus.COMPLETED)
+        self.assertLess(calls.index("reset_page_state"), calls.index("auth_status"))
+        self.assertLess(calls.index("auth_status"), calls.index("submit_prompt"))
+
     def test_browser_adapter_returns_model_mismatch_when_ui_model_differs(self) -> None:
         adapter = PerplexityBrowserAdapter(
             session_manager=self.build_session_manager(),

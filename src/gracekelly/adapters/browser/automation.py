@@ -73,6 +73,10 @@ class BrowserAutomationPort(ABC):
     def attach_files(self, attachments: tuple[FileAttachment, ...]) -> None:
         return None
 
+    def reset_page_state(self) -> bool:
+        """Return page to a clean state before a new execution. Default: no-op."""
+        return False
+
     def healthcheck(self) -> dict[str, Any]:
         return {
             "status": "degraded",

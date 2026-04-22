@@ -89,6 +89,7 @@ class PerplexityBrowserAdapter(ExecutionAdapter):
             self._automation.ensure_session(self._session_manager)
             self._session_manager.mark_active()
             self._automation.dismiss_popups(self._popup_policy)
+            self._automation.reset_page_state()
             auth = self._ensure_auth()
             logger.info(
                 "Browser auth check for task %s: logged_in=%s",

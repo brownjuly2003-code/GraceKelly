@@ -283,6 +283,41 @@ class PlaywrightDriverTests(unittest.TestCase):
         assert status.reason is not None
         self.assertIn("Sign-in prompt", status.reason)
 
+    def test_reset_page_state_navigates_home_via_base_url(self) -> None:
+        driver = PlaywrightBrowserAutomation(
+            runtime=PlaywrightBrowserRuntimeConfig(poll_interval_seconds=0),
+            sync_playwright_factory=lambda: object(),
+        )
+        driver._base_url = "https://www.perplexity.ai/"
+
+        class _FreshThreadPage(_FakePage):
+            def __init__(self) -> None:
+                super().__init__()
+                # prompt_input becomes visible once we're back on home after goto.
+                self.model_button = _FakeLocator(visible=True, inner_text="Model", count_value=1)
+
+            def locator(self, selector: str) -> _FakeLocator:
+                if selector == 'div#ask-input[role="textbox"][contenteditable="true"]':
+                    return self.model_button
+                return super().locator(selector)
+
+            def inner_text(self, selector: str) -> str:
+                if selector == "body":
+                    return "Type @ for connectors and sources"
+                return ""
+
+        page = _FreshThreadPage()
+        driver._page = page
+
+        result = driver.reset_page_state()
+
+        self.assertTrue(result)
+        self.assertEqual(page.goto_url, "https://www.perplexity.ai/")
+
+    def test_reset_page_state_returns_false_without_page(self) -> None:
+        driver = PlaywrightBrowserAutomation(sync_playwright_factory=lambda: object())
+        self.assertFalse(driver.reset_page_state())
+
     def test_auth_status_recovers_when_prompt_input_settles_after_wait(self) -> None:
         driver = PlaywrightBrowserAutomation(
             runtime=PlaywrightBrowserRuntimeConfig(poll_interval_seconds=0),

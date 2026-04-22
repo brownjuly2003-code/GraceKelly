@@ -188,6 +188,16 @@ class PlaywrightBrowserAutomation(BrowserAutomationPort):
         for _ in range(policy.escape_key_retries):
             page.keyboard.press("Escape")
 
+    def reset_page_state(self) -> bool:
+        # Subsequent execute() calls on the same adapter reuse the Perplexity page;
+        # without an explicit reset the page is still on the previous thread URL,
+        # so body_after_prompt extraction can match the prior answer. Always route
+        # back to the home ask-input before a new run. Idempotent on the home page.
+        page = self._page
+        if page is None:
+            return False
+        return self._navigate_home_for_model_selection(page)
+
     def auth_status(self, policy: AuthRecoveryPolicy) -> BrowserAuthStatus:
         page = self._page_or_raise()
         body_text = self._body_text(page)
