@@ -1,0 +1,38 @@
+{
+  "task_id": "SMOKE-smart-live",
+  "status": "failure",
+  "files_modified": [
+    ".workflow/outbox/2026-04-22-batch-82-SMART-report.md",
+    ".workflow/outbox/2026-04-22-batch-82-SMART-response.json",
+    ".workflow/outbox/2026-04-22-batch-82-SMART-uvicorn.stdout.log",
+    ".workflow/outbox/2026-04-22-batch-82-SMART-uvicorn.stderr.log",
+    ".workflow/outbox/screenshots/batch-82/smart-before-1280x800.png",
+    ".workflow/outbox/screenshots/batch-82/smart-after-1280x800.png"
+  ],
+  "lint_clean": true,
+  "self_review": {
+    "iterations": 2,
+    "initial_score": 6,
+    "final_score": 7,
+    "improvements": [
+      "Confirmed that the UI selection and backend routing both use claude-sonnet-4-6 after the pin change.",
+      "Captured the real blocker precisely: the live submit prompt was mangled by the local automation harness before it reached the model."
+    ]
+  },
+  "visual_check": {
+    "status": "failed",
+    "screenshots": [
+      ".workflow/outbox/screenshots/batch-82/smart-before-1280x800.png",
+      ".workflow/outbox/screenshots/batch-82/smart-after-1280x800.png"
+    ],
+    "notes": [
+      "Selection before submit was smart/claude-sonnet-4-6.",
+      "POST /api/v1/smart returned 200 with model_id=claude-sonnet-4-6, but the prompt in the captured request body was corrupted into question marks."
+    ]
+  },
+  "roles_executed": [
+    "RUNNER",
+    "AUDITOR"
+  ],
+  "error": "SMART live submit consumed quota, but the request prompt was mangled by the local PowerShell-to-Python harness, so the returned EV answer was off-target and the batch acceptance criteria were not met."
+}

@@ -1,0 +1,29 @@
+INFO:     127.0.0.1:35009 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:35009 - "GET /api/v1/models HTTP/1.1" 200 OK
+INFO:     127.0.0.1:35021 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:35022 - "GET /api/v1/models HTTP/1.1" 200 OK
+INFO:     127.0.0.1:1784 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:1785 - "GET /api/v1/models HTTP/1.1" 200 OK
+INFO:     127.0.0.1:43623 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:39427 - "GET /css/fonts.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:6234 - "GET /css/style.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59538 - "GET /js/model-menu.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53872 - "GET /js/api.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53886 - "GET /js/threads.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:4674 - "GET /js/app.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:39427 - "GET /js/chat.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:39427 - "GET /api/v1/models HTTP/1.1" 200 OK
+INFO:     127.0.0.1:39427 - "GET /favicon.ico HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:14227 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:14228 - "GET /api/v1/models HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56723 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56723 - "GET /css/fonts.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50905 - "GET /css/style.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44404 - "GET /js/model-menu.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34099 - "GET /js/api.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55383 - "GET /js/threads.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:13144 - "GET /js/app.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56723 - "GET /js/chat.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56723 - "GET /api/v1/models HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56723 - "GET /favicon.ico HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:56723 - "POST /api/v1/smart HTTP/1.1" 200 OK

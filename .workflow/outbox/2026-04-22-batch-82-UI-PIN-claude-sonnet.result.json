@@ -1,0 +1,25 @@
+{
+  "task_id": "UI-PIN-claude-sonnet",
+  "status": "completed",
+  "files_modified": [
+    "static/js/model-menu.js",
+    "tests/test_playwright_ui_scenarios.py",
+    ".workflow/outbox/2026-04-22-batch-82-UI-PIN-claude-sonnet-report.md"
+  ],
+  "lint_clean": true,
+  "self_review": {
+    "iterations": 1,
+    "initial_score": 9,
+    "final_score": 9,
+    "improvements": [
+      "Changed only the two pinned_model values and the three targeted test expectations.",
+      "Verified the fix with targeted Playwright UI tests, full pytest baseline, ruff, and project-venv mypy."
+    ]
+  },
+  "visual_check": null,
+  "roles_executed": [
+    "IMPLEMENTER",
+    "AUDITOR"
+  ],
+  "error": null
+}

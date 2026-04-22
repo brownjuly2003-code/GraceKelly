@@ -1,0 +1,27 @@
+{
+  "task_id": "SMOKE-debate-live",
+  "status": "blocked",
+  "files_modified": [
+    ".workflow/outbox/2026-04-22-batch-82-DEBATE-report.md"
+  ],
+  "lint_clean": true,
+  "self_review": {
+    "iterations": 1,
+    "initial_score": 8,
+    "final_score": 8,
+    "improvements": [
+      "Stopped before spending the DEBATE live submit after SMART failed to meet acceptance criteria."
+    ]
+  },
+  "visual_check": {
+    "status": "blocked",
+    "screenshots": [],
+    "notes": [
+      "No DEBATE submit was executed because SMART live failed first."
+    ]
+  },
+  "roles_executed": [
+    "AUDITOR"
+  ],
+  "error": "Blocked by failed SMART live smoke."
+}

@@ -1,0 +1,289 @@
+{
+  "task_id": "SMART",
+  "observed_at": "2026-04-22T15:01:26.288507+00:00",
+  "target_url": "http://127.0.0.1:8011/",
+  "readiness": {
+    "status": 200,
+    "text": "{\"status\":\"degraded\"}",
+    "json": {
+      "status": "degraded"
+    }
+  },
+  "models": {
+    "status": 200,
+    "text": "{\"last_checked\":\"2026-04-22T14:58:15.290170Z\",\"source\":\"perplexity-model-menu\",\"models\":[{\"id\":\"best\",\"display_name\":\"Best\",\"aliases\":[\"Best\",\"best\"],\"adapter_kind\":\"browser\",\"provider\":\"perplexity\",\"reasoning_capable\":true,\"timeout_seconds\":60,\"expected_latency_class\":\"slow\",\"concurrency_limit\":1,\"available\":true,\"availability_status\":\"observed_unverified\",\"availability_checked_at\":\"2026-04-22T14:58:20.258434Z\",\"availability_source\":\"perplexity-model-menu\",\"last_verified_at\":null},{\"id\":\"sonar\",\"display_name\":\"Sonar\",\"aliases\":[\"Sonar\",\"sonar\"],\"adapter_kind\":\"browser\",\"provider\":\"perplexity\",\"reasoning_capable\":false,\"timeout_seconds\":60,\"expected_latency_class\":\"fast\",\"concurrency_limit\":1,\"available\":true,\"availability_status\":\"observed_unverified\",\"availability_checked_at\":\"2026-04-22T14:58:20.258434Z\",\"availability_source\":\"perplexity-model-menu\",\"last_verified_at\":null},{\"id\":\"gpt-5-4\",\"display_name\":\"GPT-5.4\",\"aliases\":[\"GPT-5.4\",\"gpt-5-4\",\"GPT 5.4\",\"GPT-5\"],\"adapter_kind\":\"browser\",\"provider\":\"perplexity\",\"reasoning_capable\":true,\"timeout_seconds\":60,\"expected_latency_class\":\"slow\",\"concurrency_limit\":1,\"available\":true,\"availability_status\":\"observed_unverified\",\"availability_checked_at\":\"2026-04-22T14:58:20.258434Z\",\"availability_source\":\"perplexity-model-menu\",\"last_verified_at\":null},{\"id\":\"gemini-3-1-pro\",\"display_name\":\"Gemini 3.1 Pro\",\"aliases\":[\"Gemini 3.1 Pro\",\"gemini-3-1-pro\",\"Gemini Pro 3.1\",\"Gemini Pro\"],\"adapter_kind\":\"browser\",\"provider\":\"perplexity\",\"reasoning_capable\":true,\"timeout_seconds\":60,\"expected_latency_class\":\"slow\",\"concurrency_limit\":1,\"available\":true,\"availability_status\":\"observed_unverified\",\"availability_checked_at\":\"2026-04-22T14:58:20.258434Z\",\"availability_source\":\"perplexity-model-menu\",\"last_verified_at\":null},{\"id\":\"claude-sonnet-4-6\",\"display_name\":\"Claude Sonnet 4.6\",\"aliases\":[\"Claude Sonnet 4.6\",\"claude-sonnet-4-6\",\"Claude 4.6\",\"Claude Sonnet\"],\"adapter_kind\":\"browser\",\"provider\":\"perplexity\",\"reasoning_capable\":true,\"timeout_seconds\":60,\"expected_latency_class\":\"slow\",\"concurrency_limit\":1,\"available\":true,\"availability_status\":\"observed_unverified\",\"availability_checked_at\":\"2026-04-22T14:58:20.258434Z\",\"availability_source\":\"perplexity-model-menu\",\"last_verified_at\":null},{\"id\":\"claude-opus-4-7\",\"display_name\":\"Claude Opus 4.7\",\"aliases\":[\"Claude Opus 4.7\",\"claude-opus-4-7\"],\"adapter_kind\":\"browser\",\"provider\":\"perplexity\",\"reasoning_capable\":true,\"timeout_seconds\":60,\"expected_latency_class\":\"slow\",\"concurrency_limit\":1,\"available\":true,\"availability_status\":\"observed_unverified\",\"availability_checked_at\":\"2026-04-22T14:58:20.258434Z\",\"availability_source\":\"perplexity-model-menu\",\"last_verified_at\":null},{\"id\":\"max\",\"display_name\":\"Max\",\"aliases\":[\"Max\",\"max\"],\"adapter_kind\":\"browser\",\"provider\":\"perplexity\",\"reasoning_capable\":true,\"timeout_seconds\":60,\"expected_latency_class\":\"slow\",\"concurrency_limit\":1,\"available\":true,\"availability_status\":\"observed_unverified\",\"availability_checked_at\":\"2026-04-22T14:58:20.258434Z\",\"availability_source\":\"perplexity-model-menu\",\"last_verified_at\":null},{\"id\":\"nemotron-3-super\",\"display_name\":\"Nemotron 3 Super\",\"aliases\":[\"Nemotron 3 Super\",\"nemotron-3-super\",\"Nemotron 3\"],\"adapter_kind\":\"browser\",\"provider\":\"perplexity\",\"reasoning_capable\":true,\"timeout_seconds\":60,\"expected_latency_class\":\"slow\",\"concurrency_limit\":1,\"available\":true,\"availability_status\":\"observed_unverified\",\"availability_checked_at\":\"2026-04-22T14:58:20.258434Z\",\"availability_source\":\"perplexity-model-menu\",\"last_verified_at\":null},{\"id\":\"mistral-small\",\"display_name\":\"Mistral Small\",\"aliases\":[\"Mistral Small\",\"Mistral\",\"Mistral API\"],\"adapter_kind\":\"api\",\"provider\":\"mistral\",\"reasoning_capable\":false,\"timeout_seconds\":30,\"expected_latency_class\":\"medium\",\"concurrency_limit\":4,\"available\":null,\"availability_status\":\"static\",\"availability_checked_at\":null,\"availability_source\":null,\"last_verified_at\":null},{\"id\":\"gpt-5-4-api\",\"display_name\":\"GPT-5.4 API\",\"aliases\":[\"GPT-5.4 API\",\"GPT 5.4 API\",\"OpenAI GPT-5.4\"],\"adapter_kind\":\"api\",\"provider\":\"openai\",\"reasoning_capable\":true,\"timeout_seconds\":60,\"expected_latency_class\":\"slow\",\"concurrency_limit\":4,\"available\":null,\"availability_status\":\"static\",\"availability_checked_at\":null,\"availability_source\":null,\"last_verified_at\":null},{\"id\":\"claude-sonnet-4-6-api\",\"display_name\":\"Claude Sonnet 4.6 API\",\"aliases\":[\"Claude Sonnet 4.6 API\",\"Claude API\",\"Anthropic Claude\"],\"adapter_kind\":\"api\",\"provider\":\"anthropic\",\"reasoning_capable\":true,\"timeout_seconds\":120,\"expected_latency_class\":\"slow\",\"concurrency_limit\":4,\"available\":null,\"availability_status\":\"static\",\"availability_checked_at\":null,\"availability_source\":null,\"last_verified_at\":null}]}",
+    "json": {
+      "last_checked": "2026-04-22T14:58:15.290170Z",
+      "source": "perplexity-model-menu",
+      "models": [
+        {
+          "id": "best",
+          "display_name": "Best",
+          "aliases": [
+            "Best",
+            "best"
+          ],
+          "adapter_kind": "browser",
+          "provider": "perplexity",
+          "reasoning_capable": true,
+          "timeout_seconds": 60,
+          "expected_latency_class": "slow",
+          "concurrency_limit": 1,
+          "available": true,
+          "availability_status": "observed_unverified",
+          "availability_checked_at": "2026-04-22T14:58:20.258434Z",
+          "availability_source": "perplexity-model-menu",
+          "last_verified_at": null
+        },
+        {
+          "id": "sonar",
+          "display_name": "Sonar",
+          "aliases": [
+            "Sonar",
+            "sonar"
+          ],
+          "adapter_kind": "browser",
+          "provider": "perplexity",
+          "reasoning_capable": false,
+          "timeout_seconds": 60,
+          "expected_latency_class": "fast",
+          "concurrency_limit": 1,
+          "available": true,
+          "availability_status": "observed_unverified",
+          "availability_checked_at": "2026-04-22T14:58:20.258434Z",
+          "availability_source": "perplexity-model-menu",
+          "last_verified_at": null
+        },
+        {
+          "id": "gpt-5-4",
+          "display_name": "GPT-5.4",
+          "aliases": [
+            "GPT-5.4",
+            "gpt-5-4",
+            "GPT 5.4",
+            "GPT-5"
+          ],
+          "adapter_kind": "browser",
+          "provider": "perplexity",
+          "reasoning_capable": true,
+          "timeout_seconds": 60,
+          "expected_latency_class": "slow",
+          "concurrency_limit": 1,
+          "available": true,
+          "availability_status": "observed_unverified",
+          "availability_checked_at": "2026-04-22T14:58:20.258434Z",
+          "availability_source": "perplexity-model-menu",
+          "last_verified_at": null
+        },
+        {
+          "id": "gemini-3-1-pro",
+          "display_name": "Gemini 3.1 Pro",
+          "aliases": [
+            "Gemini 3.1 Pro",
+            "gemini-3-1-pro",
+            "Gemini Pro 3.1",
+            "Gemini Pro"
+          ],
+          "adapter_kind": "browser",
+          "provider": "perplexity",
+          "reasoning_capable": true,
+          "timeout_seconds": 60,
+          "expected_latency_class": "slow",
+          "concurrency_limit": 1,
+          "available": true,
+          "availability_status": "observed_unverified",
+          "availability_checked_at": "2026-04-22T14:58:20.258434Z",
+          "availability_source": "perplexity-model-menu",
+          "last_verified_at": null
+        },
+        {
+          "id": "claude-sonnet-4-6",
+          "display_name": "Claude Sonnet 4.6",
+          "aliases": [
+            "Claude Sonnet 4.6",
+            "claude-sonnet-4-6",
+            "Claude 4.6",
+            "Claude Sonnet"
+          ],
+          "adapter_kind": "browser",
+          "provider": "perplexity",
+          "reasoning_capable": true,
+          "timeout_seconds": 60,
+          "expected_latency_class": "slow",
+          "concurrency_limit": 1,
+          "available": true,
+          "availability_status": "observed_unverified",
+          "availability_checked_at": "2026-04-22T14:58:20.258434Z",
+          "availability_source": "perplexity-model-menu",
+          "last_verified_at": null
+        },
+        {
+          "id": "claude-opus-4-7",
+          "display_name": "Claude Opus 4.7",
+          "aliases": [
+            "Claude Opus 4.7",
+            "claude-opus-4-7"
+          ],
+          "adapter_kind": "browser",
+          "provider": "perplexity",
+          "reasoning_capable": true,
+          "timeout_seconds": 60,
+          "expected_latency_class": "slow",
+          "concurrency_limit": 1,
+          "available": true,
+          "availability_status": "observed_unverified",
+          "availability_checked_at": "2026-04-22T14:58:20.258434Z",
+          "availability_source": "perplexity-model-menu",
+          "last_verified_at": null
+        },
+        {
+          "id": "max",
+          "display_name": "Max",
+          "aliases": [
+            "Max",
+            "max"
+          ],
+          "adapter_kind": "browser",
+          "provider": "perplexity",
+          "reasoning_capable": true,
+          "timeout_seconds": 60,
+          "expected_latency_class": "slow",
+          "concurrency_limit": 1,
+          "available": true,
+          "availability_status": "observed_unverified",
+          "availability_checked_at": "2026-04-22T14:58:20.258434Z",
+          "availability_source": "perplexity-model-menu",
+          "last_verified_at": null
+        },
+        {
+          "id": "nemotron-3-super",
+          "display_name": "Nemotron 3 Super",
+          "aliases": [
+            "Nemotron 3 Super",
+            "nemotron-3-super",
+            "Nemotron 3"
+          ],
+          "adapter_kind": "browser",
+          "provider": "perplexity",
+          "reasoning_capable": true,
+          "timeout_seconds": 60,
+          "expected_latency_class": "slow",
+          "concurrency_limit": 1,
+          "available": true,
+          "availability_status": "observed_unverified",
+          "availability_checked_at": "2026-04-22T14:58:20.258434Z",
+          "availability_source": "perplexity-model-menu",
+          "last_verified_at": null
+        },
+        {
+          "id": "mistral-small",
+          "display_name": "Mistral Small",
+          "aliases": [
+            "Mistral Small",
+            "Mistral",
+            "Mistral API"
+          ],
+          "adapter_kind": "api",
+          "provider": "mistral",
+          "reasoning_capable": false,
+          "timeout_seconds": 30,
+          "expected_latency_class": "medium",
+          "concurrency_limit": 4,
+          "available": null,
+          "availability_status": "static",
+          "availability_checked_at": null,
+          "availability_source": null,
+          "last_verified_at": null
+        },
+        {
+          "id": "gpt-5-4-api",
+          "display_name": "GPT-5.4 API",
+          "aliases": [
+            "GPT-5.4 API",
+            "GPT 5.4 API",
+            "OpenAI GPT-5.4"
+          ],
+          "adapter_kind": "api",
+          "provider": "openai",
+          "reasoning_capable": true,
+          "timeout_seconds": 60,
+          "expected_latency_class": "slow",
+          "concurrency_limit": 4,
+          "available": null,
+          "availability_status": "static",
+          "availability_checked_at": null,
+          "availability_source": null,
+          "last_verified_at": null
+        },
+        {
+          "id": "claude-sonnet-4-6-api",
+          "display_name": "Claude Sonnet 4.6 API",
+          "aliases": [
+            "Claude Sonnet 4.6 API",
+            "Claude API",
+            "Anthropic Claude"
+          ],
+          "adapter_kind": "api",
+          "provider": "anthropic",
+          "reasoning_capable": true,
+          "timeout_seconds": 120,
+          "expected_latency_class": "slow",
+          "concurrency_limit": 4,
+          "available": null,
+          "availability_status": "static",
+          "availability_checked_at": null,
+          "availability_source": null,
+          "last_verified_at": null
+        }
+      ]
+    }
+  },
+  "selection_after_click": {
+    "id": "smart",
+    "label": "Умный выбор",
+    "icon": "target",
+    "pattern": "smart",
+    "model": "claude-sonnet-4-6",
+    "models": null,
+    "analyze": true
+  },
+  "selection_before_submit": {
+    "id": "smart",
+    "label": "Умный выбор",
+    "icon": "target",
+    "pattern": "smart",
+    "model": "claude-sonnet-4-6",
+    "models": null,
+    "analyze": true
+  },
+  "ui": {
+    "auth_banner_visible": false,
+    "auth_banner_text": "Perplexity session expired — open perplexity.ai and sign in, then retry",
+    "chat_area_text": "?????? ????? EV ? ??????, ??? ? ????? ?? ???????? ????????: adoption rate, charger coverage, subsidies ? ????? ????????????????? ?????.\nРынок EV в Греции переживает активный рост, но всё ещё заметно отстаёт от ведущих европейских рынков. Вот подробный разбор по всем ключевым параметрам.\nAdoption Rate: где стоит Греция\nПо состоянию на начало 2026 года, только 0,53% всего автопарка Греции составляют чисто электрические автомобили — то есть примерно 1 EV на каждые 190 машин. Ежемесячная доля EV среди новых регистраций выросла до 6,27%, что является позитивной динамикой. Тем не менее это разительно контрастирует с общеевропейским показателем: в первом полугодии 2025 года BEV заняли 15,6% новых регистраций в ЕС. Для сравнения, в Дании — 7,1%, Швеции — 5,9%, Нидерландах — 5,0% от всего автопарка, тогда как Греция делит последние места с Кипром и Польшей.\necarstrade\n+2\nЗарядная инфраструктура\nЗдесь у Греции неожиданно сильная позиция. По данным начала 2026 года, в стране насчитывается около 8 917 зарядных точек при ~31 000 электромобилях — соотношение 3,47 EV на 1 зарядник, что является одним из лучших показателей в Европе. Инфраструктура покрывает основные магистрали и крупные городские центры, однако остаются значительные пробелы на вторичных дорогах и отдалённых островах. Быстрых зарядников мощностью свыше 150 кВт насчитывается лишь 72 по всей стране, они расположены преимущественно вдоль автострад.\nautonomous\n+2\nСубсидии и налоговые стимулы\nГреческая модель поддержки строится преимущественно на налоговых льготах, а не на прямых субвенциях:\ntopspeed\nПолное освобождение от регистрационного налога (τέλος ταξινόμησης) для BEV\nНулевые или минимальные ежегодные транспортные сборы\nБазовая субсидия на покупку — 3 000 €, с дополнительными надбавками при сдаче старого авто или для льготных социальных категорий\ntopspeed\nНовая инициатива 2026 года в рамках климатического плана предусматривает субсидию до 30 000 € при замене старого авто на электрическое\nyoutube\nРежим CISAF 2026: 400 млн € до 2030 года для промышленных инвестиций в EV-батареи, возобновляемую энергетику и водород\nvkpremium\nСравнение с крупными рынками ЕС\nПараметр\tГреция\tГермания / Франция\tНидерланды\nДоля EV в новых продажах\t~6,3%\t15–20%\t>25%\nПрямая субсидия\tдо 3 000–30 000 €\tдо 6 000–7 000 €\tминимальная\nКорпоративные льготы\tслабые\tочень сильные\tключевой драйвер\nЗарядная плотность (EV/зарядник)\t3,47 (один из лучших в ЕС)\t~8–10\t~3–4\nДомашние зарядники (субсидии)\tограниченные\tвысокие\tвысокие\nГлавное отличие: в Германии, Франции и Нидерландах корпоративные автопарки стали главным двигателем роста, благодаря агрессивным налоговым режимам для fleet-leasing. В Греции этот механизм пока недоразвит.\ntopspeed\nПерспективы и барьеры\nКлючевые барьеры для ускорения — высокая начальная цена EV даже после субсидий, отсутствие зарядной инфраструктуры на островах и в горных районах, а также слабая стимуляция корпоративного сектора. Положительные сигналы: программа субсидий 2026 года, европейское финансирование через AFIR и быстро растущее соотношение зарядников к машинам. Греция не выбывает из европейской гонки — она просто движется по более консервативной траектории, опираясь на налоговые инструменты, а не на масштабные прямые выплаты.\nitf-oecd\n+2\nclaude-sonnet-4-6"
+  },
+  "request": {
+    "method": "POST",
+    "url": "http://127.0.0.1:8011/api/v1/smart",
+    "body_text": "{\"prompt\":\"?????? ????? EV ? ??????, ??? ? ????? ?? ???????? ????????: adoption rate, charger coverage, subsidies ? ????? ????????????????? ?????.\",\"model\":\"claude-sonnet-4-6\"}",
+    "body_json": {
+      "prompt": "?????? ????? EV ? ??????, ??? ? ????? ?? ???????? ????????: adoption rate, charger coverage, subsidies ? ????? ????????????????? ?????.",
+      "model": "claude-sonnet-4-6"
+    }
+  },
+  "response": {
+    "status": 200,
+    "body_text": "{\"answer\":\"Рынок EV в Греции переживает активный рост, но всё ещё заметно отстаёт от ведущих европейских рынков. Вот подробный разбор по всем ключевым параметрам.\\nAdoption Rate: где стоит Греция\\nПо состоянию на начало 2026 года, только 0,53% всего автопарка Греции составляют чисто электрические автомобили — то есть примерно 1 EV на каждые 190 машин. Ежемесячная доля EV среди новых регистраций выросла до 6,27%, что является позитивной динамикой. Тем не менее это разительно контрастирует с общеевропейским показателем: в первом полугодии 2025 года BEV заняли 15,6% новых регистраций в ЕС. Для сравнения, в Дании — 7,1%, Швеции — 5,9%, Нидерландах — 5,0% от всего автопарка, тогда как Греция делит последние места с Кипром и Польшей.\\necarstrade\\n+2\\nЗарядная инфраструктура\\nЗдесь у Греции неожиданно сильная позиция. По данным начала 2026 года, в стране насчитывается около 8 917 зарядных точек при ~31 000 электромобилях — соотношение 3,47 EV на 1 зарядник, что является одним из лучших показателей в Европе. Инфраструктура покрывает основные магистрали и крупные городские центры, однако остаются значительные пробелы на вторичных дорогах и отдалённых островах. Быстрых зарядников мощностью свыше 150 кВт насчитывается лишь 72 по всей стране, они расположены преимущественно вдоль автострад.\\nautonomous\\n+2\\nСубсидии и налоговые стимулы\\nГреческая модель поддержки строится преимущественно на налоговых льготах, а не на прямых субвенциях:\\ntopspeed\\nПолное освобождение от регистрационного налога (τέλος ταξινόμησης) для BEV\\nНулевые или минимальные ежегодные транспортные сборы\\nБазовая субсидия на покупку — 3 000 €, с дополнительными надбавками при сдаче старого авто или для льготных социальных категорий\\ntopspeed\\nНовая инициатива 2026 года в рамках климатического плана предусматривает субсидию до 30 000 € при замене старого авто на электрическое\\nyoutube\\nРежим CISAF 2026: 400 млн € до 2030 года для промышленных инвестиций в EV-батареи, возобновляемую энергетику и водород\\nvkpremium\\nСравнение с крупными рынками ЕС\\nПараметр\\tГреция\\tГермания / Франция\\tНидерланды\\nДоля EV в новых продажах\\t~6,3%\\t15–20%\\t>25%\\nПрямая субсидия\\tдо 3 000–30 000 €\\tдо 6 000–7 000 €\\tминимальная\\nКорпоративные льготы\\tслабые\\tочень сильные\\tключевой драйвер\\nЗарядная плотность (EV/зарядник)\\t3,47 (один из лучших в ЕС)\\t~8–10\\t~3–4\\nДомашние зарядники (субсидии)\\tограниченные\\tвысокие\\tвысокие\\nГлавное отличие: в Германии, Франции и Нидерландах корпоративные автопарки стали главным двигателем роста, благодаря агрессивным налоговым режимам для fleet-leasing. В Греции этот механизм пока недоразвит.\\ntopspeed\\nПерспективы и барьеры\\nКлючевые барьеры для ускорения — высокая начальная цена EV даже после субсидий, отсутствие зарядной инфраструктуры на островах и в горных районах, а также слабая стимуляция корпоративного сектора. Положительные сигналы: программа субсидий 2026 года, европейское финансирование через AFIR и быстро растущее соотношение зарядников к машинам. Греция не выбывает из европейской гонки — она просто движется по более консервативной траектории, опираясь на налоговые инструменты, а не на масштабные прямые выплаты.\\nitf-oecd\\n+2\",\"task_type\":\"general\",\"complexity_level\":\"simple\",\"pattern_used\":\"single\",\"reliability_level\":\"quick\",\"was_decomposed\":false,\"used_consensus\":false,\"used_roles\":true,\"total_llm_calls\":3,\"model_id\":\"claude-sonnet-4-6\"}",
+    "body_json": {
+      "answer": "Рынок EV в Греции переживает активный рост, но всё ещё заметно отстаёт от ведущих европейских рынков. Вот подробный разбор по всем ключевым параметрам.\nAdoption Rate: где стоит Греция\nПо состоянию на начало 2026 года, только 0,53% всего автопарка Греции составляют чисто электрические автомобили — то есть примерно 1 EV на каждые 190 машин. Ежемесячная доля EV среди новых регистраций выросла до 6,27%, что является позитивной динамикой. Тем не менее это разительно контрастирует с общеевропейским показателем: в первом полугодии 2025 года BEV заняли 15,6% новых регистраций в ЕС. Для сравнения, в Дании — 7,1%, Швеции — 5,9%, Нидерландах — 5,0% от всего автопарка, тогда как Греция делит последние места с Кипром и Польшей.\necarstrade\n+2\nЗарядная инфраструктура\nЗдесь у Греции неожиданно сильная позиция. По данным начала 2026 года, в стране насчитывается около 8 917 зарядных точек при ~31 000 электромобилях — соотношение 3,47 EV на 1 зарядник, что является одним из лучших показателей в Европе. Инфраструктура покрывает основные магистрали и крупные городские центры, однако остаются значительные пробелы на вторичных дорогах и отдалённых островах. Быстрых зарядников мощностью свыше 150 кВт насчитывается лишь 72 по всей стране, они расположены преимущественно вдоль автострад.\nautonomous\n+2\nСубсидии и налоговые стимулы\nГреческая модель поддержки строится преимущественно на налоговых льготах, а не на прямых субвенциях:\ntopspeed\nПолное освобождение от регистрационного налога (τέλος ταξινόμησης) для BEV\nНулевые или минимальные ежегодные транспортные сборы\nБазовая субсидия на покупку — 3 000 €, с дополнительными надбавками при сдаче старого авто или для льготных социальных категорий\ntopspeed\nНовая инициатива 2026 года в рамках климатического плана предусматривает субсидию до 30 000 € при замене старого авто на электрическое\nyoutube\nРежим CISAF 2026: 400 млн € до 2030 года для промышленных инвестиций в EV-батареи, возобновляемую энергетику и водород\nvkpremium\nСравнение с крупными рынками ЕС\nПараметр\tГреция\tГермания / Франция\tНидерланды\nДоля EV в новых продажах\t~6,3%\t15–20%\t>25%\nПрямая субсидия\tдо 3 000–30 000 €\tдо 6 000–7 000 €\tминимальная\nКорпоративные льготы\tслабые\tочень сильные\tключевой драйвер\nЗарядная плотность (EV/зарядник)\t3,47 (один из лучших в ЕС)\t~8–10\t~3–4\nДомашние зарядники (субсидии)\tограниченные\tвысокие\tвысокие\nГлавное отличие: в Германии, Франции и Нидерландах корпоративные автопарки стали главным двигателем роста, благодаря агрессивным налоговым режимам для fleet-leasing. В Греции этот механизм пока недоразвит.\ntopspeed\nПерспективы и барьеры\nКлючевые барьеры для ускорения — высокая начальная цена EV даже после субсидий, отсутствие зарядной инфраструктуры на островах и в горных районах, а также слабая стимуляция корпоративного сектора. Положительные сигналы: программа субсидий 2026 года, европейское финансирование через AFIR и быстро растущее соотношение зарядников к машинам. Греция не выбывает из европейской гонки — она просто движется по более консервативной траектории, опираясь на налоговые инструменты, а не на масштабные прямые выплаты.\nitf-oecd\n+2",
+      "task_type": "general",
+      "complexity_level": "simple",
+      "pattern_used": "single",
+      "reliability_level": "quick",
+      "was_decomposed": false,
+      "used_consensus": false,
+      "used_roles": true,
+      "total_llm_calls": 3,
+      "model_id": "claude-sonnet-4-6"
+    }
+  }
+}

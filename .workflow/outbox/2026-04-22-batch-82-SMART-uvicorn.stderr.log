@@ -1,0 +1,38 @@
+2026-04-22 17:58:15,223 WARNING gracekelly.middleware: API key authentication is not configured — all endpoints are open
+INFO:     Started server process [10872]
+INFO:     Waiting for application startup.
+2026-04-22 17:58:15,292 INFO gracekelly.adapters.browser.playwright_driver: Launching Playwright browser session for provider perplexity using profile D:/GraceKelly/chrome-profile
+2026-04-22 17:58:18,862 INFO gracekelly.adapters.browser.session: Browser session marked active for provider perplexity
+2026-04-22 17:58:20,624 INFO gracekelly.adapters.browser.session: Browser session marked idle for provider perplexity
+2026-04-22 17:58:20,626 INFO gracekelly.main: model_catalog.ready checked_at=2026-04-22T14:58:15.290170+00:00 source=perplexity-model-menu count=8
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:8011 (Press CTRL+C to quit)
+2026-04-22 17:58:21,292 WARNING gracekelly.api.routes.health: health.snapshot active_model_executions=0 saturated_models="" status="degraded" storage_backend="memory"
+2026-04-22 17:58:36,945 WARNING gracekelly.api.routes.health: health.snapshot active_model_executions=0 saturated_models="" status="degraded" storage_backend="memory"
+2026-04-22 17:59:55,102 WARNING gracekelly.api.routes.health: health.snapshot active_model_executions=0 saturated_models="" status="degraded" storage_backend="memory"
+2026-04-22 18:01:26,314 WARNING gracekelly.api.routes.health: health.snapshot active_model_executions=0 saturated_models="" status="degraded" storage_backend="memory"
+2026-04-22 18:01:28,621 INFO gracekelly.adapters.browser.perplexity: Browser execution started for task smart model claude-sonnet-4-6 provider perplexity
+2026-04-22 18:01:28,623 INFO gracekelly.adapters.browser.playwright_driver: Launching Playwright browser session for provider perplexity using profile D:/GraceKelly/chrome-profile
+2026-04-22 18:01:31,403 INFO gracekelly.adapters.browser.session: Browser session marked active for provider perplexity
+2026-04-22 18:01:31,863 INFO gracekelly.adapters.browser.perplexity: Browser auth check for task smart: logged_in=True
+2026-04-22 18:01:32,071 INFO gracekelly.adapters.browser.playwright_driver: Selecting Perplexity model 'Claude Sonnet 4.6' through Playwright
+2026-04-22 18:01:33,139 INFO gracekelly.adapters.browser.perplexity: Thinking toggle for model claude-sonnet-4-6: True
+2026-04-22 18:01:33,149 INFO gracekelly.adapters.browser.playwright_driver: Submitting prompt through Playwright (timeout=60s)
+2026-04-22 18:01:34,066 INFO gracekelly.adapters.browser.playwright_driver: Response extracted via source=body_after_prompt length=165
+2026-04-22 18:01:34,068 INFO gracekelly.adapters.browser.perplexity: Browser execution completed for task smart model claude-sonnet-4-6 provider perplexity duration_ms=5446 response_source=body_after_prompt model_verified=True
+2026-04-22 18:01:34,070 INFO gracekelly.adapters.browser.perplexity: Browser execution started for task smart model claude-sonnet-4-6 provider perplexity
+2026-04-22 18:01:34,071 INFO gracekelly.adapters.browser.session: Browser session marked active for provider perplexity
+2026-04-22 18:01:34,161 INFO gracekelly.adapters.browser.perplexity: Browser auth check for task smart: logged_in=True
+2026-04-22 18:01:34,188 INFO gracekelly.adapters.browser.playwright_driver: Selecting Perplexity model 'Claude Sonnet 4.6' through Playwright
+2026-04-22 18:01:35,088 INFO gracekelly.adapters.browser.perplexity: Thinking toggle for model claude-sonnet-4-6: True
+2026-04-22 18:01:35,096 INFO gracekelly.adapters.browser.playwright_driver: Submitting prompt through Playwright (timeout=60s)
+2026-04-22 18:02:34,763 INFO gracekelly.adapters.browser.playwright_driver: Response extracted via source=main div.prose length=3103
+2026-04-22 18:02:34,764 INFO gracekelly.adapters.browser.perplexity: Browser execution completed for task smart model claude-sonnet-4-6 provider perplexity duration_ms=60694 response_source=main div.prose model_verified=True
+2026-04-22 18:02:34,765 INFO gracekelly.adapters.browser.perplexity: Browser execution started for task smart model claude-sonnet-4-6 provider perplexity
+2026-04-22 18:02:34,766 INFO gracekelly.adapters.browser.session: Browser session marked active for provider perplexity
+2026-04-22 18:02:34,816 INFO gracekelly.adapters.browser.perplexity: Browser auth check for task smart: logged_in=True
+2026-04-22 18:02:34,837 INFO gracekelly.adapters.browser.playwright_driver: Selecting Perplexity model 'Claude Sonnet 4.6' through Playwright
+2026-04-22 18:02:35,792 INFO gracekelly.adapters.browser.perplexity: Thinking toggle for model claude-sonnet-4-6: True
+2026-04-22 18:02:35,801 INFO gracekelly.adapters.browser.playwright_driver: Submitting prompt through Playwright (timeout=60s)
+2026-04-22 18:02:36,227 INFO gracekelly.adapters.browser.playwright_driver: Response extracted via source=main div.prose length=3103
+2026-04-22 18:02:36,229 INFO gracekelly.adapters.browser.perplexity: Browser execution completed for task smart model claude-sonnet-4-6 provider perplexity duration_ms=1463 response_source=main div.prose model_verified=True
