@@ -1,0 +1,54 @@
+{
+  "task_id": "DOCS-phase-17-remaining-update",
+  "status": "success",
+  "files_modified": [
+    "docs/phased-roadmap.md",
+    ".workflow/outbox/2026-04-22-batch-84-DOCS-phase-17-remaining-update-report.md",
+    ".workflow/outbox/2026-04-22-batch-84-DOCS-phase-17-remaining-update.result.json"
+  ],
+  "lint_clean": true,
+  "self_review": {
+    "iterations": 1,
+    "initial_score": 9,
+    "final_score": 9,
+    "improvements": []
+  },
+  "test_battery": {
+    "R1": {
+      "pass": 0,
+      "fail": 0,
+      "skip": 0,
+      "note": "Docs-only update; backend validation is recorded in the paired BACKEND task."
+    },
+    "R2": {
+      "pass": 0,
+      "fail": 0,
+      "skip": 0,
+      "coverage_pct": 0,
+      "coverage_delta": "n/a"
+    },
+    "R3": {
+      "pass": 0,
+      "fail": 0,
+      "skip": 0
+    },
+    "R4": {
+      "warnings": []
+    },
+    "R5": {
+      "tests_audited": 0,
+      "kill_confirmed": 0,
+      "kill_failed": 0,
+      "weak_tests": []
+    },
+    "contradictions": []
+  },
+  "visual_check": false,
+  "test_output_hash": null,
+  "roles_executed": [
+    "IMPLEMENTER",
+    "AUDITOR"
+  ],
+  "docs_pruned": null,
+  "error": null
+}

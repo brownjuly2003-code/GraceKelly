@@ -316,6 +316,7 @@ Delivered:
 - **batch-80 BACKEND-smart-debate-browser-support**: `/api/v1/smart` and `/api/v1/debate` accept browser-backed models via `state.browser_adapter`; unit tests cover browser-path success + API-path regression (`dd632c7`)
 - **batch-80 FLAKE-triage-http-api**: `test_list_tasks_exposes_winning_model_and_short_circuit_summary` stabilised with a deterministic cancellable adapter; three back-to-back full runs + one coverage run green (`5c62065`)
 - **batch-82 UI-PIN-claude-sonnet**: smart/debate `pinned_model` switched from the unstable `"best"` Perplexity alias to explicit `"claude-sonnet-4-6"`; mock regressions updated (`1e448e0`)
+- **batch-84 BACKEND-unify-browser-adapter**: shared adapter-lookup helper across smart/debate/smart_v2/consensus/compare; `/api/v1/smart/v2`, `/api/v1/consensus`, and `/api/v1/compare` now accept browser-backed models (`e877527`)
 
 Incidents (deprecated follow-up specs recorded for history, not in Delivered):
 - **batch-78 Live UI smoke SMART/DEBATE (first attempt)**: failed — UI did not expose the patterns; superseded by batch-77 + batch-79 work.
@@ -327,6 +328,5 @@ Remaining:
 - **Browser adapter per-call timeout is too aggressive for smart decomposition** — 60s per Perplexity call leaves no slack for complex prompts; exec #2 in batch-83 barely fit at 53s. Raising the default and/or exposing a per-endpoint budget unblocks the live smart+debate acceptance that mocks cannot cover.
 - **Browser adapter non-deterministic selection for the `"Best"` alias** — Perplexity's auto-router item is not stably picked; the workaround is to pin explicit model ids, but the auto-router path is still visible in the menu and will surface again for any user selecting "Best". DOM recon required.
 - **Response extraction occasionally returns shell chrome text** — observed once in batch-81 (`"Thinking / Ask a follow-up / Model"`). Requires tighter "message has landed" detection in the adapter.
-- **`/api/v1/smart_v2`, `/api/v1/consensus`, `/api/v1/compare` have the same browser-adapter gap** that batch-80 fixed for smart + debate (they still call `state.api_adapters.get(...)` only). Candidate for a shared helper.
 - **Cyrillic prompts via some harnesses lose encoding** (observed in batch-82) — lives on the automation side, not in GraceKelly, but worth documenting for anyone driving live smokes from PowerShell.
 - **AUTH3 persistent session reuse** — still deferred from batch-69; friction is tolerable at the current single-user local scale.
