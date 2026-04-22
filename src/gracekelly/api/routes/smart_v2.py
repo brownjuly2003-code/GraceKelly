@@ -7,6 +7,7 @@ import logging
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, ConfigDict, Field
 
+from gracekelly.api.routes._helpers import resolve_execution_adapter
 from gracekelly.app_state import get_app_state
 from gracekelly.core.complexity import assess_complexity
 from gracekelly.core.consensus_v2 import ConsensusExecutorV2, ConsensusV2Config
@@ -80,7 +81,6 @@ class SmartV2Response(BaseModel):
 )
 async def run_smart_v2(payload: SmartV2Request, request: Request) -> SmartV2Response:
     state = get_app_state(request)
-    api_adapters = state.api_adapters
     embeddings_client = state.embeddings_client
 
     try:
@@ -88,12 +88,10 @@ async def run_smart_v2(payload: SmartV2Request, request: Request) -> SmartV2Resp
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
 
-    adapter = state.dry_run_adapter if payload.dry_run else api_adapters.get(model_spec.provider)
-    if adapter is None:
-        raise HTTPException(
-            status_code=400,
-            detail=f"No API adapter for provider '{model_spec.provider}'.",
-        )
+    try:
+        adapter, backend = resolve_execution_adapter(state, model_spec, payload.dry_run)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
 
     if payload.reliability_level is not None and payload.pattern is not None:
         raise HTTPException(
@@ -128,7 +126,7 @@ async def run_smart_v2(payload: SmartV2Request, request: Request) -> SmartV2Resp
 
     step = ExecutionStep(
         model=model_spec,
-        backend=ExecutionBackend.API,
+        backend=backend,
         provider=model_spec.provider,
         provider_model_id=model_spec.provider_model_id,
         step_index=0,
@@ -138,7 +136,11 @@ async def run_smart_v2(payload: SmartV2Request, request: Request) -> SmartV2Resp
         quorum=1,
         merge_strategy=MergeStrategy.FIRST_SUCCESS,
         dry_run=payload.dry_run,
-        adapter_hint=AdapterHint.AUTO if payload.dry_run else AdapterHint.API,
+        adapter_hint=(
+            AdapterHint.AUTO
+            if payload.dry_run
+            else AdapterHint.BROWSER if backend == ExecutionBackend.BROWSER else AdapterHint.API
+        ),
         cancel_on_quorum=False,
     )
 

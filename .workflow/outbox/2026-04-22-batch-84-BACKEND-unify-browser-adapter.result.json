@@ -1,0 +1,70 @@
+{
+  "task_id": "BACKEND-unify-browser-adapter",
+  "status": "success",
+  "files_modified": [
+    "src/gracekelly/api/routes/_helpers.py",
+    "src/gracekelly/api/routes/smart.py",
+    "src/gracekelly/api/routes/debate.py",
+    "src/gracekelly/api/routes/smart_v2.py",
+    "src/gracekelly/api/routes/consensus.py",
+    "src/gracekelly/api/routes/compare.py",
+    "tests/test_smart_v2_route.py",
+    "tests/test_consensus_route.py",
+    "tests/test_compare_route.py",
+    ".workflow/outbox/2026-04-22-batch-84-BACKEND-unify-browser-adapter-report.md",
+    ".workflow/outbox/2026-04-22-batch-84-BACKEND-unify-browser-adapter.result.json",
+    ".workflow/outbox/2026-04-22-batch-84-BACKEND-unify-browser-adapter-test-output.log"
+  ],
+  "lint_clean": true,
+  "self_review": {
+    "iterations": 1,
+    "initial_score": 9,
+    "final_score": 9,
+    "improvements": []
+  },
+  "test_battery": {
+    "R1": {
+      "pass": 2593,
+      "fail": 0,
+      "skip": 6,
+      "note": "Full pytest green after shared adapter lookup refactor."
+    },
+    "R2": {
+      "pass": 0,
+      "fail": 0,
+      "skip": 0,
+      "coverage_pct": 0,
+      "coverage_delta": "n/a"
+    },
+    "R3": {
+      "pass": 81,
+      "fail": 0,
+      "skip": 0
+    },
+    "R4": {
+      "warnings": [
+        "mypy src fails outside task scope: src/gracekelly/middleware.py:120 no-untyped-call"
+      ]
+    },
+    "R5": {
+      "tests_audited": 6,
+      "kill_confirmed": 6,
+      "kill_failed": 0,
+      "weak_tests": []
+    },
+    "contradictions": [
+      "Batch quality gate still has a pre-existing mypy failure in src/gracekelly/middleware.py:120, outside BACKEND-unify-browser-adapter scope."
+    ]
+  },
+  "visual_check": false,
+  "test_output_hash": "sha256:d0352527e9a0d89dd914b708af8b00a5aff63545e59281707f32f5cd4715ef0d",
+  "roles_executed": [
+    "IMPLEMENTER",
+    "TEST AUTHOR",
+    "RUNNER",
+    "ADVERSARY",
+    "AUDITOR"
+  ],
+  "docs_pruned": null,
+  "error": null
+}

@@ -7,7 +7,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from gracekelly.api.routes.compare import router
-from gracekelly.core.contracts import StepStatus
+from gracekelly.core.contracts import ExecutionBackend, StepStatus
 
 
 def _make_adapter(*, output_text: str = "Test answer") -> MagicMock:
@@ -21,10 +21,15 @@ def _make_adapter(*, output_text: str = "Test answer") -> MagicMock:
     return adapter
 
 
-def _create_test_app(adapters: dict[str, MagicMock] | None = None) -> FastAPI:
+def _create_test_app(
+    adapters: dict[str, MagicMock] | None = None,
+    *,
+    browser_adapter: MagicMock | None = None,
+) -> FastAPI:
     app = FastAPI()
     app.include_router(router)
     app.state.api_adapters = adapters or {"mistral": _make_adapter()}
+    app.state.browser_adapter = browser_adapter
     return app
 
 
@@ -145,6 +150,46 @@ class CompareRouteTests(unittest.TestCase):
         self.assertEqual("no_adapter", body["answers"][0]["status"])
         self.assertEqual(0, body["succeeded"])
         self.assertEqual(1, body["failed"])
+
+    def test_browser_model_uses_browser_adapter(self) -> None:
+        browser_adapter = _make_adapter(output_text="Browser answer")
+        app = _create_test_app(browser_adapter=browser_adapter)
+        client = TestClient(app)
+
+        resp = client.post("/api/v1/compare", json={
+            "prompt": "Hello",
+            "models": ["best"],
+            "analyze": False,
+        })
+        body = resp.json()
+
+        self.assertEqual(200, resp.status_code)
+        self.assertEqual("completed", body["answers"][0]["status"])
+        self.assertEqual("Browser answer", body["answers"][0]["answer"])
+        self.assertEqual("best", body["answers"][0]["model_id"])
+        self.assertEqual(ExecutionBackend.BROWSER, browser_adapter.execute.call_args.args[0].step.backend)
+        self.assertEqual(0, app.state.api_adapters["mistral"].execute.call_count)
+
+    def test_mixed_browser_and_api_models_resolve_independently(self) -> None:
+        api_adapter = _make_adapter(output_text="API answer")
+        browser_adapter = _make_adapter(output_text="Browser answer")
+        client = TestClient(_create_test_app({"mistral": api_adapter}, browser_adapter=browser_adapter))
+
+        resp = client.post("/api/v1/compare", json={
+            "prompt": "Hello",
+            "models": ["best", "mistral-small"],
+            "analyze": True,
+        })
+        body = resp.json()
+
+        self.assertEqual(200, resp.status_code)
+        self.assertEqual(2, body["succeeded"])
+        self.assertEqual(["completed", "completed"], [item["status"] for item in body["answers"]])
+        self.assertEqual("Browser answer", body["analysis"])
+        self.assertEqual(2, browser_adapter.execute.call_count)
+        self.assertEqual(1, api_adapter.execute.call_count)
+        self.assertEqual(ExecutionBackend.BROWSER, browser_adapter.execute.call_args_list[0].args[0].step.backend)
+        self.assertEqual(ExecutionBackend.BROWSER, browser_adapter.execute.call_args_list[1].args[0].step.backend)
 
     def test_adapter_exception_returns_error_status(self) -> None:
         adapter = MagicMock()

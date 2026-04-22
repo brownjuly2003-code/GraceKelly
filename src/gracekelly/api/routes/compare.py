@@ -6,6 +6,7 @@ import logging
 from fastapi import APIRouter, Request
 from pydantic import BaseModel, ConfigDict, Field
 
+from gracekelly.api.routes._helpers import resolve_execution_adapter
 from gracekelly.app_state import get_app_state
 from gracekelly.core.contracts import (
     AdapterHint,
@@ -61,7 +62,6 @@ class CompareResponse(BaseModel):
 )
 async def run_compare(payload: CompareRequest, request: Request) -> CompareResponse:
     state = get_app_state(request)
-    api_adapters = state.api_adapters
 
     answers: list[ModelAnswer] = []
     succeeded = 0
@@ -75,15 +75,16 @@ async def run_compare(payload: CompareRequest, request: Request) -> CompareRespo
             failed += 1
             continue
 
-        adapter = state.dry_run_adapter if payload.dry_run else api_adapters.get(model_spec.provider)
-        if adapter is None:
+        try:
+            adapter, backend = resolve_execution_adapter(state, model_spec, payload.dry_run)
+        except ValueError:
             answers.append(ModelAnswer(model_id=model_spec.id, answer="", status="no_adapter"))
             failed += 1
             continue
 
         step = ExecutionStep(
             model=model_spec,
-            backend=ExecutionBackend.API,
+            backend=backend,
             provider=model_spec.provider,
             provider_model_id=model_spec.provider_model_id,
             step_index=0,
@@ -93,7 +94,11 @@ async def run_compare(payload: CompareRequest, request: Request) -> CompareRespo
             quorum=1,
             merge_strategy=MergeStrategy.FIRST_SUCCESS,
             dry_run=payload.dry_run,
-            adapter_hint=AdapterHint.AUTO if payload.dry_run else AdapterHint.API,
+            adapter_hint=(
+                AdapterHint.AUTO
+                if payload.dry_run
+                else AdapterHint.BROWSER if backend == ExecutionBackend.BROWSER else AdapterHint.API
+            ),
             cancel_on_quorum=False,
         )
 
@@ -134,21 +139,25 @@ async def run_compare(payload: CompareRequest, request: Request) -> CompareRespo
 
         first_adapter = None
         first_spec = None
+        first_backend = None
         for model_name in payload.models:
             try:
                 spec = resolve_model(model_name)
-                adp = state.dry_run_adapter if payload.dry_run else api_adapters.get(spec.provider)
-                if adp is not None:
-                    first_adapter = adp
-                    first_spec = spec
-                    break
             except ValueError:
                 continue
+            try:
+                adp, backend = resolve_execution_adapter(state, spec, payload.dry_run)
+            except ValueError:
+                continue
+            first_adapter = adp
+            first_spec = spec
+            first_backend = backend
+            break
 
-        if first_adapter and first_spec:
+        if first_adapter and first_spec and first_backend is not None:
             step = ExecutionStep(
                 model=first_spec,
-                backend=ExecutionBackend.API,
+                backend=first_backend,
                 provider=first_spec.provider,
                 provider_model_id=first_spec.provider_model_id,
                 step_index=0,
@@ -158,7 +167,11 @@ async def run_compare(payload: CompareRequest, request: Request) -> CompareRespo
                 quorum=1,
                 merge_strategy=MergeStrategy.FIRST_SUCCESS,
                 dry_run=payload.dry_run,
-                adapter_hint=AdapterHint.AUTO if payload.dry_run else AdapterHint.API,
+                adapter_hint=(
+                    AdapterHint.AUTO
+                    if payload.dry_run
+                    else AdapterHint.BROWSER if first_backend == ExecutionBackend.BROWSER else AdapterHint.API
+                ),
                 cancel_on_quorum=False,
             )
             try:

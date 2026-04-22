@@ -7,11 +7,16 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from gracekelly.api.routes.consensus import router
-from gracekelly.core.contracts import StepStatus
+from gracekelly.core.contracts import ExecutionBackend, StepStatus
 from gracekelly.core.embeddings import EmbeddingsClient
 
 
-def _create_test_app(*, has_embeddings: bool = True, has_adapter: bool = True) -> FastAPI:
+def _create_test_app(
+    *,
+    has_embeddings: bool = True,
+    has_adapter: bool = True,
+    browser_adapter: MagicMock | None = None,
+) -> FastAPI:
     app = FastAPI()
     app.include_router(router)
 
@@ -34,6 +39,7 @@ def _create_test_app(*, has_embeddings: bool = True, has_adapter: bool = True) -
         app.state.api_adapters = {"mistral": adapter}
     else:
         app.state.api_adapters = {}
+    app.state.browser_adapter = browser_adapter
 
     return app
 
@@ -123,6 +129,37 @@ class ConsensusRouteTests(unittest.TestCase):
         client = TestClient(_create_test_app(has_adapter=False))
         response = client.post("/api/v1/consensus", json={"prompt": "Hello"})
         self.assertEqual(response.status_code, 400)
+
+    def test_browser_model_uses_browser_adapter(self) -> None:
+        browser_adapter = MagicMock()
+        browser_adapter.execute.return_value = MagicMock(
+            status=StepStatus.COMPLETED,
+            output_text="Browser response",
+            failure_code=None,
+            failure_message=None,
+        )
+        app = _create_test_app(browser_adapter=browser_adapter)
+        client = TestClient(app)
+
+        response = client.post("/api/v1/consensus", json={"prompt": "Hello", "model": "best"})
+        body = response.json()
+
+        self.assertEqual(200, response.status_code)
+        self.assertEqual("Browser response", body["best_response"])
+        self.assertEqual(3, browser_adapter.execute.call_count)
+        self.assertTrue(
+            all(
+                call.args[0].step.backend == ExecutionBackend.BROWSER
+                for call in browser_adapter.execute.call_args_list
+            )
+        )
+        self.assertEqual(0, app.state.api_adapters["mistral"].execute.call_count)
+
+    def test_browser_model_without_browser_adapter_returns_400(self) -> None:
+        client = TestClient(_create_test_app())
+        response = client.post("/api/v1/consensus", json={"prompt": "Hello", "model": "best"})
+        self.assertEqual(400, response.status_code)
+        self.assertIn("No browser adapter", response.json()["detail"])
 
     def test_executor_exception_returns_500(self) -> None:
         app = _create_test_app()

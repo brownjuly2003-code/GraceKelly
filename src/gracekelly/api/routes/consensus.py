@@ -5,6 +5,7 @@ import logging
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, ConfigDict, Field
 
+from gracekelly.api.routes._helpers import resolve_execution_adapter
 from gracekelly.app_state import get_app_state
 from gracekelly.core.consensus import ConsensusConfig
 from gracekelly.core.consensus_execution import ConsensusExecutionConfig, ConsensusExecutor
@@ -71,9 +72,14 @@ def run_consensus(payload: ConsensusRequest, request: Request) -> ConsensusRespo
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
 
+    try:
+        adapter, backend = resolve_execution_adapter(state, model_spec, payload.dry_run)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
     step = ExecutionStep(
         model=model_spec,
-        backend=ExecutionBackend.API,
+        backend=backend,
         provider=model_spec.provider,
         provider_model_id=model_spec.provider_model_id,
         step_index=0,
@@ -83,12 +89,15 @@ def run_consensus(payload: ConsensusRequest, request: Request) -> ConsensusRespo
         quorum=1,
         merge_strategy=MergeStrategy.FIRST_SUCCESS,
         dry_run=payload.dry_run,
-        adapter_hint=AdapterHint.AUTO if payload.dry_run else AdapterHint.API,
+        adapter_hint=(
+            AdapterHint.AUTO
+            if payload.dry_run
+            else AdapterHint.BROWSER if backend == ExecutionBackend.BROWSER else AdapterHint.API
+        ),
         cancel_on_quorum=False,
     )
 
     if payload.dry_run:
-        adapter = state.dry_run_adapter
         responses: list[str] = []
         for _ in range(payload.variations_per_round):
             exec_request = ExecutionRequest(
@@ -98,11 +107,13 @@ def run_consensus(payload: ConsensusRequest, request: Request) -> ConsensusRespo
                 step=step,
                 reasoning=False,
             )
-            result = adapter.execute(exec_request)
-            if result.status == StepStatus.COMPLETED and result.output_text:
-                responses.append(result.output_text)
+            exec_result = adapter.execute(exec_request)
+            if exec_result.status == StepStatus.COMPLETED and exec_result.output_text:
+                responses.append(exec_result.output_text)
             else:
-                responses.append(f"[{result.failure_code or 'error'}] {result.failure_message or 'No output'}")
+                responses.append(
+                    f"[{exec_result.failure_code or 'error'}] {exec_result.failure_message or 'No output'}"
+                )
         return ConsensusResponse(
             consensus_score=1.0,
             num_clusters=1,
@@ -117,13 +128,6 @@ def run_consensus(payload: ConsensusRequest, request: Request) -> ConsensusRespo
     embeddings_client = state.embeddings_client
     if embeddings_client is None:
         raise HTTPException(status_code=503, detail="Embeddings client is not configured.")
-
-    adapter = state.api_adapters.get(model_spec.provider)
-    if adapter is None:
-        raise HTTPException(
-            status_code=400,
-            detail=f"No API adapter for provider '{model_spec.provider}'.",
-        )
 
     consensus_config = ConsensusConfig(
         similarity_threshold=payload.similarity_threshold,
@@ -152,18 +156,18 @@ def run_consensus(payload: ConsensusRequest, request: Request) -> ConsensusRespo
         return f"[{result.failure_code or 'error'}] {result.failure_message or 'No output'}"
 
     try:
-        result = executor.execute(payload.prompt, execute_fn)
+        consensus_result = executor.execute(payload.prompt, execute_fn)
     except Exception as exc:
         logger.error("Consensus execution failed: %s", exc)
         raise HTTPException(status_code=500, detail=f"Consensus execution failed: {exc}") from exc
 
     return ConsensusResponse(
-        consensus_score=result.consensus_result.consensus_score,
-        num_clusters=result.consensus_result.num_clusters,
-        best_response=result.best_response,
-        weighted_score=result.weighted_score,
-        total_rounds=result.total_rounds,
-        total_llm_calls=result.total_llm_calls,
-        needs_debate=result.consensus_result.needs_debate,
-        top_cluster_size=result.consensus_result.top_cluster.size,
+        consensus_score=consensus_result.consensus_result.consensus_score,
+        num_clusters=consensus_result.consensus_result.num_clusters,
+        best_response=consensus_result.best_response,
+        weighted_score=consensus_result.weighted_score,
+        total_rounds=consensus_result.total_rounds,
+        total_llm_calls=consensus_result.total_llm_calls,
+        needs_debate=consensus_result.consensus_result.needs_debate,
+        top_cluster_size=consensus_result.consensus_result.top_cluster.size,
     )

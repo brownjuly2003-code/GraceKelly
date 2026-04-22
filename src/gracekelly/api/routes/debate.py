@@ -3,15 +3,14 @@ from __future__ import annotations
 import asyncio
 import inspect
 import logging
-from typing import cast
 
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, ConfigDict, Field
 
+from gracekelly.api.routes._helpers import resolve_execution_adapter
 from gracekelly.app_state import get_app_state
 from gracekelly.core.contracts import (
     AdapterHint,
-    ExecutionAdapter,
     ExecutionBackend,
     ExecutionPlan,
     ExecutionRequest,
@@ -66,28 +65,14 @@ async def run_debate_endpoint(payload: DebateRequest, request: Request) -> Debat
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
 
-    is_browser_model = model_spec.adapter_kind == "browser"
-    browser_adapter = cast(ExecutionAdapter | None, getattr(state, "browser_adapter", None))
-    adapter: ExecutionAdapter | None
-    if payload.dry_run:
-        adapter = cast(ExecutionAdapter, state.dry_run_adapter)
-    elif is_browser_model:
-        adapter = browser_adapter
-    else:
-        adapter = state.api_adapters.get(model_spec.provider)
-    if adapter is None:
-        raise HTTPException(
-            status_code=400,
-            detail=(
-                f"No browser adapter for provider '{model_spec.provider}'."
-                if is_browser_model and not payload.dry_run
-                else f"No API adapter for provider '{model_spec.provider}'."
-            ),
-        )
+    try:
+        adapter, backend = resolve_execution_adapter(state, model_spec, payload.dry_run)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
 
     step = ExecutionStep(
         model=model_spec,
-        backend=ExecutionBackend.BROWSER if is_browser_model else ExecutionBackend.API,
+        backend=backend,
         provider=model_spec.provider,
         provider_model_id=model_spec.provider_model_id,
         step_index=0,
@@ -100,7 +85,7 @@ async def run_debate_endpoint(payload: DebateRequest, request: Request) -> Debat
         adapter_hint=(
             AdapterHint.AUTO
             if payload.dry_run
-            else AdapterHint.BROWSER if is_browser_model else AdapterHint.API
+            else AdapterHint.BROWSER if backend == ExecutionBackend.BROWSER else AdapterHint.API
         ),
         cancel_on_quorum=False,
     )
