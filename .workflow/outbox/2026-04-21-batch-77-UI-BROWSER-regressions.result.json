@@ -1,0 +1,63 @@
+{
+  "task_id": "2026-04-21-batch-77-UI-BROWSER-regressions",
+  "status": "success",
+  "files_modified": [
+    "tests/test_playwright_ui_scenarios.py",
+    "tests/fixtures/sample-attachment.txt",
+    ".workflow/outbox/2026-04-21-batch-77-UI-BROWSER-regressions-report.md",
+    ".workflow/outbox/2026-04-21-batch-77-UI-BROWSER-regressions.result.json"
+  ],
+  "lint_clean": false,
+  "self_review": {
+    "iterations": 2,
+    "initial_score": 8,
+    "final_score": 9,
+    "improvements": [
+      "Новые UI-тесты покрывают upload, smart и debate через route-mocked API на реальном SPA.",
+      "Сценарии проверяют и body запроса, и появление ответа в chat panel."
+    ]
+  },
+  "test_battery": {
+    "R1": {
+      "pass": 2582,
+      "fail": 0,
+      "skip": 6,
+      "note": "Новый Playwright file встроен в общий pytest-прогон и не вызывает live Perplexity."
+    },
+    "R2": {
+      "pass": 0,
+      "fail": 0,
+      "skip": 0,
+      "coverage_pct": 0,
+      "coverage_delta": "n/a"
+    },
+    "R3": {
+      "pass": 0,
+      "fail": 0,
+      "skip": 0
+    },
+    "R4": {
+      "warnings": [
+        "mypy src fails outside task scope: src/gracekelly/middleware.py:120 no-untyped-call"
+      ]
+    },
+    "R5": {
+      "tests_audited": 3,
+      "kill_confirmed": 0,
+      "kill_failed": 0,
+      "weak_tests": []
+    },
+    "contradictions": [
+      "Batch quality gate still has a pre-existing mypy failure in src/gracekelly/middleware.py:120, outside UI-BROWSER-regressions scope."
+    ]
+  },
+  "visual_check": false,
+  "test_output_hash": null,
+  "roles_executed": [
+    "IMPLEMENTER",
+    "RUNNER",
+    "AUDITOR"
+  ],
+  "docs_pruned": null,
+  "error": null
+}
