@@ -143,3 +143,21 @@ The repo now provides `gracekelly-create-perplexity-profile` to create the dedic
 - `pytest -q tests/test_playwright_live.py -rA` for the manual authenticated smoke
 
 Important: close any Chrome windows already using that profile before running the Playwright smoke. If the profile is still busy, the browser adapter now reports an explicit profile-in-use failure instead of a generic crash.
+
+## Best alias recon (2026-04-23)
+
+A fresh authenticated recon bundle in `tmp/browser-recon/2026-04-23/` (committed in `9203f50`) captured the current live model menu with a new `recon-03-model-menu-attrs.json` artifact.
+
+Key findings from that pass:
+
+- `Best`, `Sonar`, `GPT-5.4`, and `Claude Sonnet 4.6` are all visible as `div[role="menuitemradio"]` entries under the same `[data-radix-popper-content-wrapper]` menu.
+- `Best` has no unique `aria-label` or `data-*` attribute; like the other unchecked entries, it exposes `data_state=unchecked`, `data_testid=null`, and the same leading class pattern (`focus:outline-none`, `max-w-full`, `w-full`).
+- The ambiguity comes from nested text nodes, not duplicate menu items: broad text matching can see multiple descendants whose text includes `Best`, but there is exactly one clickable `role="menuitemradio"` container for the `Best` item.
+- The currently checked item in this capture was `Gemini 3.1 Pro`, which also confirmed that the new attrs snapshot must map `aria-checked` into `aria_selected` for radio-style items.
+
+Resolved decision: `SELECTOR_DISAMBIGUATE`.
+
+Reasoning:
+
+- `Best` is still present and clickable in the live UI, so deprecating it would be premature.
+- The fix path is to anchor selection to the menu container and the clickable `menuitemradio` element, then filter by exact child text `Best`, instead of relying on broad `has-text("Best")` matching or `menuitem`/`button`-only selectors.
