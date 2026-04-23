@@ -31,7 +31,7 @@ Deliverables:
 - event persistence failure logging
 
 Review gates (self-review completed 2026-04-23):
-- Gate 2 (operational readiness): PASS with conditions for single-user local scope — see `docs/gates/2026-04-23-gate-2-operational-review.md`; use `GET /api/v1/readiness` for full component gating because `GET /healthz/ready` remains a shallow storage probe.
+- Gate 2 (operational readiness): PASS for single-user local scope — see `docs/gates/2026-04-23-gate-2-operational-review.md`; use `GET /api/v1/readiness` for the full component breakdown.
 - Gate 3 (execution-policy): PASS for single-user local scope — see `docs/gates/2026-04-23-gate-3-execution-policy-review.md`.
 
 ## Phase 2: Browser worker
@@ -209,7 +209,7 @@ Delivered:
 - ✅ mypy strict mode: 0 errors across all 98 source files; CI enforces --strict on every push
 - ✅ Typed AppState, typed route helpers, cast() for all json.loads returns, typed middleware
 - ✅ Health endpoint security: minimal response by default, details opt-in via GRACEKELLY_HEALTH_EXPOSE_DETAILS
-- ✅ Graceful shutdown with configurable drain period (GRACEKELLY_GRACEFUL_SHUTDOWN_TIMEOUT_SECONDS)
+- ✅ Startup/shutdown lifecycle closes browser adapters, executors, and PostgreSQL pools cleanly
 - ✅ Orchestrate request timeout: returns HTTP 504 on breach (GRACEKELLY_ORCHESTRATE_TIMEOUT_SECONDS)
 - ✅ Analytics N+1 query fix: batch step loading via list_steps_batch
 - ✅ Event pagination for GET /tasks/{id}: events_limit / events_offset query params
@@ -236,10 +236,10 @@ These items are not open work for the single-user local deploy. Each activates o
 Status: complete
 
 Deliverables:
-- ✅ README.md: Quick Start, Configuration table, API table (15 endpoints), Development, Architecture
+- ✅ README.md: Quick Start, Configuration table, API table (23 endpoints), Development, Architecture
 - ✅ X-Request-ID correlation middleware: echoes client header or generates UUID; propagated in all responses
 - ✅ RFC 7807 Problem Details: all 4xx/5xx responses use `{type, title, status, detail}` format
-- ✅ GRACEKELLY_REQUIRE_AUTH=true strict mode: returns 503 when no API key is configured
+- ✅ API key authentication documented and enforced through `GRACEKELLY_API_KEY` for protected endpoints
 - ✅ Kubernetes probes: GET /healthz/live (always 200) and GET /healthz/ready (checks storage, 503 if unavailable)
 - ✅ Settings.validate(): fail-fast startup validation (postgres+no DSN, timeout<1s)
 - ✅ Event buffering: OrchestratorService._event_buffer (deque maxlen=500) buffers events on storage failure, flushes on next submit
@@ -329,7 +329,7 @@ Delivered:
 - **batch-86 BROWSER-actual-label-unverified-reflects-ui**: unverified `select_model` returns parsed actual UI label (button-text-after or menu-snapshot first line) instead of echoing `provider_model_id`; `_model_matches_expected` now detects silent Sonar-for-Claude swaps (`9f2aa5f`)
 - **batch-87 TOOL-extend-recon-with-attrs + RECON-best-alias-live**: `capture_perplexity_recon.py` emits new `recon-03-model-menu-attrs.json` with per-item attributes; live recon bundle captured in `tmp/browser-recon/2026-04-23/` confirms `Best` is a `div[role="menuitemradio"]` inside `[data-radix-popper-content-wrapper]`, shares class patterns with other entries — nested-text-node ambiguity, not duplicate items (`11f4a9a`, `9203f50`)
 - **batch-87 BROWSER-scoped-menu-search**: `PlaywrightBrowserAutomation.select_model` now tries menu-scoped option lookup (`model_menu_candidates` → `model_menu_item_selector` role-filter) before falling back to the legacy global `get_by_role/text` path; `model_menu_candidates` extended with `[role="menu"]`; `details["option_lookup_source"]` records which path matched. Pattern ported from `D:/Perplexity_Orchestrator2/browser/model_selection.py:182-240` (`f430d39`)
-- **batch-88 VERIFY-scoped-menu-vs-orchestrator2**: scoped-menu-search pattern verified equivalent to `D:/Perplexity_Orchestrator2/browser/model_selection.py:182-240` (production on ~30 Perplexity Pro accounts); multi-match nested-text-node behavior covered by regression tests — Best-alias Remaining closed (`48b5a93`)
+- **batch-88 VERIFY-scoped-menu-vs-orchestrator2**: scoped-menu-search pattern verified equivalent to `D:/Perplexity_Orchestrator2/browser/model_selection.py:182-240` (production on ~30 Perplexity Pro accounts); multi-match nested-text-node behavior covered by regression tests — Best-alias follow-up closed (`48b5a93`)
 - **inline AUTH-settle-unknown-state**: `auth_status` makes a bounded `_wait_for_shell` retry when neither signed-out markers nor the prompt input are visible; unblocks smart auto-decomposition sub-execs that previously hit `[auth_failed]` mid-flight after exec #1 landed. Structured `browser_auth_unknown` diagnostic log added for any remaining logged-out decisions (`66a64a8`)
 - **inline RESPONSE-strip-streaming-chrome**: `shell_noise_lines` extended with `Thinking`, `Ask a follow-up`, `Stop response`, `Regenerate`, `Sources`, `Answer` so candidate-text cleanup filters them out (`d0acbd4`)
 - **inline SMOKE-live-smart-acceptance**: `scripts/live_smart_smoke.py` reusable harness drives PO2 SPA + captures `/api/v1/smart` response; inline run against a live chrome-profile returned `status=200 model_id=claude-sonnet-4-6 answer_len=990` with a structured EV-markets answer in 49.7s, no `[auth_failed]` or shell-chrome markers (`352c6b8`, `94fd2d9`)
@@ -338,7 +338,7 @@ Delivered:
 
 Incidents (deprecated follow-up specs recorded for history, not in Delivered):
 - **batch-78 Live UI smoke SMART/DEBATE (first attempt)**: failed — UI did not expose the patterns; superseded by batch-77 + batch-79 work.
-- **batch-81 Live SMART on `"best"` alias**: failed — Perplexity UI non-deterministically selected Sonar instead of Best, one run extracted shell chrome text (`"Thinking / Ask a follow-up / Model"`) instead of the answer. Workaround landed in batch-82 (pin to explicit model); root-cause fix in the browser adapter is a Remaining item.
+- **batch-81 Live SMART on `"best"` alias**: failed — Perplexity UI non-deterministically selected Sonar instead of Best, one run extracted shell chrome text (`"Thinking / Ask a follow-up / Model"`) instead of the answer. Workaround landed in batch-82 (pin to explicit model); the root-cause fix landed later in the batch-87/batch-88 browser adapter work.
 - **batch-82 Live SMART with cyrillic prompt**: failed — CX harness' PowerShell pipeline converted the cyrillic prompt to `?` before it reached Playwright. `POST /api/v1/smart` still returned `200` with the expected model_id, confirming the batch-80 backend fix, but the acceptance (meaningful answer) could not be validated.
 - **batch-83 Live SMART with UTF-8 harness**: failed — smart auto-decomposition fired three Perplexity calls for the prompt; adapter timeout of 60s per call clipped two of them, the third extracted 2730 chars at 53s. Route-level response was not captured within the harness' outer 180s window.
 

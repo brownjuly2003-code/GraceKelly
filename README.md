@@ -5,6 +5,13 @@ Access GPT-5.4, Claude, Gemini, Kimi, and other models through Perplexity's
 browser interface - then compare, debate, and reach consensus across models,
 all within a single subscription.
 
+The current operating target is a single-user local deployment: browser execution
+via Perplexity is primary, and direct provider APIs remain optional fallbacks.
+
+For a fast orientation, start with [docs/architecture.md](docs/architecture.md),
+then [docs/operator-runbook.md](docs/operator-runbook.md), and finish with
+[docs/phased-roadmap.md](docs/phased-roadmap.md).
+
 ## Quick Start
 
 **1. Start the backend:**
@@ -13,8 +20,9 @@ pip install -e ".[dev,browser]"
 cp .env.example .env
 # Set GRACEKELLY_BROWSER_ENABLED=true
 # Set GRACEKELLY_BROWSER_AUTOMATION_BACKEND=playwright
+# Set GRACEKELLY_EXECUTION_PROFILE=hybrid
 # Set GRACEKELLY_BROWSER_PROFILE_DIR to your Chrome profile with Perplexity login
-uvicorn gracekelly.main:create_app --factory --host 127.0.0.1 --port 8011
+python -m uvicorn gracekelly.main:create_app --factory --host 127.0.0.1 --port 8011
 ```
 
 **2. Open the web UI:**
@@ -138,4 +146,6 @@ or streaming-chrome markers; 1 otherwise.
 ## Architecture
 
 Routes -> Orchestrator -> Router -> Adapters (API / Browser) -> Storage (Memory / PostgreSQL).
-See `docs/architecture.md`.
+See [docs/architecture.md](docs/architecture.md),
+[docs/operator-runbook.md](docs/operator-runbook.md), and
+[docs/phased-roadmap.md](docs/phased-roadmap.md).

@@ -15,7 +15,7 @@ It is intentionally limited to the current in-process deployment model.
 
 ## UI
 
-The built-in web UI is served from the main app at http://localhost:8000.
+The built-in web UI is served from the main app at http://127.0.0.1:8011/.
 Run the backend, then open that address in the browser.
 
 ## API security
@@ -184,13 +184,10 @@ Capture fresh authenticated recon:
 gracekelly-capture-perplexity-recon --prompt "Reply with only OK" --timeout-seconds 60
 ```
 
-Run the manual-gated live smoke:
+Run the manual-gated live smoke after the backend is already running with the browser env settings from the Quick Start:
 
 ```bash
-set GRACEKELLY_BROWSER_LIVE_TEST=true
-set GRACEKELLY_BROWSER_PROFILE_DIR=D:\GraceKelly\tmp\browser-recon\perplexity-profile
-set GRACEKELLY_BROWSER_LIVE_DEBUG=true
-pytest -q tests/test_playwright_live.py -rA
+python scripts/live_smart_smoke.py --pattern smart
 ```
 
 ## Circuit breaker recovery

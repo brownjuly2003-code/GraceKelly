@@ -16,6 +16,7 @@ Implemented:
 - token counting and cost estimation per step (`input_tokens`, `output_tokens`, `cost_usd`)
 - model pricing registry for cost estimation
 - bounded browser-submit budgeting for per-task and per-hour quotas
+- account-pool primitives and manager for provider cooldown and selection
 - session-aware prompt shaping with configurable context-window limits
 - dual-backend storage: in-memory (development) and PostgreSQL (durable)
 - PostgreSQL operational tooling: schema validation plus JSON export/import snapshots
@@ -25,11 +26,10 @@ Implemented:
 - structured key-value logging across orchestrator, browser adapters, API routes, and PostgreSQL degradation paths
 - request metrics histograms/counters plus optional OpenTelemetry bootstrap for observability
 - operator surfaces: recent-task listing with multi-axis filtering, rich task detail with diagnostics
-- built-in web UI with 4 execution patterns
+- built-in web UI with single-model, pairwise, five-model, and auto-routing execution patterns
 - post-phase audit snapshots preserved under `docs/audits/`
 
 Not yet implemented:
-- account pools
 - richer retry policies beyond the current deferral
 - broader browser catalog refresh if account-tier drift continues
 - cross-project integration glue
@@ -48,6 +48,8 @@ Excluded by design:
 - `core.contracts`: execution adapter interface, result envelopes, failure taxonomy
 - `core.planning`: execution plan construction and request validation
 - `core.router`: adapter dispatch, concurrency gate, quorum aggregation
+- `core.account_pool`: thread-safe account selection and cooldown tracking
+- `core.account_pool_manager`: pool access wrapper for provider-side throttling decisions
 - `core.readiness`: component health aggregation across profiles
 - `core.concurrency`: thread-safe per-model concurrency gate
 - `core.execution_profile`: profile-aware adapter requirement sets
@@ -95,5 +97,5 @@ Excluded by design:
 ## Next steps
 
 1. Improve consensus/debate streaming beyond the current single-model streaming path.
-2. Account pools for the browser adapter if operational demand appears.
+2. Broaden retry policies beyond the current deferral if operational demand appears.
 3. Add more models to the pricing registry as providers are added.
