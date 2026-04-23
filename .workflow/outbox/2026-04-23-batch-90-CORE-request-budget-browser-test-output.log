@@ -1,0 +1,110 @@
+$ .\.venv\Scripts\python.exe -m pytest --tb=short -q tests/test_request_budget.py
+ERROR
+ImportError while importing test module 'D:\GraceKelly\tests\test_request_budget.py'
+ModuleNotFoundError: No module named 'gracekelly.core.budget'
+
+$ .\.venv\Scripts\python.exe -m pytest --tb=short -q tests/test_request_budget.py
+14 passed in 0.61s
+
+$ .\.venv\Scripts\python.exe -m pytest --tb=short -q tests/test_request_budget.py tests/test_router.py tests/test_router_fallback.py
+49 passed in 1.71s
+
+$ .\.venv\Scripts\python.exe -m pytest tests/test_request_budget.py tests/test_router.py tests/test_router_fallback.py -vv
+============================= test session starts =============================
+platform win32 -- Python 3.13.7, pytest-9.0.3, pluggy-1.6.0 -- D:\GraceKelly\.venv\Scripts\python.exe
+hypothesis profile 'default'
+rootdir: D:\GraceKelly
+configfile: pyproject.toml
+plugins: anyio-4.13.0, hypothesis-6.151.12, cov-5.0.0
+collecting ... collected 49 items
+
+tests/test_request_budget.py::RequestBudgetTrackerTests::test_tracker_allows_all_when_limits_none PASSED [  2%]
+tests/test_request_budget.py::RequestBudgetTrackerTests::test_tracker_both_limits_earliest_reason_wins PASSED [  4%]
+tests/test_request_budget.py::RequestBudgetTrackerTests::test_tracker_enforces_per_hour_limit PASSED [  6%]
+tests/test_request_budget.py::RequestBudgetTrackerTests::test_tracker_enforces_per_task_limit PASSED [  8%]
+tests/test_request_budget.py::RequestBudgetTrackerTests::test_tracker_hourly_window_expires PASSED [ 10%]
+tests/test_request_budget.py::RequestBudgetTrackerTests::test_tracker_per_task_limit_is_per_task_not_global PASSED [ 12%]
+tests/test_request_budget.py::RequestBudgetConfigTests::test_budget_env_defaults_to_none PASSED [ 14%]
+tests/test_request_budget.py::RequestBudgetConfigTests::test_budget_env_non_int_falls_back_to_none_and_logs_warning PASSED [ 16%]
+tests/test_request_budget.py::RequestBudgetConfigTests::test_budget_env_non_positive_falls_back_to_none_and_logs_warning PASSED [ 18%]
+tests/test_request_budget.py::RequestBudgetConfigTests::test_budget_env_reads_positive_ints PASSED [ 20%]
+tests/test_request_budget.py::RequestBudgetRouterTests::test_router_budget_exceeded_returns_rate_limited PASSED [ 22%]
+tests/test_request_budget.py::RequestBudgetRouterTests::test_router_budget_not_applied_to_api_backend PASSED [ 24%]
+tests/test_request_budget.py::RequestBudgetRouterTests::test_router_budget_rate_limited_does_not_trigger_fallback PASSED [ 26%]
+tests/test_request_budget.py::RequestBudgetRouterTests::test_router_healthcheck_includes_budget_snapshot PASSED [ 28%]
+tests/test_router.py::RouterDryRunTests::test_dry_run_execution_mode_is_dry_run PASSED [ 30%]
+tests/test_router.py::RouterDryRunTests::test_dry_run_multiple_steps_all_executed PASSED [ 32%]
+tests/test_router.py::RouterDryRunTests::test_dry_run_returns_completed_task PASSED [ 34%]
+tests/test_router.py::RouterDryRunTests::test_dry_run_uses_dry_run_adapter PASSED [ 36%]
+tests/test_router.py::RouterApiDispatchTests::test_api_step_dispatched_to_api_adapter PASSED [ 38%]
+tests/test_router.py::RouterApiDispatchTests::test_browser_step_uses_browser_adapter PASSED [ 40%]
+tests/test_router.py::RouterApiDispatchTests::test_browser_step_with_no_browser_adapter_returns_unavailable PASSED [ 42%]
+tests/test_router.py::RouterApiDispatchTests::test_missing_api_adapter_message_mentions_provider PASSED [ 44%]
+tests/test_router.py::RouterApiDispatchTests::test_missing_api_adapter_returns_provider_unavailable PASSED [ 46%]
+tests/test_router.py::RouterParallelTimeoutTests::test_parallel_execution_timeout_returns_cancelled_batch PASSED [ 48%]
+tests/test_router.py::RouterParallelTimeoutTests::test_parallel_execution_uses_default_timeout_for_as_completed PASSED [ 51%]
+tests/test_router.py::RouterAggregateTests::test_all_failed_task_is_failed PASSED [ 53%]
+tests/test_router.py::RouterAggregateTests::test_details_completed_step_count PASSED [ 55%]
+tests/test_router.py::RouterAggregateTests::test_details_contains_quorum PASSED [ 57%]
+tests/test_router.py::RouterAggregateTests::test_failure_code_propagated_to_batch_result PASSED [ 59%]
+tests/test_router.py::RouterAggregateTests::test_merge_strategy_first_success_returns_first_output PASSED [ 61%]
+tests/test_router.py::RouterAggregateTests::test_quorum_two_out_of_three_needed PASSED [ 63%]
+tests/test_router.py::RouterAggregateTests::test_single_success_task_completed PASSED [ 65%]
+tests/test_router.py::RouterHealthcheckTests::test_healthcheck_has_active_executions_key PASSED [ 67%]
+tests/test_router.py::RouterHealthcheckTests::test_healthcheck_has_model_limits PASSED [ 69%]
+tests/test_router.py::RouterHealthcheckTests::test_healthcheck_returns_ok PASSED [ 71%]
+tests/test_router.py::RouterHealthcheckTests::test_healthcheck_saturated_models_initially_empty PASSED [ 73%]
+tests/test_router.py::RouterStampDurationTests::test_stamp_duration_does_not_override_existing PASSED [ 75%]
+tests/test_router.py::RouterStampDurationTests::test_stamp_duration_sets_duration_ms PASSED [ 77%]
+tests/test_router.py::RouterMultipleFailureCodesTests::test_two_steps_different_failure_codes_returns_unknown PASSED [ 79%]
+tests/test_router.py::RouterMultipleFailureCodesTests::test_two_steps_same_failure_code_propagated PASSED [ 81%]
+tests/test_router_fallback.py::RouterFallbackTests::test_fallback_disabled_by_default_even_with_fallback_id PASSED [ 83%]
+tests/test_router_fallback.py::RouterFallbackTests::test_fallback_does_not_trigger_on_model_mismatch PASSED [ 85%]
+tests/test_router_fallback.py::RouterFallbackTests::test_fallback_does_not_trigger_on_rate_limited PASSED [ 87%]
+tests/test_router_fallback.py::RouterFallbackTests::test_fallback_does_not_trigger_without_fallback_model_id PASSED [ 89%]
+tests/test_router_fallback.py::RouterFallbackTests::test_fallback_no_second_level_on_fallback_failure PASSED [ 91%]
+tests/test_router_fallback.py::RouterFallbackTests::test_fallback_triggers_on_auth_failed_when_enabled PASSED [ 93%]
+tests/test_router_fallback.py::RouterFallbackTests::test_fallback_triggers_on_provider_unavailable_when_enabled PASSED [ 95%]
+tests/test_router_fallback.py::RouterFallbackTests::test_fallback_triggers_on_timeout_when_enabled PASSED [ 97%]
+tests/test_router_fallback.py::RouterFallbackTests::test_model_spec_fallback_field_serializes PASSED [100%]
+
+============================= 49 passed in 1.25s ==============================
+
+$ .\.venv\Scripts\ruff.exe check src tests
+I001 [*] Import block is un-sorted or un-formatted
+tests\test_request_budget.py:1:1
+
+$ .\.venv\Scripts\ruff.exe check --select I --fix tests/test_request_budget.py
+Found 1 error (1 fixed, 0 remaining).
+
+$ .\.venv\Scripts\python.exe -m pytest --tb=short -q tests/test_request_budget.py
+14 passed in 0.30s
+
+$ .\.venv\Scripts\ruff.exe check src tests
+All checks passed!
+
+$ .\.venv\Scripts\python.exe -m pytest --tb=short -q tests/test_request_budget.py tests/test_router.py tests/test_router_fallback.py
+49 passed in 0.57s
+
+$ .\.venv\Scripts\python.exe -m pytest --tb=short -q
+2637 passed, 6 skipped, 11 subtests passed in 819.73s (0:13:39)
+
+$ .\.venv\Scripts\python.exe -m pytest --tb=short -q --cov=src\gracekelly --cov-report=term
+TOTAL                                                6681    230    97%
+2637 passed, 6 skipped, 11 subtests passed in 601.33s (0:10:01)
+
+$ .\.venv\Scripts\python.exe -m mypy src
+pyproject.toml: note: unused section(s): module = ['test_app_startup', 'test_orchestrate_timeout', 'test_postgres_live']
+Success: no issues found in 106 source files
+
+$ R5 kill-check mutation: change per-task comparison from >= to >
+FAILED tests/test_request_budget.py::RequestBudgetTrackerTests::test_tracker_enforces_per_task_limit
+AssertionError: Lists differ: [True, True, True, True] != [True, True, True, False]
+
+$ R5 kill-check mutation: change optional-int non-positive guard from <= 0 to < 0
+FAILED tests/test_request_budget.py::RequestBudgetConfigTests::test_budget_env_non_positive_falls_back_to_none_and_logs_warning
+AssertionError: 0 is not None
+
+$ R5 kill-check mutation: bypass router budget gate
+FAILED tests/test_request_budget.py::RequestBudgetRouterTests::test_router_budget_exceeded_returns_rate_limited
+AssertionError: Expected 'execute' to not have been called. Called 1 times.

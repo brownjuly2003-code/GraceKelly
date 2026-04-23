@@ -1,0 +1,60 @@
+{
+  "task_id": "CORE-request-budget-browser",
+  "status": "success",
+  "files_modified": [
+    "src/gracekelly/core/budget.py",
+    "src/gracekelly/core/router.py",
+    "src/gracekelly/config.py",
+    "tests/test_request_budget.py",
+    ".workflow/outbox/2026-04-23-batch-90-CORE-request-budget-browser-report.md"
+  ],
+  "lint_clean": true,
+  "self_review": {
+    "iterations": 2,
+    "initial_score": 8,
+    "final_score": 9,
+    "improvements": [
+      "Sorted the new test file imports after the first ruff pass flagged the only lint issue."
+    ]
+  },
+  "test_battery": {
+    "R1": {
+      "pass": 2637,
+      "fail": 0,
+      "skip": 6
+    },
+    "R2": {
+      "pass": 2637,
+      "fail": 0,
+      "skip": 6,
+      "coverage_pct": 97,
+      "coverage_delta": "+1%"
+    },
+    "R3": {
+      "pass": 49,
+      "fail": 0,
+      "skip": 0
+    },
+    "R4": {
+      "warnings": []
+    },
+    "R5": {
+      "tests_audited": 3,
+      "kill_confirmed": 3,
+      "kill_failed": 0,
+      "weak_tests": []
+    },
+    "contradictions": []
+  },
+  "visual_check": false,
+  "test_output_hash": "sha256:cb9450d54428f47afa7e892f22f4980513068e70a0435532b289887fa239a757",
+  "roles_executed": [
+    "IMPLEMENTER",
+    "TEST_AUTHOR",
+    "RUNNER",
+    "ADVERSARY",
+    "AUDITOR"
+  ],
+  "docs_pruned": null,
+  "error": null
+}
