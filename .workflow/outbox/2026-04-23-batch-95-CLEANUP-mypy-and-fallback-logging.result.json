@@ -1,0 +1,16 @@
+{
+  "task_id": "CLEANUP-mypy-and-fallback-logging",
+  "status": "success",
+  "landed_retroactively_by": "CC",
+  "files_modified": [
+    "pyproject.toml",
+    "src/gracekelly/core/router.py",
+    "tests/test_router_fallback.py"
+  ],
+  "lint_clean": true,
+  "mypy_clean": true,
+  "mypy_note": "no unused section(s) after stale override removal",
+  "test_battery": {
+    "scoped": {"pass": 38, "fail": 0, "scope": "tests/test_router_fallback.py tests/test_router.py"}
+  }
+}
