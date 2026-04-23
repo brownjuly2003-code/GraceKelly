@@ -25,6 +25,21 @@ def _env_int(name: str, default: str) -> int:
         return int(default)
 
 
+def _env_optional_int(name: str) -> int | None:
+    raw = os.getenv(name)
+    if raw is None or raw == "":
+        return None
+    try:
+        value = int(raw)
+    except ValueError:
+        logger.warning("Invalid integer for %s=%r, using default None", name, raw)
+        return None
+    if value <= 0:
+        logger.warning("Invalid positive integer for %s=%r, using default None", name, raw)
+        return None
+    return value
+
+
 def _env_float(name: str, default: str) -> float:
     raw = os.getenv(name, default)
     try:
@@ -79,6 +94,8 @@ class Settings:
     browser_playwright_channel: str = "chrome"
     browser_playwright_headless: bool = False
     browser_call_timeout_seconds: int = 120
+    max_browser_submits_per_task: int | None = None
+    max_browser_submits_per_hour: int | None = None
     browser_circuit_breaker_enabled: bool = True
     browser_circuit_breaker_failure_threshold: int = 3
     browser_circuit_breaker_cooldown_seconds: int = 60
@@ -153,6 +170,8 @@ class Settings:
             browser_playwright_headless=os.getenv("GRACEKELLY_BROWSER_PLAYWRIGHT_HEADLESS", "false").lower()
             == "true",
             browser_call_timeout_seconds=_env_int("GRACEKELLY_BROWSER_CALL_TIMEOUT_SECONDS", "120"),
+            max_browser_submits_per_task=_env_optional_int("GRACEKELLY_MAX_BROWSER_SUBMITS_PER_TASK"),
+            max_browser_submits_per_hour=_env_optional_int("GRACEKELLY_MAX_BROWSER_SUBMITS_PER_HOUR"),
             browser_circuit_breaker_enabled=os.getenv(
                 "GRACEKELLY_BROWSER_CIRCUIT_BREAKER_ENABLED",
                 "true",

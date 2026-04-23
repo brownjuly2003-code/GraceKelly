@@ -6,6 +6,7 @@ from dataclasses import replace
 from time import perf_counter
 
 from gracekelly.config import settings as _default_settings
+from gracekelly.core.budget import BudgetAcquireResult, RequestBudgetTracker
 from gracekelly.core.concurrency import ModelConcurrencyGate
 from gracekelly.core.contracts import (
     CancellationToken,
@@ -34,12 +35,17 @@ class ExecutionRouter:
         api_adapters: dict[str, ExecutionAdapter] | None = None,
         browser_adapter: ExecutionAdapter | None = None,
         concurrency_gate: ModelConcurrencyGate | None = None,
+        budget_tracker: RequestBudgetTracker | None = None,
         executor: ThreadPoolExecutor | None = None,
     ) -> None:
         self._dry_run_adapter = dry_run_adapter
         self._api_adapters = api_adapters or {}
         self._browser_adapter = browser_adapter
         self._concurrency_gate = concurrency_gate or ModelConcurrencyGate()
+        self._budget_tracker = budget_tracker or RequestBudgetTracker(
+            per_task_limit=_default_settings.max_browser_submits_per_task,
+            per_hour_limit=_default_settings.max_browser_submits_per_hour,
+        )
         self._shared_executor = executor
         self._model_limits = {
             model.id: model.concurrency_limit
@@ -171,6 +177,9 @@ class ExecutionRouter:
                     execution_mode=ExecutionMode.BROWSER,
                     message="Browser adapter is not connected yet.",
                 )
+            acquire = self._budget_tracker.try_acquire(task_id=request.task_id)
+            if not acquire.acquired:
+                return self._budget_exceeded_result(step, acquire)
             result = self._execute_with_concurrency_limit(self._browser_adapter, request)
         if result.status == StepStatus.FAILED:
             fallback_result = self._try_fallback(step, result, request)
@@ -270,6 +279,7 @@ class ExecutionRouter:
             "active_by_model": active_by_model,
             "model_limits": dict(self._model_limits),
             "saturated_models": saturated_models,
+            "budget": self._budget_tracker.snapshot(),
         }
 
     def _successful_count(self, results: tuple[ExecutionResult, ...]) -> int:
@@ -374,6 +384,30 @@ class ExecutionRouter:
             failure_code=FailureCode.PROVIDER_UNAVAILABLE,
             failure_message=message,
             details={"configured": False},
+        )
+
+    def _budget_exceeded_result(
+        self,
+        step: ExecutionStep,
+        acquire: BudgetAcquireResult,
+    ) -> ExecutionResult:
+        usage = dict(acquire.usage)
+        return ExecutionResult(
+            adapter_name=f"{step.backend.value}.{step.provider}",
+            model_id=step.model.id,
+            model_display_name=step.model.display_name,
+            execution_mode=ExecutionMode(step.backend.value),
+            status=StepStatus.FAILED,
+            failure_code=FailureCode.RATE_LIMITED,
+            failure_message=(
+                f"Request budget exceeded ({acquire.reason}): "
+                f"task_submits={usage['task_submits']}, hourly_submits={usage['hourly_submits']}"
+            ),
+            details={
+                "provider": step.provider,
+                "budget_exceeded_kind": acquire.reason,
+                "budget_usage": usage,
+            },
         )
 
     def _execute_with_concurrency_limit(
