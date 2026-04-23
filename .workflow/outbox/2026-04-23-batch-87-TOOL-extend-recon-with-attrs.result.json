@@ -1,0 +1,59 @@
+{
+  "task_id": "2026-04-23-batch-87-TOOL-extend-recon-with-attrs",
+  "status": "success",
+  "files_modified": [
+    "src/gracekelly/tools/capture_perplexity_recon.py",
+    "src/gracekelly/adapters/browser/selectors.py",
+    "tests/test_capture_perplexity_recon_tool.py"
+  ],
+  "lint_clean": true,
+  "self_review": {
+    "iterations": 2,
+    "initial_score": 8,
+    "final_score": 9,
+    "improvements": [
+      "Extended model-menu item selection to include role=menuitemradio after live DOM evidence.",
+      "Mapped aria-checked into aria_selected so selected radio entries stay visible in the attrs snapshot."
+    ]
+  },
+  "test_battery": {
+    "R1": {
+      "pass": 2607,
+      "fail": 0,
+      "skip": 6
+    },
+    "R2": {
+      "pass": 2607,
+      "fail": 0,
+      "skip": 6,
+      "coverage_pct": 96,
+      "coverage_delta": "+0%"
+    },
+    "R3": {
+      "pass": 39,
+      "fail": 0,
+      "skip": 0
+    },
+    "R4": {
+      "warnings": []
+    },
+    "R5": {
+      "tests_audited": 1,
+      "kill_confirmed": 1,
+      "kill_failed": 0,
+      "weak_tests": []
+    },
+    "contradictions": []
+  },
+  "visual_check": null,
+  "test_output_hash": "sha256:beebae815d9142aba73e598157259500a2fc5a8c0fc5fe5ed930693ea46464e8",
+  "roles_executed": [
+    "IMPLEMENTER",
+    "TEST_AUTHOR",
+    "RUNNER",
+    "ADVERSARY",
+    "AUDITOR"
+  ],
+  "docs_pruned": null,
+  "error": null
+}

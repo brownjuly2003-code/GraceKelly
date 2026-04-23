@@ -8,6 +8,7 @@ from datetime import date
 from pathlib import Path
 from unittest.mock import patch
 
+from gracekelly.adapters.browser.selectors import PerplexitySelectors
 from gracekelly.tools import capture_perplexity_recon
 
 _TMP_ROOT = Path(".workflow/tmp-tests")
@@ -72,6 +73,47 @@ class _FakePage:
         self.body = "Type @ for connectors and sources\nType / for search modes"
         self.composer_html = "<div>composer</div>"
         self.main_html = "<div>main</div>"
+        self.model_menu_attrs = [
+            {
+                "tag": "button",
+                "role": "menuitem",
+                "aria_label": "Best",
+                "aria_selected": None,
+                "data_state": None,
+                "data_testid": None,
+                "class_list": ["menu-item", "best-item"],
+                "text": "Best",
+                "outer_html": '<button aria-label="Best">Best</button>',
+                "parent_tag": "div",
+                "bounding_box": {"x": 12, "y": 34, "width": 160, "height": 32},
+            },
+            {
+                "tag": "button",
+                "role": "menuitem",
+                "aria_label": "Sonar",
+                "aria_selected": False,
+                "data_state": "inactive",
+                "data_testid": "sonar-option",
+                "class_list": ["menu-item", "sonar-item"],
+                "text": "Sonar",
+                "outer_html": '<button aria-label="Sonar">Sonar</button>',
+                "parent_tag": "div",
+                "bounding_box": {"x": 12, "y": 70, "width": 160, "height": 32},
+            },
+            {
+                "tag": "button",
+                "role": "menuitem",
+                "aria_label": "Claude Sonnet 4.6",
+                "aria_selected": False,
+                "data_state": "inactive",
+                "data_testid": "claude-sonnet-option",
+                "class_list": ["menu-item", "claude-item"],
+                "text": "Claude Sonnet 4.6",
+                "outer_html": '<button aria-label="Claude Sonnet 4.6">Claude Sonnet 4.6</button>',
+                "parent_tag": "div",
+                "bounding_box": {"x": 12, "y": 106, "width": 160, "height": 32},
+            },
+        ]
         self.prompt_value = ""
         self.keyboard = _FakeKeyboard()
 
@@ -82,11 +124,15 @@ class _FakePage:
         Path(path).write_text(f"screenshot:{full_page}", encoding="utf-8")
         self.screenshot_paths.append(path)
 
-    def evaluate(self, script: str) -> list[str] | bool:
+    def evaluate(self, script: str) -> list[object] | bool:
         if "querySelectorAll('button')" in script:
             if self.more_open:
                 return ["More::More", "Model::Model", "Submit::Submit"]
             return ["New Thread", "More::More", "Submit::Submit"]
+        if "getBoundingClientRect()" in script:
+            if self.model_menu_open:
+                return list(self.model_menu_attrs)
+            return []
         if "document.querySelector(selector)" in script:
             return True
         raise AssertionError(f"Unexpected script: {script}")
@@ -131,6 +177,86 @@ class _FakePage:
     def _submit_prompt(self) -> None:
         self.response_ready = True
         self.body = f"{self.prompt_value}\nOK"
+
+
+class _MenuItemRadioPage(_FakePage):
+    def __init__(self) -> None:
+        super().__init__()
+        self.model_menu_open = True
+
+    def evaluate(self, script: str) -> list[object] | bool:
+        if "getBoundingClientRect()" in script:
+            if "menuitemradio" not in script:
+                return [
+                    {
+                        "tag": "div",
+                        "role": "menuitemradio",
+                        "aria_label": None,
+                        "aria_selected": False,
+                        "data_state": "checked",
+                        "data_testid": None,
+                        "class_list": ["menu-item", "selected-item"],
+                        "text": "Claude Opus 4.7",
+                        "outer_html": '<div role="menuitemradio">Claude Opus 4.7</div>',
+                        "parent_tag": "div",
+                        "bounding_box": {"x": 12, "y": 34, "width": 160, "height": 32},
+                    }
+                ]
+            return [
+                {
+                    "tag": "div",
+                    "role": "menuitemradio",
+                    "aria_label": None,
+                    "aria_selected": False,
+                    "data_state": "unchecked",
+                    "data_testid": None,
+                    "class_list": ["menu-item", "best-item"],
+                    "text": "Best",
+                    "outer_html": '<div role="menuitemradio">Best</div>',
+                    "parent_tag": "div",
+                    "bounding_box": {"x": 12, "y": 34, "width": 160, "height": 32},
+                },
+                {
+                    "tag": "div",
+                    "role": "menuitemradio",
+                    "aria_label": None,
+                    "aria_selected": False,
+                    "data_state": "unchecked",
+                    "data_testid": None,
+                    "class_list": ["menu-item", "sonar-item"],
+                    "text": "Sonar",
+                    "outer_html": '<div role="menuitemradio">Sonar</div>',
+                    "parent_tag": "div",
+                    "bounding_box": {"x": 12, "y": 70, "width": 160, "height": 32},
+                },
+                {
+                    "tag": "div",
+                    "role": "menuitemradio",
+                    "aria_label": None,
+                    "aria_selected": False,
+                    "data_state": "unchecked",
+                    "data_testid": None,
+                    "class_list": ["menu-item", "gpt-item"],
+                    "text": "GPT-5.4",
+                    "outer_html": '<div role="menuitemradio">GPT-5.4</div>',
+                    "parent_tag": "div",
+                    "bounding_box": {"x": 12, "y": 106, "width": 160, "height": 32},
+                },
+                {
+                    "tag": "div",
+                    "role": "menuitemradio",
+                    "aria_label": None,
+                    "aria_selected": False,
+                    "data_state": "unchecked",
+                    "data_testid": None,
+                    "class_list": ["menu-item", "claude-item"],
+                    "text": "Claude Sonnet 4.6",
+                    "outer_html": '<div role="menuitemradio">Claude Sonnet 4.6</div>',
+                    "parent_tag": "div",
+                    "bounding_box": {"x": 12, "y": 142, "width": 160, "height": 32},
+                },
+            ]
+        return super().evaluate(script)
 
 
 class _FakeKeyboard:
@@ -236,6 +362,69 @@ class CapturePerplexityReconToolTests(unittest.TestCase):
         self.assertFalse(chromium.calls[0]["headless"])
         self.assertTrue(context.closed)
 
+    def test_capture_recon_collects_model_menu_attrs_snapshot(self) -> None:
+        context = _FakeContext()
+        chromium = _FakeChromium(context)
+        manager = _FakePlaywrightManager(_FakePlaywright(chromium))
+
+        temp_dir = self._workspace_output_dir("menu-attrs")
+        manifest = capture_perplexity_recon.capture_recon(
+            profile_dir=r"D:\GraceKelly\tmp\browser-recon\perplexity-profile",
+            output_dir=temp_dir,
+            base_url="https://www.perplexity.ai",
+            channel="chrome",
+            interactive_pause=False,
+            sync_playwright_factory=lambda: manager,
+        )
+
+        attrs_path = Path(temp_dir) / manifest["files"]["model_menu_attrs_snapshot"]
+        self.assertTrue(attrs_path.exists())
+        payload = json.loads(attrs_path.read_text(encoding="utf-8"))
+        self.assertEqual(
+            payload,
+            [
+                {
+                    "tag": "button",
+                    "role": "menuitem",
+                    "aria_label": "Best",
+                    "aria_selected": None,
+                    "data_state": None,
+                    "data_testid": None,
+                    "class_list": ["menu-item", "best-item"],
+                    "text": "Best",
+                    "outer_html": '<button aria-label="Best">Best</button>',
+                    "parent_tag": "div",
+                    "bounding_box": {"x": 12, "y": 34, "width": 160, "height": 32},
+                },
+                {
+                    "tag": "button",
+                    "role": "menuitem",
+                    "aria_label": "Sonar",
+                    "aria_selected": False,
+                    "data_state": "inactive",
+                    "data_testid": "sonar-option",
+                    "class_list": ["menu-item", "sonar-item"],
+                    "text": "Sonar",
+                    "outer_html": '<button aria-label="Sonar">Sonar</button>',
+                    "parent_tag": "div",
+                    "bounding_box": {"x": 12, "y": 70, "width": 160, "height": 32},
+                },
+                {
+                    "tag": "button",
+                    "role": "menuitem",
+                    "aria_label": "Claude Sonnet 4.6",
+                    "aria_selected": False,
+                    "data_state": "inactive",
+                    "data_testid": "claude-sonnet-option",
+                    "class_list": ["menu-item", "claude-item"],
+                    "text": "Claude Sonnet 4.6",
+                    "outer_html": '<button aria-label="Claude Sonnet 4.6">Claude Sonnet 4.6</button>',
+                    "parent_tag": "div",
+                    "bounding_box": {"x": 12, "y": 106, "width": 160, "height": 32},
+                },
+            ],
+        )
+
     def test_capture_recon_can_pause_for_manual_capture(self) -> None:
         context = _FakeContext()
         chromium = _FakeChromium(context)
@@ -287,6 +476,17 @@ class CapturePerplexityReconToolTests(unittest.TestCase):
         payload = json.loads((Path(temp_dir) / manifest["files"]["response_candidates"]).read_text(encoding="utf-8"))
         self.assertEqual(payload["selected_text"], "OK")
         self.assertEqual(payload["response_source"], 'main [data-message-author-role="assistant"]')
+
+    def test_model_menu_attributes_snapshot_includes_menuitemradio_entries(self) -> None:
+        payload = capture_perplexity_recon._model_menu_attributes_snapshot(
+            _MenuItemRadioPage(),
+            selectors=PerplexitySelectors(),
+        )
+
+        self.assertEqual(
+            [entry["text"] for entry in payload],
+            ["Best", "Sonar", "GPT-5.4", "Claude Sonnet 4.6"],
+        )
 
     def test_main_returns_error_when_capture_fails(self) -> None:
         with (

@@ -1,0 +1,33 @@
+$ .\.venv\Scripts\python.exe -m pytest tests/test_capture_perplexity_recon_tool.py -k model_menu_attrs_snapshot -q
+FAILED
+KeyError: 'model_menu_attrs_snapshot'
+
+$ .\.venv\Scripts\python.exe -m pytest tests/test_capture_perplexity_recon_tool.py -k menuitemradio -q
+FAILED
+AssertionError: Lists differ: ['Claude Opus 4.7'] != ['Best', 'Sonar', 'GPT-5.4', 'Claude Sonnet 4.6']
+
+$ .\.venv\Scripts\python.exe -m pytest tests/test_capture_perplexity_recon_tool.py tests/test_tools_parse_args.py -q
+39 passed in 2.54s
+
+$ .\.venv\Scripts\ruff.exe check src tests
+All checks passed!
+
+$ .\.venv\Scripts\python.exe -m mypy src
+pyproject.toml: note: unused section(s): module = ['test_app_startup', 'test_orchestrate_timeout', 'test_postgres_live']
+Success: no issues found in 105 source files
+
+$ .\.venv\Scripts\python.exe -m pytest --tb=short -q
+2607 passed, 6 skipped, 11 subtests passed in 703.57s (0:11:43)
+
+$ .\.venv\Scripts\python.exe -m pytest --tb=short -q --cov=src\gracekelly --cov-report=term
+2607 passed, 6 skipped, 11 subtests passed in 828.03s (0:13:48)
+TOTAL                                                6590    231    96%
+
+$ .\.venv\Scripts\python.exe -m pytest tests/test_capture_perplexity_recon_tool.py tests/test_tools_parse_args.py -vv
+39 passed in 2.18s
+
+$ R5 kill-check mutation: remove [role="menuitemradio"] from PerplexitySelectors.model_menu_item_selector
+FAILED tests/test_capture_perplexity_recon_tool.py::CapturePerplexityReconToolTests::test_model_menu_attributes_snapshot_includes_menuitemradio_entries
+
+$ restore selector and rerun kill target
+1 passed, 19 deselected in 0.31s

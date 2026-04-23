@@ -147,8 +147,11 @@ def capture_recon(
                 page.screenshot(path=str(model_picker_path), full_page=True)
                 model_menu_path = output_root / "recon-03-model-menu.json"
                 _write_json(model_menu_path, _model_menu_snapshot(page, selectors=selector_config))
+                model_menu_attrs_path = output_root / "recon-03-model-menu-attrs.json"
+                _write_json(model_menu_attrs_path, _model_menu_attributes_snapshot(page, selectors=selector_config))
                 manifest["files"]["model_picker_screenshot"] = model_picker_path.name
                 manifest["files"]["model_menu_snapshot"] = model_menu_path.name
+                manifest["files"]["model_menu_attrs_snapshot"] = model_menu_attrs_path.name
             elif _click_more(page, selector_config):
                 more_clicked = True
                 more_shot = output_root / "recon-02-more.png"
@@ -165,8 +168,11 @@ def capture_recon(
                     page.screenshot(path=str(model_picker_path), full_page=True)
                     model_menu_path = output_root / "recon-03-model-menu.json"
                     _write_json(model_menu_path, _model_menu_snapshot(page, selectors=selector_config))
+                    model_menu_attrs_path = output_root / "recon-03-model-menu-attrs.json"
+                    _write_json(model_menu_attrs_path, _model_menu_attributes_snapshot(page, selectors=selector_config))
                     manifest["files"]["model_picker_screenshot"] = model_picker_path.name
                     manifest["files"]["model_menu_snapshot"] = model_menu_path.name
+                    manifest["files"]["model_menu_attrs_snapshot"] = model_menu_attrs_path.name
             manifest["more_clicked"] = more_clicked
 
             if prompt:
@@ -284,8 +290,11 @@ def _click_model_button(page: Any, selectors: PerplexitySelectors) -> bool:
 
 
 def _model_menu_snapshot(page: Any, *, selectors: PerplexitySelectors) -> list[str]:
+    candidate_selectors = [
+        selector for selector in selectors.model_menu_candidates if _locator_exists(page.locator(selector))
+    ]
     texts: list[str] = []
-    for selector in selectors.model_menu_candidates:
+    for selector in candidate_selectors:
         try:
             texts.extend(page.locator(selector).all_inner_texts())
         except Exception:
@@ -297,6 +306,77 @@ def _model_menu_snapshot(page: Any, *, selectors: PerplexitySelectors) -> list[s
             if normalized and normalized not in lines:
                 lines.append(normalized)
     return lines
+
+
+def _model_menu_attributes_snapshot(page: Any, *, selectors: PerplexitySelectors) -> list[dict[str, Any]]:
+    candidate_selectors = [
+        selector for selector in selectors.model_menu_candidates if _locator_exists(page.locator(selector))
+    ]
+    if not candidate_selectors:
+        return []
+    payload = page.evaluate(
+        f"""
+        () => {{
+          const candidateSelectors = {json.dumps(candidate_selectors)};
+          const itemSelector = {json.dumps(selectors.model_menu_item_selector)};
+          const containers = candidateSelectors
+            .map((selector) => document.querySelector(selector))
+            .filter((container) => container !== null);
+          const seen = new Set();
+          const items = [];
+          for (const container of containers) {{
+            for (const element of container.querySelectorAll(itemSelector)) {{
+              if (seen.has(element)) {{
+                continue;
+              }}
+              seen.add(element);
+              items.push(element);
+            }}
+          }}
+          return items
+            .map((element) => {{
+              const textLines = (element.innerText || "")
+                .split(/\\r?\\n/)
+                .map((line) => line.trim())
+                .filter(Boolean);
+              const rect = element.getBoundingClientRect();
+              const style = window.getComputedStyle(element);
+              const isVisible = style.display !== "none" && style.visibility !== "hidden" && rect.width > 0 && rect.height > 0;
+              const ariaSelected = element.getAttribute("aria-selected");
+              const ariaChecked = element.getAttribute("aria-checked");
+              const outerHtml = element.outerHTML || null;
+              return {{
+                tag: element.tagName.toLowerCase(),
+                role: element.getAttribute("role") || (element.tagName.toLowerCase() === "button" ? "button" : null),
+                aria_label: element.getAttribute("aria-label"),
+                aria_selected: ariaSelected !== null
+                  ? ariaSelected === "true"
+                  : ariaChecked !== null
+                    ? ariaChecked === "true"
+                    : null,
+                data_state: element.getAttribute("data-state"),
+                data_testid: element.getAttribute("data-testid"),
+                class_list: Array.from(element.classList),
+                text: textLines[0] || null,
+                outer_html: outerHtml && outerHtml.length > 1024 ? outerHtml.slice(0, 1024) : outerHtml,
+                parent_tag: element.parentElement ? element.parentElement.tagName.toLowerCase() : null,
+                bounding_box: isVisible
+                  ? {{
+                      x: rect.x,
+                      y: rect.y,
+                      width: rect.width,
+                      height: rect.height,
+                    }}
+                  : null,
+              }};
+            }})
+            .filter((entry) => entry.text || entry.aria_label);
+        }}
+        """
+    )
+    if not isinstance(payload, list):
+        return []
+    return [entry for entry in payload if isinstance(entry, dict)]
 
 
 def _click_if_visible(page: Any, selector: str) -> bool:

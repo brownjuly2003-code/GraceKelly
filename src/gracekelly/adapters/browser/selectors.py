@@ -28,6 +28,7 @@ class PerplexitySelectors:
         '[role="dialog"]',
         '[role="listbox"]',
     )
+    model_menu_item_selector: str = '[role="menuitemradio"], [role="menuitem"], [role="option"], button'
     ready_markers: tuple[str, ...] = (
         "Type @ for connectors and sources",
         "Type / for search modes",
