@@ -19,13 +19,12 @@ logs, error surfacing, and operator-facing docs are adequate for a single-user l
    - Status: PASS.
 
 2. Criterion: `/healthz/ready` gates on browser-adapter and storage readiness.
-   - How verified: `src/gracekelly/api/routes/health.py:379-384` only checks whether
-     `state.task_repository` is present and returns `{"status": "ok"}` otherwise.
-     Component-level browser/execution gating actually lives on `/api/v1/readiness` via
-     `src/gracekelly/api/routes/health.py:387-407` and `src/gracekelly/core/readiness.py:24-53`.
-   - Evidence: `tests/test_healthz_live.py:27-47`; `tests/test_http_api.py:90-105`;
-     `tests/test_http_api.py:137-178`.
-   - Status: FAIL.
+   - How verified: `src/gracekelly/api/routes/health.py:379-389` now returns HTTP 503 when
+     `state.task_repository` is absent, when `execution_router` is missing, and when
+     `settings.browser_enabled` is true but `browser_adapter` is not initialised. The probe remains
+     shallow because it only performs attribute reads and does not call adapter/router health checks.
+   - Evidence: `tests/test_healthz_live.py:28-89`.
+   - Status: PASS.
 
 3. Criterion: `/metrics` exposes runtime state and does not break when a component is degraded.
    - How verified: `src/gracekelly/api/routes/health.py:110-286,410-423` emits readiness,
@@ -75,16 +74,17 @@ logs, error surfacing, and operator-facing docs are adequate for a single-user l
 
 ## Findings / deviations
 
-- `/healthz/ready` is a storage-only shallow probe. Full browser/execution readiness currently lives
-  on `/api/v1/readiness`, so the Gate 2 criterion is not satisfied as written.
+No open deviations for the single-user local deployment scope reviewed here.
+
+## Fixed follow-ups (2026-04-23 batch-98)
+
+- Closed the `/healthz/ready` shallow-probe gap by adding lightweight execution-router and
+  browser-adapter gating in `src/gracekelly/api/routes/health.py:379-389` and covering the
+  semantics in `tests/test_healthz_live.py:28-89`.
 
 ## Verdict
 
-PASS with conditions for single-user local deployment scope
-
-The conditioned pass assumes operators treat `/api/v1/readiness` as the semantic readiness endpoint
-and treat `/healthz/ready` as a minimal storage probe until a follow-up aligns the shallow probe
-with browser/execution readiness expectations.
+PASS for single-user local deployment scope
 
 ## Limitations of this review
 
@@ -93,4 +93,4 @@ recovery drills. Those require a deployment context beyond the single-user local
 
 ## Signature
 
-Reviewed by CC (Claude Code orchestrator) on 2026-04-23, commit pending.
+Reviewed by CC (Claude Code orchestrator) on 2026-04-23, batch-98 updated, commit pending.

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import unittest
+from types import SimpleNamespace
 
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
@@ -28,6 +29,47 @@ class HealthzLiveTests(unittest.TestCase):
         app = FastAPI()
         app.include_router(health.router)
         app.state.task_repository = _TaskRepository()
+        app.state.execution_router = object()
+        client = TestClient(app)
+
+        response = client.get("/healthz/ready")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {"status": "ok"})
+
+    def test_readiness_returns_503_without_execution_router(self) -> None:
+        app = FastAPI()
+        app.include_router(health.router)
+        app.state.task_repository = _TaskRepository()
+        app.state.execution_router = None
+        client = TestClient(app)
+
+        response = client.get("/healthz/ready")
+
+        self.assertEqual(response.status_code, 503)
+        self.assertEqual(response.json()["detail"], "Execution router not initialized")
+
+    def test_readiness_returns_503_when_browser_enabled_without_adapter(self) -> None:
+        app = FastAPI()
+        app.include_router(health.router)
+        app.state.task_repository = _TaskRepository()
+        app.state.execution_router = object()
+        app.state.settings = SimpleNamespace(browser_enabled=True)
+        app.state.browser_adapter = None
+        client = TestClient(app)
+
+        response = client.get("/healthz/ready")
+
+        self.assertEqual(response.status_code, 503)
+        self.assertEqual(response.json()["detail"], "Browser adapter enabled but not initialized")
+
+    def test_readiness_returns_ok_when_browser_disabled_without_adapter(self) -> None:
+        app = FastAPI()
+        app.include_router(health.router)
+        app.state.task_repository = _TaskRepository()
+        app.state.execution_router = object()
+        app.state.settings = SimpleNamespace(browser_enabled=False)
+        app.state.browser_adapter = None
         client = TestClient(app)
 
         response = client.get("/healthz/ready")

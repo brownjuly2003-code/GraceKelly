@@ -381,6 +381,11 @@ async def readiness_probe(request: Request) -> dict[str, object]:
     state = get_app_state(request)
     if state.task_repository is None:
         raise HTTPException(status_code=503, detail="Storage unavailable")
+    if getattr(state, "execution_router", None) is None:
+        raise HTTPException(status_code=503, detail="Execution router not initialized")
+    settings = getattr(state, "settings", None)
+    if getattr(settings, "browser_enabled", False) and getattr(state, "browser_adapter", None) is None:
+        raise HTTPException(status_code=503, detail="Browser adapter enabled but not initialized")
     return {"status": "ok"}
 
 
