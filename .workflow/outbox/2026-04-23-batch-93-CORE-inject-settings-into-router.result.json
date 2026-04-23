@@ -1,0 +1,60 @@
+{
+  "task_id": "CORE-inject-settings-into-router",
+  "status": "success",
+  "files_modified": [
+    "src/gracekelly/core/router.py",
+    "src/gracekelly/main.py",
+    "tests/test_request_budget.py",
+    "tests/test_router_fallback.py",
+    ".workflow/outbox/2026-04-23-batch-93-CORE-inject-settings-into-router-report.md"
+  ],
+  "lint_clean": true,
+  "self_review": {
+    "iterations": 2,
+    "initial_score": 8,
+    "final_score": 9,
+    "improvements": [
+      "Fixed the import ordering in router.py and test_request_budget.py after the first ruff pass flagged I001."
+    ]
+  },
+  "test_battery": {
+    "R1": {
+      "pass": 2650,
+      "fail": 0,
+      "skip": 6
+    },
+    "R2": {
+      "pass": 2650,
+      "fail": 0,
+      "skip": 6,
+      "coverage_pct": 97,
+      "coverage_delta": "+1%"
+    },
+    "R3": {
+      "pass": 67,
+      "fail": 0,
+      "skip": 0
+    },
+    "R4": {
+      "warnings": []
+    },
+    "R5": {
+      "tests_audited": 3,
+      "kill_confirmed": 3,
+      "kill_failed": 0,
+      "weak_tests": []
+    },
+    "contradictions": []
+  },
+  "visual_check": false,
+  "test_output_hash": "sha256:bbe739ac9f4ed7c35db476b87d844ca41fd8de9c1d3c1ae189f753189be5c839",
+  "roles_executed": [
+    "IMPLEMENTER",
+    "TEST_AUTHOR",
+    "RUNNER",
+    "ADVERSARY",
+    "AUDITOR"
+  ],
+  "docs_pruned": null,
+  "error": null
+}

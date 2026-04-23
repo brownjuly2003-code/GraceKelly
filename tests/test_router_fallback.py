@@ -4,6 +4,7 @@ import unittest
 from dataclasses import asdict, replace
 from unittest.mock import patch
 
+from gracekelly.config import Settings
 from gracekelly.config import settings as _default_settings
 from gracekelly.core.contracts import (
     AdapterHint,
@@ -128,17 +129,12 @@ class RouterFallbackTests(unittest.TestCase):
             _result(_make_step(fallback), status=StepStatus.COMPLETED, output_text="fallback output"),
         ])
 
-        with (
-            patch("gracekelly.core.router.list_models", return_value=(primary, fallback)),
-            patch(
-                "gracekelly.core.router._default_settings",
-                replace(_default_settings, enable_model_fallback=False),
-            ),
-        ):
+        with patch("gracekelly.core.router.list_models", return_value=(primary, fallback)):
             router = ExecutionRouter(
                 dry_run_adapter=_FakeAdapter([]),
                 api_adapters={"anthropic": api_adapter},
                 browser_adapter=browser_adapter,
+                settings=Settings(enable_model_fallback=False),
             )
             batch = router.execute(
                 task_id="t1",
@@ -153,6 +149,55 @@ class RouterFallbackTests(unittest.TestCase):
         self.assertNotIn("fallback_used", batch.results[0].details)
         self.assertEqual(browser_adapter.calls, ["claude-sonnet-4-6"])
         self.assertEqual(api_adapter.calls, [])
+
+    def test_router_uses_injected_settings_for_fallback(self) -> None:
+        primary = _make_spec(
+            "claude-sonnet-4-6",
+            adapter_kind="browser",
+            provider="perplexity",
+            provider_model_id="Claude Sonnet 4.6",
+            fallback_model_id="claude-sonnet-4-6-api",
+        )
+        fallback = _make_spec(
+            "claude-sonnet-4-6-api",
+            adapter_kind="api",
+            provider="anthropic",
+            provider_model_id="claude-sonnet-4-6-20250514",
+        )
+        step = _make_step(primary)
+        browser_adapter = _FakeAdapter([
+            _result(
+                step,
+                status=StepStatus.FAILED,
+                failure_code=FailureCode.AUTH_FAILED,
+                failure_message="login required",
+            ),
+        ])
+        api_adapter = _FakeAdapter([
+            _result(_make_step(fallback), status=StepStatus.COMPLETED, output_text="fallback output"),
+        ])
+
+        with patch("gracekelly.core.router.list_models", return_value=(primary, fallback)):
+            router = ExecutionRouter(
+                dry_run_adapter=_FakeAdapter([]),
+                api_adapters={"anthropic": api_adapter},
+                browser_adapter=browser_adapter,
+                settings=Settings(enable_model_fallback=True),
+            )
+            batch = router.execute(
+                task_id="t1",
+                prompt="Q",
+                plan=_make_plan(step),
+                reasoning=False,
+                metadata={},
+            )
+
+        self.assertEqual(batch.task_status, TaskStatus.COMPLETED)
+        self.assertEqual(batch.results[0].model_id, "claude-sonnet-4-6-api")
+        self.assertTrue(batch.results[0].details["fallback_used"])
+        self.assertEqual(batch.results[0].details["fallback_reason"], "auth_failed")
+        self.assertEqual(browser_adapter.calls, ["claude-sonnet-4-6"])
+        self.assertEqual(api_adapter.calls, ["claude-sonnet-4-6-api"])
 
     def test_fallback_triggers_on_auth_failed_when_enabled(self) -> None:
         primary = _make_spec(
@@ -238,17 +283,12 @@ class RouterFallbackTests(unittest.TestCase):
             _result(_make_step(fallback), status=StepStatus.COMPLETED, output_text="fallback output"),
         ])
 
-        with (
-            patch("gracekelly.core.router.list_models", return_value=(primary, fallback)),
-            patch(
-                "gracekelly.core.router._default_settings",
-                replace(_default_settings, enable_model_fallback=True),
-            ),
-        ):
+        with patch("gracekelly.core.router.list_models", return_value=(primary, fallback)):
             router = ExecutionRouter(
                 dry_run_adapter=_FakeAdapter([]),
                 api_adapters={"anthropic": api_adapter},
                 browser_adapter=browser_adapter,
+                settings=Settings(enable_model_fallback=True),
             )
             batch = router.execute(
                 task_id="t1",

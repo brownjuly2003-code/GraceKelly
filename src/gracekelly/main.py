@@ -402,6 +402,7 @@ def create_app(app_settings: Settings | None = None) -> FastAPI:
         api_adapters=app.state.api_adapters,
         browser_adapter=app.state.browser_adapter,
         executor=app.state.execution_executor,
+        settings=active_settings,
     )
     app.state.orchestrator_service = OrchestratorService(
         app.state.task_repository,

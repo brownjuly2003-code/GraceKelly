@@ -2,11 +2,9 @@ from __future__ import annotations
 
 import os
 import unittest
-from dataclasses import replace
 from unittest.mock import MagicMock, patch
 
 from gracekelly.config import Settings
-from gracekelly.config import settings as _config_settings
 from gracekelly.core.budget import BudgetAcquireResult, RequestBudgetTracker
 from gracekelly.core.contracts import (
     AdapterHint,
@@ -24,6 +22,7 @@ from gracekelly.core.contracts import (
 )
 from gracekelly.core.models import ModelSpec
 from gracekelly.core.router import ExecutionRouter
+from gracekelly.main import create_app
 
 
 def _make_spec(
@@ -342,18 +341,13 @@ class RequestBudgetRouterTests(unittest.TestCase):
             "hourly_submits": 3,
         }
 
-        with (
-            patch("gracekelly.core.router.list_models", return_value=(primary, fallback)),
-            patch(
-                "gracekelly.core.router._default_settings",
-                replace(_config_settings, enable_model_fallback=True),
-            ),
-        ):
+        with patch("gracekelly.core.router.list_models", return_value=(primary, fallback)):
             router = ExecutionRouter(
                 dry_run_adapter=_FakeAdapter([]),
                 api_adapters={"anthropic": api_adapter},
                 browser_adapter=browser_adapter,
                 budget_tracker=budget_tracker,
+                settings=Settings(enable_model_fallback=True),
             )
             batch = router.execute(
                 task_id="t1",
@@ -369,16 +363,61 @@ class RequestBudgetRouterTests(unittest.TestCase):
         self.assertEqual(batch.failure_code, FailureCode.RATE_LIMITED)
         self.assertFalse(batch.results[0].details.get("fallback_used", False))
 
+    def test_router_uses_injected_settings_for_budget(self) -> None:
+        primary = _make_spec(
+            "claude-sonnet-4-6",
+            adapter_kind="browser",
+            provider="perplexity",
+        )
+        step = _make_step(primary)
+        browser_adapter = MagicMock()
+        browser_adapter.execute.return_value = _result(
+            step,
+            status=StepStatus.COMPLETED,
+            output_text="ok",
+        )
+        router = ExecutionRouter(
+            dry_run_adapter=MagicMock(),
+            browser_adapter=browser_adapter,
+            settings=Settings(max_browser_submits_per_task=2),
+        )
+
+        first = router.execute(
+            task_id="t1",
+            prompt="Q",
+            plan=_make_plan(step),
+            reasoning=False,
+            metadata={},
+        )
+        second = router.execute(
+            task_id="t1",
+            prompt="Q",
+            plan=_make_plan(step),
+            reasoning=False,
+            metadata={},
+        )
+        third = router.execute(
+            task_id="t1",
+            prompt="Q",
+            plan=_make_plan(step),
+            reasoning=False,
+            metadata={},
+        )
+
+        self.assertEqual(first.task_status, TaskStatus.COMPLETED)
+        self.assertEqual(second.task_status, TaskStatus.COMPLETED)
+        self.assertEqual(third.task_status, TaskStatus.FAILED)
+        self.assertEqual(third.failure_code, FailureCode.RATE_LIMITED)
+        self.assertEqual(browser_adapter.execute.call_count, 2)
+
     def test_router_healthcheck_includes_budget_snapshot(self) -> None:
-        with patch(
-            "gracekelly.core.router._default_settings",
-            replace(
-                _config_settings,
+        router = ExecutionRouter(
+            dry_run_adapter=MagicMock(),
+            settings=Settings(
                 max_browser_submits_per_task=2,
                 max_browser_submits_per_hour=5,
             ),
-        ):
-            router = ExecutionRouter(dry_run_adapter=MagicMock())
+        )
 
         healthcheck = router.healthcheck()
 
@@ -386,6 +425,21 @@ class RequestBudgetRouterTests(unittest.TestCase):
         self.assertEqual(healthcheck["budget"]["per_task_limit"], 2)
         self.assertEqual(healthcheck["budget"]["per_hour_limit"], 5)
         self.assertEqual(healthcheck["budget"]["hourly_submits"], 0)
+
+    def test_create_app_propagates_settings_to_router(self) -> None:
+        app = create_app(
+            Settings(
+                max_browser_submits_per_task=3,
+                enable_model_fallback=True,
+            )
+        )
+        self.addCleanup(lambda: app.state.execution_executor.shutdown(wait=False, cancel_futures=True))
+        self.addCleanup(lambda: app.state.browser_executor.shutdown(wait=False, cancel_futures=True))
+
+        healthcheck = app.state.execution_router.healthcheck()
+
+        self.assertTrue(app.state.settings.enable_model_fallback)
+        self.assertEqual(healthcheck["budget"]["per_task_limit"], 3)
 
 
 if __name__ == "__main__":

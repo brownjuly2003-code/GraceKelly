@@ -5,6 +5,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import replace
 from time import perf_counter
 
+from gracekelly.config import Settings
 from gracekelly.config import settings as _default_settings
 from gracekelly.core.budget import BudgetAcquireResult, RequestBudgetTracker
 from gracekelly.core.concurrency import ModelConcurrencyGate
@@ -27,6 +28,7 @@ from gracekelly.core.models import list_models
 
 logger = logging.getLogger(__name__)
 
+# _default_settings kept as a fallback for direct instantiation; production path injects via create_app.
 
 class ExecutionRouter:
     def __init__(
@@ -37,14 +39,16 @@ class ExecutionRouter:
         concurrency_gate: ModelConcurrencyGate | None = None,
         budget_tracker: RequestBudgetTracker | None = None,
         executor: ThreadPoolExecutor | None = None,
+        settings: Settings | None = None,
     ) -> None:
+        self._settings = _default_settings if settings is None else settings
         self._dry_run_adapter = dry_run_adapter
         self._api_adapters = api_adapters or {}
         self._browser_adapter = browser_adapter
         self._concurrency_gate = concurrency_gate or ModelConcurrencyGate()
         self._budget_tracker = budget_tracker or RequestBudgetTracker(
-            per_task_limit=_default_settings.max_browser_submits_per_task,
-            per_hour_limit=_default_settings.max_browser_submits_per_hour,
+            per_task_limit=self._settings.max_browser_submits_per_task,
+            per_hour_limit=self._settings.max_browser_submits_per_hour,
         )
         self._shared_executor = executor
         self._model_limits = {
@@ -103,8 +107,8 @@ class ExecutionRouter:
     ) -> ExecutionBatchResult:
         indexed_results: dict[int, ExecutionResult] = {}
         timeout_seconds = (
-            getattr(_default_settings, "execution_timeout_seconds", None)
-            or getattr(_default_settings, "orchestrate_timeout_seconds", None)
+            getattr(self._settings, "execution_timeout_seconds", None)
+            or getattr(self._settings, "orchestrate_timeout_seconds", None)
             or 120
         )
 
@@ -328,7 +332,7 @@ class ExecutionRouter:
         primary_result: ExecutionResult,
         request: ExecutionRequest,
     ) -> ExecutionResult | None:
-        if not _default_settings.enable_model_fallback:
+        if not self._settings.enable_model_fallback:
             return None
         if primary_result.failure_code not in (
             FailureCode.AUTH_FAILED,
