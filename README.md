@@ -58,6 +58,8 @@ API adapters are optional. Use them only if you have separate API keys and want 
 | `GRACEKELLY_POSTGRES_DSN` | - | PostgreSQL connection string |
 | `GRACEKELLY_API_KEY` | - | Optional bearer token for endpoint auth |
 | `GRACEKELLY_EXECUTION_PROFILE` | `dry-run` | one of: `dry-run`, `api-only`, `hybrid` |
+| `GRACEKELLY_RATE_LIMIT_RPM` | `60` | Per-IP steady-state request limit enforced by the API middleware |
+| `GRACEKELLY_RATE_LIMIT_BURST` | `10` | Extra burst capacity allowed above the steady-state per-minute limit |
 
 Full reference: `.env.example`
 
@@ -79,21 +81,28 @@ export, file attachments.
 | # | Method | Path | Description |
 |---|--------|------|-------------|
 | 1 | GET | `/health` | Service health |
-| 2 | GET | `/api/v1/readiness` | Component readiness |
-| 3 | GET | `/metrics` | Prometheus metrics |
-| 4 | POST | `/api/v1/orchestrate` | Multi-model execution |
-| 5 | POST | `/api/v1/orchestrate/stream` | Streaming execution (SSE) |
-| 6 | GET | `/api/v1/tasks` | List recent tasks |
-| 7 | GET | `/api/v1/tasks/{id}` | Task detail + steps + events |
-| 8 | GET | `/api/v1/models` | Model catalog |
-| 9 | POST | `/api/v1/consensus` | Majority-vote consensus |
-| 10 | POST | `/api/v1/smart` | Auto-profile execution |
-| 11 | POST | `/api/v1/smart/v2` | Consensus V2 (HAC clustering) |
-| 12 | POST | `/api/v1/batch` | Parallel multi-prompt |
-| 13 | POST | `/api/v1/pipeline` | Sequential task graph |
-| 14 | POST | `/api/v1/debate` | Devil's Advocate debate |
-| 15 | POST | `/api/v1/compare` | Multi-model comparison |
-| 16 | GET | `/api/v1/health/detailed` | Per-component health |
+| 2 | GET | `/healthz/live` | Liveness probe |
+| 3 | GET | `/healthz/ready` | Readiness probe |
+| 4 | GET | `/api/v1/readiness` | Component readiness |
+| 5 | GET | `/metrics` | Prometheus metrics |
+| 6 | POST | `/api/v1/orchestrate` | Multi-model execution |
+| 7 | POST | `/api/v1/orchestrate/upload` | Multi-model execution with file attachments |
+| 8 | POST | `/api/v1/orchestrate/stream` | Streaming execution (SSE) |
+| 9 | GET | `/api/v1/tasks` | List recent tasks |
+| 10 | GET | `/api/v1/tasks/{task_id}` | Task detail + steps + events |
+| 11 | GET | `/api/v1/tasks/{task_id}/export` | Export task as Markdown |
+| 12 | POST | `/api/v1/tasks/{task_id}/retry` | Retry a failed or cancelled task |
+| 13 | GET | `/api/v1/models` | Model catalog |
+| 14 | POST | `/api/v1/models/refresh` | Refresh model catalog snapshot |
+| 15 | POST | `/api/v1/consensus` | Majority-vote consensus |
+| 16 | GET | `/api/v1/analytics` | Model performance analytics |
+| 17 | POST | `/api/v1/smart` | Auto-profile execution |
+| 18 | POST | `/api/v1/smart/v2` | Consensus V2 (HAC clustering) |
+| 19 | POST | `/api/v1/batch` | Parallel multi-prompt |
+| 20 | POST | `/api/v1/pipeline` | Sequential task graph |
+| 21 | GET | `/api/v1/health/detailed` | Per-component health |
+| 22 | POST | `/api/v1/debate` | Devil's Advocate debate |
+| 23 | POST | `/api/v1/compare` | Multi-model comparison |
 
 Interactive docs: http://localhost:8011/docs
 
