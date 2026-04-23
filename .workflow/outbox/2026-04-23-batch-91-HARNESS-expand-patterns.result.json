@@ -1,0 +1,42 @@
+{
+  "task_id": "HARNESS-expand-patterns",
+  "status": "success",
+  "files_modified": [
+    "scripts/live_smart_smoke.py",
+    "tests/test_live_smoke_harness.py",
+    ".workflow/outbox/2026-04-23-batch-91-HARNESS-expand-patterns-report.md"
+  ],
+  "lint_clean": true,
+  "self_review": {
+    "iterations": 2,
+    "initial_score": 8,
+    "final_score": 9,
+    "improvements": [
+      "Replaced the global Playwright stub with a guarded import so the new tests no longer poison the full pytest process."
+    ]
+  },
+  "test_battery": {
+    "R1": {
+      "pass": 2647,
+      "fail": 0,
+      "skip": 6
+    },
+    "R2": {
+      "pass": 12,
+      "fail": 0,
+      "skip": 0
+    },
+    "contradictions": []
+  },
+  "visual_check": false,
+  "test_output_hash": null,
+  "roles_executed": [
+    "IMPLEMENTER",
+    "TEST_AUTHOR",
+    "RUNNER",
+    "AUDITOR"
+  ],
+  "docs_pruned": null,
+  "error": null
+}
+
