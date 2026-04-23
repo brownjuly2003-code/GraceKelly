@@ -17,6 +17,7 @@ class ModelSpec:
     expected_latency_class: str
     concurrency_limit: int
     reasoning_capable: bool = False
+    fallback_model_id: str | None = None
 
     def normalized_names(self) -> set[str]:
         names = {self.id, self.display_name, *self.aliases}
@@ -149,6 +150,11 @@ def build_browser_model_spec(label: str) -> ModelSpec:
     canonical_id = _slugify_model_name(display_name)
     if not canonical_id:
         raise ValueError(f"Unsupported browser model label: {label!r}")
+    fallback_model_id = (
+        "claude-sonnet-4-6-api" if canonical_id == "claude-sonnet-4-6"
+        else "gpt-5-4-api" if canonical_id == "gpt-5-4"
+        else None
+    )
 
     return ModelSpec(
         id=canonical_id,
@@ -161,6 +167,7 @@ def build_browser_model_spec(label: str) -> ModelSpec:
         expected_latency_class="fast" if canonical_id == "sonar" else "slow",
         concurrency_limit=1,
         reasoning_capable=canonical_id != "sonar",
+        fallback_model_id=fallback_model_id,
     )
 
 
@@ -218,6 +225,11 @@ def deserialize_model_spec(payload: dict[str, object]) -> ModelSpec:
         expected_latency_class=str(payload["expected_latency_class"]),
         concurrency_limit=int(str(payload["concurrency_limit"])),
         reasoning_capable=bool(payload.get("reasoning_capable", False)),
+        fallback_model_id=(
+            str(payload["fallback_model_id"])
+            if payload.get("fallback_model_id") is not None
+            else None
+        ),
     )
 
 

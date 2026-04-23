@@ -1,0 +1,46 @@
+{
+  "task_id": "CORE-model-fallback-policy",
+  "status": "success",
+  "files_modified": [
+    "src/gracekelly/core/models.py",
+    "src/gracekelly/core/router.py",
+    "src/gracekelly/config.py",
+    "tests/test_router_fallback.py",
+    ".workflow/outbox/2026-04-23-batch-89-CORE-model-fallback-policy-report.md"
+  ],
+  "lint_clean": true,
+  "self_review": {
+    "iterations": 1,
+    "initial_score": 8,
+    "final_score": 9,
+    "improvements": [
+      "Added the missing ExecutionBackend import after the first targeted green attempt."
+    ]
+  },
+  "test_battery": {
+    "R1": {
+      "pass": 2623,
+      "fail": 0,
+      "skip": 6
+    },
+    "R2": null,
+    "R3": {
+      "pass": 35,
+      "fail": 0,
+      "skip": 0
+    },
+    "R4": null,
+    "R5": null,
+    "contradictions": []
+  },
+  "visual_check": false,
+  "test_output_hash": null,
+  "roles_executed": [
+    "IMPLEMENTER",
+    "TEST_AUTHOR",
+    "RUNNER",
+    "AUDITOR"
+  ],
+  "docs_pruned": null,
+  "error": null
+}

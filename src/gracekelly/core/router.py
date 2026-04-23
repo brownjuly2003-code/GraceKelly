@@ -10,6 +10,7 @@ from gracekelly.core.concurrency import ModelConcurrencyGate
 from gracekelly.core.contracts import (
     CancellationToken,
     ExecutionAdapter,
+    ExecutionBackend,
     ExecutionBatchResult,
     ExecutionMode,
     ExecutionPlan,
@@ -161,15 +162,21 @@ class ExecutionRouter:
                     execution_mode=ExecutionMode.API,
                     message=f"No API adapter registered for provider '{step.provider}'.",
                 )
-            return self._execute_with_concurrency_limit(adapter, request)
-        if self._browser_adapter is None:
-            return self._missing_adapter_result(
-                step.model.id, step.model.display_name,
-                adapter_name=f"{step.backend.value}.{step.provider}",
-                execution_mode=ExecutionMode.BROWSER,
-                message="Browser adapter is not connected yet.",
-            )
-        return self._execute_with_concurrency_limit(self._browser_adapter, request)
+            result = self._execute_with_concurrency_limit(adapter, request)
+        else:
+            if self._browser_adapter is None:
+                return self._missing_adapter_result(
+                    step.model.id, step.model.display_name,
+                    adapter_name=f"{step.backend.value}.{step.provider}",
+                    execution_mode=ExecutionMode.BROWSER,
+                    message="Browser adapter is not connected yet.",
+                )
+            result = self._execute_with_concurrency_limit(self._browser_adapter, request)
+        if result.status == StepStatus.FAILED:
+            fallback_result = self._try_fallback(step, result, request)
+            if fallback_result is not None:
+                return fallback_result
+        return result
 
     @staticmethod
     def _stamp_duration(result: ExecutionResult, started: float) -> ExecutionResult:
@@ -304,6 +311,50 @@ class ExecutionRouter:
             for item in failed
         )
         return FailureCode.UNKNOWN_ERROR, f"{len(failed)} steps failed with different errors: {summary}"
+
+    def _try_fallback(
+        self,
+        step: ExecutionStep,
+        primary_result: ExecutionResult,
+        request: ExecutionRequest,
+    ) -> ExecutionResult | None:
+        if not _default_settings.enable_model_fallback:
+            return None
+        if primary_result.failure_code not in (
+            FailureCode.AUTH_FAILED,
+            FailureCode.PROVIDER_UNAVAILABLE,
+            FailureCode.TIMEOUT,
+        ):
+            return None
+        if step.model.fallback_model_id is None:
+            return None
+        fallback_model = next(
+            (model for model in list_models() if model.id == step.model.fallback_model_id),
+            None,
+        )
+        if fallback_model is None:
+            return None
+        fallback_step = ExecutionStep(
+            model=fallback_model,
+            backend=ExecutionBackend(fallback_model.adapter_kind),
+            provider=fallback_model.provider,
+            provider_model_id=fallback_model.provider_model_id,
+            step_index=step.step_index,
+        )
+        fallback_result = self._dispatch_step(
+            fallback_step,
+            replace(request, step=fallback_step),
+        )
+        return replace(
+            fallback_result,
+            details={
+                **fallback_result.details,
+                "fallback_used": True,
+                "fallback_from_model": step.model.id,
+                "fallback_reason": primary_result.failure_code.value,
+                "primary_failure_message": primary_result.failure_message or "",
+            },
+        )
 
     def _missing_adapter_result(
         self,
