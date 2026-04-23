@@ -25,6 +25,7 @@ class _FakeLocator:
         texts: list[str] | None = None,
         inner_text: str | None = None,
         attributes: dict[str, str] | None = None,
+        children: dict[str, _FakeLocator] | None = None,
         on_click: Callable[[], None] | None = None,
         on_set_input_files: Callable[[list[str]], None] | None = None,
     ) -> None:
@@ -35,6 +36,7 @@ class _FakeLocator:
         self._texts = texts or []
         self._inner_text = inner_text
         self._attributes = attributes or {}
+        self._children = children or {}
         self._on_click = on_click
         self._on_set_input_files = on_set_input_files
 
@@ -55,6 +57,9 @@ class _FakeLocator:
         if self._on_click is not None:
             self._on_click()
 
+    def locator(self, selector: str) -> _FakeLocator:
+        return self._children.get(selector, _FakeLocator(visible=False, count_value=0))
+
     def set_input_files(self, paths: list[str]) -> None:
         self.input_files = list(paths)
         if self._on_set_input_files is not None:
@@ -74,6 +79,7 @@ class _FakeLocator:
 
 class _FakePage:
     def __init__(self) -> None:
+        self.prompt_input = _FakeLocator(visible=True, count_value=1)
         self.model_button = _FakeLocator(visible=True, inner_text="Model")
         self.option = _FakeLocator(visible=False)
         self.new_thread_button = _FakeLocator(visible=False, inner_text="New Thread")
@@ -87,21 +93,44 @@ class _FakePage:
         self.default_timeout_ms: int | None = None
         self.goto_url: str | None = None
         self.keyboard = _FakeKeyboard()
+        self.selector_locators: dict[str, _FakeLocator] = {}
+        self.role_locators: dict[tuple[str, str], _FakeLocator] = {}
+        self.text_locators: dict[tuple[str, bool], _FakeLocator] = {}
 
     def locator(self, selector: str) -> _FakeLocator:
+        mapped = self.selector_locators.get(selector)
+        if mapped is not None:
+            return mapped
+        if selector == 'div#ask-input[role="textbox"][contenteditable="true"]':
+            return self.prompt_input
         if selector == 'input[type="file"]':
             return self.file_input
         if selector == 'button[aria-label="Add files or tools"]':
             return self.add_files_button
-        if "radix-popper" in selector or "role=\"dialog\"" in selector or "role=\"listbox\"" in selector:
+        if selector == 'div[data-ask-input-container="true"] button[aria-label="Model"]':
+            return self.model_button
+        if (
+            selector
+            == 'div[data-ask-input-container="true"] button[aria-haspopup="menu"]:not([aria-label="Add files or tools"]):not([aria-label="More"])'
+        ):
+            return self.model_button
+        if (
+            "radix-popper" in selector
+            or "role=\"dialog\"" in selector
+            or "role=\"listbox\"" in selector
+            or "role=\"menu\"" in selector
+        ):
             return self.model_menu
         if "Stop response" in selector:
             return self.stop_response_button
         if "New Thread" in selector:
             return self.new_thread_button
-        return self.model_button
+        return _FakeLocator(visible=False, count_value=0)
 
     def get_by_role(self, role: str, name: str) -> _FakeLocator:
+        mapped = self.role_locators.get((role, name))
+        if mapped is not None:
+            return mapped
         if name == "Model":
             return self.model_button
         if name == "New Thread":
@@ -109,6 +138,9 @@ class _FakePage:
         return self.option
 
     def get_by_text(self, value: str, exact: bool = False) -> _FakeLocator:
+        mapped = self.text_locators.get((value, exact))
+        if mapped is not None:
+            return mapped
         if value == "Model":
             return self.model_button
         if value == "New Thread":
@@ -543,6 +575,132 @@ class PlaywrightDriverTests(unittest.TestCase):
         self.assertIn("GPT-5.4", observed_model_menu)
         self.assertEqual(health["observed_model_menu_source"], "perplexity-model-menu")
         self.assertIsNotNone(health["observed_model_menu_at"])
+
+    def test_select_model_uses_menu_scope_lookup_before_global_fallback(self) -> None:
+        driver = PlaywrightBrowserAutomation(
+            runtime=PlaywrightBrowserRuntimeConfig(poll_interval_seconds=0),
+            sync_playwright_factory=lambda: object(),
+        )
+        page = _FakePage()
+        page.option = _FakeLocator(visible=False, count_value=0)
+        scoped_option = _FakeLocator(
+            visible=True,
+            inner_text="claude-sonnet-4-6",
+            attributes={"aria-selected": "true"},
+        )
+        page.selector_locators['[data-radix-popper-content-wrapper]'] = _FakeLocator(
+            visible=True,
+            texts=["claude-sonnet-4-6\nBest"],
+            children={"text=claude-sonnet-4-6": scoped_option},
+        )
+        driver._page = page
+
+        selection = driver.select_model(
+            provider_model_id="claude-sonnet-4-6",
+            policy=ModelVerificationPolicy(),
+        )
+
+        self.assertEqual(selection.details["option_lookup_source"], "menu_scope")
+        self.assertTrue(selection.details["model_selection_attempted"])
+        self.assertTrue(selection.details["model_selection_verified"])
+        self.assertTrue(scoped_option.clicked)
+
+    def test_select_model_uses_role_filter_lookup_when_menu_scope_is_empty(self) -> None:
+        driver = PlaywrightBrowserAutomation(
+            runtime=PlaywrightBrowserRuntimeConfig(poll_interval_seconds=0),
+            sync_playwright_factory=lambda: object(),
+        )
+        page = _FakePage()
+        page.option = _FakeLocator(visible=False, count_value=0)
+        role_option = _FakeLocator(
+            visible=True,
+            inner_text="claude-sonnet-4-6",
+            attributes={"aria-selected": "true"},
+        )
+        page.selector_locators['[role="menuitemradio"]:has-text("claude-sonnet-4-6")'] = _FakeLocator(
+            visible=False,
+            count_value=0,
+        )
+        page.selector_locators['[role="menuitem"]:has-text("claude-sonnet-4-6")'] = role_option
+        page.selector_locators['[role="option"]:has-text("claude-sonnet-4-6")'] = _FakeLocator(
+            visible=False,
+            count_value=0,
+        )
+        driver._page = page
+
+        selection = driver.select_model(
+            provider_model_id="claude-sonnet-4-6",
+            policy=ModelVerificationPolicy(),
+        )
+
+        self.assertEqual(selection.details["option_lookup_source"], "role_filter")
+        self.assertTrue(selection.details["model_selection_attempted"])
+        self.assertTrue(selection.details["model_selection_verified"])
+        self.assertTrue(role_option.clicked)
+
+    def test_select_model_uses_global_fallback_when_scoped_and_role_lookup_fail(self) -> None:
+        driver = PlaywrightBrowserAutomation(
+            runtime=PlaywrightBrowserRuntimeConfig(poll_interval_seconds=0),
+            sync_playwright_factory=lambda: object(),
+        )
+        page = _FakePage()
+        page.option = _FakeLocator(
+            visible=True,
+            inner_text="claude-sonnet-4-6",
+            attributes={"aria-selected": "true"},
+        )
+        page.selector_locators['[role="menuitemradio"]:has-text("claude-sonnet-4-6")'] = _FakeLocator(
+            visible=False,
+            count_value=0,
+        )
+        page.selector_locators['[role="menuitem"]:has-text("claude-sonnet-4-6")'] = _FakeLocator(
+            visible=False,
+            count_value=0,
+        )
+        page.selector_locators['[role="option"]:has-text("claude-sonnet-4-6")'] = _FakeLocator(
+            visible=False,
+            count_value=0,
+        )
+        driver._page = page
+
+        selection = driver.select_model(
+            provider_model_id="claude-sonnet-4-6",
+            policy=ModelVerificationPolicy(),
+        )
+
+        self.assertEqual(selection.details["option_lookup_source"], "global_fallback")
+        self.assertTrue(selection.details["model_selection_attempted"])
+        self.assertTrue(selection.details["model_selection_verified"])
+        self.assertTrue(page.option.clicked)
+
+    def test_select_model_records_not_found_lookup_source(self) -> None:
+        driver = PlaywrightBrowserAutomation(
+            runtime=PlaywrightBrowserRuntimeConfig(poll_interval_seconds=0),
+            sync_playwright_factory=lambda: object(),
+        )
+        page = _FakePage()
+        page.selector_locators['[role="menuitemradio"]:has-text("Kimi K2.5")'] = _FakeLocator(
+            visible=False,
+            count_value=0,
+        )
+        page.selector_locators['[role="menuitem"]:has-text("Kimi K2.5")'] = _FakeLocator(
+            visible=False,
+            count_value=0,
+        )
+        page.selector_locators['[role="option"]:has-text("Kimi K2.5")'] = _FakeLocator(
+            visible=False,
+            count_value=0,
+        )
+        driver._page = page
+
+        selection = driver.select_model(
+            provider_model_id="Kimi K2.5",
+            policy=ModelVerificationPolicy(),
+        )
+
+        self.assertEqual(selection.details["option_lookup_source"], "not_found")
+        self.assertFalse(selection.details["model_selection_attempted"])
+        self.assertEqual(selection.actual_label, "Best")
 
     def test_select_model_records_post_click_verification_evidence(self) -> None:
         driver = PlaywrightBrowserAutomation(sync_playwright_factory=lambda: object())

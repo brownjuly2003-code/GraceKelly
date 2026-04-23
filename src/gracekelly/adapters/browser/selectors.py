@@ -27,6 +27,7 @@ class PerplexitySelectors:
         '[data-radix-popper-content-wrapper]',
         '[role="dialog"]',
         '[role="listbox"]',
+        '[role="menu"]',
     )
     model_menu_item_selector: str = '[role="menuitemradio"], [role="menuitem"], [role="option"], button'
     ready_markers: tuple[str, ...] = (

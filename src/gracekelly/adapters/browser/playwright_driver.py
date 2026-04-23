@@ -293,14 +293,22 @@ class PlaywrightBrowserAutomation(BrowserAutomationPort):
         self._record_model_menu_snapshot(menu_texts)
         self._screenshot(f"04-model-menu-open-{provider_model_id}")
 
-        option = self._first_visible_locator(
-            (
-                page.get_by_role("button", name=provider_model_id),
-                page.get_by_role("option", name=provider_model_id),
-                page.get_by_text(provider_model_id, exact=True),
-            )
-        )
+        option_lookup_source = "menu_scope"
+        option = self._find_option_in_menu_scope(page, provider_model_id)
         if option is None:
+            option_lookup_source = "role_filter"
+            option = self._find_option_via_role_filter(page, provider_model_id)
+        if option is None:
+            option_lookup_source = "global_fallback"
+            option = self._first_visible_locator(
+                (
+                    page.get_by_role("button", name=provider_model_id),
+                    page.get_by_role("option", name=provider_model_id),
+                    page.get_by_text(provider_model_id, exact=True),
+                )
+            )
+        if option is None:
+            option_lookup_source = "not_found"
             if self._body_has_signed_out_marker(page):
                 raise PermissionError("Perplexity sign-in overlay blocked model selection.")
             actual_label = self._infer_active_model_label(menu_texts)
@@ -314,6 +322,7 @@ class PlaywrightBrowserAutomation(BrowserAutomationPort):
                 actual_label=actual_label or provider_model_id,
                 details={
                     "actual_label_source": "option_not_found_menu_snapshot",
+                    "option_lookup_source": option_lookup_source,
                     "driver": "playwright",
                     "model_selection_verified": False,
                     "model_selection_attempted": False,
@@ -361,6 +370,7 @@ class PlaywrightBrowserAutomation(BrowserAutomationPort):
             actual_label=actual_label,
             details={
                 "actual_label_source": actual_label_source,
+                "option_lookup_source": option_lookup_source,
                 "driver": "playwright",
                 "model_selection_verified": model_selection_verified,
                 "model_selection_attempted": True,
@@ -694,6 +704,29 @@ class PlaywrightBrowserAutomation(BrowserAutomationPort):
             except Exception:
                 continue
         return [text for text in texts if text.strip()]
+
+    def _find_option_in_menu_scope(self, page: Any, requested: str) -> Any | None:
+        for selector in self._selectors.model_menu_candidates:
+            try:
+                candidate = page.locator(selector).locator(f"text={requested}")
+            except Exception:
+                continue
+            if self._locator_is_visible(candidate):
+                return getattr(candidate, "first", candidate)
+        return None
+
+    def _find_option_via_role_filter(self, page: Any, requested: str) -> Any | None:
+        for raw_selector in self._selectors.model_menu_item_selector.split(","):
+            selector = raw_selector.strip()
+            if not selector:
+                continue
+            # Leave broad button matching to the legacy global fallback to avoid off-menu hits.
+            if selector == "button":
+                continue
+            candidate = page.locator(f'{selector}:has-text("{requested}")')
+            if self._locator_is_visible(candidate):
+                return getattr(candidate, "first", candidate)
+        return None
 
     def _record_model_menu_snapshot(self, menu_texts: list[str]) -> None:
         observed_lines: list[str] = []
