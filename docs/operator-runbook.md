@@ -287,6 +287,62 @@ It also echoes `compressed_input`, `input_size_bytes`, `source_format_status`, `
 Failed import preflights also include `compressed_input`, `input_size_bytes`, and the source compatibility verdict fields derivable from the parsed artifact, so the operator can still identify and classify the rejected snapshot from the error payload.
 Compressed `.json.gz` snapshot input is supported directly.
 
+## Live smoke harness
+
+`scripts/live_smart_smoke.py` is a manual-gated operator harness for end-to-end browser-backed smoke checks. It is not scheduled and is not part of CI; run it only when you explicitly want to spend live browser quota.
+
+### Preconditions
+
+1. Chrome profile is already authenticated to Perplexity Pro, for example `D:/GraceKelly/chrome-profile/`.
+2. Uvicorn is running on `http://127.0.0.1:8011/` with at least:
+   ```powershell
+   $env:GRACEKELLY_BROWSER_ENABLED="true"
+   $env:GRACEKELLY_EXECUTION_PROFILE="hybrid"
+   ```
+3. No other `chrome.exe` process is using that profile:
+   ```powershell
+   Get-CimInstance Win32_Process -Filter "name = 'chrome.exe'" |
+     Where-Object { $_.CommandLine -like '*D:\\GraceKelly\\chrome-profile*' } |
+     Select-Object ProcessId, CommandLine
+   ```
+   The command should return no rows before you launch the smoke.
+
+### Supported patterns
+
+| Pattern | API path | UI label | Default prompt summary | Expected quota | Min answer length |
+| --- | --- | --- | --- | --- | --- |
+| `smart` | `/api/v1/smart` | `Умный выбор` | EV market comparison across Europe, USA, China | 1-3 submits | 500 chars |
+| `debate` | `/api/v1/debate` | `Дебаты` | EV market comparison with challenge/defense loop | 3-5 submits | 500 chars |
+| `consensus` | `/api/v1/consensus` | not surfaced; direct POST fallback | 3 leading EV manufacturers in China | 3-5 submits | 300 chars |
+| `compare` | `/api/v1/compare` | not surfaced; direct POST fallback | Claude Sonnet 4.6 vs GPT-5.4 reasoning comparison | 5 submits | 400 chars |
+| `upload` | `/api/v1/orchestrate/upload` | n/a; composer attachment flow | summarize attached file | 1 submit | 150 chars |
+
+Quota expectations are approximate and assume a healthy authenticated browser session. `smart` may fan out into 1-3 submits, `debate` usually needs 3-5, `consensus` usually needs 3-5, `compare` fans out across five models, and `upload` is expected to be a single submit.
+
+### Usage examples
+
+```powershell
+python scripts/live_smart_smoke.py --pattern smart
+python scripts/live_smart_smoke.py --pattern debate
+python scripts/live_smart_smoke.py --pattern consensus
+python scripts/live_smart_smoke.py --pattern compare
+python scripts/live_smart_smoke.py --pattern upload --attachment <path>
+```
+
+### Artifacts and interpretation
+
+Reports are written to `.workflow/outbox/<tag>-<PATTERN>-report.md` and raw payloads to `.workflow/outbox/<tag>-<PATTERN>-response.json`.
+
+`Status: success` means the harness completed prompt-to-response end-to-end and the evaluator accepted the pattern-specific response without `AUTH_FAILED`, `shell-chrome`, forbidden markers, or length/topic failures.
+
+`Status: failure` means the report contains explicit rejection reasons such as non-200 status, missing answer field, too-short output, forbidden markers, or missing topic keywords. Inspect the paired `response.json` to see the captured HTTP status and the raw response body fields that the evaluator examined.
+
+### Coverage notes
+
+Fallback behaviour is validated via unit-tests in `tests/test_router_fallback.py`, not through the live harness; browser-adapter failure is not reproduced artificially in smoke runs.
+
+This harness does not cover `smart/v2`, `batch`, or `pipeline`. Those paths stay validated through unit tests and route-level smoke coverage such as `tests/test_routes_*`.
+
 ## Task inspection workflow
 
 1. Find the recent failures:

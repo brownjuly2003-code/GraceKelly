@@ -1,0 +1,31 @@
+{
+  "task_id": "DOCS-operator-runbook-live-smoke",
+  "status": "success",
+  "files_modified": [
+    "docs/operator-runbook.md",
+    ".workflow/outbox/2026-04-23-batch-91-DOCS-operator-runbook-live-smoke-report.md"
+  ],
+  "lint_clean": true,
+  "self_review": {
+    "iterations": 1,
+    "initial_score": 8,
+    "final_score": 8,
+    "improvements": []
+  },
+  "test_battery": {
+    "R1": {
+      "pass": 2647,
+      "fail": 0,
+      "skip": 6
+    },
+    "contradictions": []
+  },
+  "visual_check": false,
+  "test_output_hash": null,
+  "roles_executed": [
+    "IMPLEMENTER",
+    "AUDITOR"
+  ],
+  "docs_pruned": null,
+  "error": null
+}
