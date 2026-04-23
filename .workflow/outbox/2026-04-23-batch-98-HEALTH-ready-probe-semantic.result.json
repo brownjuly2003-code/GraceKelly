@@ -1,0 +1,42 @@
+{
+  "task_id": "HEALTH-ready-probe-semantic",
+  "status": "success",
+  "files_modified": [
+    "src/gracekelly/api/routes/health.py",
+    "tests/test_healthz_live.py",
+    "docs/gates/2026-04-23-gate-2-operational-review.md"
+  ],
+  "lint_clean": true,
+  "mypy_clean": true,
+  "state_attributes_used": [
+    "task_repository",
+    "execution_router",
+    "settings.browser_enabled",
+    "browser_adapter"
+  ],
+  "criterion_2_status": {
+    "before": "FAIL",
+    "after": "PASS"
+  },
+  "test_names": [
+    "test_readiness_returns_ok_with_storage",
+    "test_readiness_returns_503_without_execution_router",
+    "test_readiness_returns_503_when_browser_enabled_without_adapter",
+    "test_readiness_returns_ok_when_browser_disabled_without_adapter",
+    "test_readiness_returns_503_without_storage"
+  ],
+  "test_battery": {
+    "required_scope": {
+      "pass": 56,
+      "fail": 0,
+      "scope": "tests/test_http_api.py"
+    },
+    "readiness_scope": {
+      "pass": 6,
+      "fail": 0,
+      "scope": "tests/test_healthz_live.py"
+    }
+  },
+  "live_quota_used": false,
+  "error": null
+}
