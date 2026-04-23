@@ -1,0 +1,42 @@
+{
+  "task_id": "VERIFY-scoped-menu-vs-orchestrator2",
+  "status": "success",
+  "verdict": "PATTERN_EQUIVALENT",
+  "files_modified": [
+    "tests/test_playwright_driver.py",
+    ".workflow/outbox/2026-04-23-batch-88-VERIFY-scoped-menu-vs-orchestrator2-report.md"
+  ],
+  "lint_clean": true,
+  "self_review": {
+    "iterations": 1,
+    "initial_score": 9,
+    "final_score": 9,
+    "improvements": []
+  },
+  "test_battery": {
+    "R1": {
+      "pass": 2614,
+      "fail": 0,
+      "skip": 6
+    },
+    "R2": null,
+    "R3": {
+      "pass": 63,
+      "fail": 0,
+      "skip": 0
+    },
+    "R4": null,
+    "R5": null,
+    "contradictions": []
+  },
+  "visual_check": false,
+  "test_output_hash": null,
+  "roles_executed": [
+    "VERIFIER",
+    "TEST_AUTHOR",
+    "RUNNER",
+    "AUDITOR"
+  ],
+  "docs_pruned": null,
+  "error": null
+}

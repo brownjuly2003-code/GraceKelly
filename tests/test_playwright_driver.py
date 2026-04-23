@@ -26,6 +26,7 @@ class _FakeLocator:
         inner_text: str | None = None,
         attributes: dict[str, str] | None = None,
         children: dict[str, _FakeLocator] | None = None,
+        first_locator: _FakeLocator | None = None,
         on_click: Callable[[], None] | None = None,
         on_set_input_files: Callable[[list[str]], None] | None = None,
     ) -> None:
@@ -37,12 +38,13 @@ class _FakeLocator:
         self._inner_text = inner_text
         self._attributes = attributes or {}
         self._children = children or {}
+        self._first_locator = first_locator
         self._on_click = on_click
         self._on_set_input_files = on_set_input_files
 
     @property
     def first(self) -> _FakeLocator:
-        return self
+        return self._first_locator or self
 
     def is_visible(self) -> bool:
         return self._visible
@@ -604,6 +606,73 @@ class PlaywrightDriverTests(unittest.TestCase):
         self.assertTrue(selection.details["model_selection_attempted"])
         self.assertTrue(selection.details["model_selection_verified"])
         self.assertTrue(scoped_option.clicked)
+
+    def test_find_option_in_menu_scope_returns_first_when_multiple_text_matches(self) -> None:
+        driver = PlaywrightBrowserAutomation(
+            runtime=PlaywrightBrowserRuntimeConfig(poll_interval_seconds=0),
+            sync_playwright_factory=lambda: object(),
+        )
+        page = _FakePage()
+        exact_match = _FakeLocator(visible=True, inner_text="Best")
+        multi_match = _FakeLocator(
+            visible=False,
+            texts=["Best", "Selects the best available model"],
+            first_locator=exact_match,
+        )
+        page.selector_locators['[data-radix-popper-content-wrapper]'] = _FakeLocator(
+            visible=True,
+            children={"text=Best": multi_match},
+        )
+
+        option = driver._find_option_in_menu_scope(page, "Best")
+
+        self.assertIs(option, exact_match)
+        assert option is not None
+        self.assertEqual(option.inner_text(), "Best")
+        self.assertEqual(multi_match.all_inner_texts(), ["Best", "Selects the best available model"])
+
+    def test_find_option_in_menu_scope_returns_none_when_all_scopes_empty(self) -> None:
+        driver = PlaywrightBrowserAutomation(
+            runtime=PlaywrightBrowserRuntimeConfig(poll_interval_seconds=0),
+            sync_playwright_factory=lambda: object(),
+        )
+        page = _FakePage()
+        empty_match = _FakeLocator(visible=False, count_value=0)
+        for selector in driver._selectors.model_menu_candidates:
+            page.selector_locators[selector] = _FakeLocator(
+                visible=True,
+                children={"text=Best": empty_match},
+            )
+
+        option = driver._find_option_in_menu_scope(page, "Best")
+
+        self.assertIsNone(option)
+
+    def test_find_option_in_menu_scope_prefers_earlier_scope_selector(self) -> None:
+        driver = PlaywrightBrowserAutomation(
+            runtime=PlaywrightBrowserRuntimeConfig(poll_interval_seconds=0),
+            sync_playwright_factory=lambda: object(),
+        )
+        page = _FakePage()
+        earlier_scope_match = _FakeLocator(visible=True, inner_text="Best")
+        later_scope_match = _FakeLocator(visible=True, inner_text="Best")
+        page.selector_locators['[data-radix-popper-content-wrapper]'] = _FakeLocator(
+            visible=True,
+            children={
+                "text=Best": _FakeLocator(visible=False, first_locator=earlier_scope_match),
+            },
+        )
+        page.selector_locators['[role="menu"]'] = _FakeLocator(
+            visible=True,
+            children={
+                "text=Best": _FakeLocator(visible=False, first_locator=later_scope_match),
+            },
+        )
+
+        option = driver._find_option_in_menu_scope(page, "Best")
+
+        self.assertIs(option, earlier_scope_match)
+        self.assertIsNot(option, later_scope_match)
 
     def test_select_model_uses_role_filter_lookup_when_menu_scope_is_empty(self) -> None:
         driver = PlaywrightBrowserAutomation(
