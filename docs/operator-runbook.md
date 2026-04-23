@@ -13,6 +13,37 @@ This runbook covers the current operating surface for GraceKelly:
 
 It is intentionally limited to the current in-process deployment model.
 
+## Quickstart
+
+1. **Step 1 — Boot**
+   Start the backend with the browser runtime enabled:
+   ```bash
+   set GRACEKELLY_BROWSER_ENABLED=true
+   set GRACEKELLY_BROWSER_AUTOMATION_BACKEND=playwright
+   set GRACEKELLY_EXECUTION_PROFILE=hybrid
+   set GRACEKELLY_BROWSER_PROFILE_DIR=D:\GraceKelly\tmp\browser-recon\perplexity-profile
+   python -m uvicorn gracekelly.main:create_app --factory --host 127.0.0.1 --port 8011
+   ```
+   Keep that process running, then open `http://127.0.0.1:8011/`.
+
+2. **Step 2 — Authenticate browser**
+   Bootstrap a dedicated Chrome profile once:
+   ```bash
+   gracekelly-create-perplexity-profile
+   ```
+   Finish the Perplexity login manually in that profile, close every Chrome window using it, and reuse the same `GRACEKELLY_BROWSER_PROFILE_DIR` for the backend.
+
+3. **Step 3 — First smoke**
+   ```bash
+   python scripts/live_smart_smoke.py --pattern smart
+   ```
+   Expected result: HTTP `200`, a meaningful answer, and roughly `1-3` browser submits for the SMART flow.
+
+For deeper operations see the sections below:
+- [Live smoke harness](#live-smoke-harness)
+- [Browser triage](#browser-triage)
+- [Harness limitations](#harness-limitations)
+
 ## UI
 
 The built-in web UI is served from the main app at http://127.0.0.1:8011/.
