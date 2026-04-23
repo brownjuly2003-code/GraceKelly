@@ -333,21 +333,71 @@ class ExecutionRouter:
         request: ExecutionRequest,
     ) -> ExecutionResult | None:
         if not self._settings.enable_model_fallback:
+            logger.debug(
+                "fallback skipped: disabled",
+                extra={
+                    "task_id": request.task_id,
+                    "step_index": step.step_index,
+                    "model_id": step.model.id,
+                    "skip_reason": "disabled",
+                },
+            )
             return None
         if primary_result.failure_code not in (
             FailureCode.AUTH_FAILED,
             FailureCode.PROVIDER_UNAVAILABLE,
             FailureCode.TIMEOUT,
         ):
+            logger.debug(
+                "fallback skipped: code_not_triggering",
+                extra={
+                    "task_id": request.task_id,
+                    "step_index": step.step_index,
+                    "model_id": step.model.id,
+                    "skip_reason": "code_not_triggering",
+                },
+            )
             return None
         if step.model.fallback_model_id is None:
+            logger.debug(
+                "fallback skipped: no_fallback_id",
+                extra={
+                    "task_id": request.task_id,
+                    "step_index": step.step_index,
+                    "model_id": step.model.id,
+                    "skip_reason": "no_fallback_id",
+                },
+            )
             return None
         fallback_model = next(
             (model for model in list_models() if model.id == step.model.fallback_model_id),
             None,
         )
         if fallback_model is None:
+            logger.debug(
+                "fallback skipped: fallback_model_not_found",
+                extra={
+                    "task_id": request.task_id,
+                    "step_index": step.step_index,
+                    "model_id": step.model.id,
+                    "skip_reason": "fallback_model_not_found",
+                },
+            )
             return None
+        assert primary_result.failure_code is not None
+        logger.info(
+            "fallback attempting: %s -> %s reason=%s",
+            step.model.id,
+            fallback_model.id,
+            primary_result.failure_code.value,
+            extra={
+                "task_id": request.task_id,
+                "step_index": step.step_index,
+                "model_id": step.model.id,
+                "primary_failure_code": primary_result.failure_code.value,
+                "fallback_to": fallback_model.id,
+            },
+        )
         fallback_step = ExecutionStep(
             model=fallback_model,
             backend=ExecutionBackend(fallback_model.adapter_kind),
@@ -359,6 +409,37 @@ class ExecutionRouter:
             fallback_step,
             replace(request, step=fallback_step),
         )
+        if fallback_result.status == StepStatus.COMPLETED:
+            logger.info(
+                "fallback succeeded: %s -> %s",
+                step.model.id,
+                fallback_model.id,
+                extra={
+                    "task_id": request.task_id,
+                    "step_index": step.step_index,
+                    "model_id": step.model.id,
+                    "primary_failure_code": primary_result.failure_code.value,
+                    "fallback_to": fallback_model.id,
+                },
+            )
+        elif fallback_result.status == StepStatus.FAILED:
+            logger.warning(
+                "fallback failed: %s -> %s primary=%s fallback=%s",
+                step.model.id,
+                fallback_model.id,
+                primary_result.failure_code.value,
+                fallback_result.failure_code.value if fallback_result.failure_code is not None else "unknown",
+                extra={
+                    "task_id": request.task_id,
+                    "step_index": step.step_index,
+                    "model_id": step.model.id,
+                    "primary_failure_code": primary_result.failure_code.value,
+                    "fallback_to": fallback_model.id,
+                    "fallback_failure_code": (
+                        fallback_result.failure_code.value if fallback_result.failure_code is not None else "unknown"
+                    ),
+                },
+            )
         return replace(
             fallback_result,
             details={

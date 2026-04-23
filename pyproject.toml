@@ -97,11 +97,3 @@ disallow_untyped_defs = false
 disallow_untyped_calls = false
 disallow_incomplete_defs = false
 disable_error_code = ["assignment", "misc"]
-
-[[tool.mypy.overrides]]
-module = [
-  "test_app_startup",
-  "test_orchestrate_timeout",
-  "test_postgres_live",
-]
-disable_error_code = ["assignment", "unused-ignore"]

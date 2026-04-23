@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+import logging
 import unittest
 from dataclasses import asdict, replace
 from unittest.mock import patch
+
+import pytest
 
 from gracekelly.config import Settings
 from gracekelly.config import settings as _default_settings
@@ -592,6 +595,129 @@ class RouterFallbackTests(unittest.TestCase):
         self.assertEqual(build_browser_model_spec("GPT-5.4").fallback_model_id, "gpt-5-4-api")
         self.assertIsNone(build_browser_model_spec("Sonar").fallback_model_id)
         self.assertIsNone(deserialize_model_spec(legacy_payload).fallback_model_id)
+
+
+def test_try_fallback_logs_attempt_and_success(caplog: pytest.LogCaptureFixture) -> None:
+    primary = _make_spec(
+        "claude-sonnet-4-6",
+        adapter_kind="browser",
+        provider="perplexity",
+        provider_model_id="Claude Sonnet 4.6",
+        fallback_model_id="claude-sonnet-4-6-api",
+    )
+    fallback = _make_spec(
+        "claude-sonnet-4-6-api",
+        adapter_kind="api",
+        provider="anthropic",
+        provider_model_id="claude-sonnet-4-6-20250514",
+    )
+    step = _make_step(primary)
+    browser_adapter = _FakeAdapter([
+        _result(
+            step,
+            status=StepStatus.FAILED,
+            failure_code=FailureCode.AUTH_FAILED,
+            failure_message="login required",
+        ),
+    ])
+    api_adapter = _FakeAdapter([
+        _result(_make_step(fallback), status=StepStatus.COMPLETED, output_text="fallback output"),
+    ])
+    caplog.handler.setLevel(logging.INFO)
+
+    with patch("gracekelly.core.router.list_models", return_value=(primary, fallback)):
+        router = ExecutionRouter(
+            dry_run_adapter=_FakeAdapter([]),
+            api_adapters={"anthropic": api_adapter},
+            browser_adapter=browser_adapter,
+            settings=Settings(enable_model_fallback=True),
+        )
+        with caplog.at_level(logging.INFO, logger="gracekelly.core.router"):
+            batch = router.execute(
+                task_id="t1",
+                prompt="Q",
+                plan=_make_plan(step),
+                reasoning=False,
+                metadata={},
+            )
+
+    attempt_records = [
+        record
+        for record in caplog.records
+        if record.name == "gracekelly.core.router" and "fallback attempting:" in record.getMessage()
+    ]
+    assert len(attempt_records) == 1
+    assert attempt_records[0].getMessage() == "fallback attempting: claude-sonnet-4-6 -> claude-sonnet-4-6-api reason=auth_failed"
+    assert attempt_records[0].task_id == "t1"
+    assert attempt_records[0].primary_failure_code == "auth_failed"
+    assert attempt_records[0].fallback_to == "claude-sonnet-4-6-api"
+
+    success_records = [
+        record
+        for record in caplog.records
+        if record.name == "gracekelly.core.router" and "fallback succeeded:" in record.getMessage()
+    ]
+    assert len(success_records) == 1
+    assert success_records[0].getMessage() == "fallback succeeded: claude-sonnet-4-6 -> claude-sonnet-4-6-api"
+    assert success_records[0].task_id == "t1"
+    assert success_records[0].primary_failure_code == "auth_failed"
+    assert success_records[0].fallback_to == "claude-sonnet-4-6-api"
+    assert batch.results[0].model_id == "claude-sonnet-4-6-api"
+
+
+def test_try_fallback_logs_skip_reason_when_disabled(caplog: pytest.LogCaptureFixture) -> None:
+    primary = _make_spec(
+        "claude-sonnet-4-6",
+        adapter_kind="browser",
+        provider="perplexity",
+        provider_model_id="Claude Sonnet 4.6",
+        fallback_model_id="claude-sonnet-4-6-api",
+    )
+    fallback = _make_spec(
+        "claude-sonnet-4-6-api",
+        adapter_kind="api",
+        provider="anthropic",
+        provider_model_id="claude-sonnet-4-6-20250514",
+    )
+    step = _make_step(primary)
+    browser_adapter = _FakeAdapter([
+        _result(
+            step,
+            status=StepStatus.FAILED,
+            failure_code=FailureCode.PROVIDER_UNAVAILABLE,
+            failure_message="browser unavailable",
+        ),
+    ])
+    caplog.handler.setLevel(logging.DEBUG)
+
+    with patch("gracekelly.core.router.list_models", return_value=(primary, fallback)):
+        router = ExecutionRouter(
+            dry_run_adapter=_FakeAdapter([]),
+            api_adapters={},
+            browser_adapter=browser_adapter,
+            settings=Settings(enable_model_fallback=False),
+        )
+        with caplog.at_level(logging.DEBUG, logger="gracekelly.core.router"):
+            batch = router.execute(
+                task_id="t1",
+                prompt="Q",
+                plan=_make_plan(step),
+                reasoning=False,
+                metadata={},
+            )
+
+    skip_records = [
+        record
+        for record in caplog.records
+        if record.name == "gracekelly.core.router" and "fallback skipped:" in record.getMessage()
+    ]
+    assert len(skip_records) == 1
+    assert skip_records[0].getMessage() == "fallback skipped: disabled"
+    assert skip_records[0].task_id == "t1"
+    assert skip_records[0].step_index == 0
+    assert skip_records[0].model_id == "claude-sonnet-4-6"
+    assert skip_records[0].skip_reason == "disabled"
+    assert batch.failure_code == FailureCode.PROVIDER_UNAVAILABLE
 
 
 if __name__ == "__main__":
