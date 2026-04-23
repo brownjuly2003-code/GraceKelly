@@ -2,6 +2,31 @@
 
 Last updated: 2026-04-23 (roadmap formally closed; all phases complete, gates PASS, trigger-reactive items explicitly scoped)
 
+## 2026-04-23 Closure Timeline
+
+Single-day roadmap closure run. All phases now marked complete; gates PASS; deferred items explicitly scoped as trigger-reactive.
+
+- `batch-86`: silent model-mismatch detection via actual_label unverified (`9f2aa5f`)
+- `batch-87`: scoped-menu search port from Perplexity_Orchestrator2 (`f430d39`)
+- `batch-88`: pattern-equivalence verification vs Orchestrator2 (`48b5a93`)
+- `batch-89`: model fallback policy single-shot (`8665875`)
+- `batch-90`: browser request budget (`bd8d978`)
+- `batch-91`: live smoke harness 5 patterns (`a76b632`)
+- `batch-92`: post-Phase-2 comprehensive audit — health 7.6/10 (`5163cb8`)
+- `batch-93`: settings injection + roadmap sync (`8803a0c`, `d3e32d6`)
+- `batch-94`: coverage blind spot — unhide playwright_driver (`ca3d68b`)
+- `batch-95`: mypy override cleanup + fallback logging (`bfebff2`)
+- `batch-96`: README + architecture docs sync (`9108343`, `fa36d49`)
+- `batch-97`: Gate 2 / Gate 3 self-review + AUTH3/cyrillic/API-hedge closure (`aeaa9bf`)
+- `batch-98`: /healthz/ready semantic readiness (`7e3928f`)
+- `batch-99`: Phase 13/14 trigger-reactive relabel (`f356bc6`)
+- `batch-100`: final docs polish (`a991b1d` — this batch)
+
+- Audit: [docs/audits/2026-04-23-post-phase-2-audit.md](docs/audits/2026-04-23-post-phase-2-audit.md)
+- Gate 2: [docs/gates/2026-04-23-gate-2-operational-review.md](docs/gates/2026-04-23-gate-2-operational-review.md)
+- Gate 3: [docs/gates/2026-04-23-gate-3-execution-policy-review.md](docs/gates/2026-04-23-gate-3-execution-policy-review.md)
+- Plan: [docs/plans/2026-04-23-final-closure.md](docs/plans/2026-04-23-final-closure.md)
+
 ## Phase 0: Clean foundation
 
 Status: complete
