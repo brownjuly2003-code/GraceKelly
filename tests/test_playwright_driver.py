@@ -531,6 +531,7 @@ class PlaywrightDriverTests(unittest.TestCase):
         )
 
         self.assertEqual(selection.actual_label, "Best")
+        self.assertEqual(selection.details["actual_label_source"], "option_not_found_menu_snapshot")
         self.assertFalse(selection.details["model_selection_attempted"])
         self.assertIn("Best", selection.details["model_menu_snapshot"][0])
         self.assertTrue(driver._page.model_button.clicked)
@@ -565,11 +566,135 @@ class PlaywrightDriverTests(unittest.TestCase):
 
         self.assertTrue(selection.details["model_selection_attempted"])
         self.assertTrue(selection.details["model_selection_verified"])
+        self.assertEqual(selection.actual_label, "GPT-5.4")
+        self.assertEqual(selection.details["actual_label_source"], "verified_button")
         self.assertEqual(selection.details["model_button_text_after"], "Current model GPT-5.4")
         self.assertEqual(selection.details["selection_indicator"], "aria-selected")
         self.assertEqual(selection.details["selection_indicator_value"], "true")
         health = driver.healthcheck()
         self.assertIn("GPT-5.4", cast(Any, health["verified_model_labels_at"]))
+
+    def test_select_model_verified_path_keeps_requested_actual_label(self) -> None:
+        driver = PlaywrightBrowserAutomation(
+            runtime=PlaywrightBrowserRuntimeConfig(poll_interval_seconds=0),
+            sync_playwright_factory=lambda: object(),
+        )
+
+        class _VerifiedSelectionPage(_FakePage):
+            def __init__(self) -> None:
+                super().__init__()
+                self.model_button = _FakeLocator(visible=True, inner_text="Model")
+                self.option = _FakeLocator(
+                    visible=True,
+                    inner_text="GPT-5.4",
+                    on_click=self._show_selected_model,
+                )
+
+            def _show_selected_model(self) -> None:
+                self.model_button._inner_text = "Current model GPT-5.4"
+
+        driver._page = _VerifiedSelectionPage()
+
+        selection = driver.select_model(
+            provider_model_id="GPT-5.4",
+            policy=ModelVerificationPolicy(),
+        )
+
+        self.assertTrue(selection.details["model_selection_verified"])
+        self.assertEqual(selection.actual_label, "GPT-5.4")
+        self.assertEqual(selection.details["actual_label_source"], "verified_button")
+
+    def test_select_model_unverified_path_reports_button_text_actual_label(self) -> None:
+        driver = PlaywrightBrowserAutomation(
+            runtime=PlaywrightBrowserRuntimeConfig(poll_interval_seconds=0),
+            sync_playwright_factory=lambda: object(),
+        )
+
+        class _UnverifiedButtonTextPage(_FakePage):
+            def __init__(self) -> None:
+                super().__init__()
+                self.model_button = _FakeLocator(visible=True, inner_text="Model")
+                self.option = _FakeLocator(
+                    visible=True,
+                    inner_text="Claude Sonnet 4.6",
+                    on_click=self._show_unexpected_model,
+                )
+
+            def _show_unexpected_model(self) -> None:
+                self.model_button._inner_text = "Sonar"
+
+        driver._page = _UnverifiedButtonTextPage()
+
+        selection = driver.select_model(
+            provider_model_id="Claude Sonnet 4.6",
+            policy=ModelVerificationPolicy(),
+        )
+
+        self.assertFalse(selection.details["model_selection_verified"])
+        self.assertEqual(selection.actual_label, "Sonar")
+        self.assertEqual(selection.details["actual_label_source"], "unverified_button_text")
+
+    def test_select_model_unverified_path_uses_menu_snapshot_when_button_text_is_empty(self) -> None:
+        driver = PlaywrightBrowserAutomation(
+            runtime=PlaywrightBrowserRuntimeConfig(poll_interval_seconds=0),
+            sync_playwright_factory=lambda: object(),
+        )
+
+        class _UnverifiedMenuSnapshotPage(_FakePage):
+            def __init__(self) -> None:
+                super().__init__()
+                self.model_button = _FakeLocator(visible=True, inner_text="Model")
+                self.model_menu = _FakeLocator(visible=True, texts=["Sonar\nClaude"])
+                self.option = _FakeLocator(
+                    visible=True,
+                    inner_text="Claude Sonnet 4.6",
+                    on_click=self._clear_button_text,
+                )
+
+            def _clear_button_text(self) -> None:
+                self.model_button._inner_text = ""
+
+        driver._page = _UnverifiedMenuSnapshotPage()
+
+        selection = driver.select_model(
+            provider_model_id="Claude Sonnet 4.6",
+            policy=ModelVerificationPolicy(),
+        )
+
+        self.assertFalse(selection.details["model_selection_verified"])
+        self.assertEqual(selection.actual_label, "Sonar")
+        self.assertEqual(selection.details["actual_label_source"], "unverified_menu_snapshot")
+
+    def test_select_model_unverified_path_falls_back_to_requested_label_without_ui_evidence(self) -> None:
+        driver = PlaywrightBrowserAutomation(
+            runtime=PlaywrightBrowserRuntimeConfig(poll_interval_seconds=0),
+            sync_playwright_factory=lambda: object(),
+        )
+
+        class _UnverifiedFallbackPage(_FakePage):
+            def __init__(self) -> None:
+                super().__init__()
+                self.model_button = _FakeLocator(visible=True, inner_text="Model")
+                self.model_menu = _FakeLocator(visible=True, texts=["  \n"])
+                self.option = _FakeLocator(
+                    visible=True,
+                    inner_text="Claude Sonnet 4.6",
+                    on_click=self._clear_button_text,
+                )
+
+            def _clear_button_text(self) -> None:
+                self.model_button._inner_text = ""
+
+        driver._page = _UnverifiedFallbackPage()
+
+        selection = driver.select_model(
+            provider_model_id="Claude Sonnet 4.6",
+            policy=ModelVerificationPolicy(),
+        )
+
+        self.assertFalse(selection.details["model_selection_verified"])
+        self.assertEqual(selection.actual_label, "Claude Sonnet 4.6")
+        self.assertEqual(selection.details["actual_label_source"], "unverified_fallback")
 
     def test_select_model_waits_for_model_button_visibility(self) -> None:
         driver = PlaywrightBrowserAutomation(sync_playwright_factory=lambda: object())
@@ -736,6 +861,7 @@ class PlaywrightDriverTests(unittest.TestCase):
         )
 
         self.assertEqual(selection.actual_label, "GPT-5.4")
+        self.assertEqual(selection.details["actual_label_source"], "picker_unavailable")
         self.assertFalse(selection.details["model_selection_verified"])
         self.assertFalse(selection.details["model_selection_attempted"])
         self.assertFalse(selection.details["home_navigation_attempted"])

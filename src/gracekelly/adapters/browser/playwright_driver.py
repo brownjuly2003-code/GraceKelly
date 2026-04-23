@@ -264,6 +264,7 @@ class PlaywrightBrowserAutomation(BrowserAutomationPort):
                 requested_label=provider_model_id,
                 actual_label=provider_model_id,
                 details={
+                    "actual_label_source": "picker_unavailable",
                     "driver": "playwright",
                     "model_selection_verified": False,
                     "model_selection_attempted": False,
@@ -312,6 +313,7 @@ class PlaywrightBrowserAutomation(BrowserAutomationPort):
                 requested_label=provider_model_id,
                 actual_label=actual_label or provider_model_id,
                 details={
+                    "actual_label_source": "option_not_found_menu_snapshot",
                     "driver": "playwright",
                     "model_selection_verified": False,
                     "model_selection_attempted": False,
@@ -341,10 +343,24 @@ class PlaywrightBrowserAutomation(BrowserAutomationPort):
             model_selection_verified = True
         if model_selection_verified:
             self._verified_model_labels_at[provider_model_id] = datetime.now(UTC)
+        actual_label = provider_model_id
+        actual_label_source = "verified_button"
+        if not model_selection_verified:
+            actual_label = self._infer_active_model_label([model_button_text_after] if model_button_text_after else [])
+            if actual_label is not None:
+                actual_label_source = "unverified_button_text"
+            else:
+                actual_label = self._infer_active_model_label(menu_texts)
+                if actual_label is not None:
+                    actual_label_source = "unverified_menu_snapshot"
+                else:
+                    actual_label = provider_model_id
+                    actual_label_source = "unverified_fallback"
         return BrowserModelSelection(
             requested_label=provider_model_id,
-            actual_label=provider_model_id,
+            actual_label=actual_label,
             details={
+                "actual_label_source": actual_label_source,
                 "driver": "playwright",
                 "model_selection_verified": model_selection_verified,
                 "model_selection_attempted": True,

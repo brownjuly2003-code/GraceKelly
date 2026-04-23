@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import unittest
 from collections.abc import Callable
+from dataclasses import replace
 
 import pytest
 
@@ -206,6 +207,37 @@ class BrowserAdapterTests(unittest.TestCase):
 
         self.assertEqual(result.status, StepStatus.FAILED)
         self.assertEqual(result.failure_code, FailureCode.MODEL_MISMATCH)
+
+    def test_browser_adapter_returns_model_mismatch_when_unverified_ui_label_differs(self) -> None:
+        class UnverifiedSelectionAutomation(FakeBrowserAutomation):
+            def select_model(self, *, provider_model_id: str, policy: ModelVerificationPolicy) -> BrowserModelSelection:
+                return BrowserModelSelection(
+                    requested_label=provider_model_id,
+                    actual_label="Sonar",
+                    details={
+                        "model_selection_verified": False,
+                        "actual_label_source": "unverified_button_text",
+                        "model_selection_attempted": True,
+                    },
+                )
+
+        adapter = PerplexityBrowserAdapter(
+            session_manager=self.build_session_manager(),
+            automation=UnverifiedSelectionAutomation(),
+        )
+        request = self.build_request()
+        model = replace(request.step.model, provider_model_id="claude-sonnet-4-6")
+        step = replace(request.step, model=model, provider_model_id=model.provider_model_id)
+        plan = replace(request.plan, steps=(step,))
+        request = replace(request, step=step, plan=plan)
+
+        result = adapter.execute(request)
+
+        self.assertEqual(result.status, StepStatus.FAILED)
+        self.assertEqual(result.failure_code, FailureCode.MODEL_MISMATCH)
+        assert result.failure_message is not None
+        self.assertIn("claude-sonnet-4-6", result.failure_message)
+        self.assertIn("Sonar", result.failure_message)
 
     def test_browser_adapter_honors_cancellation_before_execution(self) -> None:
         token = CancellationToken()
