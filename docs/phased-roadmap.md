@@ -1,6 +1,6 @@
 # Phased Roadmap
 
-Last updated: 2026-04-23 (Phase 17 scoped out; Gate 3 self-reviewed PASS; Gate 2 self-reviewed PASS with conditions)
+Last updated: 2026-04-23 (roadmap formally closed; all phases complete, gates PASS, trigger-reactive items explicitly scoped)
 
 ## Phase 0: Clean foundation
 
@@ -221,12 +221,13 @@ Delivered:
 - ✅ app_state.py: added test coverage
 - ✅ 2309 tests passing (from 2229 start of session)
 
-Remaining:
-- Async adapters (async httpx / async playwright) — sync adapters currently block the event loop
-- Redis-backed rate limiting for multi-process deployments
-- OpenTelemetry distributed tracing
-- Error tracking integration (Sentry)
-- Load testing framework
+Trigger-reactive follow-up (production/multi-user scope):
+These items are not open work for the single-user local deploy. Each activates on its own trigger:
+- Async adapters (async httpx / async playwright) — **trigger**: sustained event-loop stalls under concurrent load. Current sync adapters wrapped in `asyncio.to_thread` are sufficient for single-user throughput.
+- Redis-backed rate limiting for multi-process deployments — **trigger**: horizontal scale-out beyond one uvicorn worker. In-process limiting is sufficient single-process.
+- OpenTelemetry distributed tracing — **trigger**: multi-service topology or collecting perf data across requests. Single-user local has structured logs.
+- Error tracking integration (Sentry) — **trigger**: production fleet where operator not the user. Single-user local reads logs directly.
+- Load testing framework — **trigger**: SLA-bound deploy or before a material scale change. Not required for local scope.
 
 ---
 
@@ -249,8 +250,8 @@ Deliverables:
 - ✅ CI coverage gate raised: 90% → 93%
 - ✅ 2355 tests passing, 0 failures, coverage 93.85%
 
-Remaining (deferred):
-- Async adapters (async httpx.AsyncClient) — current sync adapters already wrapped in asyncio.to_thread, deferred as low-risk high-complexity
+Trigger-reactive follow-up (merged with Phase 13):
+- Async adapters (async httpx.AsyncClient) — merged with Phase 13 async-adapter item above (same underlying work, same trigger). `asyncio.to_thread` wrapper remains in place until triggered.
 
 ---
 
