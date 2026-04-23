@@ -1,0 +1,44 @@
+{
+  "task_id": "AUDIT-post-phase-2",
+  "status": "success",
+  "files_modified": [
+    "docs/audits/2026-04-23-post-phase-2-audit.md",
+    ".workflow/outbox/2026-04-23-batch-92-AUDIT-report.md"
+  ],
+  "lint_clean": true,
+  "self_review": {
+    "iterations": 1,
+    "initial_score": 8,
+    "final_score": 9,
+    "improvements": [
+      "Added a direct create_app(Settings(...)) reproduction to confirm the router/settings drift instead of reporting it as a theoretical concern.",
+      "Added targeted Playwright-driver coverage measurement because the baseline coverage report omits that file."
+    ]
+  },
+  "test_battery": {
+    "R1": {
+      "pass": 2647,
+      "fail": 0,
+      "skip": 6
+    },
+    "R2": {
+      "pass": 2647,
+      "fail": 0,
+      "skip": 6
+    },
+    "R3": {
+      "pass": 50,
+      "fail": 0,
+      "skip": 0
+    },
+    "contradictions": []
+  },
+  "visual_check": false,
+  "test_output_hash": null,
+  "roles_executed": [
+    "AUDITOR",
+    "RUNNER"
+  ],
+  "docs_pruned": null,
+  "error": null
+}
