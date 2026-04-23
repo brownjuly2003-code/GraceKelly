@@ -82,11 +82,6 @@ python_version = "3.11"
 strict = true
 ignore_missing_imports = true
 
-[tool.coverage.run]
-omit = [
-  "src/gracekelly/adapters/browser/playwright_driver.py",
-]
-
 [tool.coverage.report]
 exclude_lines = [
   "pragma: no cover",

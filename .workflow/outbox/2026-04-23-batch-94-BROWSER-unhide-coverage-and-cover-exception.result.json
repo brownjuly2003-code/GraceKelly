@@ -1,0 +1,32 @@
+{
+  "task_id": "BROWSER-unhide-coverage-and-cover-exception",
+  "status": "success",
+  "files_modified": [
+    "pyproject.toml",
+    "tests/test_playwright_driver.py",
+    ".workflow/outbox/2026-04-23-batch-94-BROWSER-unhide-coverage-and-cover-exception-report.md"
+  ],
+  "lint_clean": true,
+  "self_review": {
+    "iterations": 1,
+    "initial_score": 9,
+    "final_score": 9,
+    "improvements": []
+  },
+  "test_battery": {
+    "R1": "2651 passed, 6 skipped, 11 subtests passed",
+    "R2": "ruff clean",
+    "R3": "mypy strict clean",
+    "R4": "TOTAL coverage 96%; playwright_driver.py 76%",
+    "R5": "_find_option_in_menu_scope lines 709-716 fully covered; exception lines 712-713 hit",
+    "contradictions": []
+  },
+  "visual_check": false,
+  "test_output_hash": null,
+  "roles_executed": [
+    "IMPLEMENTER",
+    "AUDITOR"
+  ],
+  "docs_pruned": null,
+  "error": null
+}

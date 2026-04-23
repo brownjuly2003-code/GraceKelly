@@ -674,6 +674,29 @@ class PlaywrightDriverTests(unittest.TestCase):
         self.assertIs(option, earlier_scope_match)
         self.assertIsNot(option, later_scope_match)
 
+    def test_find_option_in_menu_scope_skips_selector_on_locator_exception(self) -> None:
+        driver = PlaywrightBrowserAutomation(
+            runtime=PlaywrightBrowserRuntimeConfig(poll_interval_seconds=0),
+            sync_playwright_factory=lambda: object(),
+        )
+        page = _FakePage()
+        fallback_match = _FakeLocator(visible=True, inner_text="Best")
+        first_selector, second_selector = driver._selectors.model_menu_candidates[:2]
+
+        class _RaisingScopeLocator(_FakeLocator):
+            def locator(self, selector: str) -> _FakeLocator:
+                raise Exception(f"locator failed for {selector}")
+
+        page.selector_locators[first_selector] = _RaisingScopeLocator(visible=True)
+        page.selector_locators[second_selector] = _FakeLocator(
+            visible=True,
+            children={"text=Best": fallback_match},
+        )
+
+        option = driver._find_option_in_menu_scope(page, "Best")
+
+        self.assertIs(option, fallback_match)
+
     def test_select_model_uses_role_filter_lookup_when_menu_scope_is_empty(self) -> None:
         driver = PlaywrightBrowserAutomation(
             runtime=PlaywrightBrowserRuntimeConfig(poll_interval_seconds=0),
