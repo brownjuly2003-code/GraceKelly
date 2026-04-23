@@ -2,7 +2,7 @@
 
 Date: 2026-04-23
 Reviewer: CC/CX internal self-review (single-user local deploy scope)
-HEAD: `beb8a0e`
+HEAD: `a667588`
 
 ## Scope of review
 
@@ -76,7 +76,7 @@ logs, error surfacing, and operator-facing docs are adequate for a single-user l
 
 No open deviations for the single-user local deployment scope reviewed here.
 
-## Fixed follow-ups (2026-04-23 batch-98)
+## Fixed follow-ups (batch-98 `7e3928f`)
 
 - Closed the `/healthz/ready` shallow-probe gap by adding lightweight execution-router and
   browser-adapter gating in `src/gracekelly/api/routes/health.py:379-389` and covering the
@@ -93,4 +93,4 @@ recovery drills. Those require a deployment context beyond the single-user local
 
 ## Signature
 
-Reviewed by CC (Claude Code orchestrator) on 2026-04-23, batch-98 updated, commit pending.
+Reviewed by CC (Claude Code orchestrator) on 2026-04-23; batch-99 sync pass applied after batch-98 landed.
