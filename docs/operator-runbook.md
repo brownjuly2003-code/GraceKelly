@@ -1,6 +1,6 @@
 # Operator Runbook
 
-Last updated: 2026-04-05
+Last updated: 2026-04-23
 
 This runbook covers the current operating surface for GraceKelly:
 - API authentication
@@ -342,6 +342,32 @@ Reports are written to `.workflow/outbox/<tag>-<PATTERN>-report.md` and raw payl
 Fallback behaviour is validated via unit-tests in `tests/test_router_fallback.py`, not through the live harness; browser-adapter failure is not reproduced artificially in smoke runs.
 
 This harness does not cover `smart/v2`, `batch`, or `pipeline`. Those paths stay validated through unit tests and route-level smoke coverage such as `tests/test_routes_*`.
+
+## Harness limitations
+
+### Cyrillic prompts via PowerShell pipe
+
+When the harness or any other CLI tool passes a cyrillic prompt through a PowerShell pipe
+(`echo 'привет' | python ...`), PowerShell's default encoding can downgrade the text to `?`
+placeholders before the child process sees it. That is a PowerShell / harness issue, not a
+GraceKelly backend bug.
+
+Workarounds:
+- pass the prompt directly with `--prompt`, for example `python scripts/live_smart_smoke.py --prompt "привет"`
+- set `$OutputEncoding = [System.Text.Encoding]::UTF8` before piping in the current session
+- use `--ascii-fallback` for deterministic ASCII smoke prompts
+
+Reference incident: Phase 17 / batch-82 live SMART failure recorded in `docs/phased-roadmap.md`.
+
+### Persistent session reuse
+
+Authentication is persisted through the dedicated Chrome profile directory (default
+`chrome-profile/`, configurable via `GRACEKELLY_BROWSER_PROFILE_DIR`). There is no separate session
+token file to rotate or copy.
+
+If another Chrome process is still using that profile, startup can fail with the live-profile guard
+or `BrowserProfileBusyError`. Use a dedicated profile created by `gracekelly-create-perplexity-profile`
+and follow `docs/onboarding.md` for the bootstrap / recovery flow.
 
 ## Task inspection workflow
 

@@ -1,6 +1,6 @@
 # Phased Roadmap
 
-Last updated: 2026-04-23 (Phase 2 + Phase 4 closed via batch-89/90/91/93; audit P1 roadmap sync applied)
+Last updated: 2026-04-23 (Phase 17 scoped out; Gate 3 self-reviewed PASS; Gate 2 self-reviewed PASS with conditions)
 
 ## Phase 0: Clean foundation
 
@@ -30,9 +30,9 @@ Deliverables:
 - strict step/result cardinality enforcement
 - event persistence failure logging
 
-Open review gates (not blocking Phase 1 completion, required before production hardening):
-- Gate 2: operational review for readiness semantics
-- Gate 3: execution-policy review for defaults and failure handling
+Review gates (self-review completed 2026-04-23):
+- Gate 2 (operational readiness): PASS with conditions for single-user local scope — see `docs/gates/2026-04-23-gate-2-operational-review.md`; use `GET /api/v1/readiness` for full component gating because `GET /healthz/ready` remains a shallow storage probe.
+- Gate 3 (execution-policy): PASS for single-user local scope — see `docs/gates/2026-04-23-gate-3-execution-policy-review.md`.
 
 ## Phase 2: Browser worker
 
@@ -160,8 +160,8 @@ Already delivered:
 - OpenAI-compatible adapter
 - shared `BaseApiAdapter` with common execute, post, healthcheck, and error handling
 
-Next:
-- expand the API hedge beyond a single OpenAI-compatible model if browser fragility proves material
+Trigger-reactive follow-up (not scheduled):
+- expand the API hedge beyond a single OpenAI-compatible model only if browser fragility becomes material under production-like load; this is not a currently open item for the single-user local deployment path
 
 ## Phase 6–10: Core smart endpoints and consensus V1
 
@@ -341,6 +341,6 @@ Incidents (deprecated follow-up specs recorded for history, not in Delivered):
 - **batch-82 Live SMART with cyrillic prompt**: failed — CX harness' PowerShell pipeline converted the cyrillic prompt to `?` before it reached Playwright. `POST /api/v1/smart` still returned `200` with the expected model_id, confirming the batch-80 backend fix, but the acceptance (meaningful answer) could not be validated.
 - **batch-83 Live SMART with UTF-8 harness**: failed — smart auto-decomposition fired three Perplexity calls for the prompt; adapter timeout of 60s per call clipped two of them, the third extracted 2730 chars at 53s. Route-level response was not captured within the harness' outer 180s window.
 
-Remaining:
-- **Cyrillic prompts via some harnesses lose encoding** (observed in batch-82) — lives on the automation side, not in GraceKelly, but worth documenting for anyone driving live smokes from PowerShell.
-- **AUTH3 persistent session reuse** — still deferred from batch-69; friction is tolerable at the current single-user local scale.
+Closed / Scoped out (2026-04-23):
+- **Cyrillic prompts via some harnesses lose encoding** — closed as out-of-scope: the corruption happens on the PowerShell/automation-harness side, not in GraceKelly. See `docs/operator-runbook.md` under `Harness limitations`.
+- **AUTH3 persistent session reuse** — closed by design via the batch-69 rationale: `AUTH1` sync mapping, `AUTH2` inline banner recovery, and the dedicated Chrome profile directory already cover the single-user local recovery path. Batch-72/bootstrap already covered profile lifecycle.
