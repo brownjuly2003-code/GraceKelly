@@ -1,0 +1,61 @@
+{
+  "task_id": "2026-04-23-batch-87-RECON-best-alias-live",
+  "status": "success",
+  "files_modified": [
+    "tmp/browser-recon/2026-04-23/recon-01-buttons.json",
+    "tmp/browser-recon/2026-04-23/recon-01-composer.html",
+    "tmp/browser-recon/2026-04-23/recon-01-home.png",
+    "tmp/browser-recon/2026-04-23/recon-03-model-menu.json",
+    "tmp/browser-recon/2026-04-23/recon-03-model-menu-attrs.json",
+    "tmp/browser-recon/2026-04-23/recon-03-model-picker.png",
+    "tmp/browser-recon/2026-04-23/recon-99-manifest.json",
+    ".workflow/outbox/2026-04-23-batch-87-RECON-report.md"
+  ],
+  "lint_clean": true,
+  "self_review": {
+    "iterations": 1,
+    "initial_score": 9,
+    "final_score": 9,
+    "improvements": []
+  },
+  "test_battery": {
+    "R1": {
+      "pass": 0,
+      "fail": 0,
+      "skip": 0
+    },
+    "R2": {
+      "pass": 0,
+      "fail": 0,
+      "skip": 0,
+      "coverage_pct": 0,
+      "coverage_delta": "n/a"
+    },
+    "R3": {
+      "pass": 0,
+      "fail": 0,
+      "skip": 0
+    },
+    "R4": {
+      "warnings": []
+    },
+    "R5": {
+      "tests_audited": 0,
+      "kill_confirmed": 0,
+      "kill_failed": 0,
+      "weak_tests": []
+    },
+    "contradictions": [
+      "No code changed in this task after TOOL commit 11f4a9a; RECON only captured live DOM evidence and wrote artifacts."
+    ]
+  },
+  "visual_check": null,
+  "test_output_hash": null,
+  "roles_executed": [
+    "IMPLEMENTER",
+    "RUNNER",
+    "AUDITOR"
+  ],
+  "docs_pruned": null,
+  "error": null
+}
