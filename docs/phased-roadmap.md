@@ -1,6 +1,6 @@
 # Phased Roadmap
 
-Last updated: 2026-04-23 (Phase 17 SMART + DEBATE + role-based fan-out live acceptance proven end-to-end)
+Last updated: 2026-04-23 (Phase 2 + Phase 4 closed via batch-89/90/91/93; audit P1 roadmap sync applied)
 
 ## Phase 0: Clean foundation
 
@@ -36,7 +36,7 @@ Open review gates (not blocking Phase 1 completion, required before production h
 
 ## Phase 2: Browser worker
 
-Status: partial, first authenticated live-driver smoke proven
+Status: complete, live-smoke harness extended to smart/debate/consensus/compare/upload in batch-91
 
 Deliverables:
 - isolated browser adapter package
@@ -61,6 +61,9 @@ Delivered after catalog refresh:
 
 Delivered after the first live-driver smoke:
 - concrete browser-driver cleanup on top of the app lifespan hook, including idle-session reset and stale runtime detection
+
+Delivered after Phase 2 closing:
+- **batch-91 HARNESS-expand-patterns**: live smoke harness covers smart/debate/consensus/compare/upload with pattern-specific evaluation; operator runbook section added (`a76b632`, `b965c3c`)
 
 Support in place:
 - manual-gated live Playwright smoke test in `tests/test_playwright_live.py`
@@ -90,7 +93,7 @@ Delivered after validation tooling:
 
 ## Phase 4: Reliability controls
 
-Status: partial
+Status: complete
 
 Deliverables:
 - account pool manager
@@ -109,12 +112,17 @@ Already delivered:
 - API error response sanitization (no internal detail leakage)
 - browser profile-dir path-traversal validation
 - opt-in API key authentication (`GRACEKELLY_API_KEY`)
-- opt-in per-IP rate limiting (`GRACEKELLY_RATE_LIMIT_PER_MINUTE`)
+- opt-in per-IP rate limiting (`GRACEKELLY_RATE_LIMIT_RPM`)
 
 Delivered after account-pool and retry:
 - thread-safe `AccountPool` with LRU selection and configurable cooldown
 - task-level retry via `retry_of_task_id` linkage and `POST /api/v1/tasks/{id}/retry`
 - migration `0002_add_retry_of_task_id.sql`
+
+Delivered after Phase 4 closing:
+- **batch-89 CORE-model-fallback-policy**: `ModelSpec.fallback_model_id` + single-shot `ExecutionRouter` fallback on `AUTH_FAILED` / `PROVIDER_UNAVAILABLE` / `TIMEOUT`; env `GRACEKELLY_ENABLE_MODEL_FALLBACK` default off (`8665875`)
+- **batch-90 CORE-request-budget-browser**: `RequestBudgetTracker` with per-task + rolling-hourly caps; browser-only gate; env `GRACEKELLY_MAX_BROWSER_SUBMITS_PER_TASK` / `GRACEKELLY_MAX_BROWSER_SUBMITS_PER_HOUR` default `None` (`bd8d978`)
+- **batch-93 CORE-inject-settings-into-router**: `ExecutionRouter` accepts explicit `Settings` via `create_app`, eliminating the module-global config leak (`8803a0c`)
 
 ## Phase 5: Operations surface
 
@@ -200,7 +208,6 @@ Delivered:
 - ✅ Security audit: no hardcoded keys, all 44 core modules importable, no silent exception swallowing in routes
 - ✅ mypy strict mode: 0 errors across all 98 source files; CI enforces --strict on every push
 - ✅ Typed AppState, typed route helpers, cast() for all json.loads returns, typed middleware
-- ✅ CORS support (configurable origins, credentials, CORS middleware)
 - ✅ Health endpoint security: minimal response by default, details opt-in via GRACEKELLY_HEALTH_EXPOSE_DETAILS
 - ✅ Graceful shutdown with configurable drain period (GRACEKELLY_GRACEFUL_SHUTDOWN_TIMEOUT_SECONDS)
 - ✅ Orchestrate request timeout: returns HTTP 504 on breach (GRACEKELLY_ORCHESTRATE_TIMEOUT_SECONDS)
