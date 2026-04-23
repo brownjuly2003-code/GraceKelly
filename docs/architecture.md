@@ -9,19 +9,24 @@ The foundation must stay understandable under failure.
 
 Implemented:
 - full API surface: orchestration, task inspection, health, readiness, model catalog, metrics
+- auxiliary HTTP surfaces: analytics, detailed health, task export, task retry, and file-upload orchestration
 - SSE streaming for single-model execution via `/api/v1/orchestrate/stream`
 - canonical model registry with alias normalization
 - typed task/step/event contracts with multi-model execution planning
 - token counting and cost estimation per step (`input_tokens`, `output_tokens`, `cost_usd`)
 - model pricing registry for cost estimation
+- bounded browser-submit budgeting for per-task and per-hour quotas
+- session-aware prompt shaping with configurable context-window limits
 - dual-backend storage: in-memory (development) and PostgreSQL (durable)
 - PostgreSQL operational tooling: schema validation plus JSON export/import snapshots
 - execution adapters: dry-run, Mistral API, OpenAI-compatible API, Perplexity browser (scripted and thin Playwright backends)
 - cooperative cancel-on-quorum with per-model timeout, concurrency enforcement, and a minimal browser circuit breaker
 - browser adapter lifecycle cleanup that resets idle session state on shutdown and detects stale runtime/session mismatches
 - structured key-value logging across orchestrator, browser adapters, API routes, and PostgreSQL degradation paths
+- request metrics histograms/counters plus optional OpenTelemetry bootstrap for observability
 - operator surfaces: recent-task listing with multi-axis filtering, rich task detail with diagnostics
 - built-in web UI with 4 execution patterns
+- post-phase audit snapshots preserved under `docs/audits/`
 
 Not yet implemented:
 - account pools
@@ -36,6 +41,8 @@ Excluded by design:
 
 - `api.routes`: HTTP contract only - no domain logic, no adapter imports
 - `api.routes.stream`: SSE streaming endpoint for real-time execution output
+- `api.routes.analytics`: aggregate model performance stats from recent task and step history
+- `api.routes.health_detailed`: detailed adapter and embeddings health endpoint
 - `core.models`: canonical model catalog and alias resolution
 - `core.orchestrator`: use-case orchestration, event building, storage coordination
 - `core.contracts`: execution adapter interface, result envelopes, failure taxonomy
@@ -44,6 +51,10 @@ Excluded by design:
 - `core.readiness`: component health aggregation across profiles
 - `core.concurrency`: thread-safe per-model concurrency gate
 - `core.execution_profile`: profile-aware adapter requirement sets
+- `core.budget`: per-task and per-hour browser submit budgeting
+- `core.session_context`: bounded session-history reconstruction for follow-up prompts
+- `request_metrics`: in-process HTTP and adapter metrics backing `/metrics`
+- `telemetry`: optional OpenTelemetry setup for FastAPI
 - `adapters.dry_run`: simulated execution for testing and dry-run mode
 - `adapters.api.mistral`: Mistral API adapter
 - `adapters.api.openai_compat`: OpenAI-compatible API adapter
