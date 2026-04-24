@@ -17,7 +17,6 @@ from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from gracekelly.adapters.api.anthropic import AnthropicApiAdapter
-from gracekelly.adapters.api.mistral import MistralApiAdapter
 from gracekelly.adapters.api.openai_compat import OpenAICompatibleApiAdapter
 from gracekelly.adapters.browser.automation import BrowserAutomationPort, NullBrowserAutomation
 from gracekelly.adapters.browser.perplexity import PerplexityBrowserAdapter
@@ -361,13 +360,6 @@ def create_app(app_settings: Settings | None = None) -> FastAPI:
     app.state.postgres_pool = getattr(app.state.task_repository, "_pool", None)
     app.state.dry_run_adapter = DryRunExecutionAdapter()
     app.state.api_adapters = {
-        "mistral": MistralApiAdapter(
-            api_key=active_settings.mistral_api_key,
-            base_url=active_settings.mistral_base_url,
-            timeout_seconds=active_settings.mistral_timeout_seconds,
-            max_retries=active_settings.mistral_max_retries,
-            retry_backoff_seconds=active_settings.mistral_retry_backoff_seconds,
-        ),
         "openai": OpenAICompatibleApiAdapter(
             api_key=active_settings.openai_api_key,
             base_url=active_settings.openai_base_url,
@@ -392,7 +384,6 @@ def create_app(app_settings: Settings | None = None) -> FastAPI:
     )
     app.state.adapter_registry = {
         "dry-run": app.state.dry_run_adapter,
-        "api.mistral": app.state.api_adapters["mistral"],
         "api.openai": app.state.api_adapters["openai"],
         "api.anthropic": app.state.api_adapters["anthropic"],
         "browser.perplexity": app.state.browser_adapter,
