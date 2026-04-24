@@ -3,6 +3,7 @@ from __future__ import annotations
 import unittest
 
 from gracekelly.core.models import (
+    clear_browser_catalog,
     list_models,
     models_equivalent,
     normalize_model_name,
@@ -41,12 +42,12 @@ class NormalizeModelNameTests(unittest.TestCase):
 
 class ModelSpecNormalizedNamesTests(unittest.TestCase):
     def test_normalized_names_includes_id(self) -> None:
-        spec = resolve_model("Mistral")
-        self.assertIn("mistral small", spec.normalized_names())
+        spec = resolve_model("GPT-5.4 API")
+        self.assertIn("gpt 5 4 api", spec.normalized_names())
 
     def test_normalized_names_includes_display_name(self) -> None:
-        spec = resolve_model("Mistral")
-        self.assertIn("mistral small", spec.normalized_names())
+        spec = resolve_model("GPT-5.4 API")
+        self.assertIn("gpt 5 4 api", spec.normalized_names())
 
     def test_normalized_names_includes_aliases(self) -> None:
         spec = resolve_model("Kimi K2.5")
@@ -87,8 +88,15 @@ class ModelRegistryTests(unittest.TestCase):
     def test_kimi_alias_maps_to_same_model(self) -> None:
         self.assertTrue(models_equivalent("Kimi K2.5", "Kimi K2"))
 
-    def test_mistral_alias_maps_to_api_model(self) -> None:
-        self.assertEqual(resolve_model("Mistral").id, "mistral-small")
+    def test_removed_mistral_alias_is_unsupported(self) -> None:
+        with self.assertRaises(ValueError):
+            resolve_model("mistral")
+
+    def test_browser_compatibility_alias_resolves_without_catalog_snapshot(self) -> None:
+        clear_browser_catalog()
+        spec = resolve_model("claude-sonnet-4-6")
+        self.assertEqual(spec.id, "claude-sonnet-4-6")
+        self.assertEqual(spec.provider_model_id, "Claude Sonnet 4.6")
 
     def test_recon_observed_browser_models_resolve_from_registry(self) -> None:
         self.assertEqual(resolve_model("Best").id, "best")
@@ -111,7 +119,8 @@ class ModelRegistryTests(unittest.TestCase):
             resolve_model("Unknown Model")
 
     def test_resolve_model_case_insensitive(self) -> None:
-        self.assertEqual(resolve_model("mistral").id, "mistral-small")
+        with self.assertRaises(ValueError):
+            resolve_model("mistral")
 
     def test_resolve_model_with_dots_in_name(self) -> None:
         self.assertEqual(resolve_model("GPT-5.4").id, "gpt-5-4")
@@ -126,13 +135,13 @@ class ModelsEquivalentTests(unittest.TestCase):
         self.assertTrue(models_equivalent("Kimi K2.5", "Kimi K2"))
 
     def test_same_string_is_equivalent(self) -> None:
-        self.assertTrue(models_equivalent("Mistral", "Mistral"))
+        self.assertTrue(models_equivalent("GPT-5.4 API", "GPT-5.4 API"))
 
     def test_different_models_not_equivalent(self) -> None:
-        self.assertFalse(models_equivalent("Mistral", "Sonar"))
+        self.assertFalse(models_equivalent("GPT-5.4 API", "Sonar"))
 
     def test_one_unknown_model_returns_false(self) -> None:
-        self.assertFalse(models_equivalent("Mistral", "NoSuchModel"))
+        self.assertFalse(models_equivalent("GPT-5.4 API", "NoSuchModel"))
 
     def test_both_unknown_models_returns_false(self) -> None:
         self.assertFalse(models_equivalent("NoSuchA", "NoSuchB"))

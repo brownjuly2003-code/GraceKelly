@@ -61,7 +61,7 @@ class ResolveModelTests(unittest.TestCase):
         self.assertEqual(spec.id, "sonar")
 
     def test_resolve_api_model(self) -> None:
-        spec = resolve_model("mistral-small")
+        spec = resolve_model("gpt-5-4-api")
         self.assertEqual(spec.adapter_kind, "api")
 
     def test_resolve_unknown_raises(self) -> None:

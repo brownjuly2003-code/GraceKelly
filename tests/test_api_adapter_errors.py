@@ -8,7 +8,6 @@ from unittest.mock import MagicMock, patch
 import httpx
 
 from gracekelly.adapters.api.anthropic import AnthropicApiAdapter
-from gracekelly.adapters.api.mistral import MistralApiAdapter
 from gracekelly.adapters.api.openai_compat import OpenAICompatibleApiAdapter
 from gracekelly.core.contracts import (
     AdapterHint,
@@ -21,10 +20,6 @@ from gracekelly.core.contracts import (
     StepStatus,
 )
 from gracekelly.core.models import MODEL_SPECS, ModelSpec
-
-
-def _mistral_spec() -> ModelSpec:
-    return next(s for s in MODEL_SPECS if s.id == "mistral-small")
 
 
 def _openai_spec() -> ModelSpec:
@@ -85,81 +80,6 @@ def _mock_urllib_response(data: dict[str, Any]) -> MagicMock:
     mock.__exit__ = MagicMock(return_value=False)
     mock.read.return_value = body
     return mock
-
-
-class MistralErrorPathTests(unittest.TestCase):
-    def _adapter(self, api_key: str | None = "test-key") -> MistralApiAdapter:
-        return MistralApiAdapter(api_key=api_key, base_url="https://api.mistral.ai/v1")
-
-    def test_missing_api_key(self) -> None:
-        result = self._adapter(api_key=None).execute(_execution_request(_mistral_spec()))
-        self.assertEqual(result.status, StepStatus.FAILED)
-        self.assertEqual(result.failure_code, FailureCode.PROVIDER_UNAVAILABLE)
-        assert result.failure_message is not None
-        self.assertIn("not configured", result.failure_message)
-
-    @patch("httpx.Client.post")
-    def test_timeout(self, mock_post: MagicMock) -> None:
-        mock_post.side_effect = httpx.TimeoutException("timed out")
-        result = self._adapter().execute(_execution_request(_mistral_spec()))
-        self.assertEqual(result.failure_code, FailureCode.TIMEOUT)
-
-    @patch("httpx.Client.post")
-    def test_rate_limit_429(self, mock_post: MagicMock) -> None:
-        mock_post.side_effect = _make_http_status_error(429)
-        result = self._adapter().execute(_execution_request(_mistral_spec()))
-        self.assertEqual(result.failure_code, FailureCode.RATE_LIMITED)
-
-    @patch("httpx.Client.post")
-    def test_server_error_500(self, mock_post: MagicMock) -> None:
-        mock_post.side_effect = _make_http_status_error(500)
-        result = self._adapter().execute(_execution_request(_mistral_spec()))
-        self.assertEqual(result.failure_code, FailureCode.PROVIDER_UNAVAILABLE)
-        assert result.failure_message is not None
-        self.assertIn("500", result.failure_message)
-
-    @patch("httpx.Client.post")
-    def test_network_error(self, mock_post: MagicMock) -> None:
-        mock_post.side_effect = httpx.ConnectError("Connection refused")
-        result = self._adapter().execute(_execution_request(_mistral_spec()))
-        self.assertEqual(result.failure_code, FailureCode.PROVIDER_UNAVAILABLE)
-        assert result.failure_message is not None
-        self.assertIn("network error", result.failure_message)
-
-    @patch("httpx.Client.post")
-    def test_empty_choices(self, mock_post: MagicMock) -> None:
-        mock_post.return_value = _mock_httpx_response({"choices": []})
-        result = self._adapter().execute(_execution_request(_mistral_spec()))
-        self.assertEqual(result.failure_code, FailureCode.UNKNOWN_ERROR)
-
-    @patch("httpx.Client.post")
-    def test_missing_message(self, mock_post: MagicMock) -> None:
-        mock_post.return_value = _mock_httpx_response({"choices": [{"index": 0}]})
-        result = self._adapter().execute(_execution_request(_mistral_spec()))
-        self.assertEqual(result.failure_code, FailureCode.UNKNOWN_ERROR)
-
-    @patch("httpx.Client.post")
-    def test_empty_content(self, mock_post: MagicMock) -> None:
-        mock_post.return_value = _mock_httpx_response({"choices": [{"message": {"content": ""}}]})
-        result = self._adapter().execute(_execution_request(_mistral_spec()))
-        self.assertEqual(result.failure_code, FailureCode.UNKNOWN_ERROR)
-
-    @patch("httpx.Client.post")
-    def test_success(self, mock_post: MagicMock) -> None:
-        mock_post.return_value = _mock_httpx_response(_api_response("Hello world"))
-        result = self._adapter().execute(_execution_request(_mistral_spec()))
-        self.assertEqual(result.status, StepStatus.COMPLETED)
-        self.assertEqual(result.output_text, "Hello world")
-
-    def test_healthcheck_configured(self) -> None:
-        health = self._adapter().healthcheck()
-        self.assertEqual(health["status"], "ok")
-        self.assertTrue(health["configured"])
-
-    def test_healthcheck_unconfigured(self) -> None:
-        health = self._adapter(api_key=None).healthcheck()
-        self.assertEqual(health["status"], "degraded")
-        self.assertFalse(health["configured"])
 
 
 class OpenAIErrorPathTests(unittest.TestCase):
@@ -292,93 +212,3 @@ class AnthropicErrorPathTests(unittest.TestCase):
         req = call_args[0][0]
         self.assertEqual(req.get_header("X-api-key"), "test-key")
         self.assertIn("anthropic-version", {k.lower(): v for k, v in req.header_items()})
-
-
-class RetryTests(unittest.TestCase):
-    def _adapter(self, max_retries: int = 2) -> MistralApiAdapter:
-        return MistralApiAdapter(
-            api_key="test-key",
-            base_url="https://api.mistral.ai/v1",
-            max_retries=max_retries,
-            retry_backoff_seconds=0.0,
-        )
-
-    @patch("httpx.Client.post")
-    def test_retry_on_429_then_success(self, mock_post: MagicMock) -> None:
-        mock_post.side_effect = [
-            _make_http_status_error(429),
-            _mock_httpx_response(_api_response("OK")),
-        ]
-        result = self._adapter(max_retries=1).execute(_execution_request(_mistral_spec()))
-        self.assertEqual(result.status, StepStatus.COMPLETED)
-        self.assertEqual(result.output_text, "OK")
-        self.assertEqual(result.details["attempts"], 2)
-
-    @patch("httpx.Client.post")
-    def test_retry_on_500_then_success(self, mock_post: MagicMock) -> None:
-        mock_post.side_effect = [
-            _make_http_status_error(500),
-            _make_http_status_error(502),
-            _mock_httpx_response(_api_response("recovered")),
-        ]
-        result = self._adapter(max_retries=2).execute(_execution_request(_mistral_spec()))
-        self.assertEqual(result.status, StepStatus.COMPLETED)
-        self.assertEqual(result.output_text, "recovered")
-
-    @patch("httpx.Client.post")
-    def test_retry_exhausted_returns_last_error(self, mock_post: MagicMock) -> None:
-        mock_post.side_effect = [
-            _make_http_status_error(503),
-            _make_http_status_error(503),
-            _make_http_status_error(503),
-        ]
-        result = self._adapter(max_retries=2).execute(_execution_request(_mistral_spec()))
-        self.assertEqual(result.status, StepStatus.FAILED)
-        self.assertEqual(result.failure_code, FailureCode.PROVIDER_UNAVAILABLE)
-
-    @patch("httpx.Client.post")
-    def test_retry_on_timeout_then_success(self, mock_post: MagicMock) -> None:
-        mock_post.side_effect = [
-            httpx.TimeoutException("timed out"),
-            _mock_httpx_response(_api_response("OK")),
-        ]
-        result = self._adapter(max_retries=1).execute(_execution_request(_mistral_spec()))
-        self.assertEqual(result.status, StepStatus.COMPLETED)
-
-    @patch("httpx.Client.post")
-    def test_retry_on_network_error_then_success(self, mock_post: MagicMock) -> None:
-        mock_post.side_effect = [
-            httpx.ConnectError("Connection refused"),
-            _mock_httpx_response(_api_response("OK")),
-        ]
-        result = self._adapter(max_retries=1).execute(_execution_request(_mistral_spec()))
-        self.assertEqual(result.status, StepStatus.COMPLETED)
-
-    @patch("httpx.Client.post")
-    def test_no_retry_on_400(self, mock_post: MagicMock) -> None:
-        mock_post.side_effect = _make_http_status_error(400)
-        result = self._adapter(max_retries=2).execute(_execution_request(_mistral_spec()))
-        self.assertEqual(result.status, StepStatus.FAILED)
-        self.assertEqual(mock_post.call_count, 1)
-
-    @patch("httpx.Client.post")
-    def test_no_retry_on_non_retryable_exception(self, mock_post: MagicMock) -> None:
-        mock_post.side_effect = ValueError("bad")
-        result = self._adapter(max_retries=2).execute(_execution_request(_mistral_spec()))
-        self.assertEqual(result.status, StepStatus.FAILED)
-        self.assertEqual(result.failure_code, FailureCode.UNKNOWN_ERROR)
-        self.assertEqual(mock_post.call_count, 1)
-
-    def test_zero_retries_is_single_attempt(self) -> None:
-        adapter = MistralApiAdapter(
-            api_key="test-key",
-            base_url="https://api.mistral.ai/v1",
-            max_retries=0,
-        )
-        self.assertEqual(adapter._max_retries, 0)
-
-    def test_healthcheck_shows_retry_config(self) -> None:
-        adapter = self._adapter(max_retries=3)
-        health = adapter.healthcheck()
-        self.assertNotIn("max_retries", health)
-        self.assertNotIn("retry_backoff_seconds", health)

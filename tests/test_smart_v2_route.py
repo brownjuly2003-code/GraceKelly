@@ -27,7 +27,7 @@ def _create_test_app(
         failure_code=None,
         failure_message=None,
     )
-    app.state.api_adapters = {"mistral": adapter} if api_adapters is None else api_adapters
+    app.state.api_adapters = {"openai": adapter} if api_adapters is None else api_adapters
     app.state.browser_adapter = browser_adapter
 
     if has_embeddings:
@@ -44,12 +44,12 @@ def _create_test_app(
 class SmartV2RouteTests(unittest.TestCase):
     def test_simple_prompt_returns_200(self) -> None:
         client = TestClient(_create_test_app())
-        response = client.post("/api/v1/smart/v2", json={"prompt": "Hello"})
+        response = client.post("/api/v1/smart/v2", json={"prompt": "Hello", "model": "GPT-5.4 API"})
         self.assertEqual(200, response.status_code)
 
     def test_response_has_v2_fields(self) -> None:
         client = TestClient(_create_test_app())
-        response = client.post("/api/v1/smart/v2", json={"prompt": "Hello"})
+        response = client.post("/api/v1/smart/v2", json={"prompt": "Hello", "model": "GPT-5.4 API"})
         body = response.json()
         self.assertIn("consensus_status", body)
         self.assertIn("consensus_score", body)
@@ -58,7 +58,7 @@ class SmartV2RouteTests(unittest.TestCase):
 
     def test_simple_prompt_no_consensus(self) -> None:
         client = TestClient(_create_test_app())
-        response = client.post("/api/v1/smart/v2", json={"prompt": "Hello"})
+        response = client.post("/api/v1/smart/v2", json={"prompt": "Hello", "model": "GPT-5.4 API"})
         body = response.json()
         self.assertIsNone(body["consensus_status"])
         self.assertIsNone(body["consensus_score"])
@@ -67,7 +67,7 @@ class SmartV2RouteTests(unittest.TestCase):
         client = TestClient(_create_test_app())
         response = client.post(
             "/api/v1/smart/v2",
-            json={"prompt": "Hello", "reliability_level": "standard"},
+            json={"prompt": "Hello", "model": "GPT-5.4 API", "reliability_level": "standard"},
         )
         body = response.json()
         self.assertEqual(200, response.status_code)
@@ -77,7 +77,7 @@ class SmartV2RouteTests(unittest.TestCase):
 
     def test_dissenting_views_is_list(self) -> None:
         client = TestClient(_create_test_app())
-        response = client.post("/api/v1/smart/v2", json={"prompt": "Hello"})
+        response = client.post("/api/v1/smart/v2", json={"prompt": "Hello", "model": "GPT-5.4 API"})
         body = response.json()
         self.assertIsInstance(body["dissenting_views"], list)
 
@@ -85,7 +85,7 @@ class SmartV2RouteTests(unittest.TestCase):
         client = TestClient(_create_test_app())
         response = client.post(
             "/api/v1/smart/v2",
-            json={"prompt": "Write Python code"},
+            json={"prompt": "Write Python code", "model": "GPT-5.4 API"},
         )
         body = response.json()
         self.assertEqual("coding", body["task_type"])
@@ -104,6 +104,7 @@ class SmartV2RouteTests(unittest.TestCase):
             "/api/v1/smart/v2",
             json={
                 "prompt": "Hello",
+                "model": "GPT-5.4 API",
                 "reliability_level": "quick",
                 "pattern": "single",
             },
@@ -114,27 +115,27 @@ class SmartV2RouteTests(unittest.TestCase):
         client = TestClient(_create_test_app())
         response = client.post(
             "/api/v1/smart/v2",
-            json={"prompt": "Hello", "pattern": "single"},
+            json={"prompt": "Hello", "model": "GPT-5.4 API", "pattern": "single"},
         )
         body = response.json()
         self.assertEqual("single", body["pattern_used"])
 
     def test_model_id_in_response(self) -> None:
         client = TestClient(_create_test_app())
-        response = client.post("/api/v1/smart/v2", json={"prompt": "Hello"})
+        response = client.post("/api/v1/smart/v2", json={"prompt": "Hello", "model": "GPT-5.4 API"})
         body = response.json()
         self.assertIsInstance(body["model_id"], str)
         self.assertTrue(body["model_id"])
 
     def test_complexity_level_present(self) -> None:
         client = TestClient(_create_test_app())
-        response = client.post("/api/v1/smart/v2", json={"prompt": "Hello"})
+        response = client.post("/api/v1/smart/v2", json={"prompt": "Hello", "model": "GPT-5.4 API"})
         body = response.json()
         self.assertIn(body["complexity_level"], ("simple", "moderate", "complex"))
 
     def test_total_llm_calls_positive(self) -> None:
         client = TestClient(_create_test_app())
-        response = client.post("/api/v1/smart/v2", json={"prompt": "Hello"})
+        response = client.post("/api/v1/smart/v2", json={"prompt": "Hello", "model": "GPT-5.4 API"})
         body = response.json()
         self.assertGreaterEqual(body["total_llm_calls"], 1)
 
@@ -142,12 +143,12 @@ class SmartV2RouteTests(unittest.TestCase):
         client = TestClient(_create_test_app(has_embeddings=False))
         response = client.post(
             "/api/v1/smart/v2",
-            json={"prompt": "Hello", "pattern": "consensus"},
+            json={"prompt": "Hello", "model": "GPT-5.4 API", "pattern": "consensus"},
         )
         self.assertEqual(200, response.status_code)
 
     def test_smart_v2_missing_adapter_returns_400(self) -> None:
-        # "Claude Sonnet 4.6 API" uses provider "anthropic"; only "mistral" is registered
+        # "Claude Sonnet 4.6 API" uses provider "anthropic"; only "openai" is registered
         client = TestClient(_create_test_app())
         response = client.post(
             "/api/v1/smart/v2",
@@ -177,7 +178,7 @@ class SmartV2RouteTests(unittest.TestCase):
         self.assertEqual("Browser response", body["answer"])
         self.assertEqual("best", body["model_id"])
         self.assertEqual(ExecutionBackend.BROWSER, browser_adapter.execute.call_args.args[0].step.backend)
-        self.assertEqual(0, app.state.api_adapters["mistral"].execute.call_count)
+        self.assertEqual(0, app.state.api_adapters["openai"].execute.call_count)
 
     def test_smart_v2_browser_model_without_browser_adapter_returns_400(self) -> None:
         client = TestClient(_create_test_app())
@@ -190,14 +191,17 @@ class SmartV2RouteTests(unittest.TestCase):
 
     def test_smart_v2_failed_result_returns_error_answer(self) -> None:
         app = _create_test_app()
-        app.state.api_adapters["mistral"].execute.return_value = MagicMock(
+        app.state.api_adapters["openai"].execute.return_value = MagicMock(
             status=StepStatus.FAILED,
             output_text=None,
             failure_code="timeout",
             failure_message="Request timed out",
         )
         client = TestClient(app)
-        response = client.post("/api/v1/smart/v2", json={"prompt": "Hello", "pattern": "single"})
+        response = client.post(
+            "/api/v1/smart/v2",
+            json={"prompt": "Hello", "model": "GPT-5.4 API", "pattern": "single"},
+        )
         self.assertEqual(200, response.status_code)
         self.assertIn("[timeout]", response.json()["answer"])
 

@@ -75,7 +75,7 @@ class BuildMetricsPayloadRequestMetricsTests(unittest.TestCase):
 
     def test_recorded_adapter_errors_emit_adapter_errors_total(self) -> None:
         rm = RequestMetrics()
-        rm.record_adapter_error("api.mistral", "rate_limited")
+        rm.record_adapter_error("api.openai", "rate_limited")
         output = self._call(rm)
         self.assertIn("gracekelly_adapter_errors_total", output)
         self.assertIn("rate_limited", output)

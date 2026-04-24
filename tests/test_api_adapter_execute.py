@@ -275,13 +275,13 @@ class ExecuteAsyncTests(unittest.IsolatedAsyncioTestCase):
     async def test_dry_run_execute_async_accepts_real_execution_request(self) -> None:
         adapter = DryRunExecutionAdapter()
         model = MagicMock()
-        model.id = "mistral-small"
-        model.display_name = "Mistral Small"
+        model.id = "gpt-5-4-api"
+        model.display_name = "GPT-5.4 API"
         step = ExecutionStep(
             model=model,
             backend=ExecutionBackend.API,
-            provider="mistral",
-            provider_model_id="mistral-small-latest",
+            provider="openai",
+            provider_model_id="gpt-5.4",
             step_index=0,
         )
         plan = ExecutionPlan(
@@ -306,7 +306,7 @@ class ExecuteAsyncTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result.execution_mode, ExecutionMode.DRY_RUN)
         self.assertIsNotNone(result.output_text)
         self.assertIn("[dry-run]", result.output_text or "")
-        self.assertEqual(result.details["requested_models"], ["Mistral Small"])
+        self.assertEqual(result.details["requested_models"], ["GPT-5.4 API"])
 
     async def test_default_execute_async_calls_execute_in_thread(self) -> None:
         class _ConcreteAdapter(ExecutionAdapter):
@@ -374,11 +374,11 @@ class AsyncRouteTests(unittest.IsolatedAsyncioTestCase):
             allow_finish.set()
 
         request = MagicMock()
-        request.app.state.api_adapters = {"mistral": _AsyncOnlyAdapter()}
+        request.app.state.api_adapters = {"openai": _AsyncOnlyAdapter()}
 
         route_task = asyncio.create_task(
             run_batch(
-                BatchRequest(prompts=["hello"], model="mistral-small"),
+                BatchRequest(prompts=["hello"], model="gpt-5-4-api"),
                 request,
             )
         )

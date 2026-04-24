@@ -67,10 +67,10 @@ def _task(
 def _step(
     task_id: str = "t1",
     step_index: int = 1,
-    model_id: str = "mistral-small",
-    display_name: str = "Mistral Small",
+    model_id: str = "gpt-5-4-api",
+    display_name: str = "GPT-5.4 API",
     backend: str = "api",
-    provider: str = "mistral",
+    provider: str = "openai",
     status: StepStatus = StepStatus.COMPLETED,
 ) -> TaskStepRecord:
     return TaskStepRecord(
@@ -102,17 +102,17 @@ def _event(
 
 class OrchestrateRequestValidationTests(unittest.TestCase):
     def _valid_payload(self, **overrides: Any) -> dict[str, Any]:
-        base = {"prompt": "Hello", "model": "Mistral", "dry_run": True}
+        base = {"prompt": "Hello", "model": "GPT-5.4 API", "dry_run": True}
         base.update(overrides)
         return base
 
     def test_valid_single_model(self) -> None:
         req = OrchestrateRequest(**self._valid_payload())
-        self.assertEqual(req.requested_model_names(), ["Mistral"])
+        self.assertEqual(req.requested_model_names(), ["GPT-5.4 API"])
 
     def test_valid_multiple_models(self) -> None:
-        req = OrchestrateRequest(**self._valid_payload(model=None, models=["Mistral", "GPT-5.4"]))
-        self.assertEqual(req.requested_model_names(), ["Mistral", "GPT-5.4"])
+        req = OrchestrateRequest(**self._valid_payload(model=None, models=["GPT-5.4 API", "GPT-5.4"]))
+        self.assertEqual(req.requested_model_names(), ["GPT-5.4 API", "GPT-5.4"])
 
     def test_neither_model_nor_models_raises(self) -> None:
         with self.assertRaises(ValidationError) as ctx:
@@ -121,7 +121,7 @@ class OrchestrateRequestValidationTests(unittest.TestCase):
 
     def test_both_model_and_models_raises(self) -> None:
         with self.assertRaises(ValidationError):
-            OrchestrateRequest(**self._valid_payload(model="Mistral", models=["GPT-5.4"]))
+            OrchestrateRequest(**self._valid_payload(model="GPT-5.4 API", models=["GPT-5.4"]))
 
     def test_empty_prompt_raises(self) -> None:
         with self.assertRaises(ValidationError):
@@ -251,12 +251,12 @@ class OrchestrateResponseFromTaskTests(unittest.TestCase):
     def test_single_completed_step_adapter_name(self) -> None:
         task = _task()
         resp = OrchestrateResponse.from_task(task, [_step()], [])
-        self.assertEqual(resp.adapter_name, "api.mistral")
+        self.assertEqual(resp.adapter_name, "api.openai")
 
     def test_multiple_backends_returns_multi(self) -> None:
         task = _task(model_count=2)
         steps = [
-            _step(step_index=1, backend="api", provider="mistral"),
+            _step(step_index=1, backend="api", provider="openai"),
             _step(step_index=2, backend="browser", provider="perplexity"),
         ]
         resp = OrchestrateResponse.from_task(task, steps, [])
@@ -266,7 +266,7 @@ class OrchestrateResponseFromTaskTests(unittest.TestCase):
         task = _task()
         resp = OrchestrateResponse.from_task(task, [_step()], [])
         assert resp.model is not None
-        self.assertEqual(resp.model.id, "mistral-small")
+        self.assertEqual(resp.model.id, "gpt-5-4-api")
 
     def test_winning_model_none_on_dry_run(self) -> None:
         task = _task(dry_run=True, output_text=None)
@@ -283,7 +283,7 @@ class OrchestrateResponseFromTaskTests(unittest.TestCase):
         task = _task()
         resp = OrchestrateResponse.from_task(task, [_step()], [])
         self.assertEqual(len(resp.requested_models), 1)
-        self.assertEqual(resp.requested_models[0].id, "mistral-small")
+        self.assertEqual(resp.requested_models[0].id, "gpt-5-4-api")
 
     def test_requested_models_from_events_when_no_steps(self) -> None:
         task = _task(dry_run=True, output_text=None)
@@ -377,7 +377,7 @@ class TaskViewFromTaskTests(unittest.TestCase):
         task = _task()
         view = TaskView.from_task(task, [_step()], [])
         self.assertEqual(len(view.steps), 1)
-        self.assertEqual(view.steps[0].model_id, "mistral-small")
+        self.assertEqual(view.steps[0].model_id, "gpt-5-4-api")
 
     def test_task_view_events_populated(self) -> None:
         task = _task()
@@ -448,8 +448,8 @@ class ResolveAdapterNameTests(unittest.TestCase):
 
     def test_single_completed_step_uses_backend_provider(self) -> None:
         task = _task()
-        result = _resolve_adapter_name(task, [_step(backend="api", provider="mistral")])
-        self.assertEqual(result, "api.mistral")
+        result = _resolve_adapter_name(task, [_step(backend="api", provider="openai")])
+        self.assertEqual(result, "api.openai")
 
     def test_all_failed_steps_uses_failed_for_candidate(self) -> None:
         task = _task(status=TaskStatus.FAILED, output_text=None)
@@ -460,7 +460,7 @@ class ResolveAdapterNameTests(unittest.TestCase):
     def test_mixed_backends_returns_multi(self) -> None:
         task = _task(model_count=2)
         steps = [
-            _step(step_index=1, backend="api", provider="mistral", status=StepStatus.COMPLETED),
+            _step(step_index=1, backend="api", provider="openai", status=StepStatus.COMPLETED),
             _step(step_index=2, backend="browser", provider="perplexity", status=StepStatus.COMPLETED),
         ]
         self.assertEqual(_resolve_adapter_name(task, steps), "multi")
@@ -562,7 +562,7 @@ class ResolveRequestedModelsTests(unittest.TestCase):
     def test_steps_take_priority_over_events(self) -> None:
         models = _resolve_requested_models([_step()], [])
         self.assertEqual(len(models), 1)
-        self.assertEqual(models[0].id, "mistral-small")
+        self.assertEqual(models[0].id, "gpt-5-4-api")
 
     def test_no_steps_falls_back_to_accepted_event(self) -> None:
         event = _event(
@@ -615,4 +615,4 @@ class ResolveWinningModelTests(unittest.TestCase):
         model = _resolve_winning_model(task, [_step()])
         self.assertIsNotNone(model)
         assert model is not None
-        self.assertEqual(model.id, "mistral-small")
+        self.assertEqual(model.id, "gpt-5-4-api")

@@ -16,6 +16,7 @@ def _create_test_app(
     has_embeddings: bool = True,
     api_adapters: dict[str, MagicMock] | None = None,
     browser_adapter: MagicMock | None = None,
+    include_browser_adapter: bool = True,
 ) -> FastAPI:
     app = FastAPI()
     app.include_router(router)
@@ -27,8 +28,11 @@ def _create_test_app(
         failure_code=None,
         failure_message=None,
     )
-    app.state.api_adapters = {"mistral": adapter} if api_adapters is None else api_adapters
-    app.state.browser_adapter = browser_adapter
+    app.state.api_adapters = {} if api_adapters is None else api_adapters
+    if include_browser_adapter:
+        app.state.browser_adapter = adapter if browser_adapter is None else browser_adapter
+    else:
+        app.state.browser_adapter = browser_adapter
 
     if has_embeddings:
         embeddings = MagicMock(spec=EmbeddingsClient)
@@ -215,10 +219,10 @@ class SmartRouteTests(unittest.TestCase):
         self.assertEqual("Browser response", payload["answer"])
         self.assertEqual("best", payload["model_id"])
         self.assertEqual(ExecutionBackend.BROWSER, browser_adapter.execute.call_args.args[0].step.backend)
-        self.assertEqual(0, app.state.api_adapters["mistral"].execute.call_count)
+        self.assertEqual({}, app.state.api_adapters)
 
     def test_smart_browser_model_without_browser_adapter_returns_400(self) -> None:
-        client = TestClient(_create_test_app())
+        client = TestClient(_create_test_app(include_browser_adapter=False))
         response = client.post(
             "/api/v1/smart",
             json={"prompt": "Hello", "model": "best", "pattern": "single"},
@@ -230,14 +234,14 @@ class SmartRouteTests(unittest.TestCase):
         client = TestClient(_create_test_app(api_adapters={}))
         response = client.post(
             "/api/v1/smart",
-            json={"prompt": "Hello", "model": "mistral-small", "pattern": "single"},
+            json={"prompt": "Hello", "model": "Claude Sonnet 4.6 API", "pattern": "single"},
         )
         self.assertEqual(400, response.status_code)
         self.assertIn("No API adapter", response.json()["detail"])
 
     def test_smart_failed_result_returns_error_answer(self) -> None:
         app = _create_test_app()
-        app.state.api_adapters["mistral"].execute.return_value = MagicMock(
+        app.state.browser_adapter.execute.return_value = MagicMock(
             status=StepStatus.FAILED,
             output_text=None,
             failure_code="timeout",

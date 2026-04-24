@@ -29,19 +29,19 @@ def _create_test_app(*, adapter_succeeds: bool = True) -> FastAPI:
             failure_code="error",
             failure_message="execution failed",
         )
-    app.state.api_adapters = {"mistral": adapter}
+    app.state.api_adapters = {"openai": adapter}
     return app
 
 
 class BatchRouteTests(unittest.TestCase):
     def test_single_prompt_returns_200(self) -> None:
         client = TestClient(_create_test_app())
-        response = client.post("/api/v1/batch", json={"prompts": ["Hello"]})
+        response = client.post("/api/v1/batch", json={"prompts": ["Hello"], "model": "GPT-5.4 API"})
         self.assertEqual(200, response.status_code)
 
     def test_single_prompt_succeeded_count(self) -> None:
         client = TestClient(_create_test_app())
-        response = client.post("/api/v1/batch", json={"prompts": ["Hello"]})
+        response = client.post("/api/v1/batch", json={"prompts": ["Hello"], "model": "GPT-5.4 API"})
         body = response.json()
         self.assertEqual(1, body["succeeded"])
         self.assertEqual(0, body["failed"])
@@ -50,7 +50,7 @@ class BatchRouteTests(unittest.TestCase):
     def test_multiple_prompts_all_succeed(self) -> None:
         client = TestClient(_create_test_app())
         prompts = ["Hello", "How are you?", "What is 2+2?"]
-        response = client.post("/api/v1/batch", json={"prompts": prompts})
+        response = client.post("/api/v1/batch", json={"prompts": prompts, "model": "GPT-5.4 API"})
         body = response.json()
         self.assertEqual(3, body["total"])
         self.assertEqual(3, body["succeeded"])
@@ -67,7 +67,7 @@ class BatchRouteTests(unittest.TestCase):
 
     def test_failed_execution_status_failed(self) -> None:
         client = TestClient(_create_test_app(adapter_succeeds=False))
-        response = client.post("/api/v1/batch", json={"prompts": ["Hello"]})
+        response = client.post("/api/v1/batch", json={"prompts": ["Hello"], "model": "GPT-5.4 API"})
         body = response.json()
         self.assertEqual(0, body["succeeded"])
         self.assertEqual(1, body["failed"])
@@ -75,7 +75,7 @@ class BatchRouteTests(unittest.TestCase):
 
     def test_response_has_total_succeeded_failed(self) -> None:
         client = TestClient(_create_test_app())
-        response = client.post("/api/v1/batch", json={"prompts": ["Hello"]})
+        response = client.post("/api/v1/batch", json={"prompts": ["Hello"], "model": "GPT-5.4 API"})
         body = response.json()
         self.assertIn("total", body)
         self.assertIn("succeeded", body)
@@ -89,7 +89,7 @@ class BatchRouteTests(unittest.TestCase):
 
     def test_result_item_has_prompt_and_answer(self) -> None:
         client = TestClient(_create_test_app())
-        response = client.post("/api/v1/batch", json={"prompts": ["Hello"]})
+        response = client.post("/api/v1/batch", json={"prompts": ["Hello"], "model": "GPT-5.4 API"})
         item = response.json()["results"][0]
         self.assertEqual("Hello", item["prompt"])
         self.assertEqual("Test answer", item["answer"])
@@ -100,23 +100,23 @@ class BatchRouteTests(unittest.TestCase):
         app.include_router(router)
         adapter = MagicMock()
         adapter.execute.side_effect = RuntimeError("boom")
-        app.state.api_adapters = {"mistral": adapter}
+        app.state.api_adapters = {"openai": adapter}
 
         client = TestClient(app)
-        response = client.post("/api/v1/batch", json={"prompts": ["Hello"]})
+        response = client.post("/api/v1/batch", json={"prompts": ["Hello"], "model": "GPT-5.4 API"})
         body = response.json()
         self.assertEqual("error", body["results"][0]["status"])
         self.assertEqual(1, body["failed"])
 
     def test_missing_adapter_for_provider_returns_400(self) -> None:
-        # "Claude Sonnet 4.6 API" uses provider "anthropic"; app only has "mistral"
+        # "Claude Sonnet 4.6 API" uses provider "anthropic"; app only has "openai"
         client = TestClient(_create_test_app())
         response = client.post(
             "/api/v1/batch",
             json={"prompts": ["Hello"], "model": "Claude Sonnet 4.6 API"},
         )
         self.assertEqual(400, response.status_code)
-        self.assertIn("No adapter", response.json()["detail"])
+        self.assertIn("No API adapter", response.json()["detail"])
 
     def test_batch_rejects_unknown_fields(self) -> None:
         client = TestClient(_create_test_app())
@@ -136,10 +136,10 @@ class BatchRouteTests(unittest.TestCase):
             failure_code=None,
             failure_message=None,
         )
-        app.state.api_adapters = {"mistral": adapter}
+        app.state.api_adapters = {"openai": adapter}
         client = TestClient(app)
 
-        response = client.post("/api/v1/batch", json={"prompts": ["Hello"]})
+        response = client.post("/api/v1/batch", json={"prompts": ["Hello"], "model": "GPT-5.4 API"})
         body = response.json()
 
         self.assertEqual(0, body["succeeded"])

@@ -7,21 +7,27 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from gracekelly.api.routes.pipeline import router
-from gracekelly.core.contracts import StepStatus
+from gracekelly.core.contracts import ExecutionBackend, StepStatus
 
 
-def _create_test_app() -> FastAPI:
+def _create_test_app(
+    *,
+    api_adapters: dict[str, MagicMock] | None = None,
+    browser_adapter: MagicMock | None = None,
+) -> FastAPI:
     app = FastAPI()
     app.include_router(router)
 
-    adapter = MagicMock()
-    adapter.execute.return_value = MagicMock(
+    completed_result = MagicMock(
         status=StepStatus.COMPLETED,
         output_text="Pipeline answer",
         failure_code=None,
         failure_message=None,
     )
-    app.state.api_adapters = {"mistral": adapter}
+    default_browser_adapter = MagicMock()
+    default_browser_adapter.execute.return_value = completed_result
+    app.state.api_adapters = {} if api_adapters is None else api_adapters
+    app.state.browser_adapter = default_browser_adapter if browser_adapter is None else browser_adapter
     return app
 
 
@@ -86,7 +92,7 @@ class PipelineRouteTests(unittest.TestCase):
         client = TestClient(_create_test_app())
         response = client.post("/api/v1/pipeline", json={"prompt": "Hello"})
         body = response.json()
-        self.assertEqual("mistral-small", body["model_id"])
+        self.assertEqual("claude-sonnet-4-6", body["model_id"])
 
     def test_multi_model_flag_accepted(self) -> None:
         client = TestClient(_create_test_app())
@@ -109,14 +115,29 @@ class PipelineRouteTests(unittest.TestCase):
         self.assertEqual("general", body["task_type"])
 
     def test_pipeline_missing_adapter_returns_400(self) -> None:
-        # "Claude Sonnet 4.6 API" uses provider "anthropic"; only "mistral" is registered
         client = TestClient(_create_test_app())
         response = client.post(
             "/api/v1/pipeline",
             json={"prompt": "Hello", "model": "Claude Sonnet 4.6 API"},
         )
         self.assertEqual(400, response.status_code)
-        self.assertIn("No adapter", response.json()["detail"])
+        self.assertIn("No API adapter", response.json()["detail"])
+
+    def test_default_browser_model_uses_browser_adapter(self) -> None:
+        app = _create_test_app()
+        client = TestClient(app)
+
+        response = client.post("/api/v1/pipeline", json={"prompt": "Hello"})
+
+        self.assertEqual(200, response.status_code)
+        self.assertEqual(1, app.state.browser_adapter.execute.call_count)
+        self.assertTrue(
+            all(
+                call.args[0].step.backend == ExecutionBackend.BROWSER
+                for call in app.state.browser_adapter.execute.call_args_list
+            )
+        )
+        self.assertEqual({}, app.state.api_adapters)
 
     def test_pipeline_complex_prompt_resolves_standard_reliability(self) -> None:
         # Prompt with many complexity indicators scores >= 0.6 → COMPLEX → STANDARD reliability
@@ -140,7 +161,8 @@ class PipelineRouteTests(unittest.TestCase):
             failure_code="timeout",
             failure_message="Request timed out",
         )
-        app.state.api_adapters = {"mistral": adapter}
+        app.state.api_adapters = {}
+        app.state.browser_adapter = adapter
         client = TestClient(app)
 
         response = client.post("/api/v1/pipeline", json={"prompt": "Hello"})

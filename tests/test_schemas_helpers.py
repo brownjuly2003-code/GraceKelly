@@ -123,8 +123,8 @@ class ResolveAdapterNameTests(unittest.TestCase):
     def test_no_completed_or_failed_uses_all_steps(self) -> None:
         """When only CANCELLED steps exist, uses them."""
         task = _task()
-        steps = [_step(backend="api", provider="mistral", status=StepStatus.CANCELLED)]
-        self.assertEqual(_resolve_adapter_name(task, steps), "api.mistral")
+        steps = [_step(backend="api", provider="openai", status=StepStatus.CANCELLED)]
+        self.assertEqual(_resolve_adapter_name(task, steps), "api.openai")
 
 
 class ResolveRequestedModelsTests(unittest.TestCase):

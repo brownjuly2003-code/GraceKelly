@@ -104,10 +104,10 @@ class FailureCodeTests(unittest.TestCase):
             TaskStepRecord(
                 task_id="task-1",
                 step_index=2,
-                model_id="mistral-small",
-                model_display_name="Mistral Small",
+                model_id="gpt-5-4-api",
+                model_display_name="GPT-5.4 API",
                 backend="api",
-                provider="mistral",
+                provider="openai",
                 status=StepStatus.CANCELLED,
             ),
         ]
@@ -137,9 +137,9 @@ class CancellationTokenTests(unittest.TestCase):
 class ExecutionResultIsFailureTests(unittest.TestCase):
     def test_no_failure_code_is_not_failure(self) -> None:
         result = ExecutionResult(
-            adapter_name="api.mistral",
-            model_id="mistral-small",
-            model_display_name="Mistral Small",
+            adapter_name="api.openai",
+            model_id="gpt-5-4-api",
+            model_display_name="GPT-5.4 API",
             execution_mode=ExecutionMode.API,
             status=StepStatus.COMPLETED,
         )
@@ -147,9 +147,9 @@ class ExecutionResultIsFailureTests(unittest.TestCase):
 
     def test_with_failure_code_is_failure(self) -> None:
         result = ExecutionResult(
-            adapter_name="api.mistral",
-            model_id="mistral-small",
-            model_display_name="Mistral Small",
+            adapter_name="api.openai",
+            model_id="gpt-5-4-api",
+            model_display_name="GPT-5.4 API",
             execution_mode=ExecutionMode.API,
             status=StepStatus.FAILED,
             failure_code=FailureCode.TIMEOUT,
@@ -159,7 +159,7 @@ class ExecutionResultIsFailureTests(unittest.TestCase):
 
 class ExecutionRequestModelsTests(unittest.TestCase):
     def test_models_returns_all_model_specs(self) -> None:
-        spec_a = resolve_model("mistral-small")
+        spec_a = resolve_model("gpt-5-4-api")
         spec_b = resolve_model("kimi-k2-5")
         step_a = _make_execution_step(
             model=spec_a,

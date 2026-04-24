@@ -96,10 +96,10 @@ class StepFromRowTests(unittest.TestCase):
         base = {
             "task_id": "t1",
             "step_index": 1,
-            "model_id": "mistral-small",
-            "model_display_name": "Mistral Small",
+            "model_id": "gpt-5-4-api",
+            "model_display_name": "GPT-5.4 API",
             "backend": "api",
-            "provider": "mistral",
+            "provider": "openai",
             "status": "completed",
             "failure_code": None,
             "failure_message": None,
@@ -114,7 +114,7 @@ class StepFromRowTests(unittest.TestCase):
         step = repo._step_from_row(self._step_row())
         self.assertEqual(step.task_id, "t1")
         self.assertEqual(step.step_index, 1)
-        self.assertEqual(step.model_id, "mistral-small")
+        self.assertEqual(step.model_id, "gpt-5-4-api")
         self.assertEqual(step.status, StepStatus.COMPLETED)
         self.assertIsNone(step.failure_code)
         self.assertEqual(step.output_text, "OK")
@@ -280,10 +280,10 @@ class StepParamsTests(unittest.TestCase):
         step = TaskStepRecord(
             task_id="t1",
             step_index=2,
-            model_id="mistral-small",
-            model_display_name="Mistral Small",
+            model_id="gpt-5-4-api",
+            model_display_name="GPT-5.4 API",
             backend="api",
-            provider="mistral",
+            provider="openai",
             status=StepStatus.COMPLETED,
             output_text="result",
             duration_ms=300,
@@ -291,7 +291,7 @@ class StepParamsTests(unittest.TestCase):
         params = repo._step_params(step)
         self.assertEqual(params["task_id"], "t1")
         self.assertEqual(params["step_index"], 2)
-        self.assertEqual(params["model_id"], "mistral-small")
+        self.assertEqual(params["model_id"], "gpt-5-4-api")
         self.assertEqual(params["backend"], "api")
         self.assertEqual(params["status"], "completed")
         self.assertEqual(params["output_text"], "result")

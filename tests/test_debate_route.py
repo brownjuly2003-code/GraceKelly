@@ -18,15 +18,16 @@ def _create_test_app(
     app = FastAPI()
     app.include_router(router)
 
-    adapter = MagicMock()
-    adapter.execute.return_value = MagicMock(
+    completed_result = MagicMock(
         status=StepStatus.COMPLETED,
         output_text="Mocked LLM response",
         failure_code=None,
         failure_message=None,
     )
-    app.state.api_adapters = {"mistral": adapter} if api_adapters is None else api_adapters
-    app.state.browser_adapter = browser_adapter
+    default_browser_adapter = MagicMock()
+    default_browser_adapter.execute.return_value = completed_result
+    app.state.api_adapters = {} if api_adapters is None else api_adapters
+    app.state.browser_adapter = default_browser_adapter if browser_adapter is None else browser_adapter
     return app
 
 
@@ -66,8 +67,7 @@ class DebateRouteTests(unittest.TestCase):
         client = TestClient(app)
         response = client.post("/api/v1/debate", json={"topic": "AI safety"})
         self.assertEqual(200, response.status_code)
-        adapter = app.state.api_adapters["mistral"]
-        self.assertEqual(3, adapter.execute.call_count)
+        self.assertEqual(3, app.state.browser_adapter.execute.call_count)
 
     def test_debate_with_initial_position_calls(self) -> None:
         app = _create_test_app()
@@ -77,8 +77,7 @@ class DebateRouteTests(unittest.TestCase):
             json={"topic": "AI safety", "initial_position": "AI is safe"},
         )
         self.assertEqual(200, response.status_code)
-        adapter = app.state.api_adapters["mistral"]
-        self.assertEqual(2, adapter.execute.call_count)
+        self.assertEqual(2, app.state.browser_adapter.execute.call_count)
 
     def test_debate_invalid_model_400(self) -> None:
         client = TestClient(_create_test_app())
@@ -92,7 +91,7 @@ class DebateRouteTests(unittest.TestCase):
         client = TestClient(_create_test_app())
         response = client.post("/api/v1/debate", json={"topic": "AI safety"})
         body = response.json()
-        self.assertEqual("mistral-small", body["model_id"])
+        self.assertEqual("claude-sonnet-4-6", body["model_id"])
 
     def test_debate_total_llm_calls(self) -> None:
         client = TestClient(_create_test_app())
@@ -150,7 +149,7 @@ class DebateRouteTests(unittest.TestCase):
                 for call in browser_adapter.execute.call_args_list
             )
         )
-        self.assertEqual(0, app.state.api_adapters["mistral"].execute.call_count)
+        self.assertEqual({}, app.state.api_adapters)
 
     def test_debate_failed_adapter_result_uses_error_fallback(self) -> None:
         app = FastAPI()
@@ -162,7 +161,8 @@ class DebateRouteTests(unittest.TestCase):
             failure_code="rate_limited",
             failure_message="Rate limit reached",
         )
-        app.state.api_adapters = {"mistral": adapter}
+        app.state.api_adapters = {}
+        app.state.browser_adapter = adapter
         client = TestClient(app)
 
         response = client.post("/api/v1/debate", json={

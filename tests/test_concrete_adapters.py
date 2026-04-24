@@ -6,7 +6,6 @@ from typing import Any
 from unittest.mock import MagicMock, patch
 
 from gracekelly.adapters.api.anthropic import AnthropicApiAdapter
-from gracekelly.adapters.api.mistral import MistralApiAdapter
 from gracekelly.adapters.api.openai_compat import OpenAICompatibleApiAdapter
 from gracekelly.core.contracts import StepStatus
 
@@ -110,27 +109,6 @@ class AnthropicExecuteTests(unittest.TestCase):
             result = adapter.execute(_make_request())
         self.assertEqual(result.status, StepStatus.COMPLETED)
         self.assertEqual(result.output_text, "hello")
-
-
-class MistralAdapterTests(unittest.TestCase):
-    def test_adapter_name(self) -> None:
-        adapter = MistralApiAdapter(api_key="key", base_url="https://api.mistral.ai")
-        self.assertEqual(adapter.name, "api.mistral")
-
-    def test_provider_label_in_healthcheck(self) -> None:
-        adapter = MistralApiAdapter(api_key="key", base_url="https://api.mistral.ai")
-        hc = adapter.healthcheck()
-        self.assertEqual(hc["provider"], "mistral")
-
-    def test_default_timeout(self) -> None:
-        adapter = MistralApiAdapter(api_key="key", base_url="https://api.mistral.ai")
-        self.assertEqual(adapter._default_timeout_seconds, 30.0)
-
-    def test_success_execute(self) -> None:
-        adapter = MistralApiAdapter(api_key="key", base_url="https://api.mistral.ai")
-        with patch.object(adapter, "_post_json", return_value=_OPENAI_OK):
-            result = adapter.execute(_make_request())
-        self.assertEqual(result.status, StepStatus.COMPLETED)
 
 
 class OpenAICompatAdapterTests(unittest.TestCase):

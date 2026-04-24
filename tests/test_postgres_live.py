@@ -54,7 +54,7 @@ class PostgresLiveIntegrationTests(unittest.TestCase):
             "/api/v1/orchestrate",
             json={
                 "prompt": "postgres dry run",
-                "models": ["Kimi K2", "Mistral"],
+                "models": ["Kimi K2", "GPT-5.4 API"],
                 "dry_run": True,
             },
         )
@@ -76,7 +76,7 @@ class PostgresLiveIntegrationTests(unittest.TestCase):
             "/api/v1/orchestrate",
             json={
                 "prompt": "postgres provider failure",
-                "model": "Mistral",
+                "model": "GPT-5.4 API",
                 "dry_run": False,
             },
         )
@@ -110,7 +110,7 @@ class PostgresLiveIntegrationTests(unittest.TestCase):
             "/api/v1/orchestrate",
             json={
                 "prompt": "postgres list failed",
-                "model": "Mistral",
+                "model": "GPT-5.4 API",
                 "dry_run": False,
             },
         )
@@ -139,10 +139,10 @@ class PostgresLiveIntegrationTests(unittest.TestCase):
         filtered_payload = filtered.json()
         self.assertGreaterEqual(len(filtered_payload), 1)
         self.assertEqual(filtered_payload[0]["task_id"], failed.json()["task_id"])
-        self.assertEqual(filtered_payload[0]["adapter_name"], "api.mistral")
+        self.assertEqual(filtered_payload[0]["adapter_name"], "api.openai")
         self.assertIsNone(filtered_payload[0]["model"])
         self.assertEqual(filtered_payload[0]["failure_code"], "provider_unavailable")
-        self.assertEqual(filtered_payload[0]["requested_models"][0]["id"], "mistral-small")
+        self.assertEqual(filtered_payload[0]["requested_models"][0]["id"], "gpt-5-4-api")
         self.assertEqual(filtered_payload[0]["cancelled_step_count"], 0)
         self.assertEqual(filtered_payload[0]["execution_mode"], "api")
 

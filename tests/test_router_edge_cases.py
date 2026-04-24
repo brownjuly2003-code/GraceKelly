@@ -258,12 +258,12 @@ class RouterMergeOutputsTests(unittest.TestCase):
 
     def test_concat_joins_with_double_newline(self) -> None:
         step1 = _step("sonar", step_index=1)
-        step2 = _step("Mistral", step_index=2)
+        step2 = _step("GPT-5.4 API", step_index=2)
         router = ExecutionRouter(
             dry_run_adapter=_StubAdapter([]),
             api_adapters={
                 "perplexity": _StubAdapter([_result(step1, output_text="AAA")]),
-                "mistral": _StubAdapter([_result(step2, output_text="BBB")]),
+                "openai": _StubAdapter([_result(step2, output_text="BBB")]),
             },
         )
         batch = router.execute(
@@ -280,12 +280,12 @@ class RouterMergeOutputsTests(unittest.TestCase):
 
     def test_first_success_returns_first_completed(self) -> None:
         step1 = _step("sonar", step_index=1)
-        step2 = _step("Mistral", step_index=2)
+        step2 = _step("GPT-5.4 API", step_index=2)
         router = ExecutionRouter(
             dry_run_adapter=_StubAdapter([]),
             api_adapters={
                 "perplexity": _StubAdapter([_result(step1, output_text="FIRST")]),
-                "mistral": _StubAdapter([_result(step2, output_text="SECOND")]),
+                "openai": _StubAdapter([_result(step2, output_text="SECOND")]),
             },
         )
         batch = router.execute(
@@ -357,12 +357,12 @@ class RouterDetailsTests(unittest.TestCase):
 
     def test_details_cancel_reason_set_when_quorum_reached(self) -> None:
         step1 = _step("sonar", step_index=1)
-        step2 = _step("Mistral", step_index=2)
+        step2 = _step("GPT-5.4 API", step_index=2)
         router = ExecutionRouter(
             dry_run_adapter=_StubAdapter([]),
             api_adapters={
                 "perplexity": _StubAdapter([_result(step1)]),
-                "mistral": _StubAdapter([_result(step2, status=StepStatus.CANCELLED, output_text=None)]),
+                "openai": _StubAdapter([_result(step2, status=StepStatus.CANCELLED, output_text=None)]),
             },
         )
         batch = router.execute(

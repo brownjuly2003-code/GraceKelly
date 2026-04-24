@@ -944,10 +944,10 @@ class ImportPostgresToolTests(unittest.TestCase):
                         {
                             "task_id": "task-1",
                             "step_index": 1,
-                            "model_id": "mistral-small",
-                            "model_display_name": "Mistral Small",
+                            "model_id": "gpt-5-4-api",
+                            "model_display_name": "GPT-5.4 API",
                             "backend": "api",
-                            "provider": "mistral",
+                            "provider": "openai",
                             "status": "failed",
                         },
                     ],

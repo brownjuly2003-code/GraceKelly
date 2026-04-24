@@ -12,7 +12,7 @@ class PlanningEdgeCasesTests(unittest.TestCase):
         """quorum > len(steps) → clamped to len(steps)."""
         request = OrchestrateRequest(
             prompt="test",
-            models=["Mistral", "sonar"],
+            models=["GPT-5.4 API", "sonar"],
             quorum=8,  # max allowed by schema, but only 2 models
         )
         plan = build_execution_plan(request)
@@ -22,7 +22,7 @@ class PlanningEdgeCasesTests(unittest.TestCase):
         """concat + cancel_on_quorum=True is valid when quorum covers all models."""
         request = OrchestrateRequest(
             prompt="test",
-            models=["Mistral", "sonar"],
+            models=["GPT-5.4 API", "sonar"],
             merge_strategy=MergeStrategy.CONCAT,
             quorum=2,
             cancel_on_quorum=True,
@@ -34,7 +34,7 @@ class PlanningEdgeCasesTests(unittest.TestCase):
         """concat + cancel_on_quorum=False is always valid regardless of quorum."""
         request = OrchestrateRequest(
             prompt="test",
-            models=["Mistral", "sonar"],
+            models=["GPT-5.4 API", "sonar"],
             merge_strategy=MergeStrategy.CONCAT,
             quorum=1,
             cancel_on_quorum=False,
@@ -46,7 +46,7 @@ class PlanningEdgeCasesTests(unittest.TestCase):
         """Steps are indexed from 1, not 0."""
         request = OrchestrateRequest(
             prompt="test",
-            models=["sonar", "Mistral"],
+            models=["sonar", "GPT-5.4 API"],
         )
         plan = build_execution_plan(request)
         self.assertEqual(plan.steps[0].step_index, 1)

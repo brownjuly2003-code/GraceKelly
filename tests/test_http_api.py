@@ -102,7 +102,7 @@ class HttpApiSmokeTests(unittest.TestCase):
         execution = next(item for item in readiness.json()["components"] if item["kind"] == "execution")
         self.assertEqual(storage["details"]["schema"]["schema_version"], "not_applicable")
         self.assertEqual(execution["details"]["active_model_executions"], 0)
-        self.assertEqual(execution["details"]["model_limits"]["mistral-small"], 4)
+        self.assertEqual(execution["details"]["model_limits"]["gpt-5-4-api"], 4)
 
     def test_health_routes_offload_blocking_work_to_thread(self) -> None:
         async def run_sync(func: Callable[..., Any], /, *args: Any, **kwargs: Any) -> Any:
@@ -127,7 +127,7 @@ class HttpApiSmokeTests(unittest.TestCase):
         self.assertIn('gracekelly_build_info{', response.text)
         self.assertIn('gracekelly_readiness_state{status="ok"} 1', response.text)
         self.assertIn("gracekelly_execution_active_model_executions 0", response.text)
-        self.assertIn('gracekelly_execution_model_limit{model_id="mistral-small"} 4', response.text)
+        self.assertIn('gracekelly_execution_model_limit{model_id="gpt-5-4-api"} 4', response.text)
         self.assertIn("gracekelly_storage_task_count 0", response.text)
         self.assertIn(
             'gracekelly_browser_circuit_breaker_state{adapter_name="browser.perplexity",state="closed"} 1',
@@ -331,7 +331,7 @@ class HttpApiSmokeTests(unittest.TestCase):
         max_model = next(item for item in catalog if item["id"] == "max")
         nemotron = next(item for item in catalog if item["id"] == "nemotron-3-super")
         kimi = next(item for item in catalog if item["id"] == "kimi-k2-5")
-        mistral = next(item for item in catalog if item["id"] == "mistral-small")
+        claude_api = next(item for item in catalog if item["id"] == "claude-sonnet-4-6-api")
         gpt_api = next(item for item in catalog if item["id"] == "gpt-5-4-api")
         self.assertEqual(best["adapter_kind"], "browser")
         self.assertEqual(best["availability_status"], "observed_unverified")
@@ -352,15 +352,15 @@ class HttpApiSmokeTests(unittest.TestCase):
         self.assertEqual(kimi["availability_checked_at"], "2026-04-20T12:00:00Z")
         self.assertEqual(kimi["availability_source"], "perplexity-model-menu")
         self.assertIsNone(kimi["last_verified_at"])
-        self.assertEqual(mistral["adapter_kind"], "api")
-        self.assertEqual(mistral["provider"], "mistral")
-        self.assertFalse(mistral["reasoning_capable"])
-        self.assertEqual(mistral["timeout_seconds"], 30)
-        self.assertEqual(mistral["expected_latency_class"], "medium")
-        self.assertEqual(mistral["concurrency_limit"], 4)
-        self.assertIsNone(mistral["available"])
-        self.assertEqual(mistral["availability_status"], "static")
-        self.assertIsNone(mistral["last_verified_at"])
+        self.assertEqual(claude_api["adapter_kind"], "api")
+        self.assertEqual(claude_api["provider"], "anthropic")
+        self.assertTrue(claude_api["reasoning_capable"])
+        self.assertEqual(claude_api["timeout_seconds"], 120)
+        self.assertEqual(claude_api["expected_latency_class"], "slow")
+        self.assertEqual(claude_api["concurrency_limit"], 4)
+        self.assertIsNone(claude_api["available"])
+        self.assertEqual(claude_api["availability_status"], "static")
+        self.assertIsNone(claude_api["last_verified_at"])
         self.assertTrue(gpt_api["reasoning_capable"])
         self.assertEqual(gpt_api["timeout_seconds"], 60)
         self.assertEqual(gpt_api["expected_latency_class"], "slow")
@@ -416,7 +416,7 @@ class HttpApiSmokeTests(unittest.TestCase):
             payload = response.json()["models"]
             kimi = next(item for item in payload if item["id"] == "kimi-k2-5")
             gpt = next(item for item in payload if item["id"] == "gpt-5-4")
-            mistral = next(item for item in payload if item["id"] == "mistral-small")
+            claude_api = next(item for item in payload if item["id"] == "claude-sonnet-4-6-api")
             self.assertEqual(kimi["availability_status"], "observed_unverified")
             self.assertEqual(kimi["available"], True)
             self.assertEqual(kimi["availability_source"], "perplexity-model-menu")
@@ -425,8 +425,8 @@ class HttpApiSmokeTests(unittest.TestCase):
             self.assertEqual(gpt["availability_status"], "observed_available")
             self.assertEqual(gpt["available"], True)
             self.assertEqual(gpt["last_verified_at"], "2026-03-17T18:46:00Z")
-            self.assertEqual(mistral["availability_status"], "static")
-            self.assertIsNone(mistral["available"])
+            self.assertEqual(claude_api["availability_status"], "static")
+            self.assertIsNone(claude_api["available"])
 
     def test_models_endpoint_downgrades_verified_browser_availability_after_newer_picker_failure(self) -> None:
         app = create_app(
@@ -489,7 +489,7 @@ class HttpApiSmokeTests(unittest.TestCase):
             "/api/v1/orchestrate",
             json={
                 "prompt": "dry run prompt",
-                "models": ["Kimi K2", "Mistral"],
+                "models": ["Kimi K2", "GPT-5.4 API"],
                 "dry_run": True,
                 "quorum": 1,
             },
@@ -553,7 +553,7 @@ class HttpApiSmokeTests(unittest.TestCase):
 
     def test_stream_route_persists_completed_streaming_task(self) -> None:
         class StreamingAdapter:
-            name = "api.mistral"
+            name = "api.openai"
 
             def execute_stream(self, request: ExecutionRequest) -> Iterator[StreamChunk]:
                 yield StreamChunk(type="delta", text="stream ", model_id=request.step.model.id)
@@ -565,12 +565,12 @@ class HttpApiSmokeTests(unittest.TestCase):
                 )
 
         app = cast(Any, self.client.app)
-        app.state.api_adapters["mistral"] = StreamingAdapter()
+        app.state.api_adapters["openai"] = StreamingAdapter()
         response = self.client.post(
             "/api/v1/orchestrate/stream",
             json={
                 "prompt": "persist streamed task",
-                "model": "Mistral",
+                "model": "GPT-5.4 API",
                 "dry_run": False,
             },
         )
@@ -592,8 +592,8 @@ class HttpApiSmokeTests(unittest.TestCase):
         payload = recent.json()
         self.assertEqual(len(payload), 1)
         self.assertEqual(payload[0]["task_id"], task_id)
-        self.assertEqual(payload[0]["adapter_name"], "api.mistral")
-        self.assertEqual(payload[0]["model"]["id"], "mistral-small")
+        self.assertEqual(payload[0]["adapter_name"], "api.openai")
+        self.assertEqual(payload[0]["model"]["id"], "gpt-5-4-api")
         self.assertEqual(payload[0]["execution_mode"], "api")
 
         task = self.client.get(f"/api/v1/tasks/{task_id}")
@@ -674,7 +674,7 @@ class HttpApiSmokeTests(unittest.TestCase):
             "/api/v1/orchestrate",
             json={
                 "prompt": "second task",
-                "model": "Mistral",
+                "model": "GPT-5.4 API",
                 "dry_run": True,
             },
         )
@@ -692,7 +692,7 @@ class HttpApiSmokeTests(unittest.TestCase):
         self.assertIsNone(payload[0]["model"])
         self.assertEqual(payload[0]["dry_run"], True)
         self.assertEqual(payload[0]["model_count"], 1)
-        self.assertEqual(payload[0]["requested_models"][0]["id"], "mistral-small")
+        self.assertEqual(payload[0]["requested_models"][0]["id"], "gpt-5-4-api")
         self.assertEqual(payload[0]["cancelled_step_count"], 0)
         self.assertIsNone(payload[0]["cancel_reason"])
         self.assertNotIn("steps", payload[0])
@@ -736,7 +736,7 @@ class HttpApiSmokeTests(unittest.TestCase):
             "/api/v1/orchestrate",
             json={
                 "prompt": "real failure",
-                "model": "Mistral",
+                "model": "GPT-5.4 API",
                 "dry_run": False,
             },
         )
@@ -755,12 +755,12 @@ class HttpApiSmokeTests(unittest.TestCase):
         payload = response.json()
         self.assertEqual(len(payload), 1)
         self.assertEqual(payload[0]["task_id"], failed.json()["task_id"])
-        self.assertEqual(payload[0]["adapter_name"], "api.mistral")
+        self.assertEqual(payload[0]["adapter_name"], "api.openai")
         self.assertEqual(payload[0]["status"], "failed")
         self.assertIsNone(payload[0]["model"])
         self.assertEqual(payload[0]["dry_run"], False)
         self.assertEqual(payload[0]["failure_code"], "provider_unavailable")
-        self.assertEqual(payload[0]["requested_models"][0]["id"], "mistral-small")
+        self.assertEqual(payload[0]["requested_models"][0]["id"], "gpt-5-4-api")
         self.assertEqual(payload[0]["cancelled_step_count"], 0)
         self.assertIsNone(payload[0]["cancel_reason"])
         self.assertEqual(payload[0]["execution_mode"], "api")
@@ -777,7 +777,7 @@ class HttpApiSmokeTests(unittest.TestCase):
         )
 
         class SlowCancellableAdapter(ExecutionAdapter):
-            name = "api.mistral"
+            name = "api.openai"
 
             def execute(self, request: Any) -> ExecutionResult:
                 deadline = monotonic() + 0.25
@@ -823,14 +823,14 @@ class HttpApiSmokeTests(unittest.TestCase):
                 browser_scripted_output_text="browser wins",
             )
         )
-        app.state.api_adapters["mistral"] = SlowCancellableAdapter()
+        app.state.api_adapters["openai"] = SlowCancellableAdapter()
         client = TestClient(app)
 
         response = client.post(
             "/api/v1/orchestrate",
             json={
                 "prompt": "short circuit summary",
-                "models": ["Kimi K2", "Mistral"],
+                "models": ["Kimi K2", "GPT-5.4 API"],
                 "dry_run": False,
                 "quorum": 1,
                 "merge_strategy": "first_success",
@@ -856,8 +856,8 @@ class HttpApiSmokeTests(unittest.TestCase):
         response = self.client.post(
             "/api/v1/orchestrate",
             json={
-                "prompt": "mistral without key",
-                "model": "Mistral",
+                "prompt": "openai without key",
+                "model": "GPT-5.4 API",
                 "dry_run": False,
             },
         )
@@ -865,7 +865,7 @@ class HttpApiSmokeTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         payload = response.json()
         self.assertEqual(payload["status"], "failed")
-        self.assertEqual(payload["adapter_name"], "api.mistral")
+        self.assertEqual(payload["adapter_name"], "api.openai")
         self.assertEqual(payload["failure_code"], "provider_unavailable")
         self.assertEqual(payload["model"], None)
         self.assertNotIn("steps", payload)
@@ -875,7 +875,7 @@ class HttpApiSmokeTests(unittest.TestCase):
             "/api/v1/orchestrate",
             json={
                 "prompt": "bad strategy",
-                "model": "Mistral",
+                "model": "GPT-5.4 API",
                 "merge_strategy": "fanout",
             },
         )
@@ -942,14 +942,14 @@ class HttpApiSmokeTests(unittest.TestCase):
             "/api/v1/orchestrate",
             json={
                 "prompt": "dry run with event failure",
-                "models": ["Kimi K2", "Mistral"],
+                "models": ["Kimi K2", "GPT-5.4 API"],
                 "dry_run": True,
             },
         )
 
         self.assertEqual(response.status_code, 200)
         payload = response.json()
-        self.assertEqual([item["id"] for item in payload["requested_models"]], ["kimi-k2-5", "mistral-small"])
+        self.assertEqual([item["id"] for item in payload["requested_models"]], ["kimi-k2-5", "gpt-5-4-api"])
 
     def test_orchestrate_summary_does_not_depend_on_post_write_readback(self) -> None:
         class ReadbackFailingRepository(InMemoryTaskRepository):
@@ -994,7 +994,7 @@ class HttpApiSmokeTests(unittest.TestCase):
             "/api/v1/orchestrate",
             json={
                 "prompt": "truncated concat",
-                "models": ["Kimi K2", "Mistral"],
+                "models": ["Kimi K2", "GPT-5.4 API"],
                 "dry_run": False,
                 "merge_strategy": "concat",
                 "quorum": 1,
@@ -1010,7 +1010,7 @@ class HttpApiSmokeTests(unittest.TestCase):
             "/api/v1/orchestrate",
             json={
                 "prompt": "reasoning on unsupported model",
-                "model": "Mistral",
+                "model": "Sonar",
                 "reasoning": True,
             },
         )
@@ -1137,7 +1137,7 @@ class HttpApiSmokeTests(unittest.TestCase):
             "/api/v1/orchestrate/upload",
             data={
                 "prompt": "Summarize this",
-                "models": '["Kimi K2", "Mistral"]',
+                "models": '["Kimi K2", "GPT-5.4 API"]',
                 "dry_run": "true",
             },
             files=[("files", ("notes.txt", b"Hello world content", "text/plain"))],
@@ -1145,7 +1145,7 @@ class HttpApiSmokeTests(unittest.TestCase):
 
         self.assertEqual(response.status_code, 200)
         payload = response.json()
-        self.assertEqual([item["id"] for item in payload["requested_models"]], ["kimi-k2-5", "mistral-small"])
+        self.assertEqual([item["id"] for item in payload["requested_models"]], ["kimi-k2-5", "gpt-5-4-api"])
 
         task = self.client.get(f"/api/v1/tasks/{payload['task_id']}")
         self.assertEqual(task.status_code, 200)
@@ -1195,7 +1195,7 @@ class HttpApiSmokeTests(unittest.TestCase):
         with patch("builtins.__import__", side_effect=import_without_pypdf):
             response = self.client.post(
                 "/api/v1/orchestrate/upload",
-                data={"prompt": "Read PDF", "model": "Mistral", "dry_run": "true"},
+                data={"prompt": "Read PDF", "model": "Kimi K2", "dry_run": "true"},
                 files=[("files", ("doc.pdf", b"%PDF-1.4", "application/pdf"))],
             )
 
@@ -1212,7 +1212,7 @@ class HttpApiSmokeTests(unittest.TestCase):
         with patch.dict(sys.modules, {"pypdf": fake_pypdf}):
             response = self.client.post(
                 "/api/v1/orchestrate/upload",
-                data={"prompt": "Read PDF", "model": "Mistral", "dry_run": "true"},
+                data={"prompt": "Read PDF", "model": "Kimi K2", "dry_run": "true"},
                 files=[("files", ("doc.pdf", b"%PDF-1.4", "application/pdf"))],
             )
 
@@ -1575,7 +1575,7 @@ class HttpApiSmokeTests(unittest.TestCase):
             "/api/v1/orchestrate",
             json={
                 "prompt": "retry me",
-                "model": "Mistral",
+                "model": "Kimi K2",
                 "dry_run": True,
             },
         )
@@ -1605,7 +1605,7 @@ class HttpApiSmokeTests(unittest.TestCase):
             "/api/v1/orchestrate",
             json={
                 "prompt": "completed task",
-                "model": "Mistral",
+                "model": "Kimi K2",
                 "dry_run": True,
             },
         )
@@ -1650,7 +1650,7 @@ class HttpApiSmokeTests(unittest.TestCase):
             "/api/v1/orchestrate",
             json={
                 "prompt": "retry storage failure",
-                "model": "Mistral",
+                "model": "Kimi K2",
                 "dry_run": True,
             },
         )
@@ -1680,7 +1680,7 @@ class HttpApiSmokeTests(unittest.TestCase):
             "/api/v1/orchestrate",
             json={
                 "prompt": "retry validation failure",
-                "model": "Mistral",
+                "model": "Kimi K2",
                 "dry_run": True,
             },
         )

@@ -3,7 +3,6 @@ from __future__ import annotations
 import threading
 import unittest
 
-from gracekelly.adapters.api.mistral import MistralApiAdapter
 from gracekelly.adapters.api.openai_compat import OpenAICompatibleApiAdapter
 from gracekelly.adapters.dry_run import DryRunExecutionAdapter
 from gracekelly.core.contracts import (
@@ -21,31 +20,6 @@ from gracekelly.core.contracts import (
 from gracekelly.core.planning import build_execution_plan
 from gracekelly.core.router import ExecutionRouter
 from gracekelly.schemas import OrchestrateRequest
-
-
-class FakeMistralAdapter(MistralApiAdapter):
-    def __init__(self) -> None:
-        super().__init__(api_key="test-key", base_url="https://example.test/v1", timeout_seconds=1.0)
-        self.last_timeout_seconds: float | None = None
-
-    def _post_json(
-        self,
-        path: str,
-        payload: dict[str, object],
-        *,
-        timeout_seconds: float,
-        extra_headers: dict[str, str] | None = None,
-    ) -> dict[str, object]:
-        self.last_timeout_seconds = timeout_seconds
-        return {
-            "choices": [
-                {
-                    "message": {
-                        "content": "stubbed mistral response"
-                    }
-                }
-            ]
-        }
 
 
 class FakeOpenAICompatibleAdapter(OpenAICompatibleApiAdapter):
@@ -92,7 +66,7 @@ class ExecutionRouterTests(unittest.TestCase):
         plan = build_execution_plan(
             OrchestrateRequest(
                 prompt="dry run",
-                models=["Kimi K2", "Mistral"],
+                models=["Kimi K2", "GPT-5.4 API"],
                 dry_run=True,
                 quorum=1,
             )
@@ -116,7 +90,7 @@ class ExecutionRouterTests(unittest.TestCase):
         plan = build_execution_plan(
             OrchestrateRequest(
                 prompt="dry run output",
-                model="Mistral",
+                model="GPT-5.4 API",
                 dry_run=True,
             )
         )
@@ -135,15 +109,15 @@ class ExecutionRouterTests(unittest.TestCase):
         self.assertIn("[dry-run]", result.output_text)
 
     def test_api_adapter_completes_when_registered(self) -> None:
-        adapter = FakeMistralAdapter()
+        adapter = FakeOpenAICompatibleAdapter()
         router = ExecutionRouter(
             dry_run_adapter=DryRunExecutionAdapter(),
-            api_adapters={"mistral": adapter},
+            api_adapters={"openai": adapter},
         )
         plan = build_execution_plan(
             OrchestrateRequest(
                 prompt="call api",
-                model="Mistral",
+                model="GPT-5.4 API",
                 dry_run=False,
             )
         )
@@ -157,16 +131,16 @@ class ExecutionRouterTests(unittest.TestCase):
         )
 
         self.assertEqual(result.task_status, TaskStatus.COMPLETED)
-        self.assertEqual(result.details["adapter_names"], ["api.mistral"])
-        self.assertEqual(result.output_text, "stubbed mistral response")
-        self.assertEqual(adapter.last_timeout_seconds, 30.0)
+        self.assertEqual(result.details["adapter_names"], ["api.openai"])
+        self.assertEqual(result.output_text, "stubbed openai response")
+        self.assertEqual(adapter.last_timeout_seconds, 60.0)
 
     def test_api_adapter_uses_per_model_timeout_hint(self) -> None:
-        adapter = FakeMistralAdapter()
+        adapter = FakeOpenAICompatibleAdapter()
         plan = build_execution_plan(
             OrchestrateRequest(
                 prompt="call api",
-                model="Mistral",
+                model="GPT-5.4 API",
                 dry_run=False,
             )
         )
@@ -174,8 +148,8 @@ class ExecutionRouterTests(unittest.TestCase):
         result = adapter.execute(build_request("task-2b", "call api", plan))
 
         self.assertEqual(result.status, StepStatus.COMPLETED)
-        self.assertEqual(adapter.last_timeout_seconds, 30.0)
-        self.assertEqual(result.details["timeout_seconds"], 30.0)
+        self.assertEqual(adapter.last_timeout_seconds, 60.0)
+        self.assertEqual(result.details["timeout_seconds"], 60.0)
 
     def test_openai_compat_adapter_completes_when_registered(self) -> None:
         adapter = FakeOpenAICompatibleAdapter()
@@ -237,13 +211,13 @@ class ExecutionRouterTests(unittest.TestCase):
 
         router = ExecutionRouter(
             dry_run_adapter=DryRunExecutionAdapter(),
-            api_adapters={"mistral": FakeMistralAdapter()},
+            api_adapters={"openai": FakeOpenAICompatibleAdapter()},
             browser_adapter=FakeBrowserAdapter(),
         )
         plan = build_execution_plan(
             OrchestrateRequest(
                 prompt="concat execution",
-                models=["Kimi K2", "Mistral"],
+                models=["Kimi K2", "GPT-5.4 API"],
                 dry_run=False,
                 merge_strategy=MergeStrategy.CONCAT,
                 quorum=1,
@@ -261,8 +235,8 @@ class ExecutionRouterTests(unittest.TestCase):
 
         self.assertEqual(result.task_status, TaskStatus.COMPLETED)
         self.assertEqual(result.execution_mode, "mixed")
-        self.assertEqual(result.output_text, "browser result\n\nstubbed mistral response")
-        self.assertEqual(result.details["adapter_names"], ["api.mistral", "browser.perplexity"])
+        self.assertEqual(result.output_text, "browser result\n\nstubbed openai response")
+        self.assertEqual(result.details["adapter_names"], ["api.openai", "browser.perplexity"])
         self.assertEqual(result.details["winning_step_index"], None)
         self.assertEqual(result.details["cancelled_steps"], [])
         self.assertTrue(all(item.status == StepStatus.COMPLETED for item in result.results))
@@ -282,7 +256,7 @@ class ExecutionRouterTests(unittest.TestCase):
                 )
 
         class FakeApiAdapter(ExecutionAdapter):
-            name = "api.mistral"
+            name = "api.openai"
 
             def __init__(self) -> None:
                 self.call_count = 0
@@ -301,13 +275,13 @@ class ExecutionRouterTests(unittest.TestCase):
         api_adapter = FakeApiAdapter()
         router = ExecutionRouter(
             dry_run_adapter=DryRunExecutionAdapter(),
-            api_adapters={"mistral": api_adapter},
+            api_adapters={"openai": api_adapter},
             browser_adapter=FakeBrowserAdapter(),
         )
         plan = build_execution_plan(
             OrchestrateRequest(
                 prompt="first success",
-                models=["Kimi K2", "Mistral"],
+                models=["Kimi K2", "GPT-5.4 API"],
                 dry_run=False,
                 merge_strategy=MergeStrategy.FIRST_SUCCESS,
                 quorum=1,
@@ -418,7 +392,7 @@ class ExecutionRouterTests(unittest.TestCase):
         plan = build_execution_plan(
             OrchestrateRequest(
                 prompt="mismatch",
-                models=["Kimi K2", "Mistral"],
+                models=["Kimi K2", "GPT-5.4 API"],
                 dry_run=False,
                 merge_strategy=MergeStrategy.CONCAT,
                 cancel_on_quorum=False,
@@ -435,25 +409,6 @@ class ExecutionRouterTests(unittest.TestCase):
 
         with self.assertRaises(ValueError):
             router._aggregate(plan, (result,))
-
-
-class MistralAdapterTests(unittest.TestCase):
-    def test_missing_api_key_returns_provider_unavailable(self) -> None:
-        adapter = MistralApiAdapter(api_key=None, base_url="https://example.test/v1", timeout_seconds=1.0)
-        plan = build_execution_plan(
-            OrchestrateRequest(
-                prompt="missing key",
-                model="Mistral",
-                dry_run=False,
-            )
-        )
-
-        result = adapter.execute(build_request("task-3", "missing key", plan))
-
-        assert result.failure_code is not None
-        self.assertEqual(result.failure_code.value, "provider_unavailable")
-        self.assertEqual(result.status, StepStatus.FAILED)
-
 
 class OpenAICompatibleAdapterTests(unittest.TestCase):
     def test_missing_api_key_returns_provider_unavailable(self) -> None:

@@ -18,7 +18,7 @@ class ExecutionProfileTests(unittest.TestCase):
         profile = resolve_execution_profile("api-only")
         self.assertEqual(profile.name, "api-only")
         self.assertIn("dry-run", profile.required_adapters)
-        self.assertIn("api.mistral", profile.required_adapters)
+        self.assertIn("api.openai", profile.optional_adapters)
 
     def test_resolve_hybrid(self) -> None:
         profile = resolve_execution_profile("hybrid")
@@ -30,7 +30,7 @@ class ExecutionProfileTests(unittest.TestCase):
 
     def test_is_required(self) -> None:
         profile = resolve_execution_profile("api-only")
-        self.assertTrue(profile.is_required("api.mistral"))
+        self.assertTrue(profile.is_required("dry-run"))
         self.assertFalse(profile.is_required("browser.perplexity"))
 
     def test_is_known_required(self) -> None:

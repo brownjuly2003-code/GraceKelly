@@ -16,23 +16,23 @@ from gracekelly.core.contracts import (
 from gracekelly.core.models import ModelSpec
 
 _MODEL = ModelSpec(
-    id="mistral-small",
-    display_name="Mistral Small",
-    aliases=("Mistral",),
+    id="gpt-5-4-api",
+    display_name="GPT-5.4 API",
+    aliases=("GPT-5.4 API",),
     adapter_kind="api",
-    provider="mistral",
-    provider_model_id="mistral-small-latest",
-    timeout_seconds=30,
+    provider="openai",
+    provider_model_id="gpt-5.4",
+    timeout_seconds=60,
     expected_latency_class="fast",
     concurrency_limit=4,
-    reasoning_capable=False,
+    reasoning_capable=True,
 )
 
 _STEP = ExecutionStep(
     model=_MODEL,
     backend=ExecutionBackend.API,
-    provider="mistral",
-    provider_model_id="mistral-small-latest",
+    provider="openai",
+    provider_model_id="gpt-5.4",
     step_index=1,
 )
 
@@ -70,11 +70,11 @@ class DryRunAdapterExecuteTests(unittest.TestCase):
 
     def test_model_id_matches_step(self) -> None:
         result = self.adapter.execute(_make_request())
-        self.assertEqual(result.model_id, "mistral-small")
+        self.assertEqual(result.model_id, "gpt-5-4-api")
 
     def test_model_display_name_matches_step(self) -> None:
         result = self.adapter.execute(_make_request())
-        self.assertEqual(result.model_display_name, "Mistral Small")
+        self.assertEqual(result.model_display_name, "GPT-5.4 API")
 
     def test_adapter_name_is_dry_run(self) -> None:
         result = self.adapter.execute(_make_request())
@@ -94,11 +94,11 @@ class DryRunAdapterExecuteTests(unittest.TestCase):
 
     def test_details_active_model_display_name(self) -> None:
         result = self.adapter.execute(_make_request())
-        self.assertEqual(result.details["active_model"], "Mistral Small")
+        self.assertEqual(result.details["active_model"], "GPT-5.4 API")
 
     def test_details_requested_models_contains_display_name(self) -> None:
         result = self.adapter.execute(_make_request())
-        self.assertIn("Mistral Small", result.details["requested_models"])
+        self.assertIn("GPT-5.4 API", result.details["requested_models"])
 
     def test_no_failure_code(self) -> None:
         result = self.adapter.execute(_make_request())
@@ -149,7 +149,7 @@ class DryRunAdapterMultiStepTests(unittest.TestCase):
             reasoning=False,
         )
         result = DryRunExecutionAdapter().execute(request)
-        self.assertIn("Mistral Small", result.details["requested_models"])
+        self.assertIn("GPT-5.4 API", result.details["requested_models"])
         self.assertIn("Kimi K2", result.details["requested_models"])
         self.assertEqual(len(result.details["requested_models"]), 2)
 

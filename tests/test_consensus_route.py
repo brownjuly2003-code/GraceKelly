@@ -36,7 +36,7 @@ def _create_test_app(
             failure_code=None,
             failure_message=None,
         )
-        app.state.api_adapters = {"mistral": adapter}
+        app.state.api_adapters = {"openai": adapter}
     else:
         app.state.api_adapters = {}
     app.state.browser_adapter = browser_adapter
@@ -47,12 +47,12 @@ def _create_test_app(
 class ConsensusRouteTests(unittest.TestCase):
     def test_consensus_returns_200(self) -> None:
         client = TestClient(_create_test_app())
-        response = client.post("/api/v1/consensus", json={"prompt": "Hello"})
+        response = client.post("/api/v1/consensus", json={"prompt": "Hello", "model": "GPT-5.4 API"})
         self.assertEqual(response.status_code, 200)
 
     def test_consensus_response_fields(self) -> None:
         client = TestClient(_create_test_app())
-        response = client.post("/api/v1/consensus", json={"prompt": "Hello"})
+        response = client.post("/api/v1/consensus", json={"prompt": "Hello", "model": "GPT-5.4 API"})
         body = response.json()
         self.assertEqual(
             set(body.keys()),
@@ -70,17 +70,17 @@ class ConsensusRouteTests(unittest.TestCase):
 
     def test_consensus_score_is_one_for_identical(self) -> None:
         client = TestClient(_create_test_app())
-        response = client.post("/api/v1/consensus", json={"prompt": "Hello"})
+        response = client.post("/api/v1/consensus", json={"prompt": "Hello", "model": "GPT-5.4 API"})
         self.assertEqual(response.json()["consensus_score"], 1.0)
 
     def test_total_llm_calls_default_three(self) -> None:
         client = TestClient(_create_test_app())
-        response = client.post("/api/v1/consensus", json={"prompt": "Hello"})
+        response = client.post("/api/v1/consensus", json={"prompt": "Hello", "model": "GPT-5.4 API"})
         self.assertEqual(response.json()["total_llm_calls"], 3)
 
     def test_no_embeddings_client_returns_503(self) -> None:
         client = TestClient(_create_test_app(has_embeddings=False))
-        response = client.post("/api/v1/consensus", json={"prompt": "Hello"})
+        response = client.post("/api/v1/consensus", json={"prompt": "Hello", "model": "GPT-5.4 API"})
         self.assertEqual(response.status_code, 503)
 
     def test_invalid_model_returns_400(self) -> None:
@@ -95,7 +95,7 @@ class ConsensusRouteTests(unittest.TestCase):
         client = TestClient(_create_test_app())
         response = client.post(
             "/api/v1/consensus",
-            json={"prompt": "Hello", "similarity_threshold": 0.5},
+            json={"prompt": "Hello", "model": "GPT-5.4 API", "similarity_threshold": 0.5},
         )
         self.assertEqual(response.status_code, 200)
 
@@ -103,7 +103,7 @@ class ConsensusRouteTests(unittest.TestCase):
         client = TestClient(_create_test_app())
         response = client.post(
             "/api/v1/consensus",
-            json={"prompt": "Hello", "use_confidence_weighting": True},
+            json={"prompt": "Hello", "model": "GPT-5.4 API", "use_confidence_weighting": True},
         )
         self.assertIsNotNone(response.json()["weighted_score"])
 
@@ -111,23 +111,23 @@ class ConsensusRouteTests(unittest.TestCase):
         client = TestClient(_create_test_app())
         response = client.post(
             "/api/v1/consensus",
-            json={"prompt": "Hello", "use_confidence_weighting": False},
+            json={"prompt": "Hello", "model": "GPT-5.4 API", "use_confidence_weighting": False},
         )
         self.assertIsNone(response.json()["weighted_score"])
 
     def test_best_response_not_empty(self) -> None:
         client = TestClient(_create_test_app())
-        response = client.post("/api/v1/consensus", json={"prompt": "Hello"})
+        response = client.post("/api/v1/consensus", json={"prompt": "Hello", "model": "GPT-5.4 API"})
         self.assertTrue(response.json()["best_response"])
 
     def test_needs_debate_false_for_identical(self) -> None:
         client = TestClient(_create_test_app())
-        response = client.post("/api/v1/consensus", json={"prompt": "Hello"})
+        response = client.post("/api/v1/consensus", json={"prompt": "Hello", "model": "GPT-5.4 API"})
         self.assertFalse(response.json()["needs_debate"])
 
     def test_missing_adapter_returns_400(self) -> None:
         client = TestClient(_create_test_app(has_adapter=False))
-        response = client.post("/api/v1/consensus", json={"prompt": "Hello"})
+        response = client.post("/api/v1/consensus", json={"prompt": "Hello", "model": "GPT-5.4 API"})
         self.assertEqual(response.status_code, 400)
 
     def test_browser_model_uses_browser_adapter(self) -> None:
@@ -153,7 +153,7 @@ class ConsensusRouteTests(unittest.TestCase):
                 for call in browser_adapter.execute.call_args_list
             )
         )
-        self.assertEqual(0, app.state.api_adapters["mistral"].execute.call_count)
+        self.assertEqual(0, app.state.api_adapters["openai"].execute.call_count)
 
     def test_browser_model_without_browser_adapter_returns_400(self) -> None:
         client = TestClient(_create_test_app())
@@ -165,20 +165,20 @@ class ConsensusRouteTests(unittest.TestCase):
         app = _create_test_app()
         app.state.embeddings_client.embed_batch.side_effect = RuntimeError("embedding failure")
         client = TestClient(app, raise_server_exceptions=False)
-        response = client.post("/api/v1/consensus", json={"prompt": "Hello"})
+        response = client.post("/api/v1/consensus", json={"prompt": "Hello", "model": "GPT-5.4 API"})
         self.assertEqual(500, response.status_code)
         self.assertIn("Consensus execution failed", response.json()["detail"])
 
     def test_failed_adapter_result_still_returns_200_with_error_text(self) -> None:
         app = _create_test_app()
-        app.state.api_adapters["mistral"].execute.return_value = MagicMock(
+        app.state.api_adapters["openai"].execute.return_value = MagicMock(
             status=StepStatus.FAILED,
             output_text=None,
             failure_code="timeout",
             failure_message="Request timed out",
         )
         client = TestClient(app)
-        response = client.post("/api/v1/consensus", json={"prompt": "Hello"})
+        response = client.post("/api/v1/consensus", json={"prompt": "Hello", "model": "GPT-5.4 API"})
         self.assertEqual(200, response.status_code)
         self.assertIn("[timeout]", response.json()["best_response"])
 

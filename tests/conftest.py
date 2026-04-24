@@ -60,7 +60,7 @@ def install_default_browser_catalog() -> Iterator[None]:
 
 @pytest.fixture
 def api_model_spec() -> ModelSpec:
-    return resolve_model("mistral-small")
+    return resolve_model("gpt-5-4-api")
 
 
 @pytest.fixture
@@ -166,9 +166,9 @@ def make_execution_request(
 def make_execution_result() -> Callable[..., ExecutionResult]:
     def _make_execution_result(
         *,
-        adapter_name: str = "api.mistral",
-        model_id: str = "mistral-small",
-        model_display_name: str = "Mistral Small",
+        adapter_name: str = "api.openai",
+        model_id: str = "gpt-5-4-api",
+        model_display_name: str = "GPT-5.4 API",
         execution_mode: ExecutionMode = ExecutionMode.API,
         status: StepStatus = StepStatus.COMPLETED,
         output_text: str | None = "ok",
@@ -351,7 +351,7 @@ def make_orchestrate_request() -> Callable[..., OrchestrateRequest]:
     def _make_orchestrate_request(**overrides: Any) -> OrchestrateRequest:
         data: dict[str, Any] = {"prompt": "Q"}
         if "model" not in overrides and "models" not in overrides:
-            data["model"] = "Mistral"
+            data["model"] = "GPT-5.4 API"
         data.update(overrides)
         return OrchestrateRequest(**data)
 

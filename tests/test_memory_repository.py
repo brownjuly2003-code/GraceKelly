@@ -54,10 +54,10 @@ def _make_step(task_id: str = "t1", step_index: int = 1) -> TaskStepRecord:
     return TaskStepRecord(
         task_id=task_id,
         step_index=step_index,
-        model_id="mistral-small",
-        model_display_name="Mistral Small",
+        model_id="gpt-5-4-api",
+        model_display_name="GPT-5.4 API",
         backend="api",
-        provider="mistral",
+        provider="openai",
         status=StepStatus.COMPLETED,
     )
 

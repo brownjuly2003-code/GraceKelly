@@ -34,7 +34,8 @@ def _smart_v2_app(*, has_embeddings: bool = True) -> FastAPI:
         failure_code=None,
         failure_message=None,
     )
-    app.state.api_adapters = {"mistral": adapter}
+    app.state.api_adapters = {}
+    app.state.browser_adapter = adapter
     app.state.embeddings_client = MagicMock() if has_embeddings else None
     return app
 
@@ -51,7 +52,8 @@ def _pipeline_app() -> FastAPI:
         failure_code=None,
         failure_message=None,
     )
-    app.state.api_adapters = {"mistral": adapter}
+    app.state.api_adapters = {"openai": adapter}
+    app.state.browser_adapter = MagicMock()
     return app
 
 
@@ -254,12 +256,15 @@ class PipelineCoverageGapTests(unittest.TestCase):
         empty_result.model_ids = []
 
         with patch.object(pipeline_module.MultiModelExecutor, "execute_all", return_value=empty_result):
-            response = client.post("/api/v1/pipeline", json={"prompt": "Hello", "multi_model": True})
+            response = client.post(
+                "/api/v1/pipeline",
+                json={"prompt": "Hello", "model": "GPT-5.4 API", "multi_model": True},
+            )
 
         self.assertEqual(200, response.status_code)
         body = response.json()
         self.assertEqual(body["answer"], "Fallback answer")
-        self.assertEqual(body["models_used"], ["mistral-small"])
+        self.assertEqual(body["models_used"], ["gpt-5-4-api"])
 
 
 class StorageBaseCoverageGapTests(unittest.TestCase):

@@ -126,7 +126,7 @@ class StreamBrowserModelTests(unittest.TestCase):
 
     def test_api_model_stream_still_uses_streaming_adapter(self) -> None:
         class StreamingAdapter:
-            name = "api.mistral"
+            name = "api.openai"
 
             def execute_stream(self, request: Any) -> Iterator[StreamChunk]:
                 yield StreamChunk(type="delta", text="stream ", model_id=request.step.model.id)
@@ -137,11 +137,11 @@ class StreamBrowserModelTests(unittest.TestCase):
                     details={"duration_ms": 7, "input_tokens": 11, "output_tokens": 13},
                 )
 
-        self.app.state.api_adapters["mistral"] = StreamingAdapter()
+        self.app.state.api_adapters["openai"] = StreamingAdapter()
 
         response = self.client.post(
             "/api/v1/orchestrate/stream",
-            json={"prompt": "hello", "model": "Mistral", "dry_run": False},
+            json={"prompt": "hello", "model": "GPT-5.4 API", "dry_run": False},
         )
 
         self.assertEqual(response.status_code, 200)

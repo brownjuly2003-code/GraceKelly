@@ -19,7 +19,7 @@ class ExecutionPlanningTests(unittest.TestCase):
     def test_builds_multi_model_plan_with_mixed_backends(self) -> None:
         request = _make_orchestrate_request(
             prompt="compare options",
-            models=["Kimi K2", "Mistral"],
+            models=["Kimi K2", "GPT-5.4 API"],
             dry_run=False,
             quorum=2,
             merge_strategy=MergeStrategy.CONCAT,
@@ -48,7 +48,7 @@ class ExecutionPlanningTests(unittest.TestCase):
             OrchestrateRequest.model_validate(
                 {
                     "prompt": "bad adapter hint",
-                    "model": "Mistral",
+                    "model": "GPT-5.4 API",
                     "adapter_hint": "desktop",
                 }
             )
@@ -58,7 +58,7 @@ class ExecutionPlanningTests(unittest.TestCase):
             OrchestrateRequest.model_validate(
                 {
                     "prompt": "bad merge strategy",
-                    "model": "Mistral",
+                    "model": "GPT-5.4 API",
                     "merge_strategy": "fanout",
                 }
             )
@@ -75,7 +75,7 @@ class ExecutionPlanningTests(unittest.TestCase):
     def test_rejects_concat_with_short_circuiting_quorum(self) -> None:
         request = _make_orchestrate_request(
             prompt="truncated concat",
-            models=["Kimi K2", "Mistral"],
+            models=["Kimi K2", "GPT-5.4 API"],
             merge_strategy=MergeStrategy.CONCAT,
             quorum=1,
             cancel_on_quorum=True,
@@ -87,7 +87,7 @@ class ExecutionPlanningTests(unittest.TestCase):
     def test_rejects_reasoning_for_unsupported_model(self) -> None:
         request = _make_orchestrate_request(
             prompt="reasoning on unsupported model",
-            model="Mistral",
+            model="Sonar",
             reasoning=True,
         )
 
@@ -98,7 +98,7 @@ class ExecutionPlanningTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             OrchestrateRequest(
                 prompt="bad metadata",
-                model="Mistral",
+                model="GPT-5.4 API",
                 metadata={"bad": object()},
             )
 
@@ -109,11 +109,11 @@ class ExecutionPlanningStructureTests(unittest.TestCase):
     def test_single_model_produces_one_step(self) -> None:
         plan = build_execution_plan(_make_orchestrate_request())
         self.assertEqual(len(plan.steps), 1)
-        self.assertEqual(plan.steps[0].model.id, "mistral-small")
+        self.assertEqual(plan.steps[0].model.id, "gpt-5-4-api")
 
     def test_step_indices_are_one_based(self) -> None:
         plan = build_execution_plan(
-            _make_orchestrate_request(model=None, models=["Kimi K2", "Mistral"])
+            _make_orchestrate_request(model=None, models=["Kimi K2", "GPT-5.4 API"])
         )
         self.assertEqual(plan.steps[0].step_index, 1)
         self.assertEqual(plan.steps[1].step_index, 2)
@@ -124,7 +124,7 @@ class ExecutionPlanningStructureTests(unittest.TestCase):
 
     def test_provider_copied_to_step(self) -> None:
         plan = build_execution_plan(_make_orchestrate_request())
-        self.assertEqual(plan.steps[0].provider, "mistral")
+        self.assertEqual(plan.steps[0].provider, "openai")
 
     def test_dry_run_passed_through_to_plan(self) -> None:
         plan = build_execution_plan(
@@ -134,7 +134,7 @@ class ExecutionPlanningStructureTests(unittest.TestCase):
 
     def test_quorum_capped_at_step_count(self) -> None:
         plan = build_execution_plan(
-            _make_orchestrate_request(model=None, models=["Kimi K2", "Mistral"], quorum=5)
+            _make_orchestrate_request(model=None, models=["Kimi K2", "GPT-5.4 API"], quorum=5)
         )
         self.assertEqual(plan.quorum, 2)
 
@@ -152,7 +152,7 @@ class ExecutionPlanningPositiveEdgeCasesTests(unittest.TestCase):
         plan = build_execution_plan(
             _make_orchestrate_request(
                 model=None,
-                models=["Kimi K2", "Mistral"],
+                models=["Kimi K2", "GPT-5.4 API"],
                 merge_strategy=MergeStrategy.CONCAT,
                 cancel_on_quorum=False,
                 quorum=1,
@@ -165,7 +165,7 @@ class ExecutionPlanningPositiveEdgeCasesTests(unittest.TestCase):
         plan = build_execution_plan(
             _make_orchestrate_request(
                 model=None,
-                models=["Kimi K2", "Mistral"],
+                models=["Kimi K2", "GPT-5.4 API"],
                 merge_strategy=MergeStrategy.CONCAT,
                 cancel_on_quorum=True,
                 quorum=2,
@@ -192,7 +192,7 @@ class ExecutionPlanningPositiveEdgeCasesTests(unittest.TestCase):
         self.assertEqual(len(plan.steps), 1)
 
     def test_adapter_hint_auto_passes_any_backend(self) -> None:
-        for model_name in ["Mistral", "Kimi K2"]:
+        for model_name in ["GPT-5.4 API", "Kimi K2"]:
             with self.subTest(model=model_name):
                 plan = build_execution_plan(
                     _make_orchestrate_request(model=model_name, adapter_hint=AdapterHint.AUTO)

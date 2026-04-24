@@ -25,7 +25,7 @@ from gracekelly.core.models import resolve_model
 class ConcurrencyGateStressTests(unittest.TestCase):
     def test_concurrent_acquire_release(self) -> None:
         gate = ModelConcurrencyGate()
-        model = resolve_model("Mistral")
+        model = resolve_model("GPT-5.4 API")
 
         def acquire_release() -> bool:
             if gate.try_acquire(model.id, limit=model.concurrency_limit):
@@ -72,10 +72,10 @@ class CircuitBreakerStressTests(unittest.TestCase):
             CountingAdapter(),
             config=CircuitBreakerConfig(failure_threshold=5, cooldown_seconds=60),
         )
-        model = resolve_model("Mistral")
+        model = resolve_model("GPT-5.4 API")
         step = ExecutionStep(
             model=model, backend=ExecutionBackend.API,
-            provider="mistral", provider_model_id="mistral-small-latest", step_index=1,
+            provider="openai", provider_model_id="gpt-5.4", step_index=1,
         )
         plan = ExecutionPlan(
             steps=(step,), quorum=1, merge_strategy=MergeStrategy.FIRST_SUCCESS,

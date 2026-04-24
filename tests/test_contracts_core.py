@@ -103,7 +103,7 @@ class ExecutionResultIsFailureTests(unittest.TestCase):
 
 class ExecutionRequestModelsPropertyTests(unittest.TestCase):
     def test_models_returns_tuple_of_model_specs(self) -> None:
-        plan = _plan("sonar", "mistral-small")
+        plan = _plan("sonar", "gpt-5-4-api")
         request = ExecutionRequest(
             task_id="t1",
             prompt="Q",
@@ -116,7 +116,7 @@ class ExecutionRequestModelsPropertyTests(unittest.TestCase):
         self.assertEqual(len(models), 2)
 
     def test_models_order_matches_steps(self) -> None:
-        plan = _plan("sonar", "mistral-small")
+        plan = _plan("sonar", "gpt-5-4-api")
         request = ExecutionRequest(
             task_id="t1",
             prompt="Q",
@@ -126,7 +126,7 @@ class ExecutionRequestModelsPropertyTests(unittest.TestCase):
         )
         ids = [m.id for m in request.models]
         self.assertEqual(ids[0], "sonar")
-        self.assertEqual(ids[1], "mistral-small")
+        self.assertEqual(ids[1], "gpt-5-4-api")
 
     def test_single_model_plan(self) -> None:
         plan = _plan("sonar")

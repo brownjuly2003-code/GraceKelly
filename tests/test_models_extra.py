@@ -118,10 +118,6 @@ class ModelSpecNormalizedNamesAdditionalTests(unittest.TestCase):
         spec = resolve_model("claude-sonnet-4-6-api")
         self.assertTrue(spec.reasoning_capable)
 
-    def test_non_reasoning_api_model(self) -> None:
-        spec = resolve_model("mistral-small")
-        self.assertFalse(spec.reasoning_capable)
-
     def test_model_spec_is_immutable(self) -> None:
         spec = resolve_model("sonar")
         with self.assertRaises((AttributeError, TypeError)):

@@ -38,23 +38,23 @@ if HAS_TEST_CLIENT:
 
 
 _MODEL = ModelSpec(
-    id="mistral-small",
-    display_name="Mistral Small",
-    aliases=("Mistral",),
+    id="gpt-5-4-api",
+    display_name="GPT-5.4 API",
+    aliases=("GPT-5.4 API",),
     adapter_kind="api",
-    provider="mistral",
-    provider_model_id="mistral-small-latest",
-    timeout_seconds=30,
+    provider="openai",
+    provider_model_id="gpt-5.4",
+    timeout_seconds=60,
     expected_latency_class="fast",
     concurrency_limit=4,
-    reasoning_capable=False,
+    reasoning_capable=True,
 )
 
 _STEP = ExecutionStep(
     model=_MODEL,
     backend=ExecutionBackend.API,
-    provider="mistral",
-    provider_model_id="mistral-small-latest",
+    provider="openai",
+    provider_model_id="gpt-5.4",
     step_index=1,
 )
 
@@ -162,7 +162,7 @@ class OrchestrateUploadEndpointTests(unittest.TestCase):
     def test_upload_with_txt_file_appends_to_prompt(self) -> None:
         response = self.client.post(
             "/api/v1/orchestrate/upload",
-            data={"prompt": "Base prompt", "model": "mistral-small", "dry_run": "true"},
+            data={"prompt": "Base prompt", "model": "GPT-5.4 API", "dry_run": "true"},
             files=[("files", ("notes.txt", b"hello world", "text/plain"))],
         )
 
@@ -182,7 +182,7 @@ class OrchestrateUploadEndpointTests(unittest.TestCase):
         self.app.state.dry_run_adapter.execute = wrapped_execute
         response = self.client.post(
             "/api/v1/orchestrate/upload",
-            data={"prompt": "Describe image", "model": "mistral-small", "dry_run": "true"},
+            data={"prompt": "Describe image", "model": "GPT-5.4 API", "dry_run": "true"},
             files=[("files", ("photo.png", b"png-bytes", "image/png"))],
         )
 
@@ -195,7 +195,7 @@ class OrchestrateUploadEndpointTests(unittest.TestCase):
     def test_upload_no_files_works_like_regular_orchestrate(self) -> None:
         response = self.client.post(
             "/api/v1/orchestrate/upload",
-            data={"prompt": "Base prompt", "model": "mistral-small", "dry_run": "true"},
+            data={"prompt": "Base prompt", "model": "GPT-5.4 API", "dry_run": "true"},
         )
 
         self.assertEqual(response.status_code, 200)
@@ -210,7 +210,7 @@ class OrchestrateUploadEndpointTests(unittest.TestCase):
         with patch.dict(sys.modules, {"pypdf": fake_module}):
             response = self.client.post(
                 "/api/v1/orchestrate/upload",
-                data={"prompt": "Summarize", "model": "mistral-small", "dry_run": "true"},
+                data={"prompt": "Summarize", "model": "GPT-5.4 API", "dry_run": "true"},
                 files=[("files", ("scan.pdf", b"%PDF-1.4", "application/pdf"))],
             )
 

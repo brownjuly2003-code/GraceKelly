@@ -28,8 +28,8 @@ def _create_test_app(
 ) -> FastAPI:
     app = FastAPI()
     app.include_router(router)
-    app.state.api_adapters = adapters or {"mistral": _make_adapter()}
-    app.state.browser_adapter = browser_adapter
+    app.state.api_adapters = adapters or {}
+    app.state.browser_adapter = browser_adapter or _make_adapter()
     return app
 
 
@@ -38,7 +38,7 @@ class CompareRouteTests(unittest.TestCase):
         client = TestClient(_create_test_app())
         resp = client.post("/api/v1/compare", json={
             "prompt": "What is Python?",
-            "models": ["mistral-small"],
+            "models": ["claude-sonnet-4-6"],
         })
         self.assertEqual(200, resp.status_code)
         body = resp.json()
@@ -47,10 +47,10 @@ class CompareRouteTests(unittest.TestCase):
 
     def test_multiple_models_same_provider(self) -> None:
         adapter = _make_adapter()
-        client = TestClient(_create_test_app({"mistral": adapter}))
+        client = TestClient(_create_test_app(browser_adapter=adapter))
         resp = client.post("/api/v1/compare", json={
             "prompt": "Hello",
-            "models": ["mistral-small", "mistral-small"],
+            "models": ["claude-sonnet-4-6", "claude-sonnet-4-6"],
             "analyze": False,
         })
         self.assertEqual(200, resp.status_code)
@@ -62,7 +62,7 @@ class CompareRouteTests(unittest.TestCase):
         client = TestClient(_create_test_app())
         resp = client.post("/api/v1/compare", json={
             "prompt": "Hello",
-            "models": ["mistral-small"],
+            "models": ["claude-sonnet-4-6"],
         })
         body = resp.json()
         self.assertIn("answers", body)
@@ -88,7 +88,7 @@ class CompareRouteTests(unittest.TestCase):
         client = TestClient(_create_test_app())
         resp = client.post("/api/v1/compare", json={
             "prompt": "Hello",
-            "models": ["mistral-small"],
+            "models": ["claude-sonnet-4-6"],
             "analyze": True,
         })
         body = resp.json()
@@ -96,10 +96,10 @@ class CompareRouteTests(unittest.TestCase):
 
     def test_analysis_when_multiple(self) -> None:
         adapter = _make_adapter(output_text="Analysis result")
-        client = TestClient(_create_test_app({"mistral": adapter}))
+        client = TestClient(_create_test_app(browser_adapter=adapter))
         resp = client.post("/api/v1/compare", json={
             "prompt": "Hello",
-            "models": ["mistral-small", "mistral-small"],
+            "models": ["claude-sonnet-4-6", "claude-sonnet-4-6"],
             "analyze": True,
         })
         body = resp.json()
@@ -108,10 +108,10 @@ class CompareRouteTests(unittest.TestCase):
 
     def test_analyze_false(self) -> None:
         adapter = _make_adapter()
-        client = TestClient(_create_test_app({"mistral": adapter}))
+        client = TestClient(_create_test_app(browser_adapter=adapter))
         resp = client.post("/api/v1/compare", json={
             "prompt": "Hello",
-            "models": ["mistral-small", "mistral-small"],
+            "models": ["claude-sonnet-4-6", "claude-sonnet-4-6"],
             "analyze": False,
         })
         body = resp.json()
@@ -120,10 +120,10 @@ class CompareRouteTests(unittest.TestCase):
 
     def test_succeeded_failed_counts(self) -> None:
         adapter = _make_adapter()
-        client = TestClient(_create_test_app({"mistral": adapter}))
+        client = TestClient(_create_test_app(browser_adapter=adapter))
         resp = client.post("/api/v1/compare", json={
             "prompt": "Hello",
-            "models": ["mistral-small", "totally-fake-xyz", "mistral-small"],
+            "models": ["claude-sonnet-4-6", "totally-fake-xyz", "claude-sonnet-4-6"],
         })
         body = resp.json()
         self.assertEqual(3, body["total_models"])
@@ -168,16 +168,16 @@ class CompareRouteTests(unittest.TestCase):
         self.assertEqual("Browser answer", body["answers"][0]["answer"])
         self.assertEqual("best", body["answers"][0]["model_id"])
         self.assertEqual(ExecutionBackend.BROWSER, browser_adapter.execute.call_args.args[0].step.backend)
-        self.assertEqual(0, app.state.api_adapters["mistral"].execute.call_count)
+        self.assertEqual({}, app.state.api_adapters)
 
     def test_mixed_browser_and_api_models_resolve_independently(self) -> None:
         api_adapter = _make_adapter(output_text="API answer")
         browser_adapter = _make_adapter(output_text="Browser answer")
-        client = TestClient(_create_test_app({"mistral": api_adapter}, browser_adapter=browser_adapter))
+        client = TestClient(_create_test_app({"openai": api_adapter}, browser_adapter=browser_adapter))
 
         resp = client.post("/api/v1/compare", json={
             "prompt": "Hello",
-            "models": ["best", "mistral-small"],
+            "models": ["best", "gpt-5-4-api"],
             "analyze": True,
         })
         body = resp.json()
@@ -194,10 +194,10 @@ class CompareRouteTests(unittest.TestCase):
     def test_adapter_exception_returns_error_status(self) -> None:
         adapter = MagicMock()
         adapter.execute.side_effect = RuntimeError("boom")
-        client = TestClient(_create_test_app({"mistral": adapter}))
+        client = TestClient(_create_test_app(browser_adapter=adapter))
         resp = client.post("/api/v1/compare", json={
             "prompt": "Hello",
-            "models": ["mistral-small"],
+            "models": ["claude-sonnet-4-6"],
         })
         body = resp.json()
         self.assertEqual("error", body["answers"][0]["status"])
@@ -210,11 +210,11 @@ class CompareRouteTests(unittest.TestCase):
         )
         adapter = MagicMock()
         adapter.execute.side_effect = [good_result, good_result, RuntimeError("analysis boom")]
-        client = TestClient(_create_test_app({"mistral": adapter}))
+        client = TestClient(_create_test_app(browser_adapter=adapter))
 
         resp = client.post("/api/v1/compare", json={
             "prompt": "Hello",
-            "models": ["mistral-small", "mistral-small"],
+            "models": ["claude-sonnet-4-6", "claude-sonnet-4-6"],
             "analyze": True,
         })
         body = resp.json()
@@ -230,10 +230,10 @@ class CompareRouteTests(unittest.TestCase):
             output_text=None,
             failure_code=None,
         )
-        client = TestClient(_create_test_app({"mistral": adapter}))
+        client = TestClient(_create_test_app(browser_adapter=adapter))
         resp = client.post("/api/v1/compare", json={
             "prompt": "Hello",
-            "models": ["mistral-small"],
+            "models": ["claude-sonnet-4-6"],
         })
         body = resp.json()
         self.assertEqual(200, resp.status_code)
@@ -250,11 +250,11 @@ class CompareRouteTests(unittest.TestCase):
         )
         adapter = MagicMock()
         adapter.execute.side_effect = [good_result, good_result, failed_result]
-        client = TestClient(_create_test_app({"mistral": adapter}))
+        client = TestClient(_create_test_app(browser_adapter=adapter))
 
         resp = client.post("/api/v1/compare", json={
             "prompt": "Hello",
-            "models": ["mistral-small", "mistral-small"],
+            "models": ["claude-sonnet-4-6", "claude-sonnet-4-6"],
             "analyze": True,
         })
         body = resp.json()

@@ -65,8 +65,8 @@ class OrchestratorServiceTests(unittest.TestCase):
         self.assertEqual([item.event_type for item in events], ["task.accepted"])
 
     def test_submit_snapshot_returns_persisted_steps_without_readback(self) -> None:
-        class FakeMistralAdapter(ExecutionAdapter):
-            name = "api.mistral"
+        class FakeOpenAIAdapter(ExecutionAdapter):
+            name = "api.openai"
 
             def execute(self, request: ExecutionRequest) -> ExecutionResult:
                 return ExecutionResult(
@@ -82,13 +82,13 @@ class OrchestratorServiceTests(unittest.TestCase):
             self.repository,
             execution_router=ExecutionRouter(
                 dry_run_adapter=DryRunExecutionAdapter(),
-                api_adapters={"mistral": FakeMistralAdapter()},
+                api_adapters={"openai": FakeOpenAIAdapter()},
             ),
         )
         snapshot = service.submit_snapshot(
             OrchestrateRequest(
                 prompt="snapshot",
-                model="Mistral",
+                model="GPT-5.4 API",
                 dry_run=False,
             )
         )
@@ -141,8 +141,8 @@ class OrchestratorServiceTests(unittest.TestCase):
         self.assertEqual(snapshot.task.status, TaskStatus.COMPLETED)
 
     def test_non_dry_run_api_request_can_complete(self) -> None:
-        class FakeMistralAdapter(ExecutionAdapter):
-            name = "api.mistral"
+        class FakeOpenAIAdapter(ExecutionAdapter):
+            name = "api.openai"
 
             def execute(self, request: ExecutionRequest) -> ExecutionResult:
                 return ExecutionResult(
@@ -152,20 +152,20 @@ class OrchestratorServiceTests(unittest.TestCase):
                     execution_mode=ExecutionMode.API,
                     status=StepStatus.COMPLETED,
                     output_text="api result",
-                    details={"provider": "mistral"},
+                    details={"provider": "openai"},
                 )
 
         self.service = OrchestratorService(
             self.repository,
             execution_router=ExecutionRouter(
                 dry_run_adapter=DryRunExecutionAdapter(),
-                api_adapters={"mistral": FakeMistralAdapter()},
+                api_adapters={"openai": FakeOpenAIAdapter()},
             ),
         )
 
         request = OrchestrateRequest(
             prompt="real execution later",
-            model="Mistral",
+            model="GPT-5.4 API",
             dry_run=False,
         )
 
@@ -177,15 +177,15 @@ class OrchestratorServiceTests(unittest.TestCase):
         self.assertFalse(task.dry_run)
         self.assertEqual(task.output_text, "api result")
         self.assertEqual(len(steps), 1)
-        self.assertEqual(steps[0].model_id, "mistral-small")
+        self.assertEqual(steps[0].model_id, "gpt-5-4-api")
         self.assertEqual(steps[0].status, "completed")
         events = self.service.list_task_events(task.task_id)
         self.assertEqual(
             [item.event_type for item in events],
             ["task.accepted", "step.completed", "task.completed"],
         )
-        self.assertEqual(events[1].payload["details"]["provider"], "mistral")
-        self.assertEqual(events[-1].payload["details"]["adapter_names"], ["api.mistral"])
+        self.assertEqual(events[1].payload["details"]["provider"], "openai")
+        self.assertEqual(events[-1].payload["details"]["adapter_names"], ["api.openai"])
         self.assertEqual(events[-1].payload["details"]["completed_step_count"], 1)
         self.assertEqual(events[-1].payload["details"]["failed_step_count"], 0)
 
@@ -254,8 +254,8 @@ class OrchestratorServiceTests(unittest.TestCase):
         )
         self.assertTrue(assess_complexity(complex_prompt).should_decompose)
 
-        class FakeMistralAdapter(ExecutionAdapter):
-            name = "api.mistral"
+        class FakeOpenAIAdapter(ExecutionAdapter):
+            name = "api.openai"
 
             def __init__(self) -> None:
                 self.prompts: list[str] = []
@@ -288,7 +288,7 @@ class OrchestratorServiceTests(unittest.TestCase):
             def __init__(self, adapter: ExecutionAdapter) -> None:
                 super().__init__(
                     dry_run_adapter=DryRunExecutionAdapter(),
-                    api_adapters={"mistral": adapter},
+                    api_adapters={"openai": adapter},
                 )
                 self.execute_calls = 0
 
@@ -310,14 +310,14 @@ class OrchestratorServiceTests(unittest.TestCase):
                     metadata=metadata,
                 )
 
-        adapter = FakeMistralAdapter()
+        adapter = FakeOpenAIAdapter()
         router = TrackingRouter(adapter)
         service = OrchestratorService(self.repository, execution_router=router)
 
         snapshot = service.submit_snapshot(
             OrchestrateRequest(
                 prompt=complex_prompt,
-                model="Mistral",
+                model="GPT-5.4 API",
                 dry_run=False,
             )
         )
@@ -335,9 +335,9 @@ class OrchestratorServiceTests(unittest.TestCase):
             task_status=TaskStatus.COMPLETED,
             results=(
                 ExecutionResult(
-                    adapter_name="api.mistral",
-                    model_id="mistral-small",
-                    model_display_name="Mistral Small",
+                    adapter_name="api.openai",
+                    model_id="gpt-5-4-api",
+                    model_display_name="GPT-5.4 API",
                     execution_mode=ExecutionMode.API,
                     status=StepStatus.COMPLETED,
                     output_text="simple answer",
@@ -351,7 +351,7 @@ class OrchestratorServiceTests(unittest.TestCase):
             snapshot = service.submit_snapshot(
                 OrchestrateRequest(
                     prompt="What is 2+2?",
-                    model="Mistral",
+                    model="GPT-5.4 API",
                     dry_run=False,
                 )
             )
@@ -368,9 +368,9 @@ class OrchestratorServiceTests(unittest.TestCase):
             task_status=TaskStatus.COMPLETED,
             results=(
                 ExecutionResult(
-                    adapter_name="api.mistral",
-                    model_id="mistral-small",
-                    model_display_name="Mistral Small",
+                    adapter_name="api.openai",
+                    model_id="gpt-5-4-api",
+                    model_display_name="GPT-5.4 API",
                     execution_mode=ExecutionMode.API,
                     status=StepStatus.COMPLETED,
                     output_text="standard execution",
@@ -387,7 +387,7 @@ class OrchestratorServiceTests(unittest.TestCase):
                         "Compare architectural approaches and also explain deployment trade-offs, "
                         "additionally cover operational risks."
                     ),
-                    model="Mistral",
+                    model="GPT-5.4 API",
                     dry_run=False,
                     decompose=False,
                 )
@@ -415,7 +415,7 @@ class OrchestratorServiceTests(unittest.TestCase):
                         "Compare testing strategies and also explain delivery trade-offs, "
                         "additionally describe rollback considerations."
                     ),
-                    model="Mistral",
+                    model="GPT-5.4 API",
                     dry_run=True,
                 )
             )
@@ -429,7 +429,7 @@ class OrchestratorServiceTests(unittest.TestCase):
         task = self.service.submit(
             OrchestrateRequest(
                 prompt="missing adapter",
-                model="Mistral",
+                model="GPT-5.4 API",
                 dry_run=False,
             )
         )
@@ -441,7 +441,7 @@ class OrchestratorServiceTests(unittest.TestCase):
             ["task.accepted", "step.failed", "task.failed"],
         )
         self.assertEqual(events[-1].payload["failure_code"], "provider_unavailable")
-        self.assertEqual(events[-1].payload["details"]["adapter_names"], ["api.mistral"])
+        self.assertEqual(events[-1].payload["details"]["adapter_names"], ["api.openai"])
         self.assertEqual(events[-1].payload["details"]["failed_step_count"], 1)
         self.assertEqual(events[-1].payload["details"]["failure_codes"], ["provider_unavailable"])
 
@@ -590,8 +590,8 @@ class OrchestratorServiceTests(unittest.TestCase):
                     details={"provider": "perplexity"},
                 )
 
-        class FakeMistralAdapter(ExecutionAdapter):
-            name = "api.mistral"
+        class FakeOpenAIAdapter(ExecutionAdapter):
+            name = "api.openai"
 
             def __init__(self) -> None:
                 self.call_count = 0
@@ -607,18 +607,18 @@ class OrchestratorServiceTests(unittest.TestCase):
                     output_text="api second",
                 )
 
-        mistral_adapter = FakeMistralAdapter()
+        openai_adapter = FakeOpenAIAdapter()
         service = OrchestratorService(
             self.repository,
             execution_router=ExecutionRouter(
                 dry_run_adapter=DryRunExecutionAdapter(),
-                api_adapters={"mistral": mistral_adapter},
+                api_adapters={"openai": openai_adapter},
                 browser_adapter=FakeBrowserAdapter(),
             ),
         )
         request = OrchestrateRequest(
             prompt="short circuit",
-            models=["Kimi K2", "Mistral"],
+            models=["Kimi K2", "GPT-5.4 API"],
             dry_run=False,
             quorum=1,
             merge_strategy=MergeStrategy.FIRST_SUCCESS,
@@ -631,7 +631,7 @@ class OrchestratorServiceTests(unittest.TestCase):
 
         self.assertEqual(task.status, "completed")
         self.assertEqual(task.output_text, "browser first")
-        self.assertEqual(mistral_adapter.call_count, 0)
+        self.assertEqual(openai_adapter.call_count, 0)
         self.assertEqual([step.status for step in steps], ["completed", "cancelled"])
         self.assertEqual([event.sequence_no for event in events], [1, 2, 3])
         self.assertEqual([event.event_type for event in events], ["task.accepted", "step.completed", "task.completed"])
@@ -640,13 +640,13 @@ class OrchestratorServiceTests(unittest.TestCase):
         self.assertEqual(events[-1].payload["cancelled_steps"], [2])
         self.assertEqual(events[-1].payload["cancel_reason"], "quorum_reached")
         self.assertEqual(events[-1].payload["details"]["cancelled_step_count"], 1)
-        self.assertEqual(events[-1].payload["details"]["adapter_names"], ["api.mistral", "browser.perplexity"])
+        self.assertEqual(events[-1].payload["details"]["adapter_names"], ["api.openai", "browser.perplexity"])
 
     def test_build_step_records_raises_on_plan_result_count_mismatch(self) -> None:
         plan = build_execution_plan(
             OrchestrateRequest(
                 prompt="mismatch",
-                models=["Kimi K2", "Mistral"],
+                models=["Kimi K2", "GPT-5.4 API"],
                 dry_run=False,
                 merge_strategy=MergeStrategy.CONCAT,
                 cancel_on_quorum=False,
@@ -967,7 +967,7 @@ class OrchestratorServiceTests(unittest.TestCase):
         plan = build_execution_plan(
             OrchestrateRequest(
                 prompt="mismatch",
-                models=["Kimi K2", "Mistral"],
+                models=["Kimi K2", "GPT-5.4 API"],
                 dry_run=False,
                 merge_strategy=MergeStrategy.CONCAT,
                 cancel_on_quorum=False,
