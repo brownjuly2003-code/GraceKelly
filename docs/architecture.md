@@ -20,7 +20,8 @@ Implemented:
 - session-aware prompt shaping with configurable context-window limits
 - dual-backend storage: in-memory (development) and PostgreSQL (durable)
 - PostgreSQL operational tooling: schema validation plus JSON export/import snapshots
-- execution adapters: dry-run, Mistral API, OpenAI-compatible API, Perplexity browser (scripted and thin Playwright backends)
+- execution adapters: dry-run, OpenAI-compatible API, Anthropic API, Perplexity browser (scripted and thin Playwright backends)
+- embeddings client: Mistral embeddings for consensus clustering only
 - cooperative cancel-on-quorum with per-model timeout, concurrency enforcement, and a minimal browser circuit breaker
 - browser adapter lifecycle cleanup that resets idle session state on shutdown and detects stale runtime/session mismatches
 - structured key-value logging across orchestrator, browser adapters, API routes, and PostgreSQL degradation paths
@@ -54,11 +55,12 @@ Excluded by design:
 - `core.concurrency`: thread-safe per-model concurrency gate
 - `core.execution_profile`: profile-aware adapter requirement sets
 - `core.budget`: per-task and per-hour browser submit budgeting
+- `core.embeddings`: Mistral embeddings client used for consensus clustering only
 - `core.session_context`: bounded session-history reconstruction for follow-up prompts
 - `request_metrics`: in-process HTTP and adapter metrics backing `/metrics`
 - `telemetry`: optional OpenTelemetry setup for FastAPI
 - `adapters.dry_run`: simulated execution for testing and dry-run mode
-- `adapters.api.mistral`: Mistral API adapter
+- `adapters.api.anthropic`: Anthropic API adapter
 - `adapters.api.openai_compat`: OpenAI-compatible API adapter
 - `adapters.browser.perplexity`: Perplexity browser adapter (delegates to automation port)
 - `adapters.browser.automation`: browser automation port ABC and null implementation
@@ -82,7 +84,8 @@ Excluded by design:
 5. Provider-specific naming drift must be normalized through the central model registry.
 6. Browser execution via Perplexity is the primary adapter. The user's Perplexity Pro subscription
    provides access to multiple frontier models at no additional API cost. API adapters exist as
-   optional fallbacks for direct provider access.
+   optional fallbacks for direct provider access. Mistral is retained only for embeddings in
+   consensus clustering, not as an LLM execution backend.
 7. Event logging must not be a critical dependency for accepting or executing a task.
 
 ## Design rules

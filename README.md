@@ -50,11 +50,11 @@ Copy `.env.example` and configure:
 
 ### Optional: API fallbacks
 
-API adapters are optional. Use them only if you have separate API keys and want direct provider access alongside browser execution.
+API adapters are optional. Use them only if you have separate API keys and want direct provider access alongside browser execution. Mistral remains embeddings-only.
 
 | Variable | Description |
 |----------|-------------|
-| `GRACEKELLY_MISTRAL_API_KEY` | Mistral API (also used for embeddings in consensus v2) |
+| `GRACEKELLY_MISTRAL_API_KEY` | Optional. Used only for consensus-pattern embeddings (semantic clustering), not as an LLM provider |
 | `GRACEKELLY_OPENAI_API_KEY` | OpenAI-compatible API |
 | `GRACEKELLY_ANTHROPIC_API_KEY` | Anthropic API |
 

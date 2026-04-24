@@ -181,7 +181,7 @@ Deliverables:
 - provider-specific auth and rate-limit handling
 
 Already delivered:
-- Mistral-compatible adapter
+- initially shipped a Mistral-compatible adapter; later removed when Mistral was constrained to embeddings-only usage
 - OpenAI-compatible adapter
 - shared `BaseApiAdapter` with common execute, post, healthcheck, and error handling
 
