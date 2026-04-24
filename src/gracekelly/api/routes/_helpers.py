@@ -7,6 +7,11 @@ from gracekelly.core.contracts import ExecutionAdapter, ExecutionBackend
 from gracekelly.core.models import ModelSpec
 
 
+def resolve_effective_dry_run(state: AppState, dry_run: bool) -> bool:
+    profile = getattr(state, "execution_profile", None)
+    return dry_run or getattr(profile, "name", None) == "dry-run"
+
+
 def resolve_execution_adapter(
     state: AppState,
     model_spec: ModelSpec,

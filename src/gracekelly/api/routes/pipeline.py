@@ -6,6 +6,7 @@ import logging
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, ConfigDict, Field
 
+from gracekelly.api.routes._helpers import resolve_effective_dry_run, resolve_execution_adapter
 from gracekelly.app_state import get_app_state
 from gracekelly.core.complexity import assess_complexity
 from gracekelly.core.contracts import (
@@ -32,7 +33,7 @@ class PipelineRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     prompt: str = Field(min_length=1, max_length=40000)
-    model: str = Field(default="mistral-small", min_length=1, max_length=120)
+    model: str = Field(default="claude-sonnet-4-6", min_length=1, max_length=120)
     reliability_level: str | None = Field(default=None)
     multi_model: bool = Field(default=False)
     dry_run: bool = Field(default=False)
@@ -70,12 +71,11 @@ async def run_pipeline(payload: PipelineRequest, request: Request) -> PipelineRe
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
 
-    adapter = state.dry_run_adapter if payload.dry_run else api_adapters.get(model_spec.provider)
-    if adapter is None:
-        raise HTTPException(
-            status_code=400,
-            detail=f"No adapter for '{model_spec.provider}'.",
-        )
+    effective_dry_run = resolve_effective_dry_run(state, payload.dry_run)
+    try:
+        adapter, backend = resolve_execution_adapter(state, model_spec, effective_dry_run)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
 
     if payload.reliability_level:
         try:
@@ -94,7 +94,7 @@ async def run_pipeline(payload: PipelineRequest, request: Request) -> PipelineRe
 
     step = ExecutionStep(
         model=model_spec,
-        backend=ExecutionBackend.API,
+        backend=backend,
         provider=model_spec.provider,
         provider_model_id=model_spec.provider_model_id,
         step_index=0,
@@ -103,8 +103,12 @@ async def run_pipeline(payload: PipelineRequest, request: Request) -> PipelineRe
         steps=(step,),
         quorum=1,
         merge_strategy=MergeStrategy.FIRST_SUCCESS,
-        dry_run=payload.dry_run,
-        adapter_hint=AdapterHint.AUTO if payload.dry_run else AdapterHint.API,
+        dry_run=effective_dry_run,
+        adapter_hint=(
+            AdapterHint.AUTO
+            if effective_dry_run
+            else AdapterHint.BROWSER if backend == ExecutionBackend.BROWSER else AdapterHint.API
+        ),
         cancel_on_quorum=False,
     )
 
@@ -127,7 +131,7 @@ async def run_pipeline(payload: PipelineRequest, request: Request) -> PipelineRe
             return result.output_text
         return f"[{result.failure_code or 'error'}] {result.failure_message or 'No output'}"
 
-    if payload.multi_model and not payload.dry_run:
+    if payload.multi_model and not effective_dry_run and backend == ExecutionBackend.API:
         available_specs: list[ModelSpec] = [model_spec]
         for provider_name, prov_adapter in api_adapters.items():
             if provider_name == model_spec.provider:

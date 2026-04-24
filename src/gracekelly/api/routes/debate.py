@@ -7,7 +7,7 @@ import logging
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, ConfigDict, Field
 
-from gracekelly.api.routes._helpers import resolve_execution_adapter
+from gracekelly.api.routes._helpers import resolve_effective_dry_run, resolve_execution_adapter
 from gracekelly.app_state import get_app_state
 from gracekelly.core.contracts import (
     AdapterHint,
@@ -30,7 +30,7 @@ class DebateRequest(BaseModel):
 
     topic: str = Field(min_length=1, max_length=40000)
     initial_position: str | None = Field(default=None, max_length=40000)
-    model: str = Field(default="mistral-small", min_length=1, max_length=120)
+    model: str = Field(default="claude-sonnet-4-6", min_length=1, max_length=120)
     dry_run: bool = Field(default=False)
 
 
@@ -65,8 +65,9 @@ async def run_debate_endpoint(payload: DebateRequest, request: Request) -> Debat
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
 
+    effective_dry_run = resolve_effective_dry_run(state, payload.dry_run)
     try:
-        adapter, backend = resolve_execution_adapter(state, model_spec, payload.dry_run)
+        adapter, backend = resolve_execution_adapter(state, model_spec, effective_dry_run)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
 
@@ -81,10 +82,10 @@ async def run_debate_endpoint(payload: DebateRequest, request: Request) -> Debat
         steps=(step,),
         quorum=1,
         merge_strategy=MergeStrategy.FIRST_SUCCESS,
-        dry_run=payload.dry_run,
+        dry_run=effective_dry_run,
         adapter_hint=(
             AdapterHint.AUTO
-            if payload.dry_run
+            if effective_dry_run
             else AdapterHint.BROWSER if backend == ExecutionBackend.BROWSER else AdapterHint.API
         ),
         cancel_on_quorum=False,
