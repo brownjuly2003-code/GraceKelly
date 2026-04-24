@@ -1,0 +1,16 @@
+{
+  "batch": "2026-04-23-batch-101-b",
+  "status": "completed",
+  "completed_phases": "A+B",
+  "exit_code": 0,
+  "smart_status": 200,
+  "smart_model_id": "claude-sonnet-4-6",
+  "smart_has_provider_unavailable": false,
+  "smart_has_mistral": false,
+  "models_has_mistral_small": false,
+  "ruff": "passed",
+  "scoped_pytest": "258 passed, 7 subtests passed",
+  "pytest_tests": "2633 passed, 6 skipped, 11 subtests passed",
+  "pytest_root": "failed during collection on ignored temp directories",
+  "mypy": "passed"
+}

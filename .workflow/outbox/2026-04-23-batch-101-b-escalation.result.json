@@ -1,0 +1,9 @@
+{
+  "batch": "2026-04-23-batch-101-b",
+  "status": "escalated",
+  "completed_phases": "escalated before A",
+  "exit_code": 2,
+  "reason": "Unexpected mistral references outside Phase A/B scope and pre-existing deletion of src/gracekelly/adapters/api/mistral.py.",
+  "code_edits_made": false,
+  "commits_created": []
+}
