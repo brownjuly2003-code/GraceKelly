@@ -12,6 +12,7 @@ from pydantic import ValidationError
 
 from gracekelly.api.routes import batch, compare, consensus, debate, pipeline, smart, smart_v2, stream
 from gracekelly.core.contracts import StepStatus
+from gracekelly.core.execution_profile import resolve_execution_profile
 from gracekelly.schemas import OrchestrateRequest
 
 
@@ -33,7 +34,7 @@ class _ApiAdapter:
 
     def execute(self, exec_request: Any) -> _ExecutionResult:
         return _ExecutionResult(
-            output_text="[provider_unavailable] Mistral API key is not configured.",
+            output_text="[provider_unavailable] OpenAI API key is not configured.",
             model_id=exec_request.step.model.id,
         )
 
@@ -60,8 +61,9 @@ class _TaskRepository:
 class DryRunPropagationTests(unittest.TestCase):
     def _request(self, *, embeddings_client: object | None = object()) -> Request:
         app = FastAPI()
-        app.state.api_adapters = {"mistral": _ApiAdapter()}
+        app.state.api_adapters = {"openai": _ApiAdapter()}
         app.state.dry_run_adapter = _DryRunAdapter()
+        app.state.execution_profile = resolve_execution_profile("dry-run")
         app.state.embeddings_client = embeddings_client
         app.state.task_repository = _TaskRepository()
         return cast(Request, SimpleNamespace(app=app))
@@ -69,12 +71,12 @@ class DryRunPropagationTests(unittest.TestCase):
     def _assert_dry_run_text(self, text: str) -> None:
         self.assertIn("[dry-run]", text)
         self.assertNotIn("[provider_unavailable]", text)
-        self.assertNotIn("Mistral API key is not configured", text)
+        self.assertNotIn("OpenAI API key is not configured", text)
 
     def test_compare_uses_dry_run(self) -> None:
         payload = compare.CompareRequest(
             prompt="compare prompt",
-            models=["mistral-small", "mistral-small"],
+            models=["claude-sonnet-4-6", "claude-sonnet-4-6"],
             analyze=True,
             dry_run=True,
         )
@@ -89,7 +91,7 @@ class DryRunPropagationTests(unittest.TestCase):
     def test_consensus_uses_dry_run_without_embeddings(self) -> None:
         payload = consensus.ConsensusRequest(
             prompt="consensus prompt",
-            model="mistral-small",
+            model="claude-sonnet-4-6",
             variations_per_round=3,
             dry_run=True,
         )
@@ -103,7 +105,7 @@ class DryRunPropagationTests(unittest.TestCase):
     def test_debate_uses_dry_run(self) -> None:
         payload = debate.DebateRequest(
             topic="debate topic",
-            model="mistral-small",
+            model="claude-sonnet-4-6",
             dry_run=True,
         )
 
@@ -117,8 +119,18 @@ class DryRunPropagationTests(unittest.TestCase):
     def test_smart_uses_dry_run(self) -> None:
         payload = smart.SmartRequest(
             prompt="hello",
-            model="mistral-small",
+            model="claude-sonnet-4-6",
             dry_run=True,
+        )
+
+        response = asyncio.run(smart.run_smart(payload, self._request()))
+
+        self._assert_dry_run_text(response.answer)
+
+    def test_smart_uses_dry_run_execution_profile(self) -> None:
+        payload = smart.SmartRequest(
+            prompt="hello",
+            model="claude-sonnet-4-6",
         )
 
         response = asyncio.run(smart.run_smart(payload, self._request()))
@@ -128,7 +140,7 @@ class DryRunPropagationTests(unittest.TestCase):
     def test_smart_v2_uses_dry_run(self) -> None:
         payload = smart_v2.SmartV2Request(
             prompt="hello",
-            model="mistral-small",
+            model="claude-sonnet-4-6",
             dry_run=True,
         )
 
@@ -139,7 +151,7 @@ class DryRunPropagationTests(unittest.TestCase):
     def test_batch_uses_dry_run(self) -> None:
         payload = batch.BatchRequest(
             prompts=["a", "b"],
-            model="mistral-small",
+            model="claude-sonnet-4-6",
             dry_run=True,
         )
 
@@ -152,7 +164,7 @@ class DryRunPropagationTests(unittest.TestCase):
     def test_pipeline_uses_dry_run(self) -> None:
         payload = pipeline.PipelineRequest(
             prompt="hello",
-            model="mistral-small",
+            model="claude-sonnet-4-6",
             dry_run=True,
         )
 
@@ -163,7 +175,7 @@ class DryRunPropagationTests(unittest.TestCase):
     def test_stream_complete_event_contains_task_id(self) -> None:
         body = OrchestrateRequest(
             prompt="stream test",
-            model="mistral-small",
+            model="claude-sonnet-4-6",
             reasoning=False,
             dry_run=True,
         )
@@ -184,13 +196,13 @@ class DryRunPropagationTests(unittest.TestCase):
 
     def test_request_models_accept_dry_run(self) -> None:
         cases: list[Callable[[], object]] = [
-            lambda: compare.CompareRequest(prompt="compare prompt", models=["mistral-small"], dry_run=True),
-            lambda: consensus.ConsensusRequest(prompt="consensus prompt", model="mistral-small", dry_run=True),
-            lambda: debate.DebateRequest(topic="debate topic", model="mistral-small", dry_run=True),
-            lambda: smart.SmartRequest(prompt="hello", model="mistral-small", dry_run=True),
-            lambda: smart_v2.SmartV2Request(prompt="hello", model="mistral-small", dry_run=True),
-            lambda: batch.BatchRequest(prompts=["a"], model="mistral-small", dry_run=True),
-            lambda: pipeline.PipelineRequest(prompt="hello", model="mistral-small", dry_run=True),
+            lambda: compare.CompareRequest(prompt="compare prompt", models=["claude-sonnet-4-6"], dry_run=True),
+            lambda: consensus.ConsensusRequest(prompt="consensus prompt", model="claude-sonnet-4-6", dry_run=True),
+            lambda: debate.DebateRequest(topic="debate topic", model="claude-sonnet-4-6", dry_run=True),
+            lambda: smart.SmartRequest(prompt="hello", model="claude-sonnet-4-6", dry_run=True),
+            lambda: smart_v2.SmartV2Request(prompt="hello", model="claude-sonnet-4-6", dry_run=True),
+            lambda: batch.BatchRequest(prompts=["a"], model="claude-sonnet-4-6", dry_run=True),
+            lambda: pipeline.PipelineRequest(prompt="hello", model="claude-sonnet-4-6", dry_run=True),
         ]
 
         for factory in cases:

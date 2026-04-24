@@ -47,18 +47,6 @@ _BROWSER_COMPATIBILITY_ALIASES: dict[str, tuple[str, ...]] = {
 
 _API_MODEL_SPECS: tuple[ModelSpec, ...] = (
     ModelSpec(
-        id="mistral-small",
-        display_name="Mistral Small",
-        aliases=("Mistral Small", "Mistral", "Mistral API"),
-        adapter_kind="api",
-        provider="mistral",
-        provider_model_id="mistral-small-latest",
-        timeout_seconds=30,
-        expected_latency_class="medium",
-        concurrency_limit=4,
-        reasoning_capable=False,
-    ),
-    ModelSpec(
         id="gpt-5-4-api",
         display_name="GPT-5.4 API",
         aliases=("GPT-5.4 API", "GPT 5.4 API", "OpenAI GPT-5.4"),
@@ -85,7 +73,6 @@ _API_MODEL_SPECS: tuple[ModelSpec, ...] = (
 )
 
 MODEL_PRICING: dict[str, tuple[float, float]] = {
-    "mistral-small": (0.0001, 0.0003),
     "gpt-5-4-api": (0.005, 0.015),
     "claude-sonnet-4-6-api": (0.003, 0.015),
 }
@@ -287,10 +274,14 @@ def resolve_model(value: str) -> ModelSpec:
             return spec
 
     canonical_browser_id = _resolve_browser_compatibility_alias(normalized)
-    if canonical_browser_id is not None and _browser_catalog_snapshot is not None:
-        for spec in _browser_catalog_snapshot.models:
-            if spec.id == canonical_browser_id:
-                return spec
+    if canonical_browser_id is not None:
+        if _browser_catalog_snapshot is not None:
+            for spec in _browser_catalog_snapshot.models:
+                if spec.id == canonical_browser_id:
+                    return spec
+        aliases = _BROWSER_COMPATIBILITY_ALIASES.get(canonical_browser_id, ())
+        fallback_label = aliases[0] if aliases else canonical_browser_id
+        return build_browser_model_spec(fallback_label)
 
     raise ValueError(f"Unsupported model: {value}")
 
