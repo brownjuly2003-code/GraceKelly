@@ -27,3 +27,26 @@ Commentary:
 - No `broken` or `suspect` sync route was found by static grep.
 - `payload.dry_run` is used only as an input to `resolve_effective_dry_run(...)` in the audited JSON route handlers.
 - Submit paths either pass `effective_dry_run` into `resolve_execution_adapter(...)` and `ExecutionRequest.dry_run`, or in `/orchestrate` copy it into `payload_for_submission` before calling `service.submit_snapshot(...)`.
+
+## Smoke results
+
+Command profile:
+
+- `GRACEKELLY_EXECUTION_PROFILE=dry-run`
+- `uvicorn gracekelly.main:create_app --factory --host 127.0.0.1 --port 8011`
+- readiness check: `GET /healthz/ready` returned `200 {"status":"ok"}`
+
+Note: the batch spec labels smart v2 as `POST /api/v1/smart_v2`, but the registered route is `POST /api/v1/smart/v2` at `src/gracekelly/api/routes/smart_v2.py:69`. A direct `POST /api/v1/smart_v2` returned `405 Method Not Allowed`; the smoke verdict below uses the registered route for `smart_v2.py`.
+
+| path | http_status | dry-run marker observed | verdict |
+| --- | --- | --- | --- |
+| `POST /api/v1/smart` | 200 | yes: response answer contained `[dry-run]` | PASS |
+| `POST /api/v1/smart/v2` | 200 | yes: response answer contained `[dry-run]` | PASS |
+| `POST /api/v1/orchestrate` | 200 | yes: response contained `execution_mode:"dry-run"` and `adapter_name:"dry-run"` | PASS |
+| `POST /api/v1/consensus` | 200 | yes: `best_response` contained `[dry-run]` | PASS |
+| `POST /api/v1/debate` | 200 | yes: debate fields contained `[dry-run]` | PASS |
+| `POST /api/v1/compare` | 200 | yes: model answers and analysis contained `[dry-run]` | PASS |
+| `POST /api/v1/batch` | 200 | yes: batch item answer contained `[dry-run]` | PASS |
+| `POST /api/v1/pipeline` | 200 | yes: response answer contained `[dry-run]` | PASS |
+
+No smoke response contained `failure_code:"unknown_error"`. No hotfix was required.
