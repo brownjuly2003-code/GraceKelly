@@ -662,7 +662,7 @@ class PlaywrightBrowserAutomation(BrowserAutomationPort):
             submit = page.locator(self._selectors.submit_button)
             if self._locator_is_visible(submit):
                 try:
-                    submit.click()
+                    submit.click(force=True)
                 except Exception as exc:
                     if self._body_has_signed_out_marker(page):
                         raise PermissionError("Perplexity sign-in overlay blocked prompt submission.") from exc

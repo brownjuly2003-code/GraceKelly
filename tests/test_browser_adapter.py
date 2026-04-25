@@ -4,6 +4,7 @@ import asyncio
 import unittest
 from collections.abc import Callable
 from dataclasses import replace
+from unittest.mock import patch
 
 import pytest
 
@@ -203,7 +204,8 @@ class BrowserAdapterTests(unittest.TestCase):
             automation=FakeBrowserAutomation(actual_label="Claude Sonnet 4.6"),
         )
 
-        result = adapter.execute(self.build_request())
+        with patch.object(PerplexityBrowserAdapter, "_MODEL_SELECT_RETRY_DELAY_S", 0.0):
+            result = adapter.execute(self.build_request())
 
         self.assertEqual(result.status, StepStatus.FAILED)
         self.assertEqual(result.failure_code, FailureCode.MODEL_MISMATCH)
@@ -231,13 +233,57 @@ class BrowserAdapterTests(unittest.TestCase):
         plan = replace(request.plan, steps=(step,))
         request = replace(request, step=step, plan=plan)
 
-        result = adapter.execute(request)
+        with patch.object(PerplexityBrowserAdapter, "_MODEL_SELECT_RETRY_DELAY_S", 0.0):
+            result = adapter.execute(request)
 
         self.assertEqual(result.status, StepStatus.FAILED)
         self.assertEqual(result.failure_code, FailureCode.MODEL_MISMATCH)
         assert result.failure_message is not None
         self.assertIn("claude-sonnet-4-6", result.failure_message)
         self.assertIn("Sonar", result.failure_message)
+
+    def test_sonar_override_retried_then_succeeds(self) -> None:
+        calls: list[int] = []
+
+        class SonarThenCorrectAutomation(FakeBrowserAutomation):
+            def select_model(self, *, provider_model_id: str, policy: ModelVerificationPolicy) -> BrowserModelSelection:
+                calls.append(1)
+                if len(calls) <= 2:
+                    return BrowserModelSelection(requested_label=provider_model_id, actual_label="Sonar")
+                return BrowserModelSelection(requested_label=provider_model_id, actual_label=provider_model_id)
+
+        adapter = PerplexityBrowserAdapter(
+            session_manager=self.build_session_manager(),
+            automation=SonarThenCorrectAutomation(),
+        )
+        with patch.object(PerplexityBrowserAdapter, "_MODEL_SELECT_RETRY_DELAY_S", 0.0):
+            with self.assertLogs("gracekelly.adapters.browser.perplexity", level="WARNING") as log:
+                result = adapter.execute(self.build_request())
+
+        self.assertEqual(result.status, StepStatus.COMPLETED)
+        self.assertEqual(len(calls), 3)
+        self.assertTrue(any("retrying" in msg for msg in log.output))
+
+    def test_sonar_override_exhausts_retries(self) -> None:
+        calls: list[int] = []
+
+        class AlwaysSonarAutomation(FakeBrowserAutomation):
+            def select_model(self, *, provider_model_id: str, policy: ModelVerificationPolicy) -> BrowserModelSelection:
+                calls.append(1)
+                return BrowserModelSelection(requested_label=provider_model_id, actual_label="Sonar")
+
+        adapter = PerplexityBrowserAdapter(
+            session_manager=self.build_session_manager(),
+            automation=AlwaysSonarAutomation(),
+        )
+        with patch.object(PerplexityBrowserAdapter, "_MODEL_SELECT_RETRY_DELAY_S", 0.0):
+            with self.assertLogs("gracekelly.adapters.browser.perplexity", level="WARNING") as log:
+                result = adapter.execute(self.build_request())
+
+        self.assertEqual(result.status, StepStatus.FAILED)
+        self.assertEqual(result.failure_code, FailureCode.MODEL_MISMATCH)
+        self.assertEqual(len(calls), 3)
+        self.assertTrue(any("retrying" in msg for msg in log.output))
 
     def test_browser_adapter_honors_cancellation_before_execution(self) -> None:
         token = CancellationToken()

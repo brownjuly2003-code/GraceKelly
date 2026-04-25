@@ -48,6 +48,8 @@ class PerplexityBrowserAdapter(ExecutionAdapter):
     # breaker. A dedicated single-worker executor is the contract Playwright
     # sync already requires.
     _DEDICATED_THREAD_PREFIX = "browser-perplexity"
+    _MODEL_SELECT_RETRIES: int = 2
+    _MODEL_SELECT_RETRY_DELAY_S: float = 1.5
 
     def __init__(
         self,
@@ -141,20 +143,35 @@ class PerplexityBrowserAdapter(ExecutionAdapter):
                 provider_model_id=model.provider_model_id,
                 policy=self._model_policy,
             )
-            if not self._model_matches_expected(model.provider_model_id, selection.actual_label):
-                return self._failure(
-                    task_id=request.task_id,
-                    model_id=model.id,
-                    model_display_name=model.display_name,
-                    failure_code=FailureCode.MODEL_MISMATCH,
-                    message=(
-                        f"Requested browser model '{model.provider_model_id}' "
-                        f"but UI shows '{selection.actual_label}'."
-                    ),
-                    extra_details={
-                        "requested_label": selection.requested_label,
-                        "actual_label": selection.actual_label,
-                    },
+            _attempt = 0
+            while not self._model_matches_expected(model.provider_model_id, selection.actual_label):
+                if _attempt >= self._MODEL_SELECT_RETRIES:
+                    return self._failure(
+                        task_id=request.task_id,
+                        model_id=model.id,
+                        model_display_name=model.display_name,
+                        failure_code=FailureCode.MODEL_MISMATCH,
+                        message=(
+                            f"Requested browser model '{model.provider_model_id}' "
+                            f"but UI shows '{selection.actual_label}'."
+                        ),
+                        extra_details={
+                            "requested_label": selection.requested_label,
+                            "actual_label": selection.actual_label,
+                        },
+                    )
+                logger.warning(
+                    "Model selection override detected (attempt %d/%d): got '%s', expected '%s'; retrying",
+                    _attempt + 1,
+                    self._MODEL_SELECT_RETRIES + 1,
+                    selection.actual_label,
+                    model.provider_model_id,
+                )
+                time.sleep(self._MODEL_SELECT_RETRY_DELAY_S)
+                _attempt += 1
+                selection = self._automation.select_model(
+                    provider_model_id=model.provider_model_id,
+                    policy=self._model_policy,
                 )
 
             thinking_enabled = False
