@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+import asyncio
 import inspect
 import logging
+import threading
 import time
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import asdict
 
 from gracekelly.adapters.browser.automation import (
@@ -35,6 +38,17 @@ logger = logging.getLogger(__name__)
 class PerplexityBrowserAdapter(ExecutionAdapter):
     name = "browser.perplexity"
 
+    # Pin all Playwright sync calls to a single OS thread. Playwright's sync
+    # API binds session state to the thread that created it; FastAPI's
+    # default threadpool fans incoming requests across many workers, so a
+    # subsequent call lands on a different thread and the driver is forced
+    # to discard and reopen the session. On Windows the previous Chromium
+    # child has not yet released the user-data-dir lock when the reopen
+    # runs, which raises BrowserProfileBusyError and trips the circuit
+    # breaker. A dedicated single-worker executor is the contract Playwright
+    # sync already requires.
+    _DEDICATED_THREAD_PREFIX = "browser-perplexity"
+
     def __init__(
         self,
         *,
@@ -52,6 +66,13 @@ class PerplexityBrowserAdapter(ExecutionAdapter):
         self._model_policy = model_verification_policy or ModelVerificationPolicy()
         self._submit_policy = submit_policy or SubmitPolicy()
         self._call_timeout_seconds = runtime_settings.browser_call_timeout_seconds
+        self._dedicated_executor = ThreadPoolExecutor(
+            max_workers=1,
+            thread_name_prefix=self._DEDICATED_THREAD_PREFIX,
+        )
+
+    def _on_dedicated_thread(self) -> bool:
+        return threading.current_thread().name.startswith(self._DEDICATED_THREAD_PREFIX)
 
     @property
     def session_manager(self) -> BrowserSessionManager:
@@ -66,6 +87,17 @@ class PerplexityBrowserAdapter(ExecutionAdapter):
         self._automation = value
 
     def execute(self, request: ExecutionRequest) -> ExecutionResult:
+        if self._on_dedicated_thread():
+            return self._execute_inner(request)
+        return self._dedicated_executor.submit(self._execute_inner, request).result()
+
+    async def execute_async(self, request: ExecutionRequest) -> ExecutionResult:
+        loop = asyncio.get_running_loop()
+        return await loop.run_in_executor(
+            self._dedicated_executor, self._execute_inner, request
+        )
+
+    def _execute_inner(self, request: ExecutionRequest) -> ExecutionResult:
         model = request.step.model
         t0 = time.monotonic()
         logger.info(
@@ -244,12 +276,19 @@ class PerplexityBrowserAdapter(ExecutionAdapter):
     async def close(self) -> None:
         close_method = getattr(self._automation, "close", None)
         if callable(close_method):
-            result = close_method()
+            loop = asyncio.get_running_loop()
+            result = await loop.run_in_executor(self._dedicated_executor, close_method)
             if inspect.isawaitable(result):
                 await result
         self._session_manager.mark_idle()
+        self._dedicated_executor.shutdown(wait=False)
 
     def refresh_model_catalog(self) -> tuple[str, ...]:
+        if self._on_dedicated_thread():
+            return self._refresh_model_catalog_inner()
+        return self._dedicated_executor.submit(self._refresh_model_catalog_inner).result()
+
+    def _refresh_model_catalog_inner(self) -> tuple[str, ...]:
         try:
             self._automation.ensure_session(self._session_manager)
             self._session_manager.mark_active()
