@@ -1,13 +1,21 @@
 # Phased Roadmap
 
-Last updated: 2026-04-23 (roadmap formally closed; all phases complete, gates PASS, trigger-reactive items explicitly scoped)
+Last updated: 2026-04-25 (integration loop closed across V2 + 3 clients; V1 orchestrator deprecated)
 
 ## 2026-04-25 Integration closure
 
 - `batch-101-b/c`: Mistral-as-LLM ripped out; Mistral kept for embeddings.
 - `batch-102`: `/api/v1/orchestrate` dry-run profile-gate fix.
-- `batch-103`: cross-audit plus smoke over 8 sync routes for the dry-run profile-gate.
-- Integrators verified: `RAG_Support_Assistant` (3/8 PASS, remaining routes SKIP), `agent_toolkit` (66 unit + 10 integration PASS).
+- `batch-103`: cross-audit plus smoke over 8 sync routes for the dry-run profile-gate (audit doc `docs/audits/2026-04-25-dry-run-gate-audit.md`).
+- `batch-104`: integration story documented across README / architecture / runbook / roadmap.
+- `batch-105`: `scripts/ecosystem_smoke.py` — single-command health check across V2 + 3 known clients.
+- `batch-106`: `scripts/win-autostart/` — Windows Task Scheduler artefacts so V2 boots on user logon (manual `install_autostart.bat` from Admin to enable).
+- `batch-107`: `mypy --strict src tests` cleanup — full stack now type-clean (264 source files).
+- Integrators verified end-to-end:
+  - `RAG_Support_Assistant` (3 PASS / 5 SKIP / 0 FAIL gracekelly_smoke).
+  - `agent_toolkit` (66 unit + 10 integration PASS, including live `test_orchestrator_live::test_single_query` against running V2).
+  - `juhub` (V2 endpoints, V1 auto-start dropped, Grok removed; landed in `D:\Perplexity_Orchestrator2` HEAD `8ff3886`).
+- V1 orchestrator at `D:\Perplexity_Orchestrator2` (`:8001`, `/api/gk/*`) formally deprecated 2026-04-25 — `DEPRECATED.md` in that repo, `SERVERS.md` updated, deprecation banner in `CLAUDE.md`. No client uses V1; code preserved read-only for archeology.
 
 ## 2026-04-23 Closure Timeline
 
