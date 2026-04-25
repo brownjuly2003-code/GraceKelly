@@ -1,6 +1,6 @@
 # Operator Runbook
 
-Last updated: 2026-04-23
+Last updated: 2026-04-25
 
 This runbook covers the current operating surface for GraceKelly:
 - API authentication
@@ -41,9 +41,67 @@ It is intentionally limited to the current in-process deployment model.
    With `GRACEKELLY_EXECUTION_PROFILE=dry-run`, all eight sync routes auto-gate to dry-run execution without requiring `dry_run: true` in the request body.
 
 For deeper operations see the sections below:
+- [Ecosystem smoke](#ecosystem-smoke)
+- [Windows always-on autostart](#windows-always-on-autostart)
 - [Live smoke harness](#live-smoke-harness)
 - [Browser triage](#browser-triage)
 - [Harness limitations](#harness-limitations)
+- [Known integrators](#known-integrators)
+
+## Ecosystem smoke
+
+`scripts/ecosystem_smoke.py` is the single-command health check across the V2 backend
+and all three known clients (`RAG_Support_Assistant`, `agent_toolkit`, `juhub`).
+
+```bash
+.venv\Scripts\python scripts\ecosystem_smoke.py
+```
+
+Step order: pre-flight `:8011/healthz/ready` → V2 direct (`/smart` + `/orchestrate`)
+→ RAG smoke (if `:8000` reachable) → agent_toolkit `pytest tests/integration/`
+(if `D:\agent_toolkit` exists) → juhub `--dry-run` debate (if
+`D:\Perplexity_Orchestrator2\juhub` exists). Missing components are reported as
+SKIP, not FAIL. Exit code 0 if every step is PASS or SKIP, 1 on the first FAIL.
+
+Useful flags:
+
+- `--skip-rag`, `--skip-agent-toolkit`, `--skip-juhub` — narrow the run.
+- `--gracekelly-url`, `--rag-url` — override base URLs.
+- `--verbose` — show each subprocess stdout.
+
+This script does not start uvicorn itself; boot V2 first.
+
+## Windows always-on autostart
+
+`scripts\win-autostart\` ships a Windows Task Scheduler XML and `.bat` helpers to
+keep V2 running on user logon. This is optional — purely a convenience for
+single-user local deploy where juhub cron at 08:30 and RAG async traffic both rely
+on V2 being already up.
+
+Install once, as Administrator:
+
+```cmd
+cd D:\GraceKelly\scripts\win-autostart
+install_autostart.bat
+```
+
+Verify:
+
+```cmd
+schtasks /Query /TN "GraceKelly Autostart" /V /FO LIST
+```
+
+Switch execution profile without editing files:
+
+```cmd
+set_profile.bat hybrid    :: or dry-run / api-only
+```
+
+The wrapper `gracekelly_uvicorn.bat` reads `%LOCALAPPDATA%\GraceKelly\profile.env`
+on each start; restart the task to pick up changes. Logs land in
+`%LOCALAPPDATA%\GraceKelly\uvicorn.log`. Uninstall: `uninstall_autostart.bat`
+(also as Administrator). See `scripts\win-autostart\README.md` for full reference
+and troubleshooting.
 
 ## UI
 
@@ -457,3 +515,19 @@ Tuning guidance:
 - For dry-run mode, 5 s is sufficient.
 - For consensus V2 with multiple rounds, account for `max_rounds x variations_per_round x model_timeout_seconds`.
 - Pair this setting with load-balancer / reverse-proxy timeouts: both must be larger than the orchestrate timeout.
+
+## Known integrators
+
+V2 is the only active orchestrator. All three known clients run on `http://127.0.0.1:8011`:
+
+- **`RAG_Support_Assistant`** (`D:\RAG_Support_Assistant`, port 8000)
+  - Smoke: `python D:\RAG_Support_Assistant\scripts\gracekelly_smoke.py`
+  - Failover provider: ollama (when V2 returns 5xx).
+- **`agent_toolkit`** (`D:\agent_toolkit`)
+  - LangGraph wrapper (`OrchestratorChatModel`) → V2 endpoints by `GKPattern`.
+  - Test: `cd D:\agent_toolkit && uv run pytest tests/integration/`
+- **`juhub`** (`D:\Perplexity_Orchestrator2\juhub`, scheduled 08:30 daily)
+  - `backend/scheduler.py` does pre-flight `:8011/healthz/ready`; if V2 is down, the run is skipped with an error log (no auto-start).
+  - Manual dry-run: `cd D:\Perplexity_Orchestrator2 && set GK_DRY_RUN=1 && python -m juhub.backend.scheduler --now`
+
+Legacy V1 orchestrator at `D:\Perplexity_Orchestrator2` (`:8001`, `/api/gk/*`) is deprecated 2026-04-25 and not used by any client. See `D:\Perplexity_Orchestrator2\DEPRECATED.md`.

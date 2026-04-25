@@ -99,13 +99,39 @@ Excluded by design:
 
 ## Known integrators
 
-External clients integrate through the local V2-compatible HTTP API on `http://127.0.0.1:8011`.
-The current verified clients are `RAG_Support_Assistant` and `agent_toolkit`.
+External clients integrate through the local V2 HTTP API on `http://127.0.0.1:8011`.
+Verified clients (all migrated from V1 by 2026-04-25):
 
-The dry-run profile gate is expected to cover all eight sync routes used by external clients:
-`/api/v1/smart`, `/api/v1/smart/v2`, `/api/v1/orchestrate`, `/api/v1/consensus`,
-`/api/v1/debate`, `/api/v1/compare`, `/api/v1/batch`, and `/api/v1/pipeline`.
-Mistral remains embeddings-only for consensus clustering and is not an LLM execution backend.
+- **`RAG_Support_Assistant`** (`D:\RAG_Support_Assistant`) — provider-aware support bot with
+  GraceKelly as a fallback LLM provider. Smoke harness `scripts/gracekelly_smoke.py`
+  walks 8 steps (healthz, profile, simple ask, tool loop, schema dispatch, streaming,
+  metrics, failover).
+- **`agent_toolkit`** (`D:\agent_toolkit`) — LangGraph agent building blocks. The
+  `OrchestratorChatModel` LangChain adapter dispatches one of six `GKPattern`s
+  (SINGLE / SONAR / DUAL / FIVE_MODELS / CONSENSUS / MAXIMUM) to the matching V2
+  route (`/orchestrate`, `/compare`, `/consensus`, `/smart` with `reliability_level=high`).
+- **`juhub`** (`D:\Perplexity_Orchestrator2\juhub`) — daily AI debate scheduled at 08:30
+  via Windows Task Scheduler. `backend/scheduler.py` performs a pre-flight `:8011/healthz/ready`
+  check and gracefully skips the run if V2 is not reachable; it does not auto-spawn V2
+  on its own.
+
+The legacy V1 orchestrator at `D:\Perplexity_Orchestrator2` (port 8001, endpoints `/api/gk/*`)
+is deprecated as of 2026-04-25. See `D:\Perplexity_Orchestrator2\DEPRECATED.md`.
+
+The dry-run profile gate covers all eight sync routes used by external clients
+(`/api/v1/smart`, `/smart/v2`, `/orchestrate`, `/consensus`, `/debate`, `/compare`,
+`/batch`, `/pipeline`) — verified in `docs/audits/2026-04-25-dry-run-gate-audit.md`.
+Mistral remains embeddings-only for consensus clustering and is not an LLM execution backend
+(formerly an unintended baggage adapter; ripped out in batches 101-b/c).
+
+## Operations tooling
+
+- `scripts/ecosystem_smoke.py` — single-command health check across V2 + 3 known clients.
+  Used as the integrator regression gate.
+- `scripts/win-autostart/` — Windows Task Scheduler artefacts to keep V2 always-on under
+  user logon, with a `set_profile.bat` toggle for execution profile.
+- `docs/audits/2026-04-25-dry-run-gate-audit.md` — per-route audit table proving dry-run
+  profile coverage.
 
 ## Next steps
 

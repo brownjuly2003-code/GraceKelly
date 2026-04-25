@@ -36,9 +36,26 @@ docker-compose up
 
 ## Integration / Clients
 
-Known local integrators target the V2-compatible API surface on `http://127.0.0.1:8011`:
-- `RAG_Support_Assistant`
-- `agent_toolkit`
+Known local integrators target the V2 API surface on `http://127.0.0.1:8011`:
+- **`RAG_Support_Assistant`** — provider-aware support bot. Smoke harness at `D:\RAG_Support_Assistant\scripts\gracekelly_smoke.py` (8 steps).
+- **`agent_toolkit`** — LangGraph agent building blocks. Migrated from V1 in 2026-04-25 (commits `09e2632…1276a06` in that repo). 66 unit + 10 integration tests.
+- **`juhub`** (in `D:\Perplexity_Orchestrator2\juhub\`) — AI Daily Debate scheduled at 08:30. Migrated from V1 in 2026-04-25 (commits in `D:\Perplexity_Orchestrator2` HEAD `8ff3886`). Requires V2 to be running before cron fires; no auto-start.
+
+The legacy V1 orchestrator at `D:\Perplexity_Orchestrator2` (`:8001`, `/api/gk/*`) was deprecated 2026-04-25. See `D:\Perplexity_Orchestrator2\DEPRECATED.md`.
+
+## Operations
+
+### Ecosystem smoke (one-shot health check across all clients)
+
+```bash
+.venv\Scripts\python scripts\ecosystem_smoke.py
+```
+
+Pre-flight check on `:8011` → direct V2 sanity (`/smart`, `/orchestrate`) → RAG smoke (if `:8000` reachable) → agent_toolkit integration tests (if repo present) → juhub debate dry-run (if repo present). Exits 0 if all PASS or SKIP, 1 on first FAIL. CLI flags: `--skip-rag`, `--skip-agent-toolkit`, `--skip-juhub`, `--verbose`.
+
+### Windows always-on (optional)
+
+`scripts\win-autostart\` ships a Task Scheduler XML + `.bat` installers so V2 boots on user logon and survives crashes (3 retries / 5 min). Run `install_autostart.bat` once **as Administrator**. Switch execution profile without editing files: `set_profile.bat hybrid`. Logs land in `%LOCALAPPDATA%\GraceKelly\uvicorn.log`. See `scripts\win-autostart\README.md` for details.
 
 ## Configuration
 
