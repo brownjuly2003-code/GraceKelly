@@ -97,6 +97,16 @@ Excluded by design:
    models. API execution is a fallback, using the same orchestration contract.
 5. Observability must be append-only and isolated from request execution.
 
+## Known integrators
+
+External clients integrate through the local V2-compatible HTTP API on `http://127.0.0.1:8011`.
+The current verified clients are `RAG_Support_Assistant` and `agent_toolkit`.
+
+The dry-run profile gate is expected to cover all eight sync routes used by external clients:
+`/api/v1/smart`, `/api/v1/smart/v2`, `/api/v1/orchestrate`, `/api/v1/consensus`,
+`/api/v1/debate`, `/api/v1/compare`, `/api/v1/batch`, and `/api/v1/pipeline`.
+Mistral remains embeddings-only for consensus clustering and is not an LLM execution backend.
+
 ## Next steps
 
 1. Improve consensus/debate streaming beyond the current single-model streaming path.

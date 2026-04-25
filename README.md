@@ -34,6 +34,12 @@ Open http://localhost:8011
 docker-compose up
 ```
 
+## Integration / Clients
+
+Known local integrators target the V2-compatible API surface on `http://127.0.0.1:8011`:
+- `RAG_Support_Assistant`
+- `agent_toolkit`
+
 ## Configuration
 
 Copy `.env.example` and configure:

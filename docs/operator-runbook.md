@@ -38,6 +38,7 @@ It is intentionally limited to the current in-process deployment model.
    python scripts/live_smart_smoke.py --pattern smart
    ```
    Expected result: HTTP `200`, a meaningful answer, and roughly `1-3` browser submits for the SMART flow.
+   With `GRACEKELLY_EXECUTION_PROFILE=dry-run`, all eight sync routes auto-gate to dry-run execution without requiring `dry_run: true` in the request body.
 
 For deeper operations see the sections below:
 - [Live smoke harness](#live-smoke-harness)
@@ -183,6 +184,7 @@ Common task-level failure codes:
 
 `timeout` or `unknown_error`:
 - live UI or automation state unstable
+- If an external integrator receives `failure_code: "unknown_error"` with a Playwright traceback while the backend is running with `GRACEKELLY_EXECUTION_PROFILE=dry-run`, treat it as the known dry-run profile-gate regression covered by [docs/audits/2026-04-25-dry-run-gate-audit.md](audits/2026-04-25-dry-run-gate-audit.md).
 - Recovery:
   - inspect `browser.perplexity` health details and breaker counters
   - capture fresh DOM recon

@@ -2,6 +2,13 @@
 
 Last updated: 2026-04-23 (roadmap formally closed; all phases complete, gates PASS, trigger-reactive items explicitly scoped)
 
+## 2026-04-25 Integration closure
+
+- `batch-101-b/c`: Mistral-as-LLM ripped out; Mistral kept for embeddings.
+- `batch-102`: `/api/v1/orchestrate` dry-run profile-gate fix.
+- `batch-103`: cross-audit plus smoke over 8 sync routes for the dry-run profile-gate.
+- Integrators verified: `RAG_Support_Assistant` (3/8 PASS, remaining routes SKIP), `agent_toolkit` (66 unit + 10 integration PASS).
+
 ## 2026-04-23 Closure Timeline
 
 Single-day roadmap closure run. All phases now marked complete; gates PASS; deferred items explicitly scoped as trigger-reactive.
