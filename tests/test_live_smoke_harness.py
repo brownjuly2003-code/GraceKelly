@@ -12,8 +12,8 @@ try:
 except ModuleNotFoundError:
     playwright_module = types.ModuleType("playwright")
     sync_api_module = types.ModuleType("playwright.sync_api")
-    sync_api_module.sync_playwright = None
-    playwright_module.sync_api = sync_api_module
+    sync_api_module.sync_playwright = None  # type: ignore[attr-defined]
+    playwright_module.sync_api = sync_api_module  # type: ignore[attr-defined]
     sys.modules["playwright"] = playwright_module
     sys.modules["playwright.sync_api"] = sync_api_module
 

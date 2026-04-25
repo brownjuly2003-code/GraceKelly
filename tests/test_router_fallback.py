@@ -648,9 +648,9 @@ def test_try_fallback_logs_attempt_and_success(caplog: pytest.LogCaptureFixture)
     ]
     assert len(attempt_records) == 1
     assert attempt_records[0].getMessage() == "fallback attempting: claude-sonnet-4-6 -> claude-sonnet-4-6-api reason=auth_failed"
-    assert attempt_records[0].task_id == "t1"
-    assert attempt_records[0].primary_failure_code == "auth_failed"
-    assert attempt_records[0].fallback_to == "claude-sonnet-4-6-api"
+    assert getattr(attempt_records[0], "task_id") == "t1"
+    assert getattr(attempt_records[0], "primary_failure_code") == "auth_failed"
+    assert getattr(attempt_records[0], "fallback_to") == "claude-sonnet-4-6-api"
 
     success_records = [
         record
@@ -659,9 +659,9 @@ def test_try_fallback_logs_attempt_and_success(caplog: pytest.LogCaptureFixture)
     ]
     assert len(success_records) == 1
     assert success_records[0].getMessage() == "fallback succeeded: claude-sonnet-4-6 -> claude-sonnet-4-6-api"
-    assert success_records[0].task_id == "t1"
-    assert success_records[0].primary_failure_code == "auth_failed"
-    assert success_records[0].fallback_to == "claude-sonnet-4-6-api"
+    assert getattr(success_records[0], "task_id") == "t1"
+    assert getattr(success_records[0], "primary_failure_code") == "auth_failed"
+    assert getattr(success_records[0], "fallback_to") == "claude-sonnet-4-6-api"
     assert batch.results[0].model_id == "claude-sonnet-4-6-api"
 
 
@@ -713,10 +713,10 @@ def test_try_fallback_logs_skip_reason_when_disabled(caplog: pytest.LogCaptureFi
     ]
     assert len(skip_records) == 1
     assert skip_records[0].getMessage() == "fallback skipped: disabled"
-    assert skip_records[0].task_id == "t1"
-    assert skip_records[0].step_index == 0
-    assert skip_records[0].model_id == "claude-sonnet-4-6"
-    assert skip_records[0].skip_reason == "disabled"
+    assert getattr(skip_records[0], "task_id") == "t1"
+    assert getattr(skip_records[0], "step_index") == 0
+    assert getattr(skip_records[0], "model_id") == "claude-sonnet-4-6"
+    assert getattr(skip_records[0], "skip_reason") == "disabled"
     assert batch.failure_code == FailureCode.PROVIDER_UNAVAILABLE
 
 

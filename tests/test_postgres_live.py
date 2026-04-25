@@ -13,8 +13,8 @@ if TestClient is not None:
     from gracekelly.main import create_app
     from gracekelly.storage.postgres import psycopg  # type: ignore[attr-defined]
 else:  # pragma: no cover
-    Settings = None  # type: ignore[misc]
-    create_app = None
+    Settings = None  # type: ignore[assignment,misc]
+    create_app = None  # type: ignore[assignment]
     psycopg = None
 
 

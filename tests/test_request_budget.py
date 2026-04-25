@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import unittest
+from typing import cast
 from unittest.mock import MagicMock, patch
 
 from gracekelly.config import Settings
@@ -422,9 +423,10 @@ class RequestBudgetRouterTests(unittest.TestCase):
         healthcheck = router.healthcheck()
 
         self.assertIn("budget", healthcheck)
-        self.assertEqual(healthcheck["budget"]["per_task_limit"], 2)
-        self.assertEqual(healthcheck["budget"]["per_hour_limit"], 5)
-        self.assertEqual(healthcheck["budget"]["hourly_submits"], 0)
+        budget = cast(dict[str, object], healthcheck["budget"])
+        self.assertEqual(budget["per_task_limit"], 2)
+        self.assertEqual(budget["per_hour_limit"], 5)
+        self.assertEqual(budget["hourly_submits"], 0)
 
     def test_create_app_propagates_settings_to_router(self) -> None:
         app = create_app(

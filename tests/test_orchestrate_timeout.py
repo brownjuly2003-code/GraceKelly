@@ -13,8 +13,8 @@ if TestClient is not None:
     from gracekelly.config import Settings
     from gracekelly.main import create_app
 else:  # pragma: no cover
-    Settings = None  # type: ignore[misc]
-    create_app = None
+    Settings = None  # type: ignore[assignment,misc]
+    create_app = None  # type: ignore[assignment]
 
 
 def _make_settings(**kwargs: Any) -> Settings:
