@@ -13,6 +13,7 @@ from uuid import uuid4
 from fastapi import APIRouter, File, Form, HTTPException, Path, Query, Request, Response, UploadFile
 
 from gracekelly.api.error_codes import AUTH_SYNC_HTTP_CODE, AUTH_TASK_FAILURE_CODE
+from gracekelly.api.routes._helpers import resolve_effective_dry_run
 from gracekelly.app_state import get_app_state
 from gracekelly.core.contracts import (
     ATTACHMENT_METADATA_KEY,
@@ -252,19 +253,21 @@ async def orchestrate(payload: OrchestrateRequest, request: Request, response: R
     state = get_app_state(request)
     service = state.orchestrator_service
     _timeout = state.settings.orchestrate_timeout_seconds
+    effective_dry_run = resolve_effective_dry_run(state, payload.dry_run)
+    payload_for_submission = payload.model_copy(update={"dry_run": effective_dry_run})
     trace_id = trace_id_from_metadata(payload.metadata)
     if trace_id:
         response.headers["x-trace-id"] = trace_id
     logger.info(
         log_message(
             "orchestrate.request",
-            dry_run=payload.dry_run,
+            dry_run=effective_dry_run,
             reasoning=payload.reasoning,
             model_count=len(payload.requested_model_names()),
             quorum=payload.quorum,
             merge_strategy=payload.merge_strategy,
             adapter_hint=payload.adapter_hint,
-            execution_mode="dry-run" if payload.dry_run else "live",
+            execution_mode="dry-run" if effective_dry_run else "live",
             prompt_length=len(payload.prompt),
             trace_id=trace_id,
         )
@@ -272,7 +275,7 @@ async def orchestrate(payload: OrchestrateRequest, request: Request, response: R
     try:
         _executor = getattr(state, "browser_executor", None)
         _loop = asyncio.get_running_loop()
-        _coro = cast(asyncio.Future[SubmissionSnapshot], _loop.run_in_executor(_executor, service.submit_snapshot, payload))
+        _coro = cast(asyncio.Future[SubmissionSnapshot], _loop.run_in_executor(_executor, service.submit_snapshot, payload_for_submission))
         try:
             snapshot = await (asyncio.wait_for(_coro, timeout=_timeout) if _timeout else _coro)
         except TimeoutError as exc:
@@ -338,7 +341,7 @@ async def orchestrate(payload: OrchestrateRequest, request: Request, response: R
             log_message(
                 "orchestrate.storage_failed",
                 operation=exc.operation,
-                dry_run=payload.dry_run,
+                dry_run=effective_dry_run,
                 model_count=len(payload.requested_model_names()),
                 message=str(exc),
                 trace_id=trace_id,
@@ -350,7 +353,7 @@ async def orchestrate(payload: OrchestrateRequest, request: Request, response: R
             log_message(
                 "orchestrate.rejected",
                 code="validation_error",
-                dry_run=payload.dry_run,
+                dry_run=effective_dry_run,
                 message=str(exc),
                 trace_id=trace_id,
             )
@@ -361,7 +364,7 @@ async def orchestrate(payload: OrchestrateRequest, request: Request, response: R
             log_message(
                 "orchestrate.rejected",
                 code="not_implemented",
-                dry_run=payload.dry_run,
+                dry_run=effective_dry_run,
                 message=str(exc),
                 trace_id=trace_id,
             )
@@ -374,7 +377,7 @@ async def orchestrate(payload: OrchestrateRequest, request: Request, response: R
         logger.exception(
             log_message(
                 "orchestrate.failed",
-                dry_run=payload.dry_run,
+                dry_run=effective_dry_run,
                 model_count=len(payload.requested_model_names()),
                 trace_id=trace_id,
             )
@@ -409,6 +412,7 @@ async def orchestrate_with_files(
     state = get_app_state(request)
     service = state.orchestrator_service
     timeout_seconds = state.settings.orchestrate_timeout_seconds
+    effective_dry_run = resolve_effective_dry_run(state, dry_run)
     text_parts = [prompt]
     attachments: list[FileAttachment] = []
     uploads = files or []
@@ -425,7 +429,7 @@ async def orchestrate_with_files(
         model=model,
         models=_parse_models_form_value(models),
         session_id=session_id,
-        dry_run=dry_run,
+        dry_run=effective_dry_run,
     )
     trace_id = trace_id_from_metadata(payload.metadata)
     if trace_id:
@@ -433,7 +437,7 @@ async def orchestrate_with_files(
     logger.info(
         log_message(
             "orchestrate.upload.request",
-            dry_run=payload.dry_run,
+            dry_run=effective_dry_run,
             model_count=len(payload.requested_model_names()),
             attachment_count=len(attachments),
             prompt_length=len(payload.prompt),
@@ -538,7 +542,7 @@ async def orchestrate_with_files(
             log_message(
                 "orchestrate.upload.storage_failed",
                 operation=exc.operation,
-                dry_run=payload.dry_run,
+                dry_run=effective_dry_run,
                 model_count=len(payload.requested_model_names()),
                 message=str(exc),
             )
@@ -549,7 +553,7 @@ async def orchestrate_with_files(
             log_message(
                 "orchestrate.upload.rejected",
                 code="validation_error",
-                dry_run=payload.dry_run,
+                dry_run=effective_dry_run,
                 message=str(exc),
             )
         )
@@ -559,7 +563,7 @@ async def orchestrate_with_files(
             log_message(
                 "orchestrate.upload.rejected",
                 code="not_implemented",
-                dry_run=payload.dry_run,
+                dry_run=effective_dry_run,
                 message=str(exc),
             )
         )
@@ -571,7 +575,7 @@ async def orchestrate_with_files(
         logger.exception(
             log_message(
                 "orchestrate.upload.failed",
-                dry_run=payload.dry_run,
+                dry_run=effective_dry_run,
                 model_count=len(payload.requested_model_names()),
                 attachment_count=len(attachments),
                 trace_id=trace_id,
