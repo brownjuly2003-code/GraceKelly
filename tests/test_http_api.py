@@ -724,7 +724,21 @@ class HttpApiSmokeTests(unittest.TestCase):
         self.assertIn("task.get.not_found", captured.output[0])
 
     def test_list_tasks_can_filter_by_status_and_dry_run(self) -> None:
-        self.client.post(
+        client = TestClient(
+            create_app(
+                Settings(
+                    env="test",
+                    storage_backend="memory",
+                    execution_profile="hybrid",
+                    openai_api_key=None,
+                    anthropic_api_key=None,
+                    browser_enabled=False,
+                    browser_profile_dir=None,
+                )
+            )
+        )
+
+        client.post(
             "/api/v1/orchestrate",
             json={
                 "prompt": "dry run completed",
@@ -732,7 +746,7 @@ class HttpApiSmokeTests(unittest.TestCase):
                 "dry_run": True,
             },
         )
-        failed = self.client.post(
+        failed = client.post(
             "/api/v1/orchestrate",
             json={
                 "prompt": "real failure",
@@ -741,7 +755,7 @@ class HttpApiSmokeTests(unittest.TestCase):
             },
         )
 
-        response = self.client.get(
+        response = client.get(
             "/api/v1/tasks",
             params={
                 "status": "failed",
@@ -853,7 +867,21 @@ class HttpApiSmokeTests(unittest.TestCase):
         self.assertEqual(payload[0]["execution_mode"], "mixed")
 
     def test_api_execution_without_key_fails_cleanly(self) -> None:
-        response = self.client.post(
+        client = TestClient(
+            create_app(
+                Settings(
+                    env="test",
+                    storage_backend="memory",
+                    execution_profile="hybrid",
+                    openai_api_key=None,
+                    anthropic_api_key=None,
+                    browser_enabled=False,
+                    browser_profile_dir=None,
+                )
+            )
+        )
+
+        response = client.post(
             "/api/v1/orchestrate",
             json={
                 "prompt": "openai without key",
