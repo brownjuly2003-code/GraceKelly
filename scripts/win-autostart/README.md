@@ -2,7 +2,7 @@
 
 This folder contains the Windows Task Scheduler artefacts for starting GraceKelly V2 on `127.0.0.1:8011` when the Windows user logs on.
 
-The task runs `D:\GraceKelly\scripts\win-autostart\gracekelly_uvicorn.bat`. The batch file changes to `D:\GraceKelly`, creates `%LOCALAPPDATA%\GraceKelly\` when needed, sets `GRACEKELLY_EXECUTION_PROFILE=dry-run`, and starts:
+The task runs `D:\GraceKelly\scripts\win-autostart\gracekelly_uvicorn.bat`. The batch file changes to `D:\GraceKelly`, creates `%LOCALAPPDATA%\GraceKelly\` when needed, loads the execution profile, and starts:
 
 ```bat
 .\.venv\Scripts\python.exe -m uvicorn gracekelly.main:create_app --factory --host 127.0.0.1 --port 8011
@@ -28,13 +28,25 @@ Do not run `install_autostart.bat` from this batch process. Installation is an e
 
 Default profile is `dry-run`.
 
-To change it without another helper, edit this line in `gracekelly_uvicorn.bat` before starting or restarting the task:
+Use `set_profile.bat` to switch profiles without editing `gracekelly_uvicorn.bat`:
 
 ```bat
-set "GRACEKELLY_EXECUTION_PROFILE=dry-run"
+set_profile.bat dry-run
+set_profile.bat api-only
+set_profile.bat hybrid
 ```
 
-Allowed values are `dry-run`, `api-only`, and `hybrid`.
+The helper writes:
+
+```bat
+%LOCALAPPDATA%\GraceKelly\profile.env
+```
+
+with one line:
+
+```bat
+GRACEKELLY_EXECUTION_PROFILE=<value>
+```
 
 Restart the scheduled task after changing the profile:
 
