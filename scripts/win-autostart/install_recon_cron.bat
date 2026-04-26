@@ -12,7 +12,11 @@ set "TEMPLATE=%~dp0recon-task.xml"
 set "RENDERED=%~dp0recon-task.rendered.xml"
 set "USER_ACCOUNT=%USERDOMAIN%\%USERNAME%"
 
-powershell -NoProfile -Command "(Get-Content -LiteralPath '%TEMPLATE%' -Encoding UTF8) -replace '__USER__', '%USER_ACCOUNT%' ^| Set-Content -LiteralPath '%RENDERED%' -Encoding UTF8"
+REM schtasks /Create /XML expects UTF-16 LE with BOM regardless of the encoding
+REM declared in the prolog. Substitute __USER__, switch the declaration to
+REM UTF-16, save as Unicode (UTF-16 LE). Statement separator is ';' not '|'
+REM so the surrounding shell does not need to escape a pipe.
+powershell -NoProfile -Command "$c = (Get-Content -LiteralPath '%TEMPLATE%' -Raw -Encoding UTF8) -replace '__USER__', '%USER_ACCOUNT%' -replace 'encoding=\"UTF-8\"', 'encoding=\"UTF-16\"'; Set-Content -LiteralPath '%RENDERED%' -Value $c -Encoding Unicode -NoNewline"
 if errorlevel 1 (
     echo Failed to render task XML for current user.
     exit /b 1
@@ -23,11 +27,11 @@ set "RC=%ERRORLEVEL%"
 del "%RENDERED%" >nul 2>&1
 
 if not "%RC%"=="0" (
-    echo Failed to install "GraceKelly Selectors Recon" (rc=%RC%).
+    echo Failed to install GraceKelly Selectors Recon, rc=%RC%
     exit /b %RC%
 )
 
-echo Installed "GraceKelly Selectors Recon" — runs every Friday at 03:00 local time.
+echo Installed "GraceKelly Selectors Recon" - runs every Friday at 03:00 local time.
 echo Drift flag : D:\GraceKelly\.workflow\state\perplexity-selectors-drift.flag
 echo Drift log  : D:\GraceKelly\logs\recon-drift.jsonl
 exit /b 0
