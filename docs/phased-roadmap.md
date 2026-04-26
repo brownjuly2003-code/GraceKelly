@@ -1,6 +1,59 @@
 # Phased Roadmap
 
-Last updated: 2026-04-25 (integration loop closed across V2 + 3 clients; V1 orchestrator deprecated)
+Last updated: 2026-04-26 (audit + telemetry + recon cron + test-double drift fix landed; tag `v0.1.0-pre-simplify`)
+
+## 2026-04-26 Audit + telemetry + recon cron
+
+Tag `v0.1.0-pre-simplify` cut on `8518785` as a safety net before any
+simplification refactor. BCG-style strategic audit `audit_opus_2026-04-26.md`
+landed at the repo root: engineering 9/10, strategic fit for personal use
+5/10, four options A/B/C/D, recommendation Option B Simplify (-42% src LOC,
+-67% test LOC) once 30-day usage telemetry confirms which endpoints are
+actually exercised.
+
+- `batch-109/docs` (`3628def`): BCG audit + README "Operating Risks" section
+  (Perplexity ToS/Cloudflare risk, Chrome profile lock, UI drift).
+- `batch-109/109-1` (`032a94d`): usage telemetry middleware. Opt-in JSONL
+  append per HTTP request to `<repo>/logs/usage.jsonl`, gated by
+  `GRACEKELLY_USAGE_TELEMETRY_ENABLED`. Wired as the outermost middleware so
+  rate-limited and error responses are still recorded. 13 unit tests.
+- `batch-109/109-2` (`76a8e26`): selectors weekly recon cron.
+  `gracekelly-recon-weekly` console entry, weekly Friday 03:00 Windows
+  Task Scheduler XML, install/uninstall bat helpers, structural drift detection
+  with `logs/recon-drift.jsonl` + `.workflow/state/perplexity-selectors-drift.flag`.
+  8 unit tests.
+- `batch-109/closure` (`0799485`): outbox report and `.done` refresh.
+- `batch-110` (`b166de8`): fix three pre-existing fails in
+  `tests/test_playwright_driver.py` after `ceeb27d` added `timeout=30_000`
+  kwarg to two production `page.goto` sites without updating the
+  `_FakePage.goto` / `_HomeNavigationPage.goto` test doubles. Surgical
+  4-ins/3-del kwarg addition.
+- `batch-111` (`df48b41`): fix `install_recon_cron.bat` — schtasks /XML
+  rejects UTF-8 ("(1,40): unable to switch the encoding") and requires UTF-16
+  LE; pipe between Get-Content and Set-Content was caret-escaped (`^|`)
+  which breaks under bash → cmd; failure-branch echo carried `(rc=%RC%).`
+  whose closing paren prematurely terminated the if-block. Production-verified
+  by registering, running once against live Perplexity, capturing the
+  baseline (13 models including Claude Opus 4.7), and re-registering via the
+  fixed bat.
+
+Test status after closure: 2661 passed, 0 failed, 6 skipped, 11 subtests
+(was 2658 / 3 / 6 before the pre-existing fix). `mypy --strict` 0 errors on
+107 source files (added `tools.recon_weekly`). `ruff check src tests scripts`
+clean.
+
+Live smoke (2026-04-26 19:46 UTC):
+- `gracekelly-recon-weekly` real-Playwright run captured 13 models / 5 home
+  buttons / DOM flags into `.workflow/state/perplexity-selectors-baseline.json`.
+- Telemetry middleware wrote one JSONL record per request after uvicorn
+  restart with `GRACEKELLY_USAGE_TELEMETRY_ENABLED=true`.
+- `scripts/ecosystem_smoke.py --skip-rag --skip-agent-toolkit --skip-juhub`:
+  V2 `/smart` and `/orchestrate` PASS.
+
+Open question (carried forward, requires data not decision): which of
+Options A/B/C/D in `audit_opus_2026-04-26.md` §7 to take. Decision deferred
+until ~30 days of `logs/usage.jsonl` data is available (target
+~2026-05-26).
 
 ## 2026-04-25 Integration closure
 

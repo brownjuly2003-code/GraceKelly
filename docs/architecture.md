@@ -26,9 +26,12 @@ Implemented:
 - browser adapter lifecycle cleanup that resets idle session state on shutdown and detects stale runtime/session mismatches
 - structured key-value logging across orchestrator, browser adapters, API routes, and PostgreSQL degradation paths
 - request metrics histograms/counters plus optional OpenTelemetry bootstrap for observability
+- optional opt-in usage telemetry middleware appending one JSONL record per HTTP request
+  to `<repo>/logs/usage.jsonl` for honest 30-day usage audits before any simplification work
 - operator surfaces: recent-task listing with multi-axis filtering, rich task detail with diagnostics
 - built-in web UI with single-model, pairwise, five-model, and auto-routing execution patterns
-- post-phase audit snapshots preserved under `docs/audits/`
+- post-phase audit snapshots preserved under `docs/audits/`; the standalone strategic audit
+  `audit_opus_2026-04-26.md` at the repo root scopes simplification options A/B/C/D
 
 Not yet implemented:
 - richer retry policies beyond the current deferral
@@ -59,6 +62,12 @@ Excluded by design:
 - `core.session_context`: bounded session-history reconstruction for follow-up prompts
 - `request_metrics`: in-process HTTP and adapter metrics backing `/metrics`
 - `telemetry`: optional OpenTelemetry setup for FastAPI
+- `middleware.setup_usage_telemetry`: opt-in JSONL append per request, gated by
+  `GRACEKELLY_USAGE_TELEMETRY_ENABLED`; sha256 prompt-hash is recorded only for the
+  orchestration POST routes, body itself is not persisted
+- `tools.recon_weekly`: weekly Perplexity DOM reconnaissance with structural diff
+  against `.workflow/state/perplexity-selectors-baseline.json`; drift writes
+  `logs/recon-drift.jsonl` and `.workflow/state/perplexity-selectors-drift.flag`
 - `adapters.dry_run`: simulated execution for testing and dry-run mode
 - `adapters.api.anthropic`: Anthropic API adapter
 - `adapters.api.openai_compat`: OpenAI-compatible API adapter
@@ -130,8 +139,16 @@ Mistral remains embeddings-only for consensus clustering and is not an LLM execu
   Used as the integrator regression gate.
 - `scripts/win-autostart/` — Windows Task Scheduler artefacts to keep V2 always-on under
   user logon, with a `set_profile.bat` toggle for execution profile.
+- `scripts/win-autostart/install_recon_cron.bat` — registers a weekly Friday 03:00 task
+  `GraceKelly Selectors Recon` that runs `gracekelly-recon-weekly`, captures the live
+  Perplexity DOM via Playwright, and diffs it against the stored baseline. Drift surfaces
+  in `logs/recon-drift.jsonl` and as `.workflow/state/perplexity-selectors-drift.flag`.
 - `docs/audits/2026-04-25-dry-run-gate-audit.md` — per-route audit table proving dry-run
   profile coverage.
+- `audit_opus_2026-04-26.md` (repo root) — BCG-style strategic audit. Scores engineering
+  9/10 vs strategic fit for personal use 5/10; recommends Option B Simplify (-42% src
+  LOC, -67% test LOC) once 30-day usage telemetry confirms which endpoints are actually
+  exercised.
 
 ## Next steps
 

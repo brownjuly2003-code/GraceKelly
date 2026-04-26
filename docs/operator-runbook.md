@@ -1,6 +1,6 @@
 # Operator Runbook
 
-Last updated: 2026-04-25
+Last updated: 2026-04-26
 
 This runbook covers the current operating surface for GraceKelly:
 - API authentication
@@ -43,6 +43,8 @@ It is intentionally limited to the current in-process deployment model.
 For deeper operations see the sections below:
 - [Ecosystem smoke](#ecosystem-smoke)
 - [Windows always-on autostart](#windows-always-on-autostart)
+- [Usage telemetry](#usage-telemetry)
+- [Selectors weekly recon](#selectors-weekly-recon)
 - [Live smoke harness](#live-smoke-harness)
 - [Browser triage](#browser-triage)
 - [Harness limitations](#harness-limitations)
@@ -102,6 +104,125 @@ on each start; restart the task to pick up changes. Logs land in
 `%LOCALAPPDATA%\GraceKelly\uvicorn.log`. Uninstall: `uninstall_autostart.bat`
 (also as Administrator). See `scripts\win-autostart\README.md` for full reference
 and troubleshooting.
+
+## Usage telemetry
+
+Optional per-request JSONL log appended to `<repo>/logs/usage.jsonl`. Designed for
+honest 30-day usage audits before any simplify-driven refactor (see
+`audit_opus_2026-04-26.md` §R1).
+
+### Enable
+
+```bash
+set GRACEKELLY_USAGE_TELEMETRY_ENABLED=true
+:: optional path override, default: <cwd>/logs/usage.jsonl
+set GRACEKELLY_USAGE_TELEMETRY_PATH=
+```
+
+Then restart uvicorn so the new `.env` is read.
+
+### Record format
+
+One JSON object per line, written after `call_next` completes:
+
+```json
+{"ts":"2026-04-26T16:55:30.740374Z",
+ "endpoint":"/api/v1/orchestrate",
+ "method":"POST",
+ "status":200,
+ "duration_ms":14,
+ "request_id":"308deca4-c1c7-4c84-981c-2a27ed6dd95e",
+ "prompt_hash":"e32ca25d4ac598a59600c9b6dcc10eaf4f0636acd4e0db2ce70560adc7df146f"}
+```
+
+- `endpoint` is UUID-normalised (e.g. `/api/v1/tasks/{id}/retry`).
+- `prompt_hash` is `sha256(body_bytes)` for orchestration POST routes only
+  (`/orchestrate`, `/orchestrate/upload`, `/orchestrate/stream`, `/consensus`,
+  `/compare`, `/debate`, `/smart`, `/smart/v2`, `/batch`, `/pipeline`); `null`
+  elsewhere. The body itself is not persisted — only its hash.
+- `request_id` falls back to the `X-Request-ID` request header when no
+  correlation middleware is wired, otherwise picks the response header.
+
+### Read
+
+```bash
+python -c "import json,collections; c=collections.Counter(); ^
+[c.update([json.loads(l)['endpoint']]) for l in open('logs/usage.jsonl')]; print(c.most_common())"
+```
+
+The middleware never blocks: write failures emit one `usage_telemetry.write_failed`
+warning per process, then degrade silently. The body is replayed via
+`request._receive` so downstream handlers see it intact.
+
+## Selectors weekly recon
+
+Weekly Friday 03:00 scheduled task that captures the live Perplexity DOM and
+diffs it against a stored baseline so UI drift is detected before it breaks a
+live run (see `audit_opus_2026-04-26.md` §R4). The task runs the
+`gracekelly-recon-weekly` console entry point.
+
+### Install
+
+Right-click `D:\GraceKelly\scripts\win-autostart\install_recon_cron.bat` →
+`Run as administrator`. The installer renders `recon-task.xml` with the current
+`%USERDOMAIN%\%USERNAME%` substituted in and converts the file to UTF-16 LE
+before calling `schtasks /Create /XML`.
+
+Verify:
+
+```cmd
+schtasks /Query /TN "GraceKelly Selectors Recon" /V /FO LIST
+```
+
+### What recon writes
+
+| Path | Meaning |
+|---|---|
+| `.workflow/state/perplexity-selectors-baseline.json` | Reference snapshot. Created on first run, updated only on explicit acknowledgement. |
+| `.workflow/state/perplexity-selectors-latest.json` | Most recent capture, always overwritten. |
+| `.workflow/state/perplexity-selectors-drift.flag` | Present iff drift was detected on the latest run; deleted automatically when the next run matches the baseline again. |
+| `logs/recon-drift.jsonl` | Append-only `{ts, added, removed, changed}` lines for every drifted run. |
+
+The captured snapshot is structural: home-button labels, the model menu list,
+manifest flags (`direct_model_button_visible`, `more_button_visible`,
+`more_clicked`, `model_button_visible_after_more`), and the artefact-file
+inventory. Screenshots and intermediate HTML are written to a temporary
+directory and discarded after the snapshot is extracted.
+
+### Acknowledging drift
+
+When the flag is present:
+
+1. Inspect `logs/recon-drift.jsonl` for the structural diff.
+2. Decide whether the drift is benign (a new model added, a button renamed) or
+   breaking (a selector path no longer resolves).
+3. Breaking drift — fix the selector module and rerun integration tests.
+4. To accept the new state as the baseline:
+
+   ```cmd
+   copy /Y "D:\GraceKelly\.workflow\state\perplexity-selectors-latest.json" ^
+       "D:\GraceKelly\.workflow\state\perplexity-selectors-baseline.json"
+   del "D:\GraceKelly\.workflow\state\perplexity-selectors-drift.flag"
+   ```
+
+The next run will exit 0 again until the next drift.
+
+### Manual run
+
+```cmd
+.\.venv\Scripts\gracekelly-recon-weekly.exe
+```
+
+Exit codes: 0 no drift, 1 drift detected, 2 missing `--profile-dir` /
+`GRACEKELLY_BROWSER_PROFILE_DIR`. The manual run requires no other Chrome
+window to be holding the same profile directory open, otherwise Playwright
+hits `BrowserProfileBusyError` — stop the autostart task or close stray Chrome
+processes first.
+
+### Uninstall
+
+Right-click `uninstall_recon_cron.bat` → `Run as administrator`. The script
+runs `schtasks /Delete /TN "GraceKelly Selectors Recon" /F`.
 
 ## UI
 
@@ -174,6 +295,14 @@ across long runs:
 
 Live smoke verification: 12/12 sequential `/api/v1/smart` calls landed clean
 (0 failures, 0 warnings, 0 breaker trips) on HEAD `ceeb27d`.
+
+After the 2026-04-26 cold-start refactor, three test doubles in
+`tests/test_playwright_driver.py` (`_FakePage.goto`, `_HomeNavigationPage.goto`)
+needed `*, timeout: int | None = None` to match the production signature. Without
+the kwarg, production `goto(..., timeout=30_000)` raised `TypeError`, the
+surrounding `try/except` swallowed it, and `model_selection_attempted` returned
+False. Fixed in `b166de8`; if a future stability change adds a new kwarg to a
+real `page.goto` call, propagate it to those test doubles.
 
 ## Primary endpoints
 
