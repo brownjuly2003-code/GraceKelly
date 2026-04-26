@@ -148,3 +148,51 @@ You can also run `gracekelly_uvicorn.bat` from a normal Command Prompt to see wh
 ### Access denied during install or uninstall
 
 Run `install_autostart.bat` or `uninstall_autostart.bat` as Administrator. The runtime directory `%LOCALAPPDATA%\GraceKelly\` is created under the logged-in user's profile and should not need explicit ACL changes.
+
+## Selectors weekly recon (optional)
+
+A second scheduled task captures the live Perplexity DOM and compares it against a stored baseline once a week, so UI drift is detected before it breaks an actual run.
+
+The task runs `gracekelly-recon-weekly` (entry point installed by `pip install -e .[browser]`). Schedule: every **Friday 03:00** local time. Execution time limit: 15 minutes.
+
+### Install
+
+Right-click `install_recon_cron.bat` and choose `Run as administrator`. The script substitutes `%USERDOMAIN%\%USERNAME%` into a rendered copy of `recon-task.xml` and registers it as `GraceKelly Selectors Recon`.
+
+### Uninstall
+
+Right-click `uninstall_recon_cron.bat` and choose `Run as administrator`. The task is removed via `schtasks /Delete`.
+
+### What recon writes
+
+| Artefact | Path | Meaning |
+|---|---|---|
+| Latest snapshot | `D:\GraceKelly\.workflow\state\perplexity-selectors-latest.json` | Last capture, always overwritten |
+| Baseline | `D:\GraceKelly\.workflow\state\perplexity-selectors-baseline.json` | Reference for diff. Created on first run. |
+| Drift flag | `D:\GraceKelly\.workflow\state\perplexity-selectors-drift.flag` | Present iff drift was detected on the most recent run |
+| Drift log | `D:\GraceKelly\logs\recon-drift.jsonl` | One line per drifted run, JSON `{ts, added, removed, changed}` |
+
+### Acknowledging drift
+
+When the flag is present:
+
+1. Inspect `recon-drift.jsonl` for the structural diff.
+2. Decide whether the drift is benign (a new model added, a button renamed) or breaking (a selector path no longer resolves).
+3. If breaking — fix the selector module and rerun integration tests.
+4. To accept the new state as the baseline:
+
+   ```bat
+   copy /Y "D:\GraceKelly\.workflow\state\perplexity-selectors-latest.json" ^
+       "D:\GraceKelly\.workflow\state\perplexity-selectors-baseline.json"
+   del "D:\GraceKelly\.workflow\state\perplexity-selectors-drift.flag"
+   ```
+
+The next scheduled run will exit 0 again until the next drift.
+
+### Manual run
+
+```bat
+.\.venv\Scripts\gracekelly-recon-weekly.exe
+```
+
+Exits 0 when no drift, 1 when drift is detected, 2 on argument errors.
