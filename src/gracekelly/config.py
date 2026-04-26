@@ -116,6 +116,8 @@ class Settings:
     max_context_chars: int = 50_000
     # Health endpoint security
     health_expose_details: bool = False
+    usage_telemetry_enabled: bool = False
+    usage_telemetry_path: str | None = None
 
     def validate(self) -> None:
         """Raise ValueError for invalid configuration combinations."""
@@ -206,6 +208,8 @@ class Settings:
             context_window_turns=_env_int("GRACEKELLY_CONTEXT_WINDOW_TURNS", "20"),
             max_context_chars=_env_int("GRACEKELLY_MAX_CONTEXT_CHARS", "50000"),
             health_expose_details=os.getenv("GRACEKELLY_HEALTH_EXPOSE_DETAILS", "false").lower() == "true",
+            usage_telemetry_enabled=_env_bool("GRACEKELLY_USAGE_TELEMETRY_ENABLED", False),
+            usage_telemetry_path=os.getenv("GRACEKELLY_USAGE_TELEMETRY_PATH") or None,
         )
 
 

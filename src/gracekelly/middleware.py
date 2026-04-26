@@ -1,11 +1,16 @@
 from __future__ import annotations
 
+import hashlib
 import hmac
+import json
 import logging
+import pathlib
 import re
+import threading
 import time
 import uuid
 from collections.abc import Awaitable, Callable
+from datetime import UTC, datetime
 
 from fastapi import FastAPI, Request, Response
 from fastapi.responses import JSONResponse
@@ -158,6 +163,83 @@ def setup_rate_limiting(app: FastAPI, redis_url: str | None, rpm: int = 60, burs
         return await call_next(request)
 
     logger.info("Redis rate limiting enabled (url=%s, rpm=%d)", redis_url, rpm)
+
+
+_PROMPT_HASH_ROUTES = frozenset(
+    {
+        "/api/v1/orchestrate",
+        "/api/v1/orchestrate/upload",
+        "/api/v1/orchestrate/stream",
+        "/api/v1/consensus",
+        "/api/v1/compare",
+        "/api/v1/debate",
+        "/api/v1/smart",
+        "/api/v1/smart/v2",
+        "/api/v1/batch",
+        "/api/v1/pipeline",
+    }
+)
+
+
+def setup_usage_telemetry(app: FastAPI, *, enabled: bool, log_path: str | None) -> None:
+    if not enabled:
+        return
+
+    resolved = pathlib.Path(log_path).expanduser() if log_path else pathlib.Path("logs") / "usage.jsonl"
+    try:
+        resolved.parent.mkdir(parents=True, exist_ok=True)
+    except OSError as exc:
+        logger.warning("usage_telemetry.parent_dir_failed path=%s error=%r", resolved, exc)
+        return
+
+    write_lock = threading.Lock()
+    write_failed_warned = False
+
+    @app.middleware("http")
+    async def usage_telemetry_middleware(
+        request: Request, call_next: Callable[[Request], Awaitable[Response]]
+    ) -> Response:
+        nonlocal write_failed_warned
+
+        prompt_hash: str | None = None
+        if request.method == "POST" and request.url.path in _PROMPT_HASH_ROUTES:
+            try:
+                body_bytes = await request.body()
+                if body_bytes:
+                    prompt_hash = hashlib.sha256(body_bytes).hexdigest()
+
+                async def _replay_receive() -> dict[str, object]:
+                    return {"type": "http.request", "body": body_bytes, "more_body": False}
+
+                request._receive = _replay_receive
+            except Exception:  # noqa: BLE001 — telemetry must never block the request
+                pass
+
+        start = time.monotonic()
+        response = await call_next(request)
+        duration_ms = int((time.monotonic() - start) * 1000)
+
+        request_id = response.headers.get("x-request-id") or request.headers.get("x-request-id")
+        record: dict[str, object] = {
+            "ts": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
+            "endpoint": _normalize_endpoint(request.url.path),
+            "method": request.method,
+            "status": response.status_code,
+            "duration_ms": duration_ms,
+            "request_id": request_id,
+            "prompt_hash": prompt_hash,
+        }
+
+        line = json.dumps(record, ensure_ascii=False) + "\n"
+        try:
+            with write_lock, resolved.open("a", encoding="utf-8") as fh:
+                fh.write(line)
+        except Exception as exc:  # noqa: BLE001 — telemetry must never break the response
+            if not write_failed_warned:
+                logger.warning("usage_telemetry.write_failed path=%s error=%r", resolved, exc)
+                write_failed_warned = True
+
+        return response
 
 
 def setup_sentry(dsn: str | None, environment: str = "production") -> None:

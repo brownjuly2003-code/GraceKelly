@@ -69,6 +69,7 @@ from gracekelly.middleware import (
     setup_request_metrics,
     setup_security_headers,
     setup_sentry,
+    setup_usage_telemetry,
 )
 from gracekelly.request_metrics import RequestMetrics
 from gracekelly.storage.base import TaskRepository
@@ -421,6 +422,11 @@ def create_app(app_settings: Settings | None = None) -> FastAPI:
         active_settings.redis_url,
         active_settings.rate_limit_rpm,
         active_settings.rate_limit_burst,
+    )
+    setup_usage_telemetry(
+        app,
+        enabled=active_settings.usage_telemetry_enabled,
+        log_path=active_settings.usage_telemetry_path,
     )
 
     app.include_router(health_router)
