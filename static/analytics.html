@@ -306,7 +306,7 @@
             </div>
             <div class="summary-card">
                 <div class="summary-value" id="queries-24h">-</div>
-                <div class="summary-label">За последние 24ч</div>
+                <div class="summary-label">Моделей</div>
             </div>
             <div class="summary-card">
                 <div class="summary-value" id="success-rate">-</div>
@@ -321,19 +321,19 @@
         <!-- Charts -->
         <div class="charts-grid">
             <div class="chart-card">
-                <h3>Запросы по паттернам</h3>
+                <h3>Запросы по моделям</h3>
                 <div class="chart-container">
                     <canvas id="patternChart"></canvas>
                 </div>
             </div>
             <div class="chart-card">
-                <h3>Запросы по часам (24ч)</h3>
+                <h3>Успешность</h3>
                 <div class="chart-container">
                     <canvas id="hourlyChart"></canvas>
                 </div>
             </div>
             <div class="chart-card" style="grid-column: span 2;">
-                <h3>Тренд за 7 дней</h3>
+                <h3>Топ моделей</h3>
                 <div class="chart-container">
                     <canvas id="trendChart"></canvas>
                 </div>
@@ -358,13 +358,13 @@
             </table>
         </div>
 
-        <!-- Accounts Table -->
+        <!-- Top Models Table -->
         <div class="table-card">
-            <h3>Аккаунты</h3>
+            <h3>Топ моделей</h3>
             <table id="accounts-table">
                 <thead>
                     <tr>
-                        <th>Аккаунт</th>
+                        <th>Модель</th>
                         <th>Запросов</th>
                         <th>Успешных</th>
                         <th>Статус</th>
@@ -555,123 +555,85 @@
             });
         }
 
-        // Load overview data
-        async function loadOverview() {
-            try {
-                const response = await fetch('/api/analytics/overview');
-                const data = await response.json();
-
-                // Update summary cards
-                document.getElementById('total-queries').textContent = data.summary.total_queries.toLocaleString();
-                document.getElementById('queries-24h').textContent = data.summary.queries_24h.toLocaleString();
-                document.getElementById('success-rate').textContent = data.summary.success_rate + '%';
-                document.getElementById('avg-duration').textContent = (data.summary.avg_duration_ms / 1000).toFixed(1) + 's';
-
-                // Update last updated
-                document.getElementById('last-updated').textContent = 'Обновлено: ' + new Date().toLocaleTimeString('ru-RU');
-
-                // Update pattern chart
-                const patterns = Object.keys(data.queries_by_pattern);
-                const patternCounts = Object.values(data.queries_by_pattern);
-                patternChart.data.labels = patterns.map(p => p.charAt(0).toUpperCase() + p.slice(1));
-                patternChart.data.datasets[0].data = patternCounts;
-                patternChart.update();
-
-                // Update hourly chart
-                const hourlyData = Array.from({length: 24}, (_, i) => {
-                    const hour = i.toString().padStart(2, '0');
-                    return data.queries_per_hour[hour] || 0;
-                });
-                hourlyChart.data.datasets[0].data = hourlyData;
-                hourlyChart.update();
-
-            } catch (error) {
-                console.error('Error loading overview:', error);
-            }
-        }
-
-        // Load trends data
-        async function loadTrends() {
-            try {
-                const response = await fetch('/api/analytics/trends?days=7');
-                const data = await response.json();
-
-                const labels = data.daily_data.map(d => d.date.split('-').slice(1).join('/'));
-                const queries = data.daily_data.map(d => d.queries);
-                const durations = data.daily_data.map(d => (d.avg_duration_ms / 1000).toFixed(1));
-
-                trendChart.data.labels = labels;
-                trendChart.data.datasets[0].data = queries;
-                trendChart.data.datasets[1].data = durations;
-                trendChart.update();
-
-            } catch (error) {
-                console.error('Error loading trends:', error);
-            }
-        }
-
-        // Load models data
-        async function loadModels() {
-            try {
-                const response = await fetch('/api/analytics/models');
-                const data = await response.json();
-
-                const tbody = document.querySelector('#models-table tbody');
-                if (data.models.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="4" class="loading">Нет данных</td></tr>';
-                } else {
-                    tbody.innerHTML = data.models.map(m => `
-                        <tr>
-                            <td><strong>${m.name}</strong></td>
-                            <td>${m.total_queries.toLocaleString()}</td>
-                            <td>${m.success_rate}%</td>
-                            <td>${(m.avg_duration_ms / 1000).toFixed(1)}с</td>
-                        </tr>
-                    `).join('');
-                }
-
-            } catch (error) {
-                console.error('Error loading models:', error);
-            }
-        }
-
-        // Load accounts data
-        async function loadAccounts() {
-            try {
-                const response = await fetch('/api/analytics/accounts');
-                const data = await response.json();
-
-                const tbody = document.querySelector('#accounts-table tbody');
-                if (data.accounts.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="4" class="loading">Нет данных</td></tr>';
-                } else {
-                    tbody.innerHTML = data.accounts.slice(0, 15).map(a => `
-                        <tr>
-                            <td><strong>${a.id}</strong></td>
-                            <td>${a.total_queries.toLocaleString()}</td>
-                            <td>${a.success_rate}%</td>
-                            <td>
-                                <span class="status-badge status-${a.status}">
-                                    ${a.status === 'active' ? 'Активен' : 'Охлаждение'}
-                                </span>
-                            </td>
-                        </tr>
-                    `).join('');
-                }
-
-            } catch (error) {
-                console.error('Error loading accounts:', error);
-            }
-        }
-
         // Load all data
         async function loadAllData() {
-            await Promise.all([
-                loadOverview(),
-                loadTrends(),
-                loadModels(),
-                loadAccounts()
-            ]);
+            try {
+                const response = await fetch('/api/v1/analytics');
+                if (!response.ok) throw new Error(`Analytics request failed: ${response.status}`);
+                const data = await response.json();
+                const models = Array.isArray(data.models) ? data.models : [];
+                const topModels = Array.isArray(data.top_models) ? data.top_models : models.slice(0, 5);
+                const totalExecutions = typeof data.total_executions === 'number'
+                    ? data.total_executions
+                    : models.reduce((sum, m) => sum + (m.total_executions || 0), 0);
+                const totalModels = typeof data.total_models === 'number' ? data.total_models : models.length;
+                const successful = models.reduce((sum, m) => sum + (m.successful || 0), 0);
+                const failed = models.reduce((sum, m) => sum + (m.failed || 0), 0);
+                const avgDuration = models.length
+                    ? models.reduce((sum, m) => sum + (m.avg_duration_ms || 0), 0) / models.length
+                    : 0;
+
+                document.getElementById('total-queries').textContent = totalExecutions.toLocaleString();
+                document.getElementById('queries-24h').textContent = totalModels.toLocaleString();
+                document.getElementById('success-rate').textContent = totalExecutions
+                    ? Math.round((successful / totalExecutions) * 100) + '%'
+                    : '-';
+                document.getElementById('avg-duration').textContent = avgDuration
+                    ? (avgDuration / 1000).toFixed(1) + 's'
+                    : '-';
+                document.getElementById('last-updated').textContent = 'Обновлено: ' + new Date().toLocaleTimeString('ru-RU');
+
+                patternChart.data.labels = models.map(m => m.model_id);
+                patternChart.data.datasets[0].data = models.map(m => m.total_executions || 0);
+                patternChart.update();
+
+                hourlyChart.data.labels = ['Успешно', 'Ошибки'];
+                hourlyChart.data.datasets[0].label = 'Шаги';
+                hourlyChart.data.datasets[0].data = [successful, failed];
+                hourlyChart.update();
+
+                trendChart.data.labels = topModels.map(m => m.model_id);
+                trendChart.data.datasets[0].data = topModels.map(m => m.total_executions || 0);
+                trendChart.data.datasets[1].data = topModels.map(m => ((m.avg_duration_ms || 0) / 1000).toFixed(1));
+                trendChart.update();
+
+                const modelsTbody = document.querySelector('#models-table tbody');
+                if (models.length === 0) {
+                    modelsTbody.innerHTML = '<tr><td colspan="4" class="loading">Нет данных</td></tr>';
+                } else {
+                    modelsTbody.innerHTML = models.map(m => `
+                        <tr>
+                            <td><strong>${m.model_id}</strong></td>
+                            <td>${(m.total_executions || 0).toLocaleString()}</td>
+                            <td>${Math.round((m.success_rate || 0) * 100)}%</td>
+                            <td>${((m.avg_duration_ms || 0) / 1000).toFixed(1)}с</td>
+                        </tr>
+                    `).join('');
+                }
+
+                const topTbody = document.querySelector('#accounts-table tbody');
+                if (topModels.length === 0) {
+                    topTbody.innerHTML = '<tr><td colspan="4" class="loading">Нет данных</td></tr>';
+                } else {
+                    topTbody.innerHTML = topModels.map(m => {
+                        const status = (m.failed || 0) === 0 ? 'active' : 'cooldown';
+                        return `
+                            <tr>
+                                <td><strong>${m.model_id}</strong></td>
+                                <td>${(m.total_executions || 0).toLocaleString()}</td>
+                                <td>${Math.round((m.success_rate || 0) * 100)}%</td>
+                                <td>
+                                    <span class="status-badge status-${status}">
+                                        ${status === 'active' ? 'OK' : 'Есть ошибки'}
+                                    </span>
+                                </td>
+                            </tr>
+                        `;
+                    }).join('');
+                }
+            } catch (error) {
+                console.error('Error loading analytics:', error);
+            }
         }
 
         // Initialize on load
@@ -694,15 +656,15 @@
 
             <h3>Что показывает</h3>
             <ul>
-                <li><strong>Запросы по моделям</strong> — распределение использования GPT-5.4, Claude, Gemini, Grok и других</li>
-                <li><strong>Паттерны</strong> — как часто используются SONAR, SINGLE, DUAL, CONSENSUS и другие паттерны</li>
-                <li><strong>Время отклика</strong> — среднее время ответа для каждой модели и паттерна</li>
-                <li><strong>Аккаунты</strong> — загрузка по аккаунтам Perplexity Pro</li>
-                <li><strong>Ошибки</strong> — частота и типы ошибок (таймауты, crashes, block-листы)</li>
+                <li><strong>Запросы по моделям</strong> — распределение выполнений между доступными моделями</li>
+                <li><strong>Успешность</strong> — доля завершенных и ошибочных шагов</li>
+                <li><strong>Время отклика</strong> — среднее время ответа для каждой модели</li>
+                <li><strong>Топ моделей</strong> — рейтинг моделей по успешности</li>
+                <li><strong>Ошибки</strong> — количество неуспешных шагов в агрегированной статистике</li>
             </ul>
 
             <h3>Источник данных</h3>
-            <p>Все данные берутся из SQLite базы analytics.db. Дашборд автоматически обновляется каждые 30 секунд.</p>
+            <p>Все данные берутся из маршрута /api/v1/analytics. Дашборд автоматически обновляется каждые 30 секунд.</p>
 
             <h3>Фильтры</h3>
             <p>Можно выбрать период (сегодня, неделя, месяц, всё время) и конкретную модель для детального анализа.</p>

@@ -10,6 +10,7 @@ from fastapi.testclient import TestClient
 from gracekelly.api.routes.analytics import router
 
 _STATIC_APP_JS = Path(__file__).resolve().parents[1] / "static" / "js" / "app.js"
+_STATIC_ANALYTICS_HTML = Path(__file__).resolve().parents[1] / "static" / "analytics.html"
 
 
 def _create_test_app(*, has_repository: bool = True, tasks_data: list[object] | None = None) -> FastAPI:
@@ -134,6 +135,13 @@ class AnalyticsRouteTests(unittest.TestCase):
         self.assertIn("successful", text)
         self.assertNotIn("total_requests", text)
         self.assertNotIn("successful_requests", text)
+
+    def test_dedicated_analytics_page_uses_current_route(self) -> None:
+        text = _STATIC_ANALYTICS_HTML.read_text(encoding="utf-8")
+
+        self.assertIn("/api/v1/analytics", text)
+        self.assertNotIn("/api/analytics", text)
+        self.assertNotIn("analytics.db", text)
 
     def test_analytics_returns_503_when_storage_raises(self) -> None:
         app = _create_test_app()
