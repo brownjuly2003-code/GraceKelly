@@ -1,12 +1,15 @@
 from __future__ import annotations
 
 import unittest
+from pathlib import Path
 from unittest.mock import MagicMock
 
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from gracekelly.api.routes.analytics import router
+
+_STATIC_APP_JS = Path(__file__).resolve().parents[1] / "static" / "js" / "app.js"
 
 
 def _create_test_app(*, has_repository: bool = True, tasks_data: list[object] | None = None) -> FastAPI:
@@ -123,6 +126,14 @@ class AnalyticsRouteTests(unittest.TestCase):
         self.assertIn("failed", model)
         self.assertIn("success_rate", model)
         self.assertIn("avg_duration_ms", model)
+
+    def test_sidebar_stats_use_analytics_response_schema(self) -> None:
+        text = _STATIC_APP_JS.read_text(encoding="utf-8")
+
+        self.assertIn("total_executions", text)
+        self.assertIn("successful", text)
+        self.assertNotIn("total_requests", text)
+        self.assertNotIn("successful_requests", text)
 
     def test_analytics_returns_503_when_storage_raises(self) -> None:
         app = _create_test_app()

@@ -387,16 +387,19 @@ async function loadStats() {
   try {
     const data = await window.api.get("/api/v1/analytics");
     const stats = Array.isArray(data?.models) ? data.models : Array.isArray(data) ? data : [];
-    const total = stats.reduce((sum, item) => sum + (item.total_requests || 0), 0);
-    const successful = stats.reduce((sum, item) => sum + (item.successful_requests || 0), 0);
+    const total = typeof data?.total_executions === "number"
+      ? data.total_executions
+      : stats.reduce((sum, item) => sum + (item.total_executions || 0), 0);
+    const successful = stats.reduce((sum, item) => sum + (item.successful || 0), 0);
     const avgDuration = stats.length
       ? Math.round(stats.reduce((sum, item) => sum + (item.avg_duration_ms || 0), 0) / stats.length)
       : 0;
+    const modelCount = typeof data?.total_models === "number" ? data.total_models : stats.length;
 
     totalEl.textContent = total ? String(total) : "—";
     successEl.textContent = total ? `${Math.round((successful / total) * 100)}%` : "—";
     avgTimeEl.textContent = avgDuration ? `${avgDuration}ms` : "—";
-    modelsEl.textContent = stats.length ? String(stats.length) : "—";
+    modelsEl.textContent = modelCount ? String(modelCount) : "—";
   } catch (_error) {
     totalEl.textContent = "—";
     successEl.textContent = "—";
