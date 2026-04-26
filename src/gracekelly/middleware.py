@@ -18,10 +18,13 @@ from fastapi.responses import JSONResponse
 logger = logging.getLogger(__name__)
 
 _PUBLIC_PATHS = frozenset({"/health", "/healthz/live", "/healthz/ready", "/docs", "/openapi.json", "/redoc"})
+_PUBLIC_STATIC_PREFIXES = ("/js/", "/css/", "/icons/")
 
 
 def _is_protected(path: str) -> bool:
     if path in _PUBLIC_PATHS:
+        return False
+    if path == "/" or path.endswith(".html") or path.startswith(_PUBLIC_STATIC_PREFIXES):
         return False
     return True
 

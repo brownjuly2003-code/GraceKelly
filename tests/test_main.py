@@ -173,3 +173,10 @@ class MainWiringTests(unittest.TestCase):
         self.assertIn("anthropic", app.state.api_adapters)
         self.assertEqual(app.state.api_adapters["anthropic"].name, "api.anthropic")
         self.assertIn("api.anthropic", app.state.adapter_registry)
+
+    def test_static_ui_remains_public_when_api_key_configured(self) -> None:
+        app = create_app(Settings(storage_backend="memory", api_key="secret"))
+        with TestClient(app) as client:
+            self.assertEqual(client.get("/").status_code, 200)
+            self.assertEqual(client.get("/js/app.js").status_code, 200)
+            self.assertEqual(client.get("/api/v1/models").status_code, 401)

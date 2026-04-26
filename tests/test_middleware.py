@@ -5,7 +5,10 @@ from typing import TYPE_CHECKING
 
 import pytest
 from fastapi import FastAPI
+from fastapi.responses import Response
 from fastapi.testclient import TestClient
+
+from gracekelly.middleware import setup_api_key_auth
 
 pytestmark = pytest.mark.usefixtures("inject_shared_test_factories")
 
@@ -70,6 +73,28 @@ class ApiKeyAuthTests(unittest.TestCase):
         client = TestClient(_test_app(api_key="secret"))
         response = client.get("/metrics")
         self.assertEqual(response.status_code, 401)
+
+    def test_static_ui_paths_stay_public_when_key_configured(self) -> None:
+        app = FastAPI()
+
+        @app.get("/")
+        def index() -> Response:
+            return Response("<!doctype html>", media_type="text/html")
+
+        @app.get("/js/app.js")
+        def script() -> Response:
+            return Response("window.GraceKelly = true;", media_type="application/javascript")
+
+        @app.get("/api/v1/models")
+        def models() -> list[dict[str, str]]:
+            return []
+
+        setup_api_key_auth(app, api_key="secret")
+        client = TestClient(app)
+
+        self.assertEqual(client.get("/").status_code, 200)
+        self.assertEqual(client.get("/js/app.js").status_code, 200)
+        self.assertEqual(client.get("/api/v1/models").status_code, 401)
 
 class SecurityHeadersTests(unittest.TestCase):
     def setUp(self) -> None:

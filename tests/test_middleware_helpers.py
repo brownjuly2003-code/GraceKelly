@@ -104,8 +104,12 @@ class IsProtectedTests(unittest.TestCase):
     def test_api_endpoint_is_protected(self) -> None:
         self.assertTrue(_is_protected("/api/v1/orchestrate"))
 
-    def test_root_is_protected(self) -> None:
-        self.assertTrue(_is_protected("/"))
+    def test_static_ui_paths_are_not_protected(self) -> None:
+        self.assertFalse(_is_protected("/"))
+        self.assertFalse(_is_protected("/analytics.html"))
+        self.assertFalse(_is_protected("/js/app.js"))
+        self.assertFalse(_is_protected("/css/style.css"))
+        self.assertFalse(_is_protected("/icons/search.svg"))
 
     def test_unknown_path_is_protected(self) -> None:
         self.assertTrue(_is_protected("/tasks"))
