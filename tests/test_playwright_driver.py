@@ -152,8 +152,9 @@ class _FakePage:
     def set_default_timeout(self, timeout_ms: int) -> None:
         self.default_timeout_ms = timeout_ms
 
-    def goto(self, url: str, wait_until: str) -> None:
+    def goto(self, url: str, wait_until: str, *, timeout: int | None = None) -> None:
         self.goto_url = url
+        self.goto_timeout = timeout
 
     def evaluate(self, script: str) -> list[str]:
         return [
@@ -1060,8 +1061,8 @@ class PlaywrightDriverTests(unittest.TestCase):
                 )
                 self.new_thread_button = _FakeLocator(visible=False, inner_text="New Thread")
 
-            def goto(self, url: str, wait_until: str) -> None:
-                super().goto(url, wait_until)
+            def goto(self, url: str, wait_until: str, *, timeout: int | None = None) -> None:
+                super().goto(url, wait_until, timeout=timeout)
                 self.model_button = _FakeLocator(visible=True, inner_text="Current model GPT-5.4")
 
             def locator(self, selector: str) -> _FakeLocator:
