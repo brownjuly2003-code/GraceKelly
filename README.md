@@ -12,6 +12,9 @@ For a fast orientation, start with [docs/architecture.md](docs/architecture.md),
 then [docs/operator-runbook.md](docs/operator-runbook.md), and finish with
 [docs/phased-roadmap.md](docs/phased-roadmap.md).
 
+Краткая памятка по развёртыванию и эксплуатации на русском:
+[docs/quickstart-ru.md](docs/quickstart-ru.md).
+
 ## Quick Start
 
 **1. Start the backend:**

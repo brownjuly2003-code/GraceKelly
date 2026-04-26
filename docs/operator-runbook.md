@@ -140,10 +140,40 @@ Direct provider APIs remain optional fallbacks when you need separate provider a
 
 If the browser adapter fails 3 times consecutively, the circuit breaker opens
 for 60 seconds. Check `/metrics` for `gracekelly_browser_circuit_breaker_state`.
+`MODEL_MISMATCH` does **not** count toward the breaker (Sonar auto-route is
+recovered by retry, not by tripping). Only `PROVIDER_UNAVAILABLE`, `TIMEOUT`,
+and `UNKNOWN_ERROR` are counted.
 
 Configure via:
 - `GRACEKELLY_BROWSER_CIRCUIT_BREAKER_FAILURE_THRESHOLD` (default 3)
 - `GRACEKELLY_BROWSER_CIRCUIT_BREAKER_COOLDOWN_SECONDS` (default 60)
+
+### Stability behaviors (2026-04-26)
+
+The browser adapter has three layered protections to keep sessions healthy
+across long runs:
+
+- **Cold-start navigation** — initial `page.goto(perplexity.ai)` and home
+  re-navigations use a 30s timeout (was 5s). Cold Chromium launches no longer
+  fail the first request.
+- **Sonar auto-route retry** — when Perplexity overrides the requested model
+  to Sonar, the adapter retries `select_model` up to 2 extra times with a
+  1.5s delay before returning `MODEL_MISMATCH`. Class constants
+  `_MODEL_SELECT_RETRIES` / `_MODEL_SELECT_RETRY_DELAY_S` in
+  `adapters/browser/perplexity.py`.
+- **Force session reset on exception** — after `TIMEOUT` or unknown
+  exceptions, the adapter best-effort-closes Playwright/Chromium so the next
+  request relaunches a fresh session. Without this, a degraded session
+  cascades through the breaker.
+- **Thinking-toggle memoization** — if Perplexity's UI does not surface a
+  separate "Thinking" toggle for the active model, the adapter records the
+  miss once per session and skips the menu probe on subsequent calls
+  (otherwise ~2s wasted per call).
+- **Submit click force=True** — the prompt-submit button uses `force=True`
+  to bypass actionability waits when an overlay briefly covers it.
+
+Live smoke verification: 12/12 sequential `/api/v1/smart` calls landed clean
+(0 failures, 0 warnings, 0 breaker trips) on HEAD `ceeb27d`.
 
 ## Primary endpoints
 
