@@ -8,7 +8,7 @@ from fastapi import FastAPI
 from fastapi.responses import Response
 from fastapi.testclient import TestClient
 
-from gracekelly.middleware import setup_api_key_auth
+from gracekelly.middleware import setup_api_key_auth, setup_security_headers
 
 pytestmark = pytest.mark.usefixtures("inject_shared_test_factories")
 
@@ -121,6 +121,21 @@ class SecurityHeadersTests(unittest.TestCase):
         csp = resp.headers.get("content-security-policy", "")
         self.assertIn("default-src 'self'", csp)
         self.assertIn("script-src 'self'", csp)
+        self.assertNotIn("'unsafe-inline'", csp)
+        self.assertIn("object-src 'none'", csp)
+
+    def test_static_html_csp_allows_existing_inline_ui_assets(self) -> None:
+        app = FastAPI()
+
+        @app.get("/analytics.html")
+        def analytics() -> Response:
+            return Response("<!doctype html>", media_type="text/html")
+
+        setup_security_headers(app)
+        resp = TestClient(app).get("/analytics.html")
+        csp = resp.headers.get("content-security-policy", "")
+        self.assertIn("script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net", csp)
+        self.assertIn("style-src 'self' 'unsafe-inline'", csp)
         self.assertIn("object-src 'none'", csp)
 
     def test_headers_present_on_api_endpoint(self) -> None:

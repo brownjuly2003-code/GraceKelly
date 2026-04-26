@@ -19,6 +19,30 @@ logger = logging.getLogger(__name__)
 
 _PUBLIC_PATHS = frozenset({"/health", "/healthz/live", "/healthz/ready", "/docs", "/openapi.json", "/redoc"})
 _PUBLIC_STATIC_PREFIXES = ("/js/", "/css/", "/icons/")
+_STRICT_CSP = (
+    "default-src 'self'; "
+    "script-src 'self'; "
+    "style-src 'self'; "
+    "connect-src 'self'; "
+    "img-src 'self' data: blob:; "
+    "font-src 'self'; "
+    "object-src 'none'; "
+    "frame-src 'none'; "
+    "base-uri 'self'; "
+    "form-action 'self'"
+)
+_STATIC_HTML_CSP = (
+    "default-src 'self'; "
+    "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
+    "style-src 'self' 'unsafe-inline'; "
+    "connect-src 'self'; "
+    "img-src 'self' data: blob:; "
+    "font-src 'self'; "
+    "object-src 'none'; "
+    "frame-src 'none'; "
+    "base-uri 'self'; "
+    "form-action 'self'"
+)
 
 
 def _is_protected(path: str) -> bool:
@@ -74,16 +98,7 @@ def setup_security_headers(app: FastAPI) -> None:
         response.headers["X-XSS-Protection"] = "1; mode=block"
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
         response.headers["Content-Security-Policy"] = (
-            "default-src 'self'; "
-            "script-src 'self'; "
-            "style-src 'self'; "
-            "connect-src 'self'; "
-            "img-src 'self' data: blob:; "
-            "font-src 'self'; "
-            "object-src 'none'; "
-            "frame-src 'none'; "
-            "base-uri 'self'; "
-            "form-action 'self'"
+            _STATIC_HTML_CSP if request.url.path == "/" or request.url.path.endswith(".html") else _STRICT_CSP
         )
         return response
 
