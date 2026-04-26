@@ -37,6 +37,16 @@ Open http://localhost:8011
 docker-compose up
 ```
 
+## Operating Risks
+
+GraceKelly is a personal-use tool. Three risks are inherent to the design — read before relying on it.
+
+**Browser automation against Perplexity.** The primary execution path drives the Perplexity Pro web UI through Playwright. Perplexity's Terms of Service do not explicitly authorise automated access; Cloudflare bot detection may classify the traffic as automation and block the account. There is no public API fallback for the Perplexity-routed models — the API adapters here cover OpenAI and Anthropic only. Use at your own risk and avoid running multiple parallel sessions or aggressive polling.
+
+**Chrome profile lock.** `GRACEKELLY_BROWSER_PROFILE_DIR` must point to a dedicated profile that is not in use by any other Chrome instance. Opening Perplexity manually in a Chrome window using the same profile causes `BrowserProfileBusyError` and cascades into the circuit breaker. The recommended setup is a profile created by `scripts/bootstrap_chrome_profile.py`, opened only by GraceKelly.
+
+**Perplexity UI drift.** The browser adapter relies on CSS selectors for the model picker, response area, and authentication overlays. UI redesigns by Perplexity (typically every 2–3 months) require re-running `tools/capture_perplexity_recon.py` and updating selector constants. Symptoms of drift: model selection silently picks the wrong model, response polling returns empty, or auth banner is not dismissed. See `docs/perplexity-dom-recon.md`.
+
 ## Integration / Clients
 
 Known local integrators target the V2 API surface on `http://127.0.0.1:8011`:
