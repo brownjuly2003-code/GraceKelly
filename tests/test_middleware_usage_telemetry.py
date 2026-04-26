@@ -5,6 +5,7 @@ import json
 import pathlib
 import tempfile
 import unittest
+from typing import IO, Any
 from unittest.mock import patch
 
 from fastapi import FastAPI
@@ -140,10 +141,24 @@ class UsageTelemetryEnabledTests(unittest.TestCase):
     def test_write_failure_does_not_break_response(self) -> None:
         original_open = pathlib.Path.open
 
-        def _failing_open(self_path: pathlib.Path, *args: object, **kwargs: object) -> object:
+        def _failing_open(
+            self_path: pathlib.Path,
+            mode: str = "r",
+            buffering: int = -1,
+            encoding: str | None = None,
+            errors: str | None = None,
+            newline: str | None = None,
+        ) -> IO[Any]:
             if self_path == self.log_path:
                 raise OSError("simulated disk failure")
-            return original_open(self_path, *args, **kwargs)  # type: ignore[arg-type]
+            return original_open(
+                self_path,
+                mode=mode,
+                buffering=buffering,
+                encoding=encoding,
+                errors=errors,
+                newline=newline,
+            )
 
         with patch.object(pathlib.Path, "open", _failing_open):
             response = self.client.get("/health")
