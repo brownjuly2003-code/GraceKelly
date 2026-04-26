@@ -20,7 +20,7 @@ The task runs `D:\GraceKelly\scripts\win-autostart\gracekelly_uvicorn.bat`. The 
 
 3. The installer imports `gracekelly_autostart.xml` as the scheduled task `GraceKelly Autostart`.
 
-The XML is bound to the current Windows account `juliadev25\uedom` and uses `InteractiveToken`, so the import does not ask for the user's password. If this artefact is reused under another Windows account, replace both `juliadev25\uedom` values in `gracekelly_autostart.xml` before installing.
+The XML ships with placeholder `DOMAIN\USERNAME` and uses `InteractiveToken` (so the import does not ask for the user's password). Before installing, replace **all three** `DOMAIN\USERNAME` occurrences in `gracekelly_autostart.xml` with the value of `whoami` from PowerShell (e.g. `mymachine\myuser`).
 
 Do not run `install_autostart.bat` from this batch process. Installation is an explicit user action because it needs Administrator elevation.
 

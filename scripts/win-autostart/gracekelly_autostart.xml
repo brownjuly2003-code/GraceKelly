@@ -1,19 +1,19 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Task version="1.4" xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">
   <RegistrationInfo>
-    <Author>juliadev25\uedom</Author>
+    <Author>DOMAIN\USERNAME</Author>
     <Description>Start GraceKelly V2 uvicorn on localhost:8011 when the Windows user logs on.</Description>
     <URI>\GraceKelly Autostart</URI>
   </RegistrationInfo>
   <Triggers>
     <LogonTrigger>
       <Enabled>true</Enabled>
-      <UserId>juliadev25\uedom</UserId>
+      <UserId>DOMAIN\USERNAME</UserId>
     </LogonTrigger>
   </Triggers>
   <Principals>
     <Principal id="Author">
-      <UserId>juliadev25\uedom</UserId>
+      <UserId>DOMAIN\USERNAME</UserId>
       <LogonType>InteractiveToken</LogonType>
       <RunLevel>LeastPrivilege</RunLevel>
     </Principal>
