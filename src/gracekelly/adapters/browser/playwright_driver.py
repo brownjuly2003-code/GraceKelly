@@ -80,6 +80,7 @@ class PlaywrightBrowserAutomation(BrowserAutomationPort):
         self._observed_model_menu_at: datetime | None = None
         self._verified_model_labels_at: dict[str, datetime] = {}
         self._last_model_picker_unavailable_at: datetime | None = None
+        self._thinking_toggle_unavailable: bool = False
 
     def inspect_model_catalog(self) -> tuple[str, ...]:
         page = self._page_or_raise()
@@ -156,7 +157,7 @@ class PlaywrightBrowserAutomation(BrowserAutomationPort):
             )
             page = context.new_page()
             page.set_default_timeout(self._runtime.action_timeout_ms)
-            page.goto(state.base_url, wait_until="domcontentloaded")
+            page.goto(state.base_url, wait_until="domcontentloaded", timeout=30_000)
         except Exception as exc:
             if context is not None:
                 context.close()
@@ -386,6 +387,8 @@ class PlaywrightBrowserAutomation(BrowserAutomationPort):
         )
 
     def enable_thinking(self) -> bool:
+        if self._thinking_toggle_unavailable:
+            return False
         page = self._page_or_raise()
         model_button = self._resolve_model_button(page, attempts=3)
         if model_button is None:
@@ -404,7 +407,8 @@ class PlaywrightBrowserAutomation(BrowserAutomationPort):
             page.get_by_text("Thinking", exact=True),
         ))
         if thinking_el is None:
-            logger.warning("Thinking toggle not found in model menu")
+            logger.info("Thinking toggle not present in Perplexity UI for current model; skipping for this session")
+            self._thinking_toggle_unavailable = True
             page.keyboard.press("Escape")
             return False
 
@@ -979,7 +983,7 @@ class PlaywrightBrowserAutomation(BrowserAutomationPort):
             return False
         try:
             logger.info("Navigating Perplexity UI back to %s before model selection.", self._base_url)
-            goto(self._base_url, wait_until="domcontentloaded")
+            goto(self._base_url, wait_until="domcontentloaded", timeout=30_000)
             self._wait_for_shell()
         except Exception:
             return False

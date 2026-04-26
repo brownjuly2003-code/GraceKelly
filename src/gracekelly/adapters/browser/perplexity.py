@@ -222,6 +222,7 @@ class PerplexityBrowserAdapter(ExecutionAdapter):
                 },
             )
         except TimeoutError:
+            self._force_session_reset()
             return self._failure(
                 task_id=request.task_id,
                 model_id=model.id,
@@ -254,6 +255,7 @@ class PerplexityBrowserAdapter(ExecutionAdapter):
                 message=str(exc),
             )
         except Exception as exc:
+            self._force_session_reset()
             return self._failure(
                 task_id=request.task_id,
                 model_id=model.id,
@@ -261,6 +263,23 @@ class PerplexityBrowserAdapter(ExecutionAdapter):
                 failure_code=FailureCode.UNKNOWN_ERROR,
                 message=f"Browser execution failed: {exc}",
             )
+
+    def _force_session_reset(self) -> None:
+        """Best-effort close of the browser automation so the next request re-launches.
+
+        Called after exceptions that may have left Playwright/Chromium in a corrupt
+        state (Locator timeout, page navigation broken, generic crash). Without this,
+        ``ensure_session`` reuses the dead session and the next call fails too.
+        """
+        close = getattr(self._automation, "close", None)
+        if not callable(close):
+            return
+        try:
+            result = close()
+            if inspect.isawaitable(result):
+                return
+        except Exception as exc:
+            logger.warning("Browser session reset (best-effort) failed: %s", exc)
 
     def healthcheck(self) -> dict[str, object]:
         session_health = self._session_manager.healthcheck()
