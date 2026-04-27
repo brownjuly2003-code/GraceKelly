@@ -141,7 +141,9 @@ One JSON object per line, written after `call_next` completes:
   `/compare`, `/debate`, `/smart`, `/smart/v2`, `/batch`, `/pipeline`); `null`
   elsewhere. The body itself is not persisted — only its hash.
 - `request_id` falls back to the `X-Request-ID` request header when no
-  correlation middleware is wired, otherwise picks the response header.
+  correlation middleware is wired, otherwise picks the response header. If a
+  Redis rate-limit 429 returns before correlation middleware runs, telemetry
+  generates a UUID and returns it as `X-Request-ID` on that 429 response.
 
 ### Read
 
@@ -160,6 +162,9 @@ Weekly Friday 03:00 scheduled task that captures the live Perplexity DOM and
 diffs it against a stored baseline so UI drift is detected before it breaks a
 live run (see `audit_opus_2026-04-26.md` §R4). The task runs the
 `gracekelly-recon-weekly` console entry point.
+It loads the repo `.env` before resolving CLI defaults, so the scheduled task
+uses the same `GRACEKELLY_BROWSER_PROFILE_DIR` as `Settings.from_env()` unless
+`--profile-dir` is passed explicitly.
 
 ### Install
 
@@ -214,10 +219,10 @@ The next run will exit 0 again until the next drift.
 ```
 
 Exit codes: 0 no drift, 1 drift detected, 2 missing `--profile-dir` /
-`GRACEKELLY_BROWSER_PROFILE_DIR`. The manual run requires no other Chrome
-window to be holding the same profile directory open, otherwise Playwright
-hits `BrowserProfileBusyError` — stop the autostart task or close stray Chrome
-processes first.
+`GRACEKELLY_BROWSER_PROFILE_DIR` after `.env` loading. The manual run requires
+no other Chrome window to be holding the same profile directory open, otherwise
+Playwright hits `BrowserProfileBusyError` — stop the autostart task or close
+stray Chrome processes first.
 
 ### Uninstall
 

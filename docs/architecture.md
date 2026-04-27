@@ -27,7 +27,8 @@ Implemented:
 - structured key-value logging across orchestrator, browser adapters, API routes, and PostgreSQL degradation paths
 - request metrics histograms/counters plus optional OpenTelemetry bootstrap for observability
 - optional opt-in usage telemetry middleware appending one JSONL record per HTTP request
-  to `<repo>/logs/usage.jsonl` for honest 30-day usage audits before any simplification work
+  to `<repo>/logs/usage.jsonl` for honest 30-day usage audits before any simplification work;
+  429s that return before correlation middleware still get a generated `X-Request-ID`
 - operator surfaces: recent-task listing with multi-axis filtering, rich task detail with diagnostics
 - built-in web UI with single-model, pairwise, five-model, and auto-routing execution patterns
 - post-phase audit snapshots preserved under `docs/audits/`; the standalone strategic audit
@@ -141,8 +142,9 @@ Mistral remains embeddings-only for consensus clustering and is not an LLM execu
   user logon, with a `set_profile.bat` toggle for execution profile.
 - `scripts/win-autostart/install_recon_cron.bat` — registers a weekly Friday 03:00 task
   `GraceKelly Selectors Recon` that runs `gracekelly-recon-weekly`, captures the live
-  Perplexity DOM via Playwright, and diffs it against the stored baseline. Drift surfaces
-  in `logs/recon-drift.jsonl` and as `.workflow/state/perplexity-selectors-drift.flag`.
+  Perplexity DOM via Playwright, and diffs it against the stored baseline. The CLI loads
+  the repo `.env` before resolving `GRACEKELLY_BROWSER_PROFILE_DIR`. Drift surfaces in
+  `logs/recon-drift.jsonl` and as `.workflow/state/perplexity-selectors-drift.flag`.
 - `docs/audits/2026-04-25-dry-run-gate-audit.md` — per-route audit table proving dry-run
   profile coverage.
 - `audit_opus_2026-04-26.md` (repo root) — BCG-style strategic audit. Scores engineering
