@@ -35,6 +35,10 @@ items without starting the deferred Option B Simplify refactor.
 - Local security preflight docs now mirror CI's on-demand `pip-audit` and
   `bandit[toml]` install/run commands, so the CI-only scanner gate is locally
   reproducible without permanently expanding the dev extra.
+- The `gracekelly.storage.postgres` mypy override was rechecked and retained:
+  removing it makes `mypy src/ tests/` fail with 21 strict-typing errors in
+  `src/gracekelly/storage/postgres.py`, so it is an active exception rather
+  than stale config drift.
 
 Verification checkpoint: `python -m pytest -p no:schemathesis --collect-only -q`
 collected `2674` tests, and `python -m pytest -p no:schemathesis --tb=short -q`
