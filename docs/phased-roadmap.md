@@ -1,6 +1,6 @@
 # Phased Roadmap
 
-Last updated: 2026-04-27 (post-audit CI/static UI/analytics contract fixes landed; tag `v0.1.0-pre-simplify`)
+Last updated: 2026-04-27 (post-audit CI/static UI/analytics/root pytest contract fixes landed; tag `v0.1.0-pre-simplify`)
 
 ## 2026-04-27 Post-audit CI + static UI contract fixes
 
@@ -22,8 +22,12 @@ items without starting the deferred Option B Simplify refactor.
   `total_requests` / `successful_requests` fields.
 - `729f816`: `/analytics.html` now calls `/api/v1/analytics` only and removed
   stale `/api/analytics/*` and `analytics.db` assumptions.
+- Root-level pytest collection now ignores the workspace temp roots `.tmp`,
+  `.workflow`, and `pytest-temp`, so the canonical project gate can run from
+  the repository root without collecting archived/temp test copies.
 
-Verification checkpoint: `python -m pytest -p no:schemathesis --tb=short -q tests`
+Verification checkpoint: `python -m pytest -p no:schemathesis --collect-only -q`
+collected `2672` tests, and `python -m pytest -p no:schemathesis --tb=short -q`
 passed with `2666 passed, 6 skipped, 11 subtests`.
 
 ## 2026-04-26 Audit + telemetry + recon cron

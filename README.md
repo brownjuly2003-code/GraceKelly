@@ -163,10 +163,10 @@ Interactive docs: http://localhost:8011/docs
 
 ```bash
 pip install -e ".[dev,postgres,browser]"
-python -m pytest -p no:schemathesis --tb=short -q tests
+python -m pytest -p no:schemathesis --tb=short -q
 python -m mypy src/ tests/
 python -m ruff check src/ tests/
-python -m pytest -p no:schemathesis --cov=gracekelly --cov-report=term --cov-fail-under=94 -q tests
+python -m pytest -p no:schemathesis --cov=gracekelly --cov-report=term --cov-fail-under=94 -q
 ```
 
 ### Live end-to-end smoke
