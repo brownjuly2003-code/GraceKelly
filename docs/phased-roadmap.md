@@ -1,6 +1,6 @@
 # Phased Roadmap
 
-Last updated: 2026-04-27 (post-audit CI/static UI/analytics/root pytest/model catalog contract fixes landed; tag `v0.1.0-pre-simplify`)
+Last updated: 2026-04-27 (post-audit CI/static UI/analytics/root pytest/model catalog/agent gate fixes landed; tag `v0.1.0-pre-simplify`)
 
 ## 2026-04-27 Post-audit CI + static UI contract fixes
 
@@ -39,6 +39,9 @@ items without starting the deferred Option B Simplify refactor.
   removing it makes `mypy src/ tests/` fail with 21 strict-typing errors in
   `src/gracekelly/storage/postgres.py`, so it is an active exception rather
   than stale config drift.
+- `AGENTS.md` now matches README/CI for the canonical local gates:
+  `python -m pytest -p no:schemathesis --tb=short -q` and
+  `python -m mypy src/ tests/`.
 
 Verification checkpoint: `python -m pytest -p no:schemathesis --collect-only -q`
 collected `2674` tests, and `python -m pytest -p no:schemathesis --tb=short -q`

@@ -33,9 +33,9 @@ Full role details, result schema, R1-R5 battery, and PRUNER rules live in `.work
 ## Project
 - Language: Python 3.11+
 - Framework: FastAPI + Uvicorn
-- Tests: `python -m pytest --tb=short -q` (run from `D:/GraceKelly`)
+- Tests: `python -m pytest -p no:schemathesis --tb=short -q` (run from `D:/GraceKelly`)
 - Lint: `ruff check src/ tests/` with 0 errors
-- Types: `mypy src/gracekelly/` in strict mode with 0 errors
+- Types: `mypy src/ tests/` in strict mode with 0 errors
 - Source files start with `from __future__ import annotations`
 - Imports: stdlib -> third-party -> local, alphabetized within each group
 - Style: 4-space indent, 120-char lines
