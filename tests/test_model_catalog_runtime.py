@@ -91,6 +91,32 @@ def _settings() -> Settings:
     )
 
 
+def test_default_dry_run_no_browser_models_route_returns_static_catalog() -> None:
+    clear_browser_catalog()
+    repository = InMemoryTaskRepository()
+
+    with patch("gracekelly.main.build_task_repository", return_value=repository):
+        app = create_app(
+            Settings(
+                storage_backend="memory",
+                execution_profile="dry-run",
+                browser_enabled=False,
+            )
+        )
+        with TestClient(app) as client:
+            response = client.get("/api/v1/models")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["source"] == "dry-run-static"
+    ids = {item["id"] for item in payload["models"]}
+    assert "sonar" in ids
+    assert "gpt-5-4-api" in ids
+    sonar = next(item for item in payload["models"] if item["id"] == "sonar")
+    assert sonar["availability_status"] == "unknown"
+    assert sonar["availability_source"] == "dry-run-static"
+
+
 def test_startup_refreshes_missing_browser_catalog_and_installs_runtime_registry() -> None:
     clear_browser_catalog()
     repository = InMemoryTaskRepository()

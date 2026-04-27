@@ -215,6 +215,7 @@ def test_create_app_emits_info_logs_when_env_requests_info(
     from gracekelly.core.models import clear_browser_catalog
 
     monkeypatch.setenv("GRACEKELLY_LOG_LEVEL", "INFO")
+    monkeypatch.setenv("GRACEKELLY_BROWSER_ENABLED", "true")
     caplog.handler.setLevel(logging.INFO)
     clear_browser_catalog()
     try:
@@ -246,6 +247,7 @@ def test_create_app_hides_info_logs_when_env_requests_warning(
     from gracekelly.core.models import clear_browser_catalog
 
     monkeypatch.setenv("GRACEKELLY_LOG_LEVEL", "WARNING")
+    monkeypatch.setenv("GRACEKELLY_BROWSER_ENABLED", "true")
     caplog.handler.setLevel(logging.INFO)
     clear_browser_catalog()
     try:

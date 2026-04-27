@@ -5,7 +5,13 @@ from datetime import UTC, datetime
 from fastapi import APIRouter, HTTPException, Request
 
 from gracekelly.app_state import get_app_state
-from gracekelly.core.models import ModelCatalogSnapshot, ModelSpec, list_models_for_snapshot, models_equivalent
+from gracekelly.core.models import (
+    DRY_RUN_BROWSER_CATALOG_SOURCE,
+    ModelCatalogSnapshot,
+    ModelSpec,
+    list_models_for_snapshot,
+    models_equivalent,
+)
 from gracekelly.schemas import ModelCatalogItem
 
 router = APIRouter(prefix="/api/v1", tags=["models"])
@@ -139,7 +145,7 @@ def _catalog_response_from_snapshot(
         verified_browser_labels_at,
         last_model_picker_unavailable_at,
     ) = _browser_menu_observation(browser_adapter)
-    if not observed_browser_labels:
+    if not observed_browser_labels and snapshot.source != DRY_RUN_BROWSER_CATALOG_SOURCE:
         observed_browser_labels = [spec.provider_model_id for spec in snapshot.models]
     if observed_browser_checked_at is None:
         observed_browser_checked_at = snapshot.checked_at

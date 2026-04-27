@@ -416,6 +416,14 @@ Common task-level failure codes:
   - inspect `GET /api/v1/models`
   - if model availability drift is suspected, capture fresh recon artifacts
 
+Dry-run first start:
+- when `GRACEKELLY_EXECUTION_PROFILE=dry-run` and browser automation is disabled,
+  `GET /api/v1/models` returns a `dry-run-static` browser catalog plus API
+  models so the UI can populate before any live Perplexity refresh exists.
+- after browser automation is enabled, startup treats that static snapshot as
+  refreshable and replaces it with the authenticated Perplexity menu when the
+  catalog refresh succeeds.
+
 `timeout` or `unknown_error`:
 - live UI or automation state unstable
 - If an external integrator receives `failure_code: "unknown_error"` with a Playwright traceback while the backend is running with `GRACEKELLY_EXECUTION_PROFILE=dry-run`, treat it as the known dry-run profile-gate regression covered by [docs/audits/2026-04-25-dry-run-gate-audit.md](audits/2026-04-25-dry-run-gate-audit.md).

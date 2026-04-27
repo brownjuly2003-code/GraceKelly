@@ -1,6 +1,6 @@
 # Phased Roadmap
 
-Last updated: 2026-04-27 (post-audit CI/static UI/analytics/root pytest contract fixes landed; tag `v0.1.0-pre-simplify`)
+Last updated: 2026-04-27 (post-audit CI/static UI/analytics/root pytest/model catalog contract fixes landed; tag `v0.1.0-pre-simplify`)
 
 ## 2026-04-27 Post-audit CI + static UI contract fixes
 
@@ -25,10 +25,14 @@ items without starting the deferred Option B Simplify refactor.
 - Root-level pytest collection now ignores the workspace temp roots `.tmp`,
   `.workflow`, and `pytest-temp`, so the canonical project gate can run from
   the repository root without collecting archived/temp test copies.
+- Default dry-run/no-browser startup now serves a `dry-run-static` browser
+  model catalog plus API models for `/api/v1/models`; a later browser-enabled
+  startup treats that static snapshot as refreshable and replaces it with the
+  live authenticated Perplexity menu when refresh succeeds.
 
 Verification checkpoint: `python -m pytest -p no:schemathesis --collect-only -q`
-collected `2672` tests, and `python -m pytest -p no:schemathesis --tb=short -q`
-passed with `2666 passed, 6 skipped, 11 subtests`.
+collected `2673` tests, and `python -m pytest -p no:schemathesis --tb=short -q`
+passed with `2667 passed, 6 skipped, 11 subtests`.
 
 ## 2026-04-26 Audit + telemetry + recon cron
 

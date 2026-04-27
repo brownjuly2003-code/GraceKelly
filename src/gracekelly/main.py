@@ -55,6 +55,8 @@ from gracekelly.core.embeddings import EmbeddingsClient
 from gracekelly.core.execution_history import ExecutionHistory
 from gracekelly.core.execution_profile import resolve_execution_profile
 from gracekelly.core.models import (
+    DRY_RUN_BROWSER_CATALOG_LABELS,
+    DRY_RUN_BROWSER_CATALOG_SOURCE,
     ModelCatalogSnapshot,
     build_browser_catalog,
     clear_browser_catalog,
@@ -231,7 +233,37 @@ async def _initialize_model_catalog_async(app: FastAPI) -> None:
     repository = getattr(app.state, "task_repository", None)
     snapshot = _repository_model_catalog_snapshot(repository)
     now = datetime.now(UTC)
-    should_refresh = snapshot is None or (now - snapshot.checked_at) > _MODEL_CATALOG_REFRESH_INTERVAL
+    active_settings = getattr(app.state, "settings", None)
+    dry_run_no_browser = (
+        isinstance(active_settings, Settings)
+        and active_settings.execution_profile == "dry-run"
+        and not active_settings.browser_enabled
+    )
+    if snapshot is None and dry_run_no_browser:
+        snapshot = build_browser_catalog(
+            DRY_RUN_BROWSER_CATALOG_LABELS,
+            checked_at=now,
+            source=DRY_RUN_BROWSER_CATALOG_SOURCE,
+        )
+        _save_model_catalog_snapshot(repository, snapshot)
+        install_browser_catalog(snapshot)
+        logger.info(
+            "model_catalog.static_fallback checked_at=%s source=%s count=%d",
+            snapshot.checked_at.isoformat(),
+            snapshot.source,
+            len(snapshot.models),
+        )
+        return
+    static_fallback_snapshot = snapshot is not None and snapshot.source == DRY_RUN_BROWSER_CATALOG_SOURCE
+    should_refresh = (
+        snapshot is None
+        or (now - snapshot.checked_at) > _MODEL_CATALOG_REFRESH_INTERVAL
+        or (
+            static_fallback_snapshot
+            and isinstance(active_settings, Settings)
+            and active_settings.browser_enabled
+        )
+    )
 
     if not should_refresh:
         install_browser_catalog(snapshot)

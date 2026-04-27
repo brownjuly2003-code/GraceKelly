@@ -32,6 +32,18 @@ class ModelCatalogSnapshot:
 
 
 DEFAULT_BROWSER_CATALOG_KEY = "browser.perplexity"
+DRY_RUN_BROWSER_CATALOG_SOURCE = "dry-run-static"
+DRY_RUN_BROWSER_CATALOG_LABELS: tuple[str, ...] = (
+    "Best",
+    "Sonar",
+    "Claude Sonnet 4.6",
+    "GPT-5.4",
+    "Gemini 3.1 Pro",
+    "Kimi K2.5",
+    "Claude Opus 4.6",
+    "Max",
+    "Nemotron 3 Super",
+)
 
 _BROWSER_COMPATIBILITY_ALIASES: dict[str, tuple[str, ...]] = {
     "best": ("Best",),

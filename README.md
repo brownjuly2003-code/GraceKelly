@@ -129,6 +129,10 @@ The dedicated analytics page at `/analytics.html` reads the current
 `/api/v1/analytics` schema (`total_executions`, `models`, `top_models`) and no
 longer calls the removed `/api/analytics/*` routes.
 
+On a first dry-run/no-browser start, `/api/v1/models` serves a static
+`dry-run-static` browser catalog plus API models so the UI menu can populate
+before an authenticated Perplexity profile has refreshed the live catalog.
+
 ## API
 
 | # | Method | Path | Description |
