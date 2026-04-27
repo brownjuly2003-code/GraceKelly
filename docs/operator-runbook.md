@@ -348,6 +348,17 @@ Expected development baseline:
 - readiness may be `ok` even if browser is optional and degraded under the active execution profile
 - `gracekelly_execution_active_model_executions 0` when idle
 
+## Local security preflight
+
+CI installs security scanners on demand rather than keeping them in the default
+dev extra. To reproduce the CI security gates locally:
+
+```bash
+pip install pip-audit "bandit[toml]"
+pip-audit --ignore-vuln PYSEC-2022-42969
+bandit -r src/gracekelly/ -ll -x src/gracekelly/adapters/browser/
+```
+
 ## Readiness interpretation
 
 `storage` component:

@@ -173,6 +173,14 @@ python -m ruff check src/ tests/
 python -m pytest -p no:schemathesis --cov=gracekelly --cov-report=term --cov-fail-under=94 -q
 ```
 
+Optional local security parity with CI:
+
+```bash
+pip install pip-audit "bandit[toml]"
+pip-audit --ignore-vuln PYSEC-2022-42969
+bandit -r src/gracekelly/ -ll -x src/gracekelly/adapters/browser/
+```
+
 ### Live end-to-end smoke
 
 `scripts/live_smart_smoke.py` drives the SPA through a separate bundled

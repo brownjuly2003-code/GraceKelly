@@ -32,6 +32,9 @@ items without starting the deferred Option B Simplify refactor.
 - Main UI footer no longer advertises archived static tools (`english`,
   `interview`, `webpage`) whose legacy `/api/*` backend routes are not present
   in the current `/api/v1` app surface.
+- Local security preflight docs now mirror CI's on-demand `pip-audit` and
+  `bandit[toml]` install/run commands, so the CI-only scanner gate is locally
+  reproducible without permanently expanding the dev extra.
 
 Verification checkpoint: `python -m pytest -p no:schemathesis --collect-only -q`
 collected `2674` tests, and `python -m pytest -p no:schemathesis --tb=short -q`
