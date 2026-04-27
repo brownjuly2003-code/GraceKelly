@@ -100,7 +100,7 @@ API adapters are optional. Use them only if you have separate API keys and want 
 |----------|---------|-------------|
 | `GRACEKELLY_STORAGE_BACKEND` | `memory` | `memory` or `postgres` |
 | `GRACEKELLY_POSTGRES_DSN` | - | PostgreSQL connection string |
-| `GRACEKELLY_API_KEY` | - | Optional bearer token for endpoint auth |
+| `GRACEKELLY_API_KEY` | - | Optional bearer token for protected API/metrics endpoints; static UI assets stay public |
 | `GRACEKELLY_EXECUTION_PROFILE` | `dry-run` | one of: `dry-run`, `api-only`, `hybrid` |
 | `GRACEKELLY_RATE_LIMIT_RPM` | `60` | Per-IP steady-state request limit enforced by the API middleware |
 | `GRACEKELLY_RATE_LIMIT_BURST` | `10` | Extra burst capacity allowed above the steady-state per-minute limit |
@@ -119,6 +119,15 @@ process. Pattern is chosen from the model menu at the top of the main panel:
 
 Sidebar: task history with drill-down into steps and events, voice capture,
 export, file attachments.
+
+Static UI routes (`/`, `/*.html`, `/js/*`, `/css/*`, `/icons/*`) are served
+without an API key so the shell can load in a browser. Protected API calls still
+require `Authorization: Bearer <key>` or `X-API-Key: <key>` when
+`GRACEKELLY_API_KEY` is set.
+
+The dedicated analytics page at `/analytics.html` reads the current
+`/api/v1/analytics` schema (`total_executions`, `models`, `top_models`) and no
+longer calls the removed `/api/analytics/*` routes.
 
 ## API
 
@@ -154,10 +163,10 @@ Interactive docs: http://localhost:8011/docs
 
 ```bash
 pip install -e ".[dev,postgres,browser]"
-python -m pytest                    # tests
-mypy src/gracekelly/                # type check (strict)
-ruff check src/ tests/              # lint
-python -m pytest --cov=gracekelly   # coverage
+python -m pytest -p no:schemathesis --tb=short -q tests
+python -m mypy src/ tests/
+python -m ruff check src/ tests/
+python -m pytest -p no:schemathesis --cov=gracekelly --cov-report=term --cov-fail-under=94 -q tests
 ```
 
 ### Live end-to-end smoke

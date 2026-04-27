@@ -1,6 +1,6 @@
 # Operator Runbook
 
-Last updated: 2026-04-26
+Last updated: 2026-04-27
 
 This runbook covers the current operating surface for GraceKelly:
 - API authentication
@@ -229,6 +229,21 @@ runs `schtasks /Delete /TN "GraceKelly Selectors Recon" /F`.
 The built-in web UI is served from the main app at http://127.0.0.1:8011/.
 Run the backend, then open that address in the browser.
 
+Static UI shell paths (`/`, `/*.html`, `/js/*`, `/css/*`, `/icons/*`) remain
+public even when `GRACEKELLY_API_KEY` is configured. This lets the browser load
+the SPA and linked tools. API calls from that UI still hit protected
+`/api/v1/*` routes and need a bearer token or `X-API-Key` header when endpoint
+auth is enabled.
+
+HTML pages use a static-compatible CSP because the current vanilla UI still has
+inline handlers/scripts/styles and `analytics.html` loads Chart.js from
+`https://cdn.jsdelivr.net`. Non-HTML routes keep the stricter CSP without
+`'unsafe-inline'`.
+
+`/analytics.html` reads only `GET /api/v1/analytics`. It renders totals,
+per-model rows, and top models from the current response fields:
+`total_models`, `total_executions`, `models`, and `top_models`.
+
 ## API security
 
 ### Authentication
@@ -237,7 +252,9 @@ Set `GRACEKELLY_API_KEY` to require API key on all protected endpoints. Clients 
 - `Authorization: Bearer <key>` header
 - `X-API-Key: <key>` header
 
-Public endpoints (no key required): `/health`, `/docs`, `/openapi.json`, `/redoc`.
+Public endpoints (no key required): `/health`, `/healthz/live`,
+`/healthz/ready`, `/docs`, `/openapi.json`, `/redoc`, `/`, `/*.html`,
+`/js/*`, `/css/*`, and `/icons/*`.
 
 When `GRACEKELLY_API_KEY` is not set, all endpoints are open (development default).
 

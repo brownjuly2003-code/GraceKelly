@@ -1,6 +1,30 @@
 # Phased Roadmap
 
-Last updated: 2026-04-26 (audit + telemetry + recon cron + test-double drift fix landed; tag `v0.1.0-pre-simplify`)
+Last updated: 2026-04-27 (post-audit CI/static UI/analytics contract fixes landed; tag `v0.1.0-pre-simplify`)
+
+## 2026-04-27 Post-audit CI + static UI contract fixes
+
+Follow-up work from the 2026-04-26 Codex audit closed the no-regret red/contract
+items without starting the deferred Option B Simplify refactor.
+
+- `53bc0d4`: CI parity gates restored. `mypy src/ tests/` is green again after
+  fixing the usage-telemetry `Path.open` monkeypatch typing; CI coverage gate
+  now uses the measured 94% baseline instead of stale 97% after
+  `playwright_driver.py` and tooling modules were kept visible to coverage.
+- `4e7b774`: `GRACEKELLY_API_KEY` no longer blocks the static browser UI shell.
+  `/`, `/*.html`, `/js/*`, `/css/*`, and `/icons/*` stay public while API and
+  metrics routes remain protected.
+- `21e6b93`: CSP split by surface. API/non-HTML routes keep the strict CSP;
+  static HTML pages get the inline/CDN permissions required by the existing
+  vanilla pages and Chart.js analytics dashboard.
+- `eed6b9c`: main sidebar stats now read the live `/api/v1/analytics` fields
+  (`total_executions`, `successful`, `total_models`) instead of removed
+  `total_requests` / `successful_requests` fields.
+- `729f816`: `/analytics.html` now calls `/api/v1/analytics` only and removed
+  stale `/api/analytics/*` and `analytics.db` assumptions.
+
+Verification checkpoint: `python -m pytest -p no:schemathesis --tb=short -q tests`
+passed with `2666 passed, 6 skipped, 11 subtests`.
 
 ## 2026-04-26 Audit + telemetry + recon cron
 
