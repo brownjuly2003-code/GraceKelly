@@ -5,6 +5,7 @@ import pathlib
 import tempfile
 import unittest
 from typing import Any
+from unittest.mock import patch
 
 from gracekelly.tools.recon_weekly import (
     BASELINE_NAME,
@@ -194,6 +195,29 @@ class ReconWeeklyDiffTests(unittest.TestCase):
 
 
 class ReconWeeklyMainTests(unittest.TestCase):
+    def test_env_file_profile_dir_used_by_main(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_root = pathlib.Path(tmp)
+            (tmp_root / ".env").write_text(
+                "GRACEKELLY_BROWSER_PROFILE_DIR=C:/Profiles/Scheduled\n",
+                encoding="utf-8",
+            )
+            with (
+                patch("gracekelly.tools.recon_weekly.REPO_ROOT", tmp_root),
+                patch("gracekelly.tools.recon_weekly.run_recon", return_value=0) as run_mock,
+                patch.dict("os.environ", {}, clear=True),
+            ):
+                rc = main(argv=[])
+
+        self.assertEqual(rc, 0)
+        run_mock.assert_called_once()
+        self.assertEqual(run_mock.call_args.kwargs["profile_dir"], "C:/Profiles/Scheduled")
+
     def test_missing_profile_dir_returns_2(self) -> None:
-        rc = main(argv=["--base-url", "https://example.com"])
+        with tempfile.TemporaryDirectory() as tmp:
+            with (
+                patch("gracekelly.tools.recon_weekly.REPO_ROOT", pathlib.Path(tmp)),
+                patch.dict("os.environ", {}, clear=True),
+            ):
+                rc = main(argv=["--base-url", "https://example.com"])
         self.assertEqual(rc, 2)

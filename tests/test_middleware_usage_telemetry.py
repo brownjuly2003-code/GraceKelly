@@ -3,15 +3,17 @@ from __future__ import annotations
 import hashlib
 import json
 import pathlib
+import sys
 import tempfile
+import types
 import unittest
 from typing import IO, Any
-from unittest.mock import patch
+from unittest.mock import AsyncMock, Mock, patch
 
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from gracekelly.middleware import setup_usage_telemetry
+from gracekelly.middleware import setup_rate_limiting, setup_usage_telemetry
 
 
 def _build_app(log_path: str | None, *, enabled: bool) -> FastAPI:
@@ -163,3 +165,40 @@ class UsageTelemetryEnabledTests(unittest.TestCase):
         with patch.object(pathlib.Path, "open", _failing_open):
             response = self.client.get("/health")
         self.assertEqual(response.status_code, 200)
+
+    def test_rate_limited_request_without_header_gets_generated_request_id(self) -> None:
+        app = FastAPI()
+
+        @app.get("/private")
+        async def private() -> dict[str, bool]:
+            return {"ok": True}
+
+        pipeline = Mock()
+        pipeline.zremrangebyscore = Mock()
+        pipeline.zadd = Mock()
+        pipeline.zcard = Mock()
+        pipeline.expire = Mock()
+        pipeline.execute = AsyncMock(return_value=[None, None, 75, None])
+        redis_client = Mock()
+        redis_client.pipeline = Mock(return_value=pipeline)
+        redis_asyncio = types.ModuleType("redis.asyncio")
+        from_url = Mock(return_value=redis_client)
+        setattr(redis_asyncio, "from_url", from_url)
+        redis_package = types.ModuleType("redis")
+        redis_package.__path__ = []
+        setattr(redis_package, "asyncio", redis_asyncio)
+
+        with patch.dict(
+            sys.modules,
+            {"redis": redis_package, "redis.asyncio": redis_asyncio},
+            clear=False,
+        ):
+            setup_rate_limiting(app, "redis://localhost:6379/0", rpm=60, burst=10)
+        setup_usage_telemetry(app, enabled=True, log_path=str(self.log_path))
+
+        response = TestClient(app).get("/private")
+        records = self._read_lines()
+
+        self.assertEqual(response.status_code, 429)
+        self.assertIsInstance(records[0]["request_id"], str)
+        self.assertEqual(response.headers["x-request-id"], records[0]["request_id"])

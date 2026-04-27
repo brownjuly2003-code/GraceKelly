@@ -1,6 +1,6 @@
 # Phased Roadmap
 
-Last updated: 2026-04-27 (post-audit CI/static UI/analytics/root pytest/model catalog/agent gate fixes landed; tag `v0.1.0-pre-simplify`)
+Last updated: 2026-04-27 (post-audit CI/static UI/analytics/root pytest/model catalog/recon telemetry/agent gate fixes landed; tag `v0.1.0-pre-simplify`)
 
 ## 2026-04-27 Post-audit CI + static UI contract fixes
 
@@ -42,10 +42,16 @@ items without starting the deferred Option B Simplify refactor.
 - `AGENTS.md` now matches README/CI for the canonical local gates:
   `python -m pytest -p no:schemathesis --tb=short -q` and
   `python -m mypy src/ tests/`.
+- The 2026-04-27 Codex review follow-up closed two integration defects:
+  `gracekelly-recon-weekly` now loads the repo `.env` before resolving
+  `GRACEKELLY_BROWSER_PROFILE_DIR`, and usage telemetry now generates and
+  returns a request id for Redis rate-limited 429 responses that bypass the
+  correlation middleware.
 
 Verification checkpoint: `python -m pytest -p no:schemathesis --collect-only -q`
-collected `2674` tests, and `python -m pytest -p no:schemathesis --tb=short -q`
-passed with `2668 passed, 6 skipped, 14 subtests`.
+collected `2674` tests before the follow-up; after the Codex review fixes,
+`python -m pytest -p no:schemathesis --tb=short -q` passed with
+`2670 passed, 6 skipped, 14 subtests`.
 
 ## 2026-04-26 Audit + telemetry + recon cron
 

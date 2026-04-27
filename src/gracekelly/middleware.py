@@ -238,6 +238,10 @@ def setup_usage_telemetry(app: FastAPI, *, enabled: bool, log_path: str | None) 
         duration_ms = int((time.monotonic() - start) * 1000)
 
         request_id = response.headers.get("x-request-id") or request.headers.get("x-request-id")
+        if response.status_code == 429 and request_id is None:
+            request_id = str(uuid.uuid4())
+        if response.status_code == 429 and response.headers.get("x-request-id") is None:
+            response.headers["X-Request-ID"] = str(request_id)
         record: dict[str, object] = {
             "ts": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
             "endpoint": _normalize_endpoint(request.url.path),
