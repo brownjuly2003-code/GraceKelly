@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import unittest
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 try:
@@ -19,6 +20,9 @@ if TYPE_CHECKING:
 
     from gracekelly.config import Settings
     from gracekelly.main import create_app
+
+
+_STATIC_DIR = Path(__file__).resolve().parents[1] / "static"
 
 
 def _make_client() -> TestClient:
@@ -119,3 +123,10 @@ class RouteInventoryTests(unittest.TestCase):
     def test_compare_reachable(self) -> None:
         response = self.client.post("/api/v1/compare", json={})
         self.assertNotEqual(404, response.status_code)
+
+    def test_main_footer_omits_archived_static_tools(self) -> None:
+        markup = (_STATIC_DIR / "index.html").read_text(encoding="utf-8")
+
+        for href in ("/english.html", "/interview.html", "/webpage.html"):
+            with self.subTest(href=href):
+                self.assertNotIn(f'href="{href}"', markup)

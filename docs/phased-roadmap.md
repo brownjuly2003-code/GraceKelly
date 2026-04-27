@@ -29,10 +29,13 @@ items without starting the deferred Option B Simplify refactor.
   model catalog plus API models for `/api/v1/models`; a later browser-enabled
   startup treats that static snapshot as refreshable and replaces it with the
   live authenticated Perplexity menu when refresh succeeds.
+- Main UI footer no longer advertises archived static tools (`english`,
+  `interview`, `webpage`) whose legacy `/api/*` backend routes are not present
+  in the current `/api/v1` app surface.
 
 Verification checkpoint: `python -m pytest -p no:schemathesis --collect-only -q`
-collected `2673` tests, and `python -m pytest -p no:schemathesis --tb=short -q`
-passed with `2667 passed, 6 skipped, 11 subtests`.
+collected `2674` tests, and `python -m pytest -p no:schemathesis --tb=short -q`
+passed with `2668 passed, 6 skipped, 14 subtests`.
 
 ## 2026-04-26 Audit + telemetry + recon cron
 
