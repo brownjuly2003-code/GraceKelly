@@ -180,6 +180,19 @@ class PerplexityBrowserAdapter(ExecutionAdapter):
                 if callable(enable_thinking_fn):
                     thinking_enabled = enable_thinking_fn()
                     logger.info("Thinking toggle for model %s: %s", model.id, thinking_enabled)
+                    if not thinking_enabled:
+                        return self._failure(
+                            task_id=request.task_id,
+                            model_id=model.id,
+                            model_display_name=model.display_name,
+                            failure_code=FailureCode.PROVIDER_UNAVAILABLE,
+                            message=f"Thinking mode is unavailable for browser model '{model.provider_model_id}'.",
+                            extra_details={
+                                "requested_label": selection.requested_label,
+                                "actual_label": selection.actual_label,
+                                "thinking_enabled": thinking_enabled,
+                            },
+                        )
 
             if request.cancellation and request.cancellation.is_cancelled:
                 return self._cancelled(model.id, model.display_name)

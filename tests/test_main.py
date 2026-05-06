@@ -56,12 +56,14 @@ class MainWiringTests(unittest.TestCase):
                 browser_automation_backend="playwright",
                 browser_playwright_channel="msedge",
                 browser_playwright_headless=True,
+                browser_human_action_delay_seconds=1.25,
             )
         )
 
         self.assertEqual(type(automation).__name__, "PlaywrightBrowserAutomation")
         self.assertEqual(automation.healthcheck()["channel"], "msedge")
         self.assertTrue(automation.healthcheck()["headless"])
+        self.assertEqual(getattr(automation, "_runtime").human_action_delay_seconds, 1.25)
 
     def test_build_browser_adapter_wraps_perplexity_with_circuit_breaker(self) -> None:
         adapter = build_browser_adapter(

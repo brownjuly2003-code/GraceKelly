@@ -16,6 +16,7 @@ class SettingsTests(unittest.TestCase):
         self.assertEqual(settings.openai_base_url, "https://api.openai.com/v1")
         self.assertEqual(settings.openai_timeout_seconds, 60.0)
         self.assertEqual(settings.browser_call_timeout_seconds, 120)
+        self.assertEqual(settings.browser_human_action_delay_seconds, 1.0)
         self.assertEqual(settings.browser_playwright_channel, "chrome")
         self.assertFalse(settings.browser_playwright_headless)
         self.assertTrue(settings.browser_circuit_breaker_enabled)
@@ -62,6 +63,7 @@ class SettingsTests(unittest.TestCase):
                 "GRACEKELLY_BROWSER_PLAYWRIGHT_CHANNEL": "msedge",
                 "GRACEKELLY_BROWSER_PLAYWRIGHT_HEADLESS": "true",
                 "GRACEKELLY_BROWSER_CALL_TIMEOUT_SECONDS": "180",
+                "GRACEKELLY_BROWSER_HUMAN_ACTION_DELAY_SECONDS": "1.75",
                 "GRACEKELLY_BROWSER_CIRCUIT_BREAKER_ENABLED": "false",
                 "GRACEKELLY_BROWSER_CIRCUIT_BREAKER_FAILURE_THRESHOLD": "5",
                 "GRACEKELLY_BROWSER_CIRCUIT_BREAKER_COOLDOWN_SECONDS": "120",
@@ -74,6 +76,7 @@ class SettingsTests(unittest.TestCase):
         self.assertEqual(settings.browser_playwright_channel, "msedge")
         self.assertTrue(settings.browser_playwright_headless)
         self.assertEqual(settings.browser_call_timeout_seconds, 180)
+        self.assertEqual(settings.browser_human_action_delay_seconds, 1.75)
         self.assertFalse(settings.browser_circuit_breaker_enabled)
         self.assertEqual(settings.browser_circuit_breaker_failure_threshold, 5)
         self.assertEqual(settings.browser_circuit_breaker_cooldown_seconds, 120)

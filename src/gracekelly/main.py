@@ -120,6 +120,7 @@ def build_browser_automation(active_settings: Settings) -> BrowserAutomationPort
             runtime=PlaywrightBrowserRuntimeConfig(
                 channel=active_settings.browser_playwright_channel,
                 headless=active_settings.browser_playwright_headless,
+                human_action_delay_seconds=active_settings.browser_human_action_delay_seconds,
                 screenshots_dir=active_settings.browser_screenshots_dir,
             )
         )
@@ -174,6 +175,7 @@ def build_catalog_refresh_adapter(active_settings: Settings) -> PerplexityBrowse
             runtime=PlaywrightBrowserRuntimeConfig(
                 channel=active_settings.browser_playwright_channel,
                 headless=active_settings.browser_playwright_headless,
+                human_action_delay_seconds=active_settings.browser_human_action_delay_seconds,
                 screenshots_dir=active_settings.browser_screenshots_dir,
             )
         ),

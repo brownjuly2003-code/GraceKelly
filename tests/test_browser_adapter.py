@@ -242,6 +242,23 @@ class BrowserAdapterTests(unittest.TestCase):
         self.assertIn("claude-sonnet-4-6", result.failure_message)
         self.assertIn("Sonar", result.failure_message)
 
+    def test_browser_adapter_fails_when_thinking_toggle_is_unavailable(self) -> None:
+        class ThinkingUnavailableAutomation(FakeBrowserAutomation):
+            def enable_thinking(self) -> bool:
+                return False
+
+        adapter = PerplexityBrowserAdapter(
+            session_manager=self.build_session_manager(),
+            automation=ThinkingUnavailableAutomation(),
+        )
+
+        result = adapter.execute(self.build_request())
+
+        self.assertEqual(result.status, StepStatus.FAILED)
+        self.assertEqual(result.failure_code, FailureCode.PROVIDER_UNAVAILABLE)
+        assert result.failure_message is not None
+        self.assertIn("Thinking", result.failure_message)
+
     def test_sonar_override_retried_then_succeeds(self) -> None:
         calls: list[int] = []
 

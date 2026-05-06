@@ -5,6 +5,7 @@ import threading
 import unittest
 from collections.abc import Callable
 from typing import Any, cast
+from unittest.mock import patch
 
 from gracekelly.adapters.browser.automation import BrowserProfileBusyError
 from gracekelly.adapters.browser.playwright_driver import (
@@ -548,6 +549,95 @@ class PlaywrightDriverTests(unittest.TestCase):
         self.assertEqual(response_text["text"], "OK")
         self.assertEqual(response_text["source"], "body_after_prompt")
 
+    def test_wait_for_response_text_ignores_body_fallback_while_main_shows_thinking(self) -> None:
+        driver = PlaywrightBrowserAutomation(
+            runtime=PlaywrightBrowserRuntimeConfig(poll_interval_seconds=0),
+            sync_playwright_factory=lambda: object(),
+        )
+
+        class _ThinkingPlaceholderPage(_FakePage):
+            def __init__(self) -> None:
+                super().__init__()
+                self._body_reads = 0
+
+            def locator(self, selector: str) -> _FakeLocator:
+                if selector == "main div.prose" and self._body_reads >= 1:
+                    return _FakeLocator(visible=True, texts=["Reply with only OK\nOK"])
+                return super().locator(selector)
+
+            def inner_text(self, selector: str) -> str:
+                if selector != "body":
+                    return ""
+                self._body_reads += 1
+                if self._body_reads == 1:
+                    return "Reply with only OK\nUSER: old prompt\nThinking\nModel"
+                return "Reply with only OK\nOK"
+
+            def evaluate(self, script: str) -> bool | list[str]:
+                if "Stop response" in script:
+                    return False
+                if "querySelector('main')" in script:
+                    return self._body_reads == 1
+                return super().evaluate(script)
+
+        response_text = driver._wait_for_response_text(
+            page=_ThinkingPlaceholderPage(),
+            prompt="Reply with only OK",
+            timeout_seconds=5,
+        )
+
+        assert response_text is not None
+        self.assertEqual(response_text["text"], "OK")
+        self.assertEqual(response_text["source"], "main div.prose")
+
+    def test_wait_for_response_text_dismisses_upgrade_overlay_instead_of_returning_it(self) -> None:
+        driver = PlaywrightBrowserAutomation(
+            runtime=PlaywrightBrowserRuntimeConfig(poll_interval_seconds=0),
+            sync_playwright_factory=lambda: object(),
+        )
+
+        class _UpgradeOverlayPage(_FakePage):
+            def __init__(self) -> None:
+                super().__init__()
+                self.overlay_visible = True
+                self.close_button = _FakeLocator(visible=True, inner_text="Close", on_click=self._close_overlay)
+
+            def _close_overlay(self) -> None:
+                self.overlay_visible = False
+                self.close_button._visible = False
+
+            def locator(self, selector: str) -> _FakeLocator:
+                if selector == "main div.prose" and not self.overlay_visible:
+                    return _FakeLocator(visible=True, texts=["Reply with only OK\nOK"])
+                if selector == '[aria-label="Close"], button[aria-label="Close"]':
+                    return self.close_button
+                return super().locator(selector)
+
+            def get_by_role(self, role: str, name: str) -> _FakeLocator:
+                if role == "button" and name == "Close":
+                    return self.close_button
+                return super().get_by_role(role, name)
+
+            def inner_text(self, selector: str) -> str:
+                if selector != "body":
+                    return ""
+                if self.overlay_visible:
+                    return "Reply with only OK\nperplexity max\nUpgrade to Max\nYour current plan"
+                return "Reply with only OK\nOK"
+
+        page = _UpgradeOverlayPage()
+
+        response_text = driver._wait_for_response_text(
+            page=page,
+            prompt="Reply with only OK",
+            timeout_seconds=5,
+        )
+
+        assert response_text is not None
+        self.assertTrue(page.close_button.clicked)
+        self.assertEqual(response_text["text"], "OK")
+        self.assertEqual(response_text["source"], "main div.prose")
+
     def test_healthcheck_reports_missing_dependency_when_playwright_unavailable(self) -> None:
         driver = PlaywrightBrowserAutomation()
 
@@ -607,6 +697,123 @@ class PlaywrightDriverTests(unittest.TestCase):
         self.assertTrue(selection.details["model_selection_attempted"])
         self.assertTrue(selection.details["model_selection_verified"])
         self.assertTrue(scoped_option.clicked)
+
+    def test_select_model_waits_for_menu_to_settle_before_option_lookup(self) -> None:
+        driver = PlaywrightBrowserAutomation(
+            runtime=PlaywrightBrowserRuntimeConfig(poll_interval_seconds=0),
+            sync_playwright_factory=lambda: object(),
+        )
+
+        class _DelayedMenuPage(_FakePage):
+            def __init__(self) -> None:
+                super().__init__()
+                self.option = _FakeLocator(
+                    visible=False,
+                    inner_text="Claude Sonnet 4.6",
+                    attributes={"aria-selected": "true"},
+                )
+                self.model_button = _FakeLocator(
+                    visible=True,
+                    inner_text="Model",
+                    on_click=self._open_menu,
+                )
+                self.selector_locators['[data-radix-popper-content-wrapper]'] = _FakeLocator(
+                    visible=True,
+                    texts=["Claude Sonnet 4.6\nSonar"],
+                    children={"text=Claude Sonnet 4.6": self.option},
+                )
+
+            def _open_menu(self) -> None:
+                return None
+
+        page = _DelayedMenuPage()
+        driver._page = page
+
+        def _settle_menu(_seconds: float) -> None:
+            page.option._visible = True
+
+        with patch("gracekelly.adapters.browser.playwright_driver.time.sleep", side_effect=_settle_menu):
+            selection = driver.select_model(
+                provider_model_id="Claude Sonnet 4.6",
+                policy=ModelVerificationPolicy(),
+            )
+
+        self.assertTrue(selection.details["model_selection_attempted"])
+        self.assertTrue(page.option.clicked)
+
+    def test_select_model_reopens_menu_when_initial_snapshot_is_empty(self) -> None:
+        driver = PlaywrightBrowserAutomation(
+            runtime=PlaywrightBrowserRuntimeConfig(poll_interval_seconds=0),
+            sync_playwright_factory=lambda: object(),
+        )
+
+        class _RetryMenuPage(_FakePage):
+            def __init__(self) -> None:
+                super().__init__()
+                self.open_count = 0
+                self.option = _FakeLocator(
+                    visible=False,
+                    inner_text="Claude Sonnet 4.6",
+                    attributes={"aria-selected": "true"},
+                )
+                self.model_button = _FakeLocator(
+                    visible=True,
+                    inner_text="Model",
+                    on_click=self._open_menu,
+                )
+
+            def _open_menu(self) -> None:
+                self.open_count += 1
+                if self.open_count >= 2:
+                    self.option._visible = True
+
+            def locator(self, selector: str) -> _FakeLocator:
+                if (
+                    "radix-popper" in selector
+                    or "role=\"dialog\"" in selector
+                    or "role=\"listbox\"" in selector
+                    or "role=\"menu\"" in selector
+                ):
+                    if self.open_count < 2:
+                        return _FakeLocator(visible=True, texts=[])
+                    return _FakeLocator(
+                        visible=True,
+                        texts=["Claude Sonnet 4.6\nSonar"],
+                        children={"text=Claude Sonnet 4.6": self.option},
+                    )
+                return super().locator(selector)
+
+        page = _RetryMenuPage()
+        driver._page = page
+
+        selection = driver.select_model(
+            provider_model_id="Claude Sonnet 4.6",
+            policy=ModelVerificationPolicy(),
+        )
+
+        self.assertGreaterEqual(page.open_count, 2)
+        self.assertTrue(selection.details["model_selection_attempted"])
+        self.assertTrue(page.option.clicked)
+
+    def test_select_model_does_not_report_requested_label_when_menu_is_empty(self) -> None:
+        driver = PlaywrightBrowserAutomation(
+            runtime=PlaywrightBrowserRuntimeConfig(poll_interval_seconds=0),
+            sync_playwright_factory=lambda: object(),
+        )
+        page = _FakePage()
+        page.model_menu = _FakeLocator(visible=True, texts=[])
+        page.option = _FakeLocator(visible=False, count_value=0)
+        driver._page = page
+
+        selection = driver.select_model(
+            provider_model_id="Claude Sonnet 4.6",
+            policy=ModelVerificationPolicy(),
+        )
+
+        self.assertNotEqual(selection.actual_label, "Claude Sonnet 4.6")
+        self.assertEqual(selection.actual_label, "Model")
+        self.assertEqual(selection.details["actual_label_source"], "option_not_found_button_text")
+        self.assertFalse(selection.details["model_selection_attempted"])
 
     def test_find_option_in_menu_scope_returns_first_when_multiple_text_matches(self) -> None:
         driver = PlaywrightBrowserAutomation(
@@ -1121,6 +1328,39 @@ class PlaywrightDriverTests(unittest.TestCase):
         health = driver.healthcheck()
         self.assertIsNotNone(health["last_model_picker_unavailable_at"])
 
+    def test_enable_thinking_retries_after_transient_missing_toggle(self) -> None:
+        driver = PlaywrightBrowserAutomation(
+            runtime=PlaywrightBrowserRuntimeConfig(poll_interval_seconds=0),
+            sync_playwright_factory=lambda: object(),
+        )
+
+        class _ThinkingPage(_FakePage):
+            def __init__(self) -> None:
+                super().__init__()
+                self.model_button = _FakeLocator(visible=True, inner_text="Claude Sonnet 4.6")
+                self.thinking = _FakeLocator(
+                    visible=False,
+                    inner_text="Thinking",
+                    on_click=self._enable_thinking,
+                )
+
+            def _enable_thinking(self) -> None:
+                self.model_button._inner_text = "Claude Sonnet 4.6 Thinking"
+
+            def get_by_text(self, value: str, exact: bool = False) -> _FakeLocator:
+                if value == "Thinking":
+                    return self.thinking
+                return super().get_by_text(value, exact)
+
+        page = _ThinkingPage()
+        driver._page = page
+
+        self.assertFalse(driver.enable_thinking())
+        page.thinking._visible = True
+
+        self.assertTrue(driver.enable_thinking())
+        self.assertTrue(page.thinking.clicked)
+
     def test_close_stops_playwright_and_context(self) -> None:
         driver = PlaywrightBrowserAutomation(sync_playwright_factory=lambda: object())
         context = _FakeContext()
@@ -1207,6 +1447,39 @@ class PlaywrightDriverTests(unittest.TestCase):
         self.assertIs(driver._page, context.created_page)
         self.assertEqual(driver._base_url, "https://www.perplexity.ai")
         self.assertEqual(context.created_page.goto_url, "https://www.perplexity.ai")
+
+    def test_ensure_session_relaunches_when_existing_page_handle_is_stale(self) -> None:
+        class _StalePage(_FakePage):
+            def is_closed(self) -> bool:
+                return False
+
+            def evaluate(self, script: str) -> list[str]:
+                raise RuntimeError("Keyboard.press: Target page, context or browser has been closed")
+
+        old_context = _FakeContext()
+        old_playwright = _FakePlaywright()
+        new_context = _FakeContext()
+        driver = PlaywrightBrowserAutomation(sync_playwright_factory=lambda: _LaunchingPlaywrightManager(new_context))
+        driver._context = old_context
+        driver._page = _StalePage()
+        driver._playwright = old_playwright
+        driver._playwright_manager = object()
+        driver._session_thread_id = threading.get_ident()
+        session_manager = BrowserSessionManager(
+            BrowserSessionConfig(
+                enabled=True,
+                provider="perplexity",
+                base_url="https://www.perplexity.ai",
+                profile_dir=r"D:\GraceKelly\tmp\browser-recon\perplexity-profile",
+            )
+        )
+
+        driver.ensure_session(session_manager)
+
+        self.assertTrue(old_context.closed)
+        self.assertTrue(old_playwright.stopped)
+        self.assertTrue(new_context.new_page_called)
+        self.assertIs(driver._page, new_context.created_page)
 
 
 if __name__ == "__main__":

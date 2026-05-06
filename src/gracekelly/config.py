@@ -94,6 +94,7 @@ class Settings:
     browser_playwright_channel: str = "chrome"
     browser_playwright_headless: bool = False
     browser_call_timeout_seconds: int = 120
+    browser_human_action_delay_seconds: float = 1.0
     max_browser_submits_per_task: int | None = None
     max_browser_submits_per_hour: int | None = None
     browser_circuit_breaker_enabled: bool = True
@@ -172,6 +173,9 @@ class Settings:
             browser_playwright_headless=os.getenv("GRACEKELLY_BROWSER_PLAYWRIGHT_HEADLESS", "false").lower()
             == "true",
             browser_call_timeout_seconds=_env_int("GRACEKELLY_BROWSER_CALL_TIMEOUT_SECONDS", "120"),
+            browser_human_action_delay_seconds=_env_float(
+                "GRACEKELLY_BROWSER_HUMAN_ACTION_DELAY_SECONDS", "1.0",
+            ),
             max_browser_submits_per_task=_env_optional_int("GRACEKELLY_MAX_BROWSER_SUBMITS_PER_TASK"),
             max_browser_submits_per_hour=_env_optional_int("GRACEKELLY_MAX_BROWSER_SUBMITS_PER_HOUR"),
             browser_circuit_breaker_enabled=os.getenv(

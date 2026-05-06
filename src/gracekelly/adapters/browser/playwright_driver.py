@@ -38,6 +38,7 @@ class PlaywrightBrowserRuntimeConfig:
     headless: bool = False
     action_timeout_ms: int = 5_000
     poll_interval_seconds: float = 0.5
+    human_action_delay_seconds: float = 0.0
     launch_args: tuple[str, ...] = field(
         default_factory=lambda: ("--disable-blink-features=AutomationControlled",)
     )
@@ -45,6 +46,11 @@ class PlaywrightBrowserRuntimeConfig:
 
 
 _PROFILE_LOCK_MARKERS: tuple[str, ...] = ("SingletonLock", "SingletonSocket", "SingletonCookie")
+_MODEL_MENU_OPEN_ATTEMPTS = 3
+_BLOCKING_RESPONSE_OVERLAY_MARKER_GROUPS: tuple[tuple[str, ...], ...] = (
+    ("upgrade to max", "your current plan"),
+    ("perplexity max", "your current plan"),
+)
 
 
 def _profile_is_locked(profile_dir: str) -> str | None:
@@ -80,7 +86,6 @@ class PlaywrightBrowserAutomation(BrowserAutomationPort):
         self._observed_model_menu_at: datetime | None = None
         self._verified_model_labels_at: dict[str, datetime] = {}
         self._last_model_picker_unavailable_at: datetime | None = None
-        self._thinking_toggle_unavailable: bool = False
 
     def inspect_model_catalog(self) -> tuple[str, ...]:
         page = self._page_or_raise()
@@ -96,13 +101,11 @@ class PlaywrightBrowserAutomation(BrowserAutomationPort):
             raise PermissionError("Perplexity sign-in overlay blocked model catalog inspection.")
 
         try:
-            model_button.click()
+            menu_texts = self._open_model_menu(page, model_button)
         except Exception as exc:
             if self._body_has_signed_out_marker(page):
                 raise PermissionError("Perplexity sign-in overlay blocked model catalog inspection.") from exc
             raise
-        time.sleep(self._runtime.poll_interval_seconds)
-        menu_texts = self._model_menu_texts(page)
         self._record_model_menu_snapshot(menu_texts)
         labels = self._extract_catalog_labels(menu_texts)
         page.keyboard.press("Escape")
@@ -117,8 +120,18 @@ class PlaywrightBrowserAutomation(BrowserAutomationPort):
         self._base_url = state.base_url
         current_thread_id = threading.get_ident()
         if self._page is not None:
+            page_reusable = True
             is_closed = getattr(self._page, "is_closed", None)
-            if callable(is_closed) and not is_closed():
+            if callable(is_closed) and is_closed():
+                page_reusable = False
+            probe_page = getattr(self._page, "evaluate", None)
+            if page_reusable and callable(probe_page):
+                try:
+                    probe_page("() => true")
+                except Exception as exc:
+                    logger.warning("Discarding stale Playwright browser session before reopening: %s", exc)
+                    page_reusable = False
+            if page_reusable:
                 if self._session_thread_id in (None, current_thread_id):
                     logger.debug("Reusing existing Playwright browser session")
                     return
@@ -128,6 +141,12 @@ class PlaywrightBrowserAutomation(BrowserAutomationPort):
                     current_thread_id,
                 )
                 self._clear_runtime_handles()
+            else:
+                try:
+                    self.close()
+                except Exception as exc:
+                    logger.warning("Best-effort stale Playwright browser session close failed: %s", exc)
+                    self._clear_runtime_handles()
 
         if state.profile_dir is not None:
             lock_marker = _profile_is_locked(state.profile_dir)
@@ -285,12 +304,11 @@ class PlaywrightBrowserAutomation(BrowserAutomationPort):
         if self._body_has_signed_out_marker(page):
             raise PermissionError("Perplexity sign-in overlay blocked model selection.")
         try:
-            model_button.click()
+            menu_texts = self._open_model_menu(page, model_button)
         except Exception as exc:
             if self._body_has_signed_out_marker(page):
                 raise PermissionError("Perplexity sign-in overlay blocked model selection.") from exc
             raise
-        menu_texts = self._model_menu_texts(page)
         self._record_model_menu_snapshot(menu_texts)
         self._screenshot(f"04-model-menu-open-{provider_model_id}")
 
@@ -313,6 +331,12 @@ class PlaywrightBrowserAutomation(BrowserAutomationPort):
             if self._body_has_signed_out_marker(page):
                 raise PermissionError("Perplexity sign-in overlay blocked model selection.")
             actual_label = self._infer_active_model_label(menu_texts)
+            actual_label_source = "option_not_found_menu_snapshot"
+            if actual_label is None:
+                actual_label = model_button_text_before or "unknown"
+                actual_label_source = (
+                    "option_not_found_button_text" if model_button_text_before else "option_not_found_unknown"
+                )
             logger.warning(
                 "Perplexity model option '%s' was not found; current menu appears to start with '%s'.",
                 provider_model_id,
@@ -320,9 +344,9 @@ class PlaywrightBrowserAutomation(BrowserAutomationPort):
             )
             return BrowserModelSelection(
                 requested_label=provider_model_id,
-                actual_label=actual_label or provider_model_id,
+                actual_label=actual_label,
                 details={
-                    "actual_label_source": "option_not_found_menu_snapshot",
+                    "actual_label_source": actual_label_source,
                     "option_lookup_source": option_lookup_source,
                     "driver": "playwright",
                     "model_selection_verified": False,
@@ -337,12 +361,14 @@ class PlaywrightBrowserAutomation(BrowserAutomationPort):
             )
 
         try:
-            option.click()
+            self._human_pause()
+            self._click_locator(option)
         except Exception as exc:
             if self._body_has_signed_out_marker(page):
                 raise PermissionError("Perplexity sign-in overlay blocked model selection.") from exc
             raise
         time.sleep(self._runtime.poll_interval_seconds)
+        self._human_pause()
         self._screenshot(f"05-model-after-{provider_model_id}")
         model_button_text_after = self._locator_inner_text(model_button)
         selection_evidence = self._selection_evidence(option)
@@ -387,8 +413,6 @@ class PlaywrightBrowserAutomation(BrowserAutomationPort):
         )
 
     def enable_thinking(self) -> bool:
-        if self._thinking_toggle_unavailable:
-            return False
         page = self._page_or_raise()
         model_button = self._resolve_model_button(page, attempts=3)
         if model_button is None:
@@ -400,20 +424,25 @@ class PlaywrightBrowserAutomation(BrowserAutomationPort):
             logger.debug("Thinking already enabled: %s", button_text)
             return True
 
-        model_button.click()
-        time.sleep(self._runtime.poll_interval_seconds)
+        menu_texts = self._open_model_menu(page, model_button)
 
         thinking_el = self._first_visible_locator((
             page.get_by_text("Thinking", exact=True),
         ))
         if thinking_el is None:
-            logger.info("Thinking toggle not present in Perplexity UI for current model; skipping for this session")
-            self._thinking_toggle_unavailable = True
+            logger.info(
+                "Thinking toggle not present in Perplexity UI for current model; "
+                "button_text=%s menu_snapshot=%s; skipping this attempt",
+                button_text,
+                menu_texts,
+            )
             page.keyboard.press("Escape")
             return False
 
-        thinking_el.click()
+        self._human_pause()
+        self._click_locator(thinking_el)
         time.sleep(self._runtime.poll_interval_seconds)
+        self._human_pause()
 
         page.keyboard.press("Escape")
         time.sleep(self._runtime.poll_interval_seconds)
@@ -488,10 +517,13 @@ class PlaywrightBrowserAutomation(BrowserAutomationPort):
 
         logger.info("Submitting prompt through Playwright (timeout=%ss)", timeout_seconds)
         prompt_input.click(force=True)
+        self._human_pause()
         self._clear_prompt_input(page)
         self._fill_prompt_input(page, prompt)
+        self._human_pause()
         self._screenshot("06-prompt-filled")
         self._click_submit(page, policy)
+        self._human_pause()
         self._screenshot("07-prompt-submitted")
         try:
             output_text = self._wait_for_response_text(
@@ -531,6 +563,7 @@ class PlaywrightBrowserAutomation(BrowserAutomationPort):
             "observed_model_menu_source": "perplexity-model-menu" if self._observed_model_menu else None,
             "verified_model_labels_at": dict(self._verified_model_labels_at),
             "last_model_picker_unavailable_at": self._last_model_picker_unavailable_at,
+            "human_action_delay_seconds": self._runtime.human_action_delay_seconds,
             "reason": dependency_error,
         }
 
@@ -709,6 +742,21 @@ class PlaywrightBrowserAutomation(BrowserAutomationPort):
                 continue
         return [text for text in texts if text.strip()]
 
+    def _open_model_menu(self, page: Any, model_button: Any) -> list[str]:
+        menu_texts: list[str] = []
+        for attempt in range(_MODEL_MENU_OPEN_ATTEMPTS):
+            if attempt:
+                page.keyboard.press("Escape")
+                time.sleep(self._runtime.poll_interval_seconds)
+                self._human_pause()
+            self._click_locator(model_button)
+            time.sleep(self._runtime.poll_interval_seconds)
+            self._human_pause()
+            menu_texts = self._model_menu_texts(page)
+            if menu_texts:
+                return menu_texts
+        return menu_texts
+
     def _find_option_in_menu_scope(self, page: Any, requested: str) -> Any | None:
         for selector in self._selectors.model_menu_candidates:
             try:
@@ -793,6 +841,9 @@ class PlaywrightBrowserAutomation(BrowserAutomationPort):
     def _wait_for_response_text(self, *, page: Any, prompt: str, timeout_seconds: int) -> dict[str, Any]:
         deadline = time.monotonic() + timeout_seconds
         while time.monotonic() < deadline:
+            if self._dismiss_response_blocking_overlay(page):
+                time.sleep(self._runtime.poll_interval_seconds)
+                continue
             candidate_texts = self._collect_response_candidates(page=page, prompt=prompt)
             response_text = self._pick_response_text(prompt=prompt, candidate_texts=candidate_texts)
             if response_text is not None and not self._is_response_generating(page):
@@ -818,6 +869,22 @@ class PlaywrightBrowserAutomation(BrowserAutomationPort):
         else:
             candidates.append(("body", body_text))
         return candidates
+
+    def _dismiss_response_blocking_overlay(self, page: Any) -> bool:
+        body_text = self._body_text(page)
+        if not self._looks_like_blocking_response_overlay(body_text):
+            return False
+        logger.info("Dismissing blocking Perplexity response overlay before response extraction.")
+        close_button = self._first_visible_locator((
+            page.get_by_role("button", name="Close"),
+            page.locator('[aria-label="Close"], button[aria-label="Close"]'),
+        ))
+        if close_button is not None:
+            self._click_locator(close_button)
+        else:
+            page.keyboard.press("Escape")
+        self._human_pause()
+        return True
 
     def _log_auth_unknown_diagnostics(
         self,
@@ -911,6 +978,8 @@ class PlaywrightBrowserAutomation(BrowserAutomationPort):
         normalized = candidate.strip()
         if not normalized:
             return None
+        if self._looks_like_blocking_response_overlay(normalized):
+            return None
         if prompt in normalized:
             normalized = normalized.split(prompt, 1)[1].strip()
         if not normalized:
@@ -919,6 +988,10 @@ class PlaywrightBrowserAutomation(BrowserAutomationPort):
         if not stripped_lines:
             return None
         return stripped_lines
+
+    def _looks_like_blocking_response_overlay(self, value: str) -> bool:
+        normalized = value.casefold()
+        return any(all(marker in normalized for marker in group) for group in _BLOCKING_RESPONSE_OVERLAY_MARKER_GROUPS)
 
     def _strip_shell_noise(self, value: str) -> str:
         lines = [line.strip() for line in value.splitlines() if line.strip()]
@@ -951,8 +1024,26 @@ class PlaywrightBrowserAutomation(BrowserAutomationPort):
                 }
                 """
             )
-            if isinstance(active, bool):
-                return active
+            if active is True:
+                return True
+        except Exception:
+            pass
+        try:
+            thinking_placeholder = page.evaluate(
+                """
+                () => {
+                  const main = document.querySelector('main');
+                  if (!main) {
+                    return false;
+                  }
+                  return (main.innerText || '')
+                    .split('\\n')
+                    .some((line) => line.trim() === 'Thinking');
+                }
+                """
+            )
+            if isinstance(thinking_placeholder, bool):
+                return thinking_placeholder
         except Exception:
             pass
         return self._locator_is_visible(page.locator(self._selectors.stop_response_button))
@@ -962,6 +1053,21 @@ class PlaywrightBrowserAutomation(BrowserAutomationPort):
             if self._locator_is_visible(locator):
                 return getattr(locator, "first", locator)
         return None
+
+    def _click_locator(self, locator: Any) -> None:
+        candidate = getattr(locator, "first", locator)
+        try:
+            candidate.click()
+        except Exception as exc:
+            try:
+                candidate.click(force=True)
+            except TypeError:
+                raise exc
+
+    def _human_pause(self) -> None:
+        if self._runtime.human_action_delay_seconds <= 0:
+            return
+        time.sleep(self._runtime.human_action_delay_seconds)
 
     def _resolve_model_button(self, page: Any, *, attempts: int) -> Any | None:
         locators = (
