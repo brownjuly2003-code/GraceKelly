@@ -1,0 +1,67 @@
+---
+title: GraceKelly
+description: Internal codebase docs — multi-model FastAPI orchestrator with browser execution adapters.
+template: splash
+hero:
+  tagline: |
+    FastAPI orchestrator · async dispatch · pluggable execution adapters ·
+    Playwright-driven Perplexity Pro browser proxy · OpenAI-compatible &
+    Anthropic HTTP backends.
+  actions:
+    - text: Architecture overview
+      link: /GraceKelly/architecture/
+      icon: right-arrow
+      variant: primary
+    - text: GitHub
+      link: https://github.com/brownjuly2003-code/GraceKelly
+      icon: external
+---
+
+import { Card, CardGrid } from '@astrojs/starlight/components';
+
+## At a glance
+
+<CardGrid stagger>
+  <Card title="Orchestrator" icon="puzzle">
+    FastAPI app exposing `/api/v1/smart`, `/api/v1/orchestrate`,
+    `/healthz/ready`, `/api/metrics`. The smart-vs-orchestrate dispatcher
+    picks an execution profile and routes the request to the matching
+    adapter.
+  </Card>
+  <Card title="Execution adapters" icon="random">
+    Pluggable adapters under `src/gracekelly/adapters/` — Perplexity browser
+    automation (Playwright), OpenAI-compatible / Anthropic HTTP APIs, and an
+    in-process dry-run. All implement the `ExecutionAdapter` contract with
+    `execute` / `execute_async` / `execute_stream` / `healthcheck` /
+    `close` lifecycle hooks.
+  </Card>
+  <Card title="Browser proxy" icon="rocket">
+    `PerplexityBrowserAdapter` drives a Chromium profile through Playwright
+    against Perplexity Pro to expose Claude / GPT / Gemini / Sonar without
+    paid API keys. Threadpool-isolated, circuit-breaker-guarded, with
+    cold-start nav budgeted at ~30s and session reset on exception.
+  </Card>
+  <Card title="Operations" icon="setting">
+    Frozen `Settings` dataclass with `GRACEKELLY_*` env vars, validated at
+    startup. Postgres or in-memory storage. Optional Redis-backed rate
+    limiting. Sentry / OTel / usage-telemetry hooks behind feature flags.
+  </Card>
+</CardGrid>
+
+## Auto-generated
+
+The pages below are regenerated on every `npm run dev` / `npm run build`
+from the live source tree:
+
+- [Execution adapters](/GraceKelly/architecture/adapters/) — parsed from `src/gracekelly/adapters/**/*.py`.
+- [API routes catalog](/GraceKelly/architecture/routes/) — parsed from `src/gracekelly/main.py` and `src/gracekelly/api/routes/*.py`.
+- [Configuration matrix](/GraceKelly/architecture/config/) — parsed from `src/gracekelly/config.py`.
+
+## Status snapshot
+
+The latest operational state and active plans live in
+[`docs/`](/GraceKelly/guides/operator-runbook/) — see the
+[phased roadmap](/GraceKelly/guides/phased-roadmap/) and the
+[2026-04-26 handoff](/GraceKelly/guides/plans/2026-04-26-handoff/) for the
+most recent decisions. Audit and gate notes are under
+[Audits & gates](/GraceKelly/guides/audits/2026-04-23-post-phase-2-audit/).

@@ -1,0 +1,9 @@
+node_modules/
+dist/
+.astro/
+src/content/docs/guides/
+src/content/docs/architecture/routes.mdx
+src/content/docs/architecture/adapters.mdx
+src/content/docs/architecture/config.mdx
+.env
+.env.production
