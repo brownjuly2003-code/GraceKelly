@@ -2,15 +2,37 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
+_KNOWN_MODEL_LABELS: tuple[str, ...] = (
+    "Best",
+    "Claude Opus 4.7",
+    "Claude Sonnet 4.6",
+    "GPT-5.4",
+    "GPT-5.5",
+    "Gemini 3.1 Pro",
+    "Kimi K2.6",
+    "Max",
+    "Nemotron 3 Super",
+    "Sonar 2",
+)
+_MODEL_BUTTON_SELECTOR = ", ".join(
+    f'div[data-ask-input-container="true"] button[aria-label="{label}"]' for label in _KNOWN_MODEL_LABELS
+)
 
+
+# 2026-05-18 Perplexity regression: the model picker button aria-label can be the
+# current model label, while the Mode picker is also an aria-haspopup menu button.
 @dataclass(frozen=True, slots=True)
 class PerplexitySelectors:
+    known_model_labels: tuple[str, ...] = _KNOWN_MODEL_LABELS
     prompt_input: str = 'div#ask-input[role="textbox"][contenteditable="true"]'
-    model_button: str = 'div[data-ask-input-container="true"] button[aria-label="Model"]'
+    model_button: str = _MODEL_BUTTON_SELECTOR
     composer_model_button: str = (
         'div[data-ask-input-container="true"] button[aria-haspopup="menu"]'
         ':not([aria-label="Add files or tools"])'
         ':not([aria-label="More"])'
+        ':not([aria-label*="Search" i])'
+        ':not([aria-label*="Mode" i])'
+        ':not([aria-label="Search"])'
     )
     more_button: str = 'button[aria-label="More"]'
     submit_button: str = 'button[aria-label="Submit"]'
@@ -43,6 +65,9 @@ class PerplexitySelectors:
     shell_noise_lines: tuple[str, ...] = field(
         default_factory=lambda: (
             "Search",
+            "Pro Search",
+            "Deep Research",
+            "Labs",
             "Computer",
             "New Thread",
             "Ctrl I",

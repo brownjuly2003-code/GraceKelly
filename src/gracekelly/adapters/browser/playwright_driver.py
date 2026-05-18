@@ -744,16 +744,86 @@ class PlaywrightBrowserAutomation(BrowserAutomationPort):
 
     def _open_model_menu(self, page: Any, model_button: Any) -> list[str]:
         menu_texts: list[str] = []
+        wrong_menu_keys: set[str] = set()
+        wrong_menu_warning_logged = False
+        menu_closed_for_rotation = False
+
+        def _candidate_key(locator: Any) -> str:
+            aria_label = self._locator_attribute(locator, "aria-label")
+            if aria_label:
+                return f"aria-label:{aria_label}"
+            try:
+                box = locator.bounding_box()
+            except Exception:
+                box = None
+            if isinstance(box, dict):
+                return "box:" + ":".join(
+                    str(box.get(key)) for key in ("x", "y", "width", "height")
+                )
+            return f"object:{id(locator)}"
+
+        def _first_menu_line(texts: list[str]) -> str | None:
+            for block in texts:
+                for line in block.splitlines():
+                    normalized = line.strip()
+                    if normalized:
+                        return normalized
+            return None
+
+        def _has_model_label(texts: list[str]) -> bool:
+            for block in texts:
+                for line in block.splitlines():
+                    normalized = line.strip()
+                    if not normalized or normalized in self._selectors.shell_noise_lines:
+                        continue
+                    if normalized in self._selectors.known_model_labels or self._looks_like_model_label(normalized):
+                        return True
+            return False
+
         for attempt in range(_MODEL_MENU_OPEN_ATTEMPTS):
-            if attempt:
+            if attempt and not menu_closed_for_rotation:
                 page.keyboard.press("Escape")
                 time.sleep(self._runtime.poll_interval_seconds)
                 self._human_pause()
-            self._click_locator(model_button)
+            menu_closed_for_rotation = False
+            candidates = [model_button]
+            try:
+                popup_buttons = page.locator('div[data-ask-input-container="true"] button[aria-haspopup="menu"]')
+                popup_count = popup_buttons.count()
+            except Exception:
+                popup_count = 0
+            for index in range(popup_count):
+                try:
+                    candidates.append(popup_buttons.nth(index))
+                except Exception:
+                    continue
+            active_button = None
+            active_key = ""
+            for candidate in candidates:
+                candidate_key = _candidate_key(candidate)
+                if candidate_key in wrong_menu_keys or not self._locator_is_visible(candidate):
+                    continue
+                active_button = candidate
+                active_key = candidate_key
+                break
+            if active_button is None:
+                break
+            self._click_locator(active_button)
             time.sleep(self._runtime.poll_interval_seconds)
             self._human_pause()
             menu_texts = self._model_menu_texts(page)
-            if menu_texts:
+            first_line = _first_menu_line(menu_texts)
+            if first_line in self._selectors.shell_noise_lines:
+                wrong_menu_keys.add(active_key)
+                if not wrong_menu_warning_logged:
+                    logger.warning("Opened menu starts with '%s'; trying next composer popup", first_line)
+                    wrong_menu_warning_logged = True
+                page.keyboard.press("Escape")
+                time.sleep(self._runtime.poll_interval_seconds)
+                self._human_pause()
+                menu_closed_for_rotation = True
+                continue
+            if menu_texts and _has_model_label(menu_texts):
                 return menu_texts
         return menu_texts
 

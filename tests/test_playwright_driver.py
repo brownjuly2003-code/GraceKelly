@@ -13,6 +13,7 @@ from gracekelly.adapters.browser.playwright_driver import (
     PlaywrightBrowserRuntimeConfig,
 )
 from gracekelly.adapters.browser.policy import AuthRecoveryPolicy, ModelVerificationPolicy
+from gracekelly.adapters.browser.selectors import PerplexitySelectors
 from gracekelly.adapters.browser.session import BrowserSessionConfig, BrowserSessionManager
 from gracekelly.core.contracts import FileAttachment
 
@@ -27,6 +28,7 @@ class _FakeLocator:
         inner_text: str | None = None,
         attributes: dict[str, str] | None = None,
         children: dict[str, _FakeLocator] | None = None,
+        items: list[_FakeLocator] | None = None,
         first_locator: _FakeLocator | None = None,
         on_click: Callable[[], None] | None = None,
         on_set_input_files: Callable[[list[str]], None] | None = None,
@@ -39,18 +41,28 @@ class _FakeLocator:
         self._inner_text = inner_text
         self._attributes = attributes or {}
         self._children = children or {}
+        self._items = items or []
         self._first_locator = first_locator
         self._on_click = on_click
         self._on_set_input_files = on_set_input_files
 
     @property
     def first(self) -> _FakeLocator:
+        if self._items:
+            return self._items[0]
         return self._first_locator or self
 
+    def nth(self, index: int) -> _FakeLocator:
+        return self._items[index]
+
     def is_visible(self) -> bool:
+        if self._items:
+            return any(item.is_visible() for item in self._items)
         return self._visible
 
     def count(self) -> int:
+        if self._items:
+            return len(self._items)
         if self._count_value is not None:
             return self._count_value
         return 1 if self._visible else 0
@@ -110,12 +122,11 @@ class _FakePage:
             return self.file_input
         if selector == 'button[aria-label="Add files or tools"]':
             return self.add_files_button
-        if selector == 'div[data-ask-input-container="true"] button[aria-label="Model"]':
+        if selector == PerplexitySelectors().model_button:
             return self.model_button
-        if (
-            selector
-            == 'div[data-ask-input-container="true"] button[aria-haspopup="menu"]:not([aria-label="Add files or tools"]):not([aria-label="More"])'
-        ):
+        if selector == PerplexitySelectors().composer_model_button:
+            return self.model_button
+        if selector == 'div[data-ask-input-container="true"] button[aria-haspopup="menu"]':
             return self.model_button
         if (
             "radix-popper" in selector
@@ -795,6 +806,119 @@ class PlaywrightDriverTests(unittest.TestCase):
         self.assertTrue(selection.details["model_selection_attempted"])
         self.assertTrue(page.option.clicked)
 
+    def test_open_model_menu_skips_mode_picker_and_retries_alternate_button(self) -> None:
+        driver = PlaywrightBrowserAutomation(
+            runtime=PlaywrightBrowserRuntimeConfig(poll_interval_seconds=0),
+            sync_playwright_factory=lambda: object(),
+        )
+
+        class _TwoPopupPage(_FakePage):
+            def __init__(self) -> None:
+                super().__init__()
+                self.clicks: list[str] = []
+                self.open_menu = ""
+                self.option = _FakeLocator(
+                    visible=False,
+                    inner_text="GPT-5.4",
+                    attributes={"aria-selected": "true"},
+                )
+                self.mode_button = _FakeLocator(
+                    visible=True,
+                    inner_text="Search",
+                    attributes={"aria-label": "Search", "aria-haspopup": "menu"},
+                    on_click=lambda: self._open("mode"),
+                )
+                self.real_model_button = _FakeLocator(
+                    visible=True,
+                    inner_text="Claude Sonnet 4.6",
+                    attributes={"aria-label": "Claude Sonnet 4.6", "aria-haspopup": "menu"},
+                    on_click=lambda: self._open("model"),
+                )
+                self.popup_buttons = _FakeLocator(items=[self.mode_button, self.real_model_button])
+
+            def _open(self, menu: str) -> None:
+                self.clicks.append(menu)
+                self.open_menu = menu
+                self.option._visible = menu == "model"
+
+            def locator(self, selector: str) -> _FakeLocator:
+                if selector in {PerplexitySelectors().composer_model_button, PerplexitySelectors().model_button}:
+                    return self.mode_button
+                if selector == 'div[data-ask-input-container="true"] button[aria-haspopup="menu"]':
+                    return self.popup_buttons
+                if selector == '[data-radix-popper-content-wrapper]':
+                    if self.open_menu == "model":
+                        return _FakeLocator(
+                            visible=True,
+                            texts=["Best\nGPT-5.4\nClaude Sonnet 4.6"],
+                            children={"text=GPT-5.4": self.option},
+                        )
+                    return _FakeLocator(visible=True, texts=["Search\nPro Search\nDeep Research\nLabs"])
+                return super().locator(selector)
+
+        page = _TwoPopupPage()
+        driver._page = page
+
+        selection = driver.select_model(
+            provider_model_id="GPT-5.4",
+            policy=ModelVerificationPolicy(),
+        )
+
+        self.assertTrue(selection.details["model_selection_verified"])
+        self.assertEqual(selection.actual_label, "GPT-5.4")
+        self.assertEqual(page.clicks, ["mode", "model"])
+        self.assertEqual(page.keyboard.pressed.count("Escape"), 1)
+
+    def test_open_model_menu_returns_model_mismatch_when_no_button_yields_model_menu(self) -> None:
+        driver = PlaywrightBrowserAutomation(
+            runtime=PlaywrightBrowserRuntimeConfig(poll_interval_seconds=0),
+            sync_playwright_factory=lambda: object(),
+        )
+
+        class _OnlyModePopupPage(_FakePage):
+            def __init__(self) -> None:
+                super().__init__()
+                self.clicks: list[str] = []
+                self.first_mode_button = _FakeLocator(
+                    visible=True,
+                    inner_text="Search",
+                    attributes={"aria-label": "Search", "aria-haspopup": "menu"},
+                    on_click=lambda: self.clicks.append("first"),
+                )
+                self.second_mode_button = _FakeLocator(
+                    visible=True,
+                    inner_text="Mode",
+                    attributes={"aria-label": "Mode", "aria-haspopup": "menu"},
+                    on_click=lambda: self.clicks.append("second"),
+                )
+                self.popup_buttons = _FakeLocator(items=[self.first_mode_button, self.second_mode_button])
+                self.option = _FakeLocator(visible=False, count_value=0)
+
+            def locator(self, selector: str) -> _FakeLocator:
+                if selector in {PerplexitySelectors().composer_model_button, PerplexitySelectors().model_button}:
+                    return self.first_mode_button
+                if selector == 'div[data-ask-input-container="true"] button[aria-haspopup="menu"]':
+                    return self.popup_buttons
+                if selector == '[data-radix-popper-content-wrapper]':
+                    return _FakeLocator(visible=True, texts=["Search\nPro Search\nDeep Research\nLabs"])
+                return super().locator(selector)
+
+        page = _OnlyModePopupPage()
+        driver._page = page
+
+        with self.assertLogs("gracekelly.adapters.browser.playwright_driver", level="WARNING") as log:
+            selection = driver.select_model(
+                provider_model_id="GPT-5.4",
+                policy=ModelVerificationPolicy(),
+            )
+
+        self.assertFalse(selection.details["model_selection_verified"])
+        self.assertEqual(selection.actual_label, "Search")
+        self.assertEqual(selection.details["actual_label_source"], "option_not_found_menu_snapshot")
+        self.assertEqual(page.clicks, ["first", "second"])
+        warning_count = sum("Opened menu starts with" in message for message in log.output)
+        self.assertLessEqual(warning_count, 3)
+
     def test_select_model_does_not_report_requested_label_when_menu_is_empty(self) -> None:
         driver = PlaywrightBrowserAutomation(
             runtime=PlaywrightBrowserRuntimeConfig(poll_interval_seconds=0),
@@ -1195,10 +1319,7 @@ class PlaywrightDriverTests(unittest.TestCase):
                 )
 
             def locator(self, selector: str) -> _FakeLocator:
-                if (
-                    selector
-                    == 'div[data-ask-input-container="true"] button[aria-haspopup="menu"]:not([aria-label="Add files or tools"]):not([aria-label="More"])'
-                ):
+                if selector == PerplexitySelectors().composer_model_button:
                     return self.composer_model_button
                 return super().locator(selector)
 
@@ -1214,6 +1335,28 @@ class PlaywrightDriverTests(unittest.TestCase):
         self.assertTrue(selection.details["model_selection_verified"])
         self.assertEqual(selection.details["model_button_text_before"], "GPT-5.4")
         self.assertTrue(page.composer_model_button.clicked)
+
+    def test_resolve_model_button_matches_dynamic_aria_label(self) -> None:
+        driver = PlaywrightBrowserAutomation(sync_playwright_factory=lambda: object())
+
+        class _DynamicAriaButtonPage(_FakePage):
+            def __init__(self) -> None:
+                super().__init__()
+                self.model_button = _FakeLocator(visible=False, inner_text="Model")
+                self.dynamic_model_button = _FakeLocator(
+                    visible=True,
+                    inner_text="Claude Sonnet 4.6",
+                    attributes={"aria-label": "Claude Sonnet 4.6", "aria-haspopup": "menu"},
+                )
+
+            def locator(self, selector: str) -> _FakeLocator:
+                if selector in {PerplexitySelectors().composer_model_button, PerplexitySelectors().model_button}:
+                    return self.dynamic_model_button
+                return super().locator(selector)
+
+        button = driver._resolve_model_button(_DynamicAriaButtonPage(), attempts=1)
+
+        self.assertIsNotNone(button)
 
     def test_select_model_can_reset_to_new_thread_before_resolving_model_button(self) -> None:
         driver = PlaywrightBrowserAutomation(sync_playwright_factory=lambda: object())
