@@ -159,6 +159,21 @@ class ReconWeeklyDiffTests(unittest.TestCase):
         flag_payload = json.loads((self.state_dir / DRIFT_FLAG_NAME).read_text(encoding="utf-8"))
         self.assertIn("flags", flag_payload["changed"])
 
+    def test_drift_when_home_menu_button_count_increases(self) -> None:
+        capture = _make_capture(
+            buttons=["New thread", "Search::Search"],
+            models=["Sonar", "Claude"],
+        )
+        rc = run_recon(
+            profile_dir="x",
+            state_dir=self.state_dir,
+            drift_log_path=self.drift_log,
+            capture_func=capture,
+        )
+        self.assertEqual(rc, 1)
+        flag_payload = json.loads((self.state_dir / DRIFT_FLAG_NAME).read_text(encoding="utf-8"))
+        self.assertIn("home_menu_button_count", flag_payload["changed"])
+
     def test_flag_removed_when_drift_resolves(self) -> None:
         # introduce drift
         drifty = _make_capture(buttons=["New thread"], models=["Sonar", "Claude", "Gemini"])

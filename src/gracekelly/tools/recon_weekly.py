@@ -11,6 +11,8 @@ from collections.abc import Callable
 from datetime import UTC, datetime
 from typing import Any
 
+from gracekelly.adapters.browser.selectors import PerplexitySelectors
+
 logger = logging.getLogger("gracekelly.recon_weekly")
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[3]
@@ -19,6 +21,7 @@ DEFAULT_DRIFT_LOG = REPO_ROOT / "logs" / "recon-drift.jsonl"
 BASELINE_NAME = "perplexity-selectors-baseline.json"
 LATEST_NAME = "perplexity-selectors-latest.json"
 DRIFT_FLAG_NAME = "perplexity-selectors-drift.flag"
+_HOME_MENU_MODEL_LABELS = frozenset(PerplexitySelectors().known_model_labels)
 
 CaptureFunc = Callable[..., dict[str, Any]]
 
@@ -69,7 +72,30 @@ def _diff_snapshots(baseline: dict[str, Any], latest: dict[str, Any]) -> dict[st
     added = sorted(latest_keys - base_keys)
     removed = sorted(base_keys - latest_keys)
     changed = sorted(key for key in base_keys & latest_keys if baseline[key] != latest[key])
+    if _home_menu_button_count(latest) > _home_menu_button_count(baseline):
+        changed = sorted({*changed, "home_menu_button_count"})
     return {"added": added, "removed": removed, "changed": changed}
+
+
+def _home_menu_button_count(snapshot: dict[str, Any]) -> int:
+    buttons = snapshot.get("home_buttons")
+    if not isinstance(buttons, list):
+        return 0
+    return sum(1 for entry in buttons if _looks_like_home_menu_button(str(entry)))
+
+
+def _looks_like_home_menu_button(entry: str) -> bool:
+    aria_label, separator, visible_text = entry.partition("::")
+    label = aria_label.strip()
+    text = visible_text.strip() if separator else ""
+    label_casefold = label.casefold()
+    if label in {"Add files or tools", "More"}:
+        return True
+    if label in _HOME_MENU_MODEL_LABELS or text in _HOME_MENU_MODEL_LABELS:
+        return True
+    if "search" in label_casefold:
+        return True
+    return "mode" in label_casefold and "voice" not in label_casefold
 
 
 def _write_json(path: pathlib.Path, payload: object) -> None:
