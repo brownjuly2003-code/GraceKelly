@@ -516,6 +516,42 @@ class PlaywrightDriverTests(unittest.TestCase):
         self.assertEqual(response_text["text"], "Europe leads adoption")
         self.assertEqual(response_text["source"], "main div.prose")
 
+    def test_pick_response_text_rejects_model_attribution_body_fallback(self) -> None:
+        driver = PlaywrightBrowserAutomation(sync_playwright_factory=lambda: object())
+
+        response_text = driver._pick_response_text(
+            prompt="What is 2+2? Reply with ONLY the number.",
+            candidate_texts=[
+                (
+                    "body_after_prompt",
+                    "Prepared using Claude Sonnet 4.6 Thinking\nClaude Sonnet 4.6 Thinking",
+                ),
+            ],
+        )
+
+        self.assertIsNone(response_text)
+
+    def test_collect_response_candidates_uses_last_prompt_occurrence_for_body_fallback(self) -> None:
+        driver = PlaywrightBrowserAutomation(sync_playwright_factory=lambda: object())
+
+        class _RepeatedPromptBodyPage(_FakePage):
+            def inner_text(self, selector: str) -> str:
+                if selector != "body":
+                    return ""
+                return (
+                    "What is 2+2? Reply with ONLY the number.\n"
+                    "old history\n"
+                    "What is 2+2? Reply with ONLY the number.\n"
+                    "4"
+                )
+
+        candidates = driver._collect_response_candidates(
+            page=_RepeatedPromptBodyPage(),
+            prompt="What is 2+2? Reply with ONLY the number.",
+        )
+
+        self.assertIn(("body_after_prompt", "\n4"), candidates)
+
     def test_clean_candidate_text_preserves_line_breaks(self) -> None:
         driver = PlaywrightBrowserAutomation(sync_playwright_factory=lambda: object())
 

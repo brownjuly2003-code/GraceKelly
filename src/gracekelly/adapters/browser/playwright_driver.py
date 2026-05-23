@@ -945,7 +945,7 @@ class PlaywrightBrowserAutomation(BrowserAutomationPort):
 
         body_text = self._body_text(page)
         if prompt in body_text:
-            candidates.append(("body_after_prompt", body_text.split(prompt, 1)[1]))
+            candidates.append(("body_after_prompt", body_text.rsplit(prompt, 1)[1]))
         else:
             candidates.append(("body", body_text))
         return candidates
@@ -1077,7 +1077,13 @@ class PlaywrightBrowserAutomation(BrowserAutomationPort):
         lines = [line.strip() for line in value.splitlines() if line.strip()]
         if not lines:
             lines = [part.strip() for part in value.split("  ") if part.strip()]
-        filtered = [line for line in lines if line not in self._selectors.shell_noise_lines]
+        filtered = [
+            line
+            for line in lines
+            if line not in self._selectors.shell_noise_lines
+            and not line.startswith("Prepared using ")
+            and not any(line == label or line == f"{label} Thinking" for label in self._selectors.known_model_labels)
+        ]
         if not filtered:
             return ""
         return "\n".join(filtered).strip()
