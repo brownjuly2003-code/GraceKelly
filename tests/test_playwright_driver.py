@@ -531,6 +531,29 @@ class PlaywrightDriverTests(unittest.TestCase):
 
         self.assertIsNone(response_text)
 
+    def test_pick_response_text_rejects_computer_onboarding_body_fallback(self) -> None:
+        driver = PlaywrightBrowserAutomation(sync_playwright_factory=lambda: object())
+
+        response_text = driver._pick_response_text(
+            prompt="Analyze the attached incident notes.",
+            candidate_texts=[
+                (
+                    "body_after_prompt",
+                    "\n".join(
+                        [
+                            "Set up Computer",
+                            "Computer can run LLM evals, compare APIs, and write up what changed",
+                            "Connect your apps",
+                            "Create your first task",
+                            "Turn on notifications",
+                        ]
+                    ),
+                ),
+            ],
+        )
+
+        self.assertIsNone(response_text)
+
     def test_collect_response_candidates_uses_last_prompt_occurrence_for_body_fallback(self) -> None:
         driver = PlaywrightBrowserAutomation(sync_playwright_factory=lambda: object())
 
