@@ -120,6 +120,49 @@ def test_ui_upload_flow_drives_orchestrate_upload(static_server: str, page: Any)
     assert "Upload synthesis ready." in page.locator("#chat-area").inner_text()
 
 
+def test_ui_upload_flow_collapses_default_multi_model_selection_to_single_submit(
+    static_server: str,
+    page: Any,
+) -> None:
+    captured: dict[str, str] = {}
+
+    def handle_api(route: Any) -> None:
+        path = urlparse(route.request.url).path
+        if path == "/api/v1/health":
+            _json_response(route, {"status": "ok"})
+            return
+        if path == "/api/v1/models":
+            _json_response(route, MODELS_PAYLOAD)
+            return
+        if path == "/api/v1/orchestrate/upload" and route.request.method == "POST":
+            captured["body"] = route.request.post_data or ""
+            _json_response(
+                route,
+                {
+                    "output_text": "Single upload synthesis ready.",
+                    "task_id": "task-upload-single-1",
+                    "status": "completed",
+                    "model_id": "claude-sonnet-4-6",
+                },
+            )
+            return
+        _json_response(route, {})
+
+    page.route("**/api/v1/**", handle_api)
+    page.goto(static_server)
+    page.wait_for_selector("#model-trigger")
+    page.locator("#file-input").set_input_files(str(SAMPLE_ATTACHMENT))
+    page.locator("#query-input").fill("Summarize attachment")
+    page.locator("#btn-submit").click()
+    page.wait_for_function(
+        "() => document.getElementById('chat-area').innerText.includes('Single upload synthesis ready.')"
+    )
+
+    assert 'name="model"' in captured["body"]
+    assert "claude-sonnet-4-6" in captured["body"]
+    assert 'name="models"' not in captured["body"]
+
+
 def test_ui_smart_decomposition_flow(static_server: str, page: Any) -> None:
     captured: dict[str, object] = {}
 

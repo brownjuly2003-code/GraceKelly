@@ -988,11 +988,10 @@ async function sendMessage(rawText, requestOptions = null) {
     if (files.length) {
       updateLoading(processingMessage, 40);
       const formData = new FormData();
+      const uploadModelId = modelId || modelIds[0] || "";
       formData.append("prompt", text);
-      if (modelIds.length > 1) {
-        formData.append("models", JSON.stringify(modelIds));
-      } else if (modelId) {
-        formData.append("model", modelId);
+      if (uploadModelId) {
+        formData.append("model", uploadModelId);
       }
       formData.append("dry_run", String(dryRun));
       formData.append("session_id", sessionId);

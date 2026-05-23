@@ -607,6 +607,8 @@ Compressed `.json.gz` snapshot input is supported directly.
 
 Quota expectations are approximate and assume a healthy authenticated browser session. `smart` may fan out into 1-3 submits, `debate` usually needs 3-5, `consensus` usually needs 3-5, `compare` fans out across five models, and `upload` is expected to be a single submit.
 
+The UI upload path intentionally collapses any current multi-model menu selection to one `model` form field before POSTing `/api/v1/orchestrate/upload`. With the default `Claude + GPT` menu item, the upload smoke uses the first resolved model (`Claude Sonnet 4.6`) and should report `model_count=1` with no quorum cancellation.
+
 ### Usage examples
 
 ```powershell
