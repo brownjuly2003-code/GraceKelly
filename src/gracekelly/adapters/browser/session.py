@@ -86,7 +86,7 @@ class BrowserSessionManager:
 
     def healthcheck(self) -> dict[str, object]:
         state = self.state
-        status = "ok" if state.configured and state.active else "degraded"
+        status = "ok" if state.configured and state.last_error is None else "degraded"
         return {
             "status": status,
             "provider": state.provider,

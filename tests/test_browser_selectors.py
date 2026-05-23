@@ -17,6 +17,17 @@ class PerplexitySelectorsDefaultsTests(unittest.TestCase):
         self.assertIsInstance(self.sel.model_button, str)
         self.assertTrue(self.sel.model_button)
 
+    def test_model_button_matches_thinking_suffix(self) -> None:
+        self.assertIn('aria-label^="Gemini 3.1 Pro "', self.sel.model_button)
+
+    def test_known_model_labels_exclude_max_only_labels(self) -> None:
+        self.assertNotIn("GPT-5.5", self.sel.known_model_labels)
+        self.assertFalse(any(label.startswith("Claude Opus ") for label in self.sel.known_model_labels))
+        self.assertNotIn("Max", self.sel.known_model_labels)
+
+    def test_composer_model_button_does_not_exclude_model_as_mode(self) -> None:
+        self.assertNotIn('[aria-label*="Mode" i]', self.sel.composer_model_button)
+
     def test_submit_button_is_string(self) -> None:
         self.assertIsInstance(self.sel.submit_button, str)
         self.assertTrue(self.sel.submit_button)

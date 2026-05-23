@@ -885,7 +885,17 @@ class PlaywrightBrowserAutomation(BrowserAutomationPort):
         if not label or len(label) > 48:
             return False
         normalized = " ".join(label.split())
-        blocked = {"thinking", "models", "all models", "reasoning"}
+        blocked = {
+            "thinking",
+            "models",
+            "all models",
+            "reasoning",
+            "new",
+            "max",
+            "gpt-5.5",
+            "claude opus 4.6",
+            "claude opus 4.7",
+        }
         if normalized.casefold() in blocked:
             return False
 
@@ -1141,8 +1151,8 @@ class PlaywrightBrowserAutomation(BrowserAutomationPort):
 
     def _resolve_model_button(self, page: Any, *, attempts: int) -> Any | None:
         locators = (
-            page.locator(self._selectors.composer_model_button),
             page.locator(self._selectors.model_button),
+            page.locator(self._selectors.composer_model_button),
         )
         for _ in range(max(attempts, 1)):
             button = self._first_visible_locator(locators)

@@ -4,18 +4,21 @@ from dataclasses import dataclass, field
 
 _KNOWN_MODEL_LABELS: tuple[str, ...] = (
     "Best",
-    "Claude Opus 4.7",
     "Claude Sonnet 4.6",
     "GPT-5.4",
-    "GPT-5.5",
     "Gemini 3.1 Pro",
     "Kimi K2.6",
-    "Max",
     "Nemotron 3 Super",
     "Sonar 2",
 )
 _MODEL_BUTTON_SELECTOR = ", ".join(
-    f'div[data-ask-input-container="true"] button[aria-label="{label}"]' for label in _KNOWN_MODEL_LABELS
+    ", ".join(
+        (
+            f'div[data-ask-input-container="true"] button[aria-label="{label}"]',
+            f'div[data-ask-input-container="true"] button[aria-label^="{label} "]',
+        )
+    )
+    for label in _KNOWN_MODEL_LABELS
 )
 
 
@@ -31,8 +34,9 @@ class PerplexitySelectors:
         ':not([aria-label="Add files or tools"])'
         ':not([aria-label="More"])'
         ':not([aria-label*="Search" i])'
-        ':not([aria-label*="Mode" i])'
+        ':not([aria-label="Mode" i])'
         ':not([aria-label="Search"])'
+        ':not(:has-text("Search"))'
     )
     more_button: str = 'button[aria-label="More"]'
     submit_button: str = 'button[aria-label="Submit"]'

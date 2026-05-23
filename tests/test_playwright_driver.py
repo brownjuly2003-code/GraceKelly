@@ -168,7 +168,7 @@ class _FakePage:
         self.goto_url = url
         self.goto_timeout = timeout
 
-    def evaluate(self, script: str) -> list[str]:
+    def evaluate(self, script: str) -> bool | list[str]:
         return [
             "New Thread" if self.new_thread_button.is_visible() else "",
             "Model" if self.model_button.is_visible() else "",
@@ -1357,6 +1357,44 @@ class PlaywrightDriverTests(unittest.TestCase):
         button = driver._resolve_model_button(_DynamicAriaButtonPage(), attempts=1)
 
         self.assertIsNotNone(button)
+
+    def test_resolve_model_button_prefers_known_model_button_over_mode_menu(self) -> None:
+        driver = PlaywrightBrowserAutomation(sync_playwright_factory=lambda: object())
+
+        class _ModeAndModelButtonPage(_FakePage):
+            def __init__(self) -> None:
+                super().__init__()
+                self.mode_button = _FakeLocator(
+                    visible=True,
+                    inner_text="Search",
+                    attributes={"aria-haspopup": "menu"},
+                )
+                self.dynamic_model_button = _FakeLocator(
+                    visible=True,
+                    inner_text="Gemini 3.1 Pro Thinking",
+                    attributes={"aria-label": "Gemini 3.1 Pro Thinking", "aria-haspopup": "menu"},
+                )
+
+            def locator(self, selector: str) -> _FakeLocator:
+                if selector == PerplexitySelectors().composer_model_button:
+                    return self.mode_button
+                if selector == PerplexitySelectors().model_button:
+                    return self.dynamic_model_button
+                return super().locator(selector)
+
+        page = _ModeAndModelButtonPage()
+        button = driver._resolve_model_button(page, attempts=1)
+
+        self.assertIs(button, page.dynamic_model_button)
+
+    def test_model_catalog_ignores_new_badge_and_max_only_labels(self) -> None:
+        driver = PlaywrightBrowserAutomation(sync_playwright_factory=lambda: object())
+
+        labels = driver._extract_catalog_labels([
+            "Best\nNew\nGPT-5.4\nGPT-5.5\nGemini 3.1 Pro\nClaude Opus 4.6\nMax",
+        ])
+
+        self.assertEqual(labels, ["Best", "GPT-5.4", "Gemini 3.1 Pro"])
 
     def test_select_model_can_reset_to_new_thread_before_resolving_model_button(self) -> None:
         driver = PlaywrightBrowserAutomation(sync_playwright_factory=lambda: object())

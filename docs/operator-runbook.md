@@ -653,9 +653,21 @@ Authentication is persisted through the dedicated Chrome profile directory (defa
 `chrome-profile/`, configurable via `GRACEKELLY_BROWSER_PROFILE_DIR`). There is no separate session
 token file to rotate or copy.
 
+Current local operation is single-account: `GRACEKELLY_BROWSER_PROFILE_DIR=D:/GraceKelly/chrome-profile`
+and no `GRACEKELLY_ACCOUNTS` pool. Keep that profile signed in with the intended Gmail-backed
+Perplexity account; do not add alternate browser profiles or API fallback keys unless the operating
+mode changes deliberately.
+
 If another Chrome process is still using that profile, startup can fail with the live-profile guard
 or `BrowserProfileBusyError`. Use a dedicated profile created by `gracekelly-create-perplexity-profile`
 and follow `docs/onboarding.md` for the bootstrap / recovery flow.
+
+Selector drift symptom: if model selection reports `Upload files or images`, `Search`, or a stray
+`New` model, rerun the live smoke and inspect `PerplexitySelectors.model_button`. The model button can
+include a mode suffix such as `Gemini 3.1 Pro Thinking`; the selector must prefer known model labels
+over the broad composer menu fallback.
+For the current Pro-backed profile, keep `GPT-5.4` as the GPT browser model; do not admit Max-only
+menu labels such as `GPT-5.5`, `Claude Opus`, or `Max` into the runtime browser catalog.
 
 ## Task inspection workflow
 

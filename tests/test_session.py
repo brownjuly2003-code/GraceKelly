@@ -61,12 +61,24 @@ class BrowserSessionManagerTests(unittest.TestCase):
 
     def test_healthcheck_ok(self) -> None:
         mgr = BrowserSessionManager(self._config())
-        mgr.mark_active()
         health = mgr.healthcheck()
         self.assertEqual(health["status"], "ok")
 
-    def test_healthcheck_degraded(self) -> None:
+    def test_healthcheck_ok_when_idle_without_error(self) -> None:
         mgr = BrowserSessionManager(self._config())
+        mgr.mark_active()
+        mgr.mark_idle()
+        health = mgr.healthcheck()
+        self.assertEqual(health["status"], "ok")
+
+    def test_healthcheck_degraded_when_unconfigured(self) -> None:
+        mgr = BrowserSessionManager(self._config(profile_dir=None))
+        health = mgr.healthcheck()
+        self.assertEqual(health["status"], "degraded")
+
+    def test_healthcheck_degraded_after_error(self) -> None:
+        mgr = BrowserSessionManager(self._config())
+        mgr.mark_error("something broke")
         health = mgr.healthcheck()
         self.assertEqual(health["status"], "degraded")
 
