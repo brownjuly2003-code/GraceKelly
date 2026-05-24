@@ -66,7 +66,7 @@ gracekelly = ["storage/migrations/*.sql"]
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]
-addopts = "-p no:cacheprovider"
+addopts = "-p no:cacheprovider -p no:typeguard"
 norecursedirs = ["tmp", ".tmp", ".workflow", "pytest-temp", ".pytest_cache", ".hypothesis", "docs"]
 
 [tool.ruff]
