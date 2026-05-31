@@ -12,7 +12,7 @@ from gracekelly.adapters.browser.playwright_driver import (
     PlaywrightBrowserAutomation,
     PlaywrightBrowserRuntimeConfig,
 )
-from gracekelly.adapters.browser.policy import AuthRecoveryPolicy, ModelVerificationPolicy
+from gracekelly.adapters.browser.policy import AuthRecoveryPolicy, ModelVerificationPolicy, SubmitPolicy
 from gracekelly.adapters.browser.selectors import PerplexitySelectors
 from gracekelly.adapters.browser.session import BrowserSessionConfig, BrowserSessionManager
 from gracekelly.core.contracts import FileAttachment
@@ -67,7 +67,7 @@ class _FakeLocator:
             return self._count_value
         return 1 if self._visible else 0
 
-    def click(self) -> None:
+    def click(self, *args: Any, **kwargs: Any) -> None:
         self.clicked = True
         if self._on_click is not None:
             self._on_click()
@@ -463,6 +463,40 @@ class PlaywrightDriverTests(unittest.TestCase):
                 policy=ModelVerificationPolicy(wait_attempts=1),
             )
 
+    def test_click_submit_dismisses_computer_onboarding_overlay_before_click(self) -> None:
+        driver = PlaywrightBrowserAutomation(
+            runtime=PlaywrightBrowserRuntimeConfig(poll_interval_seconds=0),
+            sync_playwright_factory=lambda: object(),
+        )
+
+        class _ComputerOverlayPage(_FakePage):
+            def __init__(self) -> None:
+                super().__init__()
+                self.submit_button = _FakeLocator(visible=True)
+
+            def inner_text(self, selector: str) -> str:
+                if selector == "body" and "Escape" not in self.keyboard.pressed:
+                    return "\n".join(
+                        [
+                            "Set up Computer",
+                            "Computer can pull market data, analyze competitors, and draft your weekly AI briefing",
+                            "Connect your apps",
+                        ]
+                    )
+                return ""
+
+            def locator(self, selector: str) -> _FakeLocator:
+                if selector == PerplexitySelectors().submit_button:
+                    return self.submit_button
+                return super().locator(selector)
+
+        page = _ComputerOverlayPage()
+
+        driver._click_submit(page, SubmitPolicy(click_attempts=2, allow_js_fallback=False))
+
+        self.assertEqual(page.keyboard.pressed, ["Escape"])
+        self.assertTrue(page.submit_button.clicked)
+
     def test_pick_response_text_prefers_cleaned_answer_over_shell_noise(self) -> None:
         driver = PlaywrightBrowserAutomation(sync_playwright_factory=lambda: object())
 
@@ -721,6 +755,55 @@ class PlaywrightDriverTests(unittest.TestCase):
         assert response_text is not None
         self.assertTrue(page.close_button.clicked)
         self.assertEqual(response_text["text"], "OK")
+        self.assertEqual(response_text["source"], "main div.prose")
+
+    def test_wait_for_response_text_waits_for_stable_candidate_text(self) -> None:
+        driver = PlaywrightBrowserAutomation(
+            runtime=PlaywrightBrowserRuntimeConfig(poll_interval_seconds=0),
+            sync_playwright_factory=lambda: object(),
+        )
+
+        full_answer = (
+            "The warranty period is 12 months from purchase, and a warranty request must include the product, "
+            "receipt, completed request form, and defect description."
+        )
+
+        class _StreamingTextPage(_FakePage):
+            def __init__(self) -> None:
+                super().__init__()
+                self.prose_reads = 0
+
+            def locator(self, selector: str) -> _FakeLocator:
+                if selector == "main div.prose":
+                    payloads = [
+                        "Reply from context\nThe warranty period is 12 months from purchase, "
+                        "and a warranty request must include the product,",
+                        f"Reply from context\n{full_answer}",
+                        f"Reply from context\n{full_answer}",
+                    ]
+                    index = min(self.prose_reads, len(payloads) - 1)
+                    self.prose_reads += 1
+                    return _FakeLocator(visible=True, texts=[payloads[index]])
+                return super().locator(selector)
+
+            def inner_text(self, selector: str) -> str:
+                if selector == "body":
+                    return "Reply from context"
+                return ""
+
+            def evaluate(self, script: str) -> bool | list[str]:
+                if "Stop response" in script or "querySelector('main')" in script:
+                    return False
+                return super().evaluate(script)
+
+        response_text = driver._wait_for_response_text(
+            page=_StreamingTextPage(),
+            prompt="Reply from context",
+            timeout_seconds=5,
+        )
+
+        assert response_text is not None
+        self.assertEqual(response_text["text"], full_answer)
         self.assertEqual(response_text["source"], "main div.prose")
 
     def test_healthcheck_reports_missing_dependency_when_playwright_unavailable(self) -> None:

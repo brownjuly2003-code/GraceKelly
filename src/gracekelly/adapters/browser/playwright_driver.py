@@ -47,6 +47,7 @@ class PlaywrightBrowserRuntimeConfig:
 
 _PROFILE_LOCK_MARKERS: tuple[str, ...] = ("SingletonLock", "SingletonSocket", "SingletonCookie")
 _MODEL_MENU_OPEN_ATTEMPTS = 3
+_RESPONSE_STABLE_POLLS = 2
 _BLOCKING_RESPONSE_OVERLAY_MARKER_GROUPS: tuple[tuple[str, ...], ...] = (
     ("upgrade to max", "your current plan"),
     ("perplexity max", "your current plan"),
@@ -696,6 +697,9 @@ class PlaywrightBrowserAutomation(BrowserAutomationPort):
         for _ in range(policy.click_attempts):
             if self._body_has_signed_out_marker(page):
                 raise PermissionError("Perplexity sign-in overlay blocked prompt submission.")
+            if self._dismiss_submit_blocking_overlay(page):
+                time.sleep(self._runtime.poll_interval_seconds)
+                continue
             submit = page.locator(self._selectors.submit_button)
             if self._locator_is_visible(submit):
                 try:
@@ -728,6 +732,15 @@ class PlaywrightBrowserAutomation(BrowserAutomationPort):
                 return
 
         page.keyboard.press("Control+Enter")
+
+    def _dismiss_submit_blocking_overlay(self, page: Any) -> bool:
+        body_text = self._body_text(page)
+        if "Set up Computer" not in body_text or "Computer can " not in body_text:
+            return False
+        logger.info("Dismissing Perplexity Computer onboarding overlay before prompt submission.")
+        page.keyboard.press("Escape")
+        self._human_pause()
+        return True
 
     def _body_has_signed_out_marker(self, page: Any) -> bool:
         body_text = self._body_text(page)
@@ -920,19 +933,37 @@ class PlaywrightBrowserAutomation(BrowserAutomationPort):
 
     def _wait_for_response_text(self, *, page: Any, prompt: str, timeout_seconds: int) -> dict[str, Any]:
         deadline = time.monotonic() + timeout_seconds
+        stable_response: dict[str, Any] | None = None
+        stable_polls = 0
         while time.monotonic() < deadline:
             if self._dismiss_response_blocking_overlay(page):
+                stable_response = None
+                stable_polls = 0
                 time.sleep(self._runtime.poll_interval_seconds)
                 continue
             candidate_texts = self._collect_response_candidates(page=page, prompt=prompt)
             response_text = self._pick_response_text(prompt=prompt, candidate_texts=candidate_texts)
             if response_text is not None and not self._is_response_generating(page):
+                if (
+                    stable_response is not None
+                    and stable_response["source"] == response_text["source"]
+                    and stable_response["text"] == response_text["text"]
+                ):
+                    stable_polls += 1
+                else:
+                    stable_response = response_text
+                    stable_polls = 1
+                if stable_polls < _RESPONSE_STABLE_POLLS:
+                    time.sleep(self._runtime.poll_interval_seconds)
+                    continue
                 logger.info(
                     "Response extracted via source=%s length=%d",
                     response_text["source"],
                     response_text["selected_length"],
                 )
                 return response_text
+            stable_response = None
+            stable_polls = 0
             time.sleep(self._runtime.poll_interval_seconds)
         raise TimeoutError(f"Perplexity did not return a response within {timeout_seconds}s.")
 
