@@ -25,6 +25,7 @@ from gracekelly.core.contracts import (
     FileAttachment,
     StepStatus,
 )
+from gracekelly.core.models import build_browser_model_spec
 
 pytestmark = pytest.mark.usefixtures("inject_shared_test_factories")
 
@@ -258,6 +259,55 @@ class BrowserAdapterTests(unittest.TestCase):
         self.assertEqual(result.failure_code, FailureCode.PROVIDER_UNAVAILABLE)
         assert result.failure_message is not None
         self.assertIn("Thinking", result.failure_message)
+
+    def test_browser_adapter_skips_thinking_for_sonar_2_without_toggle(self) -> None:
+        class NoThinkingToggleAutomation(FakeBrowserAutomation):
+            def __init__(self) -> None:
+                super().__init__()
+                self.enable_thinking_calls = 0
+
+            def enable_thinking(self) -> bool:
+                self.enable_thinking_calls += 1
+                return False
+
+        automation = NoThinkingToggleAutomation()
+        adapter = PerplexityBrowserAdapter(
+            session_manager=self.build_session_manager(),
+            automation=automation,
+        )
+        request = self.build_request()
+        model = build_browser_model_spec("Sonar 2")
+        step = replace(request.step, model=model, provider_model_id=model.provider_model_id)
+        plan = replace(request.plan, steps=(step,))
+        request = replace(request, step=step, plan=plan)
+
+        result = adapter.execute(request)
+
+        self.assertEqual(result.status, StepStatus.COMPLETED)
+        self.assertFalse(result.details["thinking_enabled"])
+        self.assertEqual(automation.enable_thinking_calls, 0)
+
+    def test_browser_adapter_enables_thinking_for_reasoning_capable_model(self) -> None:
+        class ThinkingAvailableAutomation(FakeBrowserAutomation):
+            def __init__(self) -> None:
+                super().__init__()
+                self.enable_thinking_calls = 0
+
+            def enable_thinking(self) -> bool:
+                self.enable_thinking_calls += 1
+                return True
+
+        automation = ThinkingAvailableAutomation()
+        adapter = PerplexityBrowserAdapter(
+            session_manager=self.build_session_manager(),
+            automation=automation,
+        )
+
+        result = adapter.execute(self.build_request())
+
+        self.assertEqual(result.status, StepStatus.COMPLETED)
+        self.assertTrue(result.details["thinking_enabled"])
+        self.assertEqual(automation.enable_thinking_calls, 1)
 
     def test_sonar_override_retried_then_succeeds(self) -> None:
         calls: list[int] = []

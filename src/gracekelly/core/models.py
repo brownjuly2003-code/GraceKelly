@@ -48,6 +48,7 @@ DRY_RUN_BROWSER_CATALOG_LABELS: tuple[str, ...] = (
 _BROWSER_COMPATIBILITY_ALIASES: dict[str, tuple[str, ...]] = {
     "best": ("Best",),
     "sonar": ("Sonar",),
+    "sonar-2": ("Sonar 2",),
     "claude-sonnet-4-6": ("Claude Sonnet 4.6", "Claude 4.6", "Claude Sonnet"),
     "gpt-5-4": ("GPT-5.4", "GPT 5.4", "GPT-5"),
     "gemini-3-1-pro": ("Gemini 3.1 Pro", "Gemini Pro 3.1", "Gemini Pro"),
@@ -56,6 +57,8 @@ _BROWSER_COMPATIBILITY_ALIASES: dict[str, tuple[str, ...]] = {
     "max": ("Max",),
     "nemotron-3-super": ("Nemotron 3 Super", "Nemotron 3"),
 }
+
+_BROWSER_MODELS_WITHOUT_THINKING_TOGGLE = frozenset(("sonar", "sonar-2"))
 
 _API_MODEL_SPECS: tuple[ModelSpec, ...] = (
     ModelSpec(
@@ -154,6 +157,7 @@ def build_browser_model_spec(label: str) -> ModelSpec:
         else "gpt-5-4-api" if canonical_id == "gpt-5-4"
         else None
     )
+    is_fast_search_model = canonical_id in _BROWSER_MODELS_WITHOUT_THINKING_TOGGLE
 
     return ModelSpec(
         id=canonical_id,
@@ -163,9 +167,9 @@ def build_browser_model_spec(label: str) -> ModelSpec:
         provider="perplexity",
         provider_model_id=display_name,
         timeout_seconds=60,
-        expected_latency_class="fast" if canonical_id == "sonar" else "slow",
+        expected_latency_class="fast" if is_fast_search_model else "slow",
         concurrency_limit=1,
-        reasoning_capable=canonical_id != "sonar",
+        reasoning_capable=not is_fast_search_model,
         fallback_model_id=fallback_model_id,
     )
 

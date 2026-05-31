@@ -3,6 +3,7 @@ from __future__ import annotations
 import unittest
 
 from gracekelly.core.models import (
+    build_browser_model_spec,
     clear_browser_catalog,
     list_models,
     models_equivalent,
@@ -111,6 +112,12 @@ class ModelRegistryTests(unittest.TestCase):
 
     def test_sonar_is_search_not_reasoning(self) -> None:
         spec = resolve_model("Sonar")
+        self.assertFalse(spec.reasoning_capable)
+        self.assertEqual(spec.expected_latency_class, "fast")
+
+    def test_sonar_2_is_search_not_reasoning(self) -> None:
+        spec = build_browser_model_spec("Sonar 2")
+        self.assertEqual(spec.id, "sonar-2")
         self.assertFalse(spec.reasoning_capable)
         self.assertEqual(spec.expected_latency_class, "fast")
 
