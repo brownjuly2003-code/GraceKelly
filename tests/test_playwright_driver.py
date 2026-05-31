@@ -554,6 +554,21 @@ class PlaywrightDriverTests(unittest.TestCase):
 
         self.assertIsNone(response_text)
 
+    def test_pick_response_text_rejects_computer_weekly_briefing_onboarding(self) -> None:
+        driver = PlaywrightBrowserAutomation(sync_playwright_factory=lambda: object())
+
+        response_text = driver._pick_response_text(
+            prompt="Answer from the provided warranty context.",
+            candidate_texts=[
+                (
+                    "main article",
+                    "Computer can pull market data, analyze competitors, and draft your weekly AI briefing",
+                ),
+            ],
+        )
+
+        self.assertIsNone(response_text)
+
     def test_collect_response_candidates_uses_last_prompt_occurrence_for_body_fallback(self) -> None:
         driver = PlaywrightBrowserAutomation(sync_playwright_factory=lambda: object())
 

@@ -1080,13 +1080,19 @@ class PlaywrightBrowserAutomation(BrowserAutomationPort):
         filtered = [
             line
             for line in lines
-            if line not in self._selectors.shell_noise_lines
-            and not line.startswith("Prepared using ")
-            and not any(line == label or line == f"{label} Thinking" for label in self._selectors.known_model_labels)
+            if not self._looks_like_shell_noise_line(line)
         ]
         if not filtered:
             return ""
         return "\n".join(filtered).strip()
+
+    def _looks_like_shell_noise_line(self, line: str) -> bool:
+        return (
+            line in self._selectors.shell_noise_lines
+            or line.startswith("Prepared using ")
+            or line.startswith("Computer can ")
+            or any(line == label or line == f"{label} Thinking" for label in self._selectors.known_model_labels)
+        )
 
     def _response_source_priority(self, source: str) -> int:
         if source in self._selectors.response_candidates:
