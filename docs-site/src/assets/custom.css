@@ -28,6 +28,8 @@
   --gk-card-bg-2: #f7fafd;
   --gk-hairline: rgba(12, 28, 48, 0.1);
   --gk-shadow: 0 1px 2px rgba(12, 28, 48, 0.06), 0 12px 32px -12px rgba(3, 105, 161, 0.18);
+  /* accent is dark blue in light mode -> light text on the filled CTA */
+  --gk-on-accent: #ffffff;
 }
 
 :root[data-theme='dark'] {
@@ -44,6 +46,8 @@
   --gk-card-bg-2: #0d121b;
   --gk-hairline: rgba(140, 175, 215, 0.12);
   --gk-shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 18px 40px -20px rgba(0, 0, 0, 0.65);
+  /* accent is bright cyan in dark mode -> dark text on the filled CTA */
+  --gk-on-accent: #04121d;
 }
 
 html {
@@ -213,7 +217,7 @@ header.header {
 .hero .actions .sl-link-button.primary {
   background: var(--sl-color-accent);
   border: 1px solid var(--sl-color-accent);
-  color: #04121d;
+  color: var(--gk-on-accent);
   box-shadow: 0 8px 24px -8px var(--gk-glow);
 }
 .hero .actions .sl-link-button.primary:hover {
