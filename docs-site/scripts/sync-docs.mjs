@@ -65,9 +65,27 @@ function slugifyPath(rel) {
     .join('/');
 }
 
+const SITE_BASE = '/GraceKelly';
+
+// Relative `docs/foo/bar.md` links are valid on GitHub but 404 on the
+// published site — rewrite them to the Starlight guide slug. http(s) links
+// and non-docs relative links are left untouched.
+function rewriteLinks(content) {
+  return content.replace(
+    /\]\((?:\.\/)?docs\/([^)\s#]+?)\.md(#[^)\s]*)?\)/gi,
+    (_m, path, anchor) => {
+      const slug = path
+        .split('/')
+        .map((s) => s.toLowerCase().replace(/\s+/g, '-'))
+        .join('/');
+      return `](${SITE_BASE}/guides/${slug}/${anchor || ''})`;
+    },
+  );
+}
+
 async function copyOne(srcAbs, destAbs, title, sourcePath) {
   const raw = await readFile(srcAbs, 'utf8');
-  const patched = ensureFrontMatter(raw, title, sourcePath);
+  const patched = rewriteLinks(ensureFrontMatter(raw, title, sourcePath));
   await mkdir(dirname(destAbs), { recursive: true });
   await writeFile(destAbs, patched, 'utf8');
 }

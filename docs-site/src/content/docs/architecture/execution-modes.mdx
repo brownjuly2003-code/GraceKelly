@@ -1,0 +1,123 @@
+---
+title: Execution modes
+description: The orchestrate primitive versus the higher-level execution patterns (smart, consensus, debate, compare, pipeline) — what each does and when to reach for it.
+---
+
+import { Aside, CardGrid, LinkCard } from '@astrojs/starlight/components';
+
+GraceKelly exposes one low-level primitive and a set of higher-level
+patterns built on top of it. The primitive runs an explicit plan you
+describe; the patterns decide the plan for you. This page explains the
+difference so you can pick the right endpoint. Full request and response
+schemas live in the [API reference](/GraceKelly/architecture/api/).
+
+## Pick an endpoint
+
+| You want to… | Endpoint | Group |
+| --- | --- | --- |
+| Run a prompt against a plan you control (models, quorum, merge) | `POST /api/v1/orchestrate` | [Orchestration](/GraceKelly/architecture/api/#orchestration) |
+| Let the service classify the prompt and pick the pattern | `POST /api/v1/smart` | [Smart](/GraceKelly/architecture/api/#smart) |
+| Same as smart, but with the Consensus V2 engine | `POST /api/v1/smart/v2` | [Smart](/GraceKelly/architecture/api/#smart) |
+| Converge several attempts into one agreed answer | `POST /api/v1/consensus` | [Consensus](/GraceKelly/architecture/api/#consensus) |
+| Stress-test a claim with a Devil's-Advocate round | `POST /api/v1/debate` | [Debate](/GraceKelly/architecture/api/#debate) |
+| See how different models answer the same prompt | `POST /api/v1/compare` | [Compare](/GraceKelly/architecture/api/#compare) |
+| Run one model over many prompts at once | `POST /api/v1/batch` | [Batch](/GraceKelly/architecture/api/#batch) |
+| Trade latency for reliability without choosing a pattern | `POST /api/v1/pipeline` | [Pipeline](/GraceKelly/architecture/api/#pipeline) |
+
+<Aside type="tip">
+  Unsure? Start with `smart` — it routes to the right pattern on its own.
+  Drop to `orchestrate` only when you need to control the plan, or to a
+  named pattern (`consensus`, `debate`, `compare`) when you already know
+  which one you want.
+</Aside>
+
+## The primitive
+
+### `orchestrate`
+
+The base operation. You hand it a prompt and an explicit execution plan —
+which `models` to use, a `quorum` to reach, a `merge_strategy` for
+combining results, and flags like `dry_run`, `reasoning`, and
+`decompose`. It executes synchronously and returns the final task
+snapshot. Every higher-level pattern ultimately drives this same path.
+
+Reach for it when you already know exactly how a request should run and
+want no routing decisions made for you. The streaming variant
+(`orchestrate/stream`) emits incremental events, and `orchestrate/upload`
+accepts file attachments.
+
+## The patterns
+
+These endpoints decide the plan for you, each optimising for a different
+goal.
+
+### `smart` and `smart/v2` — automatic routing
+
+`smart` classifies the prompt, assesses its complexity, and selects the
+execution pattern itself: a single call, Consensus V1, a role-based
+approach, or decomposition into subtasks. `smart/v2` behaves the same but
+swaps in the **Consensus V2** engine when consensus is needed —
+agglomerative (HAC) clustering, cross-pollination between attempts,
+debate rounds, and explicit divergence handling.
+
+Use `smart` as the default front door when you do not want to think about
+patterns. Use `smart/v2` when answer quality on hard, ambiguous prompts
+matters more than latency.
+
+### `consensus` — converge on one answer
+
+Generates several response variations per round, clusters them by
+semantic similarity, and iterates until the top cluster reaches the
+consensus target. The output is the answer the model agrees with itself
+on most often.
+
+Use it to suppress one-off hallucinations and sampling noise on
+factual or analytical prompts.
+
+### `debate` — adversarial refinement
+
+Produces an initial position, then runs a structured round: a
+Devil's-Advocate **challenge**, a **defense**, and an **improved** final
+response. The answer is pressure-tested rather than averaged.
+
+Use it for claims, recommendations, and decisions where the failure mode
+is confident-but-wrong, not noisy.
+
+### `compare` — side-by-side
+
+Runs the same prompt on each requested model concurrently and returns
+every answer. With `analyze=true` and at least two successes, an extra
+call summarises where the models agree and differ.
+
+Use it to evaluate models against each other, or to surface disagreement
+as a signal in its own right.
+
+### `batch` — throughput
+
+Runs a single model over up to 20 prompts in parallel, returning
+per-prompt success or failure. This is the breadth tool, not a quality
+tool.
+
+### `pipeline` — reliability dial
+
+Runs a prompt through a pattern chosen from a reliability *level* rather
+than a named strategy. Set `multi_model=true` to fan out across all
+configured API providers and aggregate the results.
+
+Use it when you want to ask for "more reliable" or "faster" without
+committing to a specific pattern.
+
+## How a request flows
+
+Regardless of the entry point, work converges on the orchestrator, which
+resolves an adapter per model, applies circuit-breaker and budget policy,
+and assembles the result — see the
+[architecture overview](/GraceKelly/architecture/) for the request
+lifecycle diagram and the
+[execution adapters](/GraceKelly/architecture/adapters/) that actually
+talk to each provider.
+
+<CardGrid>
+  <LinkCard title="API reference" description="Request and response schemas for every endpoint." href="/GraceKelly/architecture/api/" />
+  <LinkCard title="Execution adapters" description="The backends each model resolves to." href="/GraceKelly/architecture/adapters/" />
+</CardGrid>

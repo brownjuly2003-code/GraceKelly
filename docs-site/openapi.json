@@ -1,0 +1,2764 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "GraceKelly",
+    "description": "Independent orchestrator rebuilt from a clean slate.",
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/health": {
+      "get": {
+        "tags": [
+          "health"
+        ],
+        "summary": "Health",
+        "operationId": "health_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Health Health Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/healthz/live": {
+      "get": {
+        "tags": [
+          "health"
+        ],
+        "summary": "Liveness",
+        "operationId": "liveness_healthz_live_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "type": "object",
+                  "title": "Response Liveness Healthz Live Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/healthz/ready": {
+      "get": {
+        "tags": [
+          "health"
+        ],
+        "summary": "Readiness Probe",
+        "operationId": "readiness_probe_healthz_ready_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Readiness Probe Healthz Ready Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/readiness": {
+      "get": {
+        "tags": [
+          "health"
+        ],
+        "summary": "Readiness",
+        "operationId": "readiness_api_v1_readiness_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Readiness Api V1 Readiness Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/metrics": {
+      "get": {
+        "tags": [
+          "health"
+        ],
+        "summary": "Metrics",
+        "operationId": "metrics_metrics_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/models": {
+      "get": {
+        "tags": [
+          "models"
+        ],
+        "summary": "List all registered models",
+        "description": "Returns the full model catalog with availability status. Browser-backed models include live observation metadata: when the model menu was last checked and whether the model label was confirmed.",
+        "operationId": "models_api_v1_models_get",
+        "responses": {
+          "200": {
+            "description": "Model catalog with adapter kind, provider, availability status, and observation timestamps",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Models Api V1 Models Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/models/refresh": {
+      "post": {
+        "tags": [
+          "models"
+        ],
+        "summary": "Refresh model catalog",
+        "description": "Returns the current model catalog snapshot with a refreshed_at timestamp. Browser model availability reflects the last Playwright observation. A live Perplexity query is needed to update the model menu itself.",
+        "operationId": "refresh_models_api_v1_models_refresh_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Refresh Models Api V1 Models Refresh Post"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/orchestrate": {
+      "post": {
+        "tags": [
+          "orchestration"
+        ],
+        "summary": "Submit a prompt for orchestrated execution",
+        "description": "Submits a prompt to one or more models according to the specified execution plan. Supports dry-run, quorum, merge strategies, reasoning mode, and optional trace correlation. Executes synchronously and returns the final task snapshot for the completed request.",
+        "operationId": "orchestrate_api_v1_orchestrate_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OrchestrateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Final task snapshot with execution plan, steps, and terminal status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrchestrateResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation error (unsupported model, invalid merge strategy, quorum conflict)"
+          },
+          "501": {
+            "description": "Requested capability is not implemented"
+          },
+          "503": {
+            "description": "Storage temporarily unavailable"
+          },
+          "504": {
+            "description": "Orchestration timed out (GRACEKELLY_ORCHESTRATE_TIMEOUT_SECONDS exceeded)"
+          }
+        }
+      }
+    },
+    "/api/v1/orchestrate/upload": {
+      "post": {
+        "tags": [
+          "orchestration"
+        ],
+        "summary": "Submit a prompt with file uploads for orchestrated execution",
+        "operationId": "orchestrate_with_files_api_v1_orchestrate_upload_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_orchestrate_with_files_api_v1_orchestrate_upload_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrchestrateResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tasks": {
+      "get": {
+        "tags": [
+          "orchestration"
+        ],
+        "summary": "List recent tasks",
+        "description": "Returns a paginated list of recent tasks with step and event summaries. Supports filtering by status, execution mode, dry_run flag, and failure code. Use the `before` cursor (ISO timestamp) for keyset pagination.",
+        "operationId": "list_tasks_api_v1_tasks_get",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 20,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/TaskStatus"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "name": "execution_mode",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/ExecutionMode"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Execution Mode"
+            }
+          },
+          {
+            "name": "dry_run",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Dry Run"
+            }
+          },
+          {
+            "name": "failure_code",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/FailureCode"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Failure Code"
+            }
+          },
+          {
+            "name": "before",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Cursor: accepted_at ISO timestamp for pagination",
+              "title": "Before"
+            },
+            "description": "Cursor: accepted_at ISO timestamp for pagination"
+          },
+          {
+            "name": "prompt_contains",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 200
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by prompt substring (case-insensitive)",
+              "title": "Prompt Contains"
+            },
+            "description": "Filter by prompt substring (case-insensitive)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of task summaries ordered by accepted_at descending",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/TaskListItem"
+                  },
+                  "title": "Response List Tasks Api V1 Tasks Get"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Storage temporarily unavailable"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tasks/{task_id}": {
+      "get": {
+        "tags": [
+          "orchestration"
+        ],
+        "summary": "Get full task detail",
+        "description": "Returns the complete execution context for a task: plan scalars, all steps, and events. Events are paginated via `events_limit` / `events_offset` query parameters.",
+        "operationId": "get_task_api_v1_tasks__task_id__get",
+        "parameters": [
+          {
+            "name": "task_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+              "title": "Task Id"
+            }
+          },
+          {
+            "name": "events_limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "maximum": 1000,
+                  "minimum": 1
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Events Limit"
+            }
+          },
+          {
+            "name": "events_offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Events Offset"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Full task view including steps and paginated events",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskView"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Task not found"
+          },
+          "503": {
+            "description": "Storage temporarily unavailable"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tasks/{task_id}/export": {
+      "get": {
+        "tags": [
+          "orchestration"
+        ],
+        "summary": "Export task as Markdown",
+        "operationId": "export_task_api_v1_tasks__task_id__export_get",
+        "parameters": [
+          {
+            "name": "task_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+              "title": "Task Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Task exported as Markdown",
+            "content": {
+              "text/markdown": {}
+            }
+          },
+          "404": {
+            "description": "Task not found"
+          },
+          "503": {
+            "description": "Storage temporarily unavailable"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tasks/{task_id}/retry": {
+      "post": {
+        "tags": [
+          "orchestration"
+        ],
+        "summary": "Retry a failed or cancelled task",
+        "description": "Synchronously creates and executes a new task that replays the original prompt and execution plan. Only tasks with status `failed` or `cancelled` can be retried. The new task carries a `retry_of_task_id` link back to the original.",
+        "operationId": "retry_task_api_v1_tasks__task_id__retry_post",
+        "parameters": [
+          {
+            "name": "task_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+              "title": "Task Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Final task snapshot for the retry linked back to the original task",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrchestrateResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Original task not found"
+          },
+          "409": {
+            "description": "Task status does not allow retry (not failed or cancelled)"
+          },
+          "422": {
+            "description": "Validation error reconstructing the retry request"
+          },
+          "503": {
+            "description": "Storage temporarily unavailable"
+          }
+        }
+      }
+    },
+    "/api/v1/orchestrate/stream": {
+      "post": {
+        "tags": [
+          "streaming"
+        ],
+        "summary": "Orchestrate Stream",
+        "operationId": "orchestrate_stream_api_v1_orchestrate_stream_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OrchestrateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/consensus": {
+      "post": {
+        "tags": [
+          "consensus"
+        ],
+        "summary": "Run iterative consensus V1",
+        "description": "Generates multiple response variations per round, clusters them by semantic similarity, and iterates until the top cluster reaches the consensus target. Requires an embeddings client to be configured.",
+        "operationId": "run_consensus_api_v1_consensus_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConsensusRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Consensus result with score, cluster count, best response, and round statistics",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConsensusResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid model or no adapter available for the requested provider"
+          },
+          "503": {
+            "description": "Embeddings client is not configured"
+          },
+          "500": {
+            "description": "Consensus execution failed (internal error)"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/analytics": {
+      "get": {
+        "tags": [
+          "analytics"
+        ],
+        "summary": "Model performance analytics",
+        "description": "Aggregates execution statistics from the last 100 tasks: success rate, average duration, and failure counts per model. Returns a ranked top-5 list by success rate alongside full per-model stats.",
+        "operationId": "get_analytics_api_v1_analytics_get",
+        "responses": {
+          "200": {
+            "description": "Aggregate model performance stats with top-5 ranking",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalyticsResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Storage unavailable while reading task/step records"
+          }
+        }
+      }
+    },
+    "/api/v1/smart": {
+      "post": {
+        "tags": [
+          "smart"
+        ],
+        "summary": "Auto-routing smart execution",
+        "description": "Classifies the prompt, assesses complexity, and selects the optimal execution pattern (single call, consensus V1, role-based, or decomposition) automatically. Override via `reliability_level` (quick/standard/high) or an explicit `pattern` name.",
+        "operationId": "run_smart_api_v1_smart_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SmartRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Answer with routing metadata: pattern used, complexity level, LLM call count",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SmartResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid model, unknown pattern/reliability level, or conflicting options"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/batch": {
+      "post": {
+        "tags": [
+          "batch"
+        ],
+        "summary": "Execute multiple prompts in parallel",
+        "description": "Runs a single model on up to 20 prompts concurrently. Returns per-prompt results with individual success/failure status.",
+        "operationId": "run_batch_api_v1_batch_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BatchRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Batch execution results with per-prompt status and aggregate counts",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BatchResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid model or no adapter available for the requested provider"
+          },
+          "422": {
+            "description": "Validation error (empty prompts list, prompt too long, or too many prompts)"
+          }
+        }
+      }
+    },
+    "/api/v1/pipeline": {
+      "post": {
+        "tags": [
+          "pipeline"
+        ],
+        "summary": "Execute a reliability-level pipeline",
+        "description": "Runs a prompt through a reliability-level-selected execution pattern. Set `multi_model=true` to fan out across all configured API providers and aggregate results.",
+        "operationId": "run_pipeline_api_v1_pipeline_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PipelineRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Pipeline answer with pattern, reliability level, model list, and LLM call count",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PipelineResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid model, unknown reliability level, or no adapter available"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/health/detailed": {
+      "get": {
+        "tags": [
+          "health"
+        ],
+        "summary": "Detailed adapter and embeddings health",
+        "description": "Returns per-adapter status (ok / no_key) and embeddings client state. Overall status is 'healthy' only when all adapters and the embeddings client report ok. Protect this endpoint with GRACEKELLY_API_KEY in internet-facing deployments.",
+        "operationId": "health_detailed_api_v1_health_detailed_get",
+        "responses": {
+          "200": {
+            "description": "Detailed health with adapter list, embeddings status, and uptime",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DetailedHealthResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/smart/v2": {
+      "post": {
+        "tags": [
+          "smart"
+        ],
+        "summary": "Auto-routing smart execution with Consensus V2",
+        "description": "Like /smart but uses the Consensus V2 engine when consensus is required: HAC clustering, cross-pollination, debate rounds, divergence handling, and dissenting-view extraction. Returns cluster confidence and dissenting perspectives alongside the best answer.",
+        "operationId": "run_smart_v2_api_v1_smart_v2_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SmartV2Request"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Answer with V2 consensus metadata: cluster confidence, dissenting views, consensus score",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SmartV2Response"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid model, unknown pattern/reliability level, or conflicting options"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/debate": {
+      "post": {
+        "tags": [
+          "debate"
+        ],
+        "summary": "Run a Devil's Advocate debate round",
+        "description": "Generates an initial position on the topic, then runs a structured debate: challenge (Devil's Advocate), defense, and improved final response. Optionally supply your own `initial_position` to skip the first LLM call.",
+        "operationId": "run_debate_endpoint_api_v1_debate_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DebateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Debate transcript: initial position, challenge, defense, improved response, and call count",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DebateResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid model or no adapter available for the requested provider"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/compare": {
+      "post": {
+        "tags": [
+          "compare"
+        ],
+        "summary": "Compare answers from multiple models",
+        "description": "Runs the same prompt on each requested model concurrently. When `analyze=true` and at least two models succeed, an additional LLM call summarizes differences, strengths, and the best answer.",
+        "operationId": "run_compare_api_v1_compare_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CompareRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Per-model answers with optional comparative analysis and aggregate success counts",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompareResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation error (empty models list or prompt too long)"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AdapterHint": {
+        "type": "string",
+        "enum": [
+          "auto",
+          "browser",
+          "api"
+        ],
+        "title": "AdapterHint"
+      },
+      "AdapterStatus": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "status"
+        ],
+        "title": "AdapterStatus"
+      },
+      "AnalyticsResponse": {
+        "properties": {
+          "total_models": {
+            "type": "integer",
+            "title": "Total Models"
+          },
+          "total_executions": {
+            "type": "integer",
+            "title": "Total Executions"
+          },
+          "models": {
+            "items": {
+              "$ref": "#/components/schemas/ModelStatsView"
+            },
+            "type": "array",
+            "title": "Models"
+          },
+          "top_models": {
+            "items": {
+              "$ref": "#/components/schemas/ModelStatsView"
+            },
+            "type": "array",
+            "title": "Top Models"
+          }
+        },
+        "type": "object",
+        "required": [
+          "total_models",
+          "total_executions",
+          "models",
+          "top_models"
+        ],
+        "title": "AnalyticsResponse"
+      },
+      "BatchItemResponse": {
+        "properties": {
+          "prompt": {
+            "type": "string",
+            "title": "Prompt"
+          },
+          "answer": {
+            "type": "string",
+            "title": "Answer"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          }
+        },
+        "type": "object",
+        "required": [
+          "prompt",
+          "answer",
+          "status"
+        ],
+        "title": "BatchItemResponse"
+      },
+      "BatchRequest": {
+        "properties": {
+          "prompts": {
+            "items": {
+              "type": "string",
+              "maxLength": 40000,
+              "minLength": 1
+            },
+            "type": "array",
+            "maxItems": 20,
+            "minItems": 1,
+            "title": "Prompts"
+          },
+          "model": {
+            "type": "string",
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Model",
+            "default": "claude-sonnet-4-6"
+          },
+          "dry_run": {
+            "type": "boolean",
+            "title": "Dry Run",
+            "default": false
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "prompts"
+        ],
+        "title": "BatchRequest"
+      },
+      "BatchResponse": {
+        "properties": {
+          "results": {
+            "items": {
+              "$ref": "#/components/schemas/BatchItemResponse"
+            },
+            "type": "array",
+            "title": "Results"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "succeeded": {
+            "type": "integer",
+            "title": "Succeeded"
+          },
+          "failed": {
+            "type": "integer",
+            "title": "Failed"
+          }
+        },
+        "type": "object",
+        "required": [
+          "results",
+          "total",
+          "succeeded",
+          "failed"
+        ],
+        "title": "BatchResponse"
+      },
+      "Body_orchestrate_with_files_api_v1_orchestrate_upload_post": {
+        "properties": {
+          "prompt": {
+            "type": "string",
+            "title": "Prompt"
+          },
+          "model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model"
+          },
+          "models": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Models"
+          },
+          "session_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Session Id"
+          },
+          "dry_run": {
+            "type": "boolean",
+            "title": "Dry Run",
+            "default": false
+          },
+          "files": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string",
+                  "contentMediaType": "application/octet-stream"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Files"
+          }
+        },
+        "type": "object",
+        "required": [
+          "prompt"
+        ],
+        "title": "Body_orchestrate_with_files_api_v1_orchestrate_upload_post"
+      },
+      "CompareRequest": {
+        "properties": {
+          "prompt": {
+            "type": "string",
+            "maxLength": 40000,
+            "minLength": 1,
+            "title": "Prompt"
+          },
+          "models": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 10,
+            "minItems": 1,
+            "title": "Models"
+          },
+          "analyze": {
+            "type": "boolean",
+            "title": "Analyze",
+            "default": true
+          },
+          "dry_run": {
+            "type": "boolean",
+            "title": "Dry Run",
+            "default": false
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "prompt"
+        ],
+        "title": "CompareRequest"
+      },
+      "CompareResponse": {
+        "properties": {
+          "answers": {
+            "items": {
+              "$ref": "#/components/schemas/ModelAnswer"
+            },
+            "type": "array",
+            "title": "Answers"
+          },
+          "analysis": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Analysis"
+          },
+          "total_models": {
+            "type": "integer",
+            "title": "Total Models"
+          },
+          "succeeded": {
+            "type": "integer",
+            "title": "Succeeded"
+          },
+          "failed": {
+            "type": "integer",
+            "title": "Failed"
+          }
+        },
+        "type": "object",
+        "required": [
+          "answers",
+          "analysis",
+          "total_models",
+          "succeeded",
+          "failed"
+        ],
+        "title": "CompareResponse"
+      },
+      "ConsensusRequest": {
+        "properties": {
+          "prompt": {
+            "type": "string",
+            "maxLength": 40000,
+            "minLength": 1,
+            "title": "Prompt"
+          },
+          "model": {
+            "type": "string",
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Model",
+            "default": "claude-sonnet-4-6"
+          },
+          "similarity_threshold": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Similarity Threshold",
+            "default": 0.85
+          },
+          "consensus_target": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Consensus Target",
+            "default": 0.95
+          },
+          "max_rounds": {
+            "type": "integer",
+            "maximum": 20.0,
+            "minimum": 1.0,
+            "title": "Max Rounds",
+            "default": 5
+          },
+          "variations_per_round": {
+            "type": "integer",
+            "maximum": 9.0,
+            "minimum": 1.0,
+            "title": "Variations Per Round",
+            "default": 3
+          },
+          "use_confidence_weighting": {
+            "type": "boolean",
+            "title": "Use Confidence Weighting",
+            "default": true
+          },
+          "dry_run": {
+            "type": "boolean",
+            "title": "Dry Run",
+            "default": false
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "prompt"
+        ],
+        "title": "ConsensusRequest"
+      },
+      "ConsensusResponse": {
+        "properties": {
+          "consensus_score": {
+            "type": "number",
+            "title": "Consensus Score"
+          },
+          "num_clusters": {
+            "type": "integer",
+            "title": "Num Clusters"
+          },
+          "best_response": {
+            "type": "string",
+            "title": "Best Response"
+          },
+          "weighted_score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Weighted Score"
+          },
+          "total_rounds": {
+            "type": "integer",
+            "title": "Total Rounds"
+          },
+          "total_llm_calls": {
+            "type": "integer",
+            "title": "Total Llm Calls"
+          },
+          "needs_debate": {
+            "type": "boolean",
+            "title": "Needs Debate"
+          },
+          "top_cluster_size": {
+            "type": "integer",
+            "title": "Top Cluster Size"
+          }
+        },
+        "type": "object",
+        "required": [
+          "consensus_score",
+          "num_clusters",
+          "best_response",
+          "weighted_score",
+          "total_rounds",
+          "total_llm_calls",
+          "needs_debate",
+          "top_cluster_size"
+        ],
+        "title": "ConsensusResponse"
+      },
+      "DebateRequest": {
+        "properties": {
+          "topic": {
+            "type": "string",
+            "maxLength": 40000,
+            "minLength": 1,
+            "title": "Topic"
+          },
+          "initial_position": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 40000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Initial Position"
+          },
+          "model": {
+            "type": "string",
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Model",
+            "default": "claude-sonnet-4-6"
+          },
+          "dry_run": {
+            "type": "boolean",
+            "title": "Dry Run",
+            "default": false
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "topic"
+        ],
+        "title": "DebateRequest"
+      },
+      "DebateResponse": {
+        "properties": {
+          "initial_position": {
+            "type": "string",
+            "title": "Initial Position"
+          },
+          "challenge": {
+            "type": "string",
+            "title": "Challenge"
+          },
+          "defense": {
+            "type": "string",
+            "title": "Defense"
+          },
+          "improved_response": {
+            "type": "string",
+            "title": "Improved Response"
+          },
+          "model_id": {
+            "type": "string",
+            "title": "Model Id"
+          },
+          "total_llm_calls": {
+            "type": "integer",
+            "title": "Total Llm Calls"
+          }
+        },
+        "type": "object",
+        "required": [
+          "initial_position",
+          "challenge",
+          "defense",
+          "improved_response",
+          "model_id",
+          "total_llm_calls"
+        ],
+        "title": "DebateResponse"
+      },
+      "DetailedHealthResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "uptime_seconds": {
+            "type": "integer",
+            "title": "Uptime Seconds"
+          },
+          "adapters": {
+            "items": {
+              "$ref": "#/components/schemas/AdapterStatus"
+            },
+            "type": "array",
+            "title": "Adapters"
+          },
+          "embeddings": {
+            "$ref": "#/components/schemas/EmbeddingsStatus"
+          },
+          "total_adapters": {
+            "type": "integer",
+            "title": "Total Adapters"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "uptime_seconds",
+          "adapters",
+          "embeddings",
+          "total_adapters"
+        ],
+        "title": "DetailedHealthResponse"
+      },
+      "DissentingViewResponse": {
+        "properties": {
+          "perspective": {
+            "type": "string",
+            "title": "Perspective"
+          },
+          "support_ratio": {
+            "type": "number",
+            "title": "Support Ratio"
+          }
+        },
+        "type": "object",
+        "required": [
+          "perspective",
+          "support_ratio"
+        ],
+        "title": "DissentingViewResponse"
+      },
+      "EmbeddingsStatus": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "cache_size": {
+            "type": "integer",
+            "title": "Cache Size"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "cache_size"
+        ],
+        "title": "EmbeddingsStatus"
+      },
+      "ExecutionMode": {
+        "type": "string",
+        "enum": [
+          "dry-run",
+          "api",
+          "browser",
+          "mixed"
+        ],
+        "title": "ExecutionMode"
+      },
+      "FailureCode": {
+        "type": "string",
+        "enum": [
+          "auth_failed",
+          "model_mismatch",
+          "provider_unavailable",
+          "timeout",
+          "rate_limited",
+          "storage_failed",
+          "unknown_error"
+        ],
+        "title": "FailureCode"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "MergeStrategy": {
+        "type": "string",
+        "enum": [
+          "first_success",
+          "concat"
+        ],
+        "title": "MergeStrategy"
+      },
+      "ModelAnswer": {
+        "properties": {
+          "model_id": {
+            "type": "string",
+            "title": "Model Id"
+          },
+          "answer": {
+            "type": "string",
+            "title": "Answer"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          }
+        },
+        "type": "object",
+        "required": [
+          "model_id",
+          "answer",
+          "status"
+        ],
+        "title": "ModelAnswer"
+      },
+      "ModelStatsView": {
+        "properties": {
+          "model_id": {
+            "type": "string",
+            "title": "Model Id"
+          },
+          "total_executions": {
+            "type": "integer",
+            "title": "Total Executions"
+          },
+          "successful": {
+            "type": "integer",
+            "title": "Successful"
+          },
+          "failed": {
+            "type": "integer",
+            "title": "Failed"
+          },
+          "success_rate": {
+            "type": "number",
+            "title": "Success Rate"
+          },
+          "avg_duration_ms": {
+            "type": "number",
+            "title": "Avg Duration Ms"
+          }
+        },
+        "type": "object",
+        "required": [
+          "model_id",
+          "total_executions",
+          "successful",
+          "failed",
+          "success_rate",
+          "avg_duration_ms"
+        ],
+        "title": "ModelStatsView"
+      },
+      "ModelView": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "display_name": {
+            "type": "string",
+            "title": "Display Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "display_name"
+        ],
+        "title": "ModelView"
+      },
+      "OrchestrateRequest": {
+        "properties": {
+          "prompt": {
+            "type": "string",
+            "maxLength": 40000,
+            "minLength": 1,
+            "title": "Prompt"
+          },
+          "model": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 120,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model"
+          },
+          "models": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 8,
+            "title": "Models"
+          },
+          "adapter_hint": {
+            "$ref": "#/components/schemas/AdapterHint",
+            "default": "auto"
+          },
+          "quorum": {
+            "type": "integer",
+            "maximum": 8.0,
+            "minimum": 1.0,
+            "title": "Quorum",
+            "default": 1
+          },
+          "merge_strategy": {
+            "$ref": "#/components/schemas/MergeStrategy",
+            "default": "first_success"
+          },
+          "cancel_on_quorum": {
+            "type": "boolean",
+            "title": "Cancel On Quorum",
+            "default": true
+          },
+          "reasoning": {
+            "type": "boolean",
+            "title": "Reasoning",
+            "default": false
+          },
+          "metadata": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Metadata"
+          },
+          "dry_run": {
+            "type": "boolean",
+            "title": "Dry Run",
+            "default": false
+          },
+          "decompose": {
+            "type": "boolean",
+            "title": "Decompose",
+            "description": "Enable automatic decomposition for complex prompts",
+            "default": true
+          },
+          "session_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Session Id",
+            "description": "Session ID for conversation chaining"
+          }
+        },
+        "type": "object",
+        "required": [
+          "prompt"
+        ],
+        "title": "OrchestrateRequest"
+      },
+      "OrchestrateResponse": {
+        "properties": {
+          "task_id": {
+            "type": "string",
+            "title": "Task Id"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "accepted_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Accepted At"
+          },
+          "completed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completed At"
+          },
+          "duration_ms": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duration Ms"
+          },
+          "execution_mode": {
+            "type": "string",
+            "title": "Execution Mode"
+          },
+          "adapter_name": {
+            "type": "string",
+            "title": "Adapter Name"
+          },
+          "failure_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Failure Code"
+          },
+          "failure_message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Failure Message"
+          },
+          "model": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ModelView"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "requested_models": {
+            "items": {
+              "$ref": "#/components/schemas/ModelView"
+            },
+            "type": "array",
+            "title": "Requested Models"
+          },
+          "output_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Output Text"
+          },
+          "was_decomposed": {
+            "type": "boolean",
+            "title": "Was Decomposed",
+            "default": false
+          },
+          "subtask_count": {
+            "type": "integer",
+            "title": "Subtask Count",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "required": [
+          "task_id",
+          "status",
+          "accepted_at",
+          "execution_mode",
+          "adapter_name",
+          "requested_models"
+        ],
+        "title": "OrchestrateResponse"
+      },
+      "PipelineRequest": {
+        "properties": {
+          "prompt": {
+            "type": "string",
+            "maxLength": 40000,
+            "minLength": 1,
+            "title": "Prompt"
+          },
+          "model": {
+            "type": "string",
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Model",
+            "default": "claude-sonnet-4-6"
+          },
+          "reliability_level": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reliability Level"
+          },
+          "multi_model": {
+            "type": "boolean",
+            "title": "Multi Model",
+            "default": false
+          },
+          "dry_run": {
+            "type": "boolean",
+            "title": "Dry Run",
+            "default": false
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "prompt"
+        ],
+        "title": "PipelineRequest"
+      },
+      "PipelineResponse": {
+        "properties": {
+          "answer": {
+            "type": "string",
+            "title": "Answer"
+          },
+          "task_type": {
+            "type": "string",
+            "title": "Task Type"
+          },
+          "pattern_used": {
+            "type": "string",
+            "title": "Pattern Used"
+          },
+          "reliability_level": {
+            "type": "string",
+            "title": "Reliability Level"
+          },
+          "total_llm_calls": {
+            "type": "integer",
+            "title": "Total Llm Calls"
+          },
+          "model_id": {
+            "type": "string",
+            "title": "Model Id"
+          },
+          "models_used": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Models Used"
+          }
+        },
+        "type": "object",
+        "required": [
+          "answer",
+          "task_type",
+          "pattern_used",
+          "reliability_level",
+          "total_llm_calls",
+          "model_id"
+        ],
+        "title": "PipelineResponse"
+      },
+      "SmartRequest": {
+        "properties": {
+          "prompt": {
+            "type": "string",
+            "maxLength": 40000,
+            "minLength": 1,
+            "title": "Prompt"
+          },
+          "model": {
+            "type": "string",
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Model",
+            "default": "claude-sonnet-4-6"
+          },
+          "reliability_level": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reliability Level"
+          },
+          "pattern": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pattern"
+          },
+          "dry_run": {
+            "type": "boolean",
+            "title": "Dry Run",
+            "default": false
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "prompt"
+        ],
+        "title": "SmartRequest"
+      },
+      "SmartResponse": {
+        "properties": {
+          "answer": {
+            "type": "string",
+            "title": "Answer"
+          },
+          "task_type": {
+            "type": "string",
+            "title": "Task Type"
+          },
+          "complexity_level": {
+            "type": "string",
+            "title": "Complexity Level"
+          },
+          "pattern_used": {
+            "type": "string",
+            "title": "Pattern Used"
+          },
+          "reliability_level": {
+            "type": "string",
+            "title": "Reliability Level"
+          },
+          "was_decomposed": {
+            "type": "boolean",
+            "title": "Was Decomposed"
+          },
+          "used_consensus": {
+            "type": "boolean",
+            "title": "Used Consensus"
+          },
+          "used_roles": {
+            "type": "boolean",
+            "title": "Used Roles"
+          },
+          "total_llm_calls": {
+            "type": "integer",
+            "title": "Total Llm Calls"
+          },
+          "model_id": {
+            "type": "string",
+            "title": "Model Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "answer",
+          "task_type",
+          "complexity_level",
+          "pattern_used",
+          "reliability_level",
+          "was_decomposed",
+          "used_consensus",
+          "used_roles",
+          "total_llm_calls",
+          "model_id"
+        ],
+        "title": "SmartResponse"
+      },
+      "SmartV2Request": {
+        "properties": {
+          "prompt": {
+            "type": "string",
+            "maxLength": 40000,
+            "minLength": 1,
+            "title": "Prompt"
+          },
+          "model": {
+            "type": "string",
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Model",
+            "default": "claude-sonnet-4-6"
+          },
+          "reliability_level": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reliability Level"
+          },
+          "pattern": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pattern"
+          },
+          "dry_run": {
+            "type": "boolean",
+            "title": "Dry Run",
+            "default": false
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "prompt"
+        ],
+        "title": "SmartV2Request"
+      },
+      "SmartV2Response": {
+        "properties": {
+          "answer": {
+            "type": "string",
+            "title": "Answer"
+          },
+          "task_type": {
+            "type": "string",
+            "title": "Task Type"
+          },
+          "complexity_level": {
+            "type": "string",
+            "title": "Complexity Level"
+          },
+          "pattern_used": {
+            "type": "string",
+            "title": "Pattern Used"
+          },
+          "reliability_level": {
+            "type": "string",
+            "title": "Reliability Level"
+          },
+          "was_decomposed": {
+            "type": "boolean",
+            "title": "Was Decomposed"
+          },
+          "used_consensus": {
+            "type": "boolean",
+            "title": "Used Consensus"
+          },
+          "used_roles": {
+            "type": "boolean",
+            "title": "Used Roles"
+          },
+          "total_llm_calls": {
+            "type": "integer",
+            "title": "Total Llm Calls"
+          },
+          "model_id": {
+            "type": "string",
+            "title": "Model Id"
+          },
+          "consensus_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Consensus Status"
+          },
+          "consensus_score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Consensus Score"
+          },
+          "cluster_confidence": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cluster Confidence"
+          },
+          "dissenting_views": {
+            "items": {
+              "$ref": "#/components/schemas/DissentingViewResponse"
+            },
+            "type": "array",
+            "title": "Dissenting Views"
+          }
+        },
+        "type": "object",
+        "required": [
+          "answer",
+          "task_type",
+          "complexity_level",
+          "pattern_used",
+          "reliability_level",
+          "was_decomposed",
+          "used_consensus",
+          "used_roles",
+          "total_llm_calls",
+          "model_id",
+          "consensus_status",
+          "consensus_score",
+          "cluster_confidence",
+          "dissenting_views"
+        ],
+        "title": "SmartV2Response"
+      },
+      "TaskEventView": {
+        "properties": {
+          "event_id": {
+            "type": "string",
+            "title": "Event Id"
+          },
+          "sequence_no": {
+            "type": "integer",
+            "title": "Sequence No"
+          },
+          "event_type": {
+            "type": "string",
+            "title": "Event Type"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "payload": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Payload"
+          }
+        },
+        "type": "object",
+        "required": [
+          "event_id",
+          "sequence_no",
+          "event_type",
+          "created_at",
+          "payload"
+        ],
+        "title": "TaskEventView"
+      },
+      "TaskListItem": {
+        "properties": {
+          "task_id": {
+            "type": "string",
+            "title": "Task Id"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "accepted_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Accepted At"
+          },
+          "completed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completed At"
+          },
+          "duration_ms": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duration Ms"
+          },
+          "execution_mode": {
+            "type": "string",
+            "title": "Execution Mode"
+          },
+          "adapter_name": {
+            "type": "string",
+            "title": "Adapter Name"
+          },
+          "model": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ModelView"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "dry_run": {
+            "type": "boolean",
+            "title": "Dry Run"
+          },
+          "model_count": {
+            "type": "integer",
+            "title": "Model Count"
+          },
+          "requested_models": {
+            "items": {
+              "$ref": "#/components/schemas/ModelView"
+            },
+            "type": "array",
+            "title": "Requested Models"
+          },
+          "cancelled_step_count": {
+            "type": "integer",
+            "title": "Cancelled Step Count",
+            "default": 0
+          },
+          "cancel_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cancel Reason"
+          },
+          "failure_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Failure Code"
+          },
+          "failure_message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Failure Message"
+          }
+        },
+        "type": "object",
+        "required": [
+          "task_id",
+          "status",
+          "accepted_at",
+          "execution_mode",
+          "adapter_name",
+          "dry_run",
+          "model_count",
+          "requested_models"
+        ],
+        "title": "TaskListItem"
+      },
+      "TaskStatus": {
+        "type": "string",
+        "enum": [
+          "accepted",
+          "completed",
+          "failed",
+          "cancelled"
+        ],
+        "title": "TaskStatus"
+      },
+      "TaskStepView": {
+        "properties": {
+          "step_index": {
+            "type": "integer",
+            "title": "Step Index"
+          },
+          "model_id": {
+            "type": "string",
+            "title": "Model Id"
+          },
+          "model_display_name": {
+            "type": "string",
+            "title": "Model Display Name"
+          },
+          "backend": {
+            "type": "string",
+            "title": "Backend"
+          },
+          "provider": {
+            "type": "string",
+            "title": "Provider"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "failure_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Failure Code"
+          },
+          "failure_message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Failure Message"
+          },
+          "output_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Output Text"
+          },
+          "output_truncated": {
+            "type": "boolean",
+            "title": "Output Truncated",
+            "default": false
+          },
+          "duration_ms": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duration Ms"
+          },
+          "input_tokens": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Input Tokens"
+          },
+          "output_tokens": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Output Tokens"
+          },
+          "cost_usd": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cost Usd"
+          }
+        },
+        "type": "object",
+        "required": [
+          "step_index",
+          "model_id",
+          "model_display_name",
+          "backend",
+          "provider",
+          "status"
+        ],
+        "title": "TaskStepView"
+      },
+      "TaskView": {
+        "properties": {
+          "task_id": {
+            "type": "string",
+            "title": "Task Id"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "accepted_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Accepted At"
+          },
+          "completed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completed At"
+          },
+          "duration_ms": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duration Ms"
+          },
+          "execution_mode": {
+            "type": "string",
+            "title": "Execution Mode"
+          },
+          "adapter_name": {
+            "type": "string",
+            "title": "Adapter Name"
+          },
+          "failure_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Failure Code"
+          },
+          "failure_message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Failure Message"
+          },
+          "model": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ModelView"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "requested_models": {
+            "items": {
+              "$ref": "#/components/schemas/ModelView"
+            },
+            "type": "array",
+            "title": "Requested Models"
+          },
+          "output_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Output Text"
+          },
+          "was_decomposed": {
+            "type": "boolean",
+            "title": "Was Decomposed",
+            "default": false
+          },
+          "subtask_count": {
+            "type": "integer",
+            "title": "Subtask Count",
+            "default": 0
+          },
+          "prompt": {
+            "type": "string",
+            "title": "Prompt"
+          },
+          "reasoning": {
+            "type": "boolean",
+            "title": "Reasoning"
+          },
+          "metadata": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Metadata"
+          },
+          "quorum": {
+            "type": "integer",
+            "title": "Quorum"
+          },
+          "merge_strategy": {
+            "type": "string",
+            "title": "Merge Strategy"
+          },
+          "adapter_hint": {
+            "type": "string",
+            "title": "Adapter Hint"
+          },
+          "cancel_on_quorum": {
+            "type": "boolean",
+            "title": "Cancel On Quorum"
+          },
+          "retry_of_task_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Retry Of Task Id"
+          },
+          "winning_step_index": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Winning Step Index"
+          },
+          "cancelled_steps": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Cancelled Steps"
+          },
+          "cancel_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cancel Reason"
+          },
+          "execution_details": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Execution Details"
+          },
+          "steps": {
+            "items": {
+              "$ref": "#/components/schemas/TaskStepView"
+            },
+            "type": "array",
+            "title": "Steps"
+          },
+          "events": {
+            "items": {
+              "$ref": "#/components/schemas/TaskEventView"
+            },
+            "type": "array",
+            "title": "Events"
+          },
+          "events_total": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Events Total"
+          }
+        },
+        "type": "object",
+        "required": [
+          "task_id",
+          "status",
+          "accepted_at",
+          "execution_mode",
+          "adapter_name",
+          "requested_models",
+          "prompt",
+          "reasoning",
+          "metadata",
+          "quorum",
+          "merge_strategy",
+          "adapter_hint",
+          "cancel_on_quorum"
+        ],
+        "title": "TaskView"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    }
+  }
+}
