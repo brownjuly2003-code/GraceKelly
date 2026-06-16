@@ -200,6 +200,13 @@ function renderEndpoint(spec, method, path, op) {
       const table = fieldTable(spec, eff);
       if (table) lines.push(table);
       lines.push('');
+      const example = exampleValue(spec, okSchema, '', 0, new Set());
+      if (example && typeof example === 'object' && Object.keys(example).length) {
+        lines.push('Example response:');
+        lines.push('');
+        lines.push(jsonBlock(example));
+        lines.push('');
+      }
       lines.push('</details>');
       lines.push('');
     }
