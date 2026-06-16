@@ -1,22 +1,309 @@
+/* ==========================================================================
+   GraceKelly docs — modern theme layer over Astro Starlight
+   Loaded after Starlight's own styles; unlayered rules win over @layer.
+   ========================================================================== */
+
 :root {
-  --sl-font: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
-  --sl-font-system-mono: 'JetBrains Mono', 'SFMono-Regular', Menlo, Monaco, Consolas, monospace;
+  --sl-font: 'Geist Variable', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  --sl-font-system-mono: 'Geist Mono Variable', 'JetBrains Mono', 'SFMono-Regular', Menlo, Monaco, Consolas, monospace;
+
+  /* Optical refinements applied globally */
+  --gk-radius: 14px;
+  --gk-radius-sm: 9px;
+  --gk-ease: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+/* ----- Accent + surfaces: one cohesive sky-blue accent ------------------- */
+
 :root[data-theme='light'] {
-  --sl-color-accent-low: #e0f2fe;
+  --sl-color-accent-low: #dbeefb;
   --sl-color-accent: #0369a1;
-  --sl-color-accent-high: #0c4a6e;
+  --sl-color-accent-high: #0b4a6e;
+  --sl-color-bg: #fbfcfe;
+  --sl-color-bg-nav: rgba(251, 252, 254, 0.72);
+  --sl-color-bg-sidebar: #f5f8fc;
+  --gk-grid: rgba(3, 105, 161, 0.07);
+  --gk-glow: rgba(56, 189, 248, 0.22);
+  --gk-card-bg: #ffffff;
+  --gk-card-bg-2: #f7fafd;
+  --gk-hairline: rgba(12, 28, 48, 0.1);
+  --gk-shadow: 0 1px 2px rgba(12, 28, 48, 0.06), 0 12px 32px -12px rgba(3, 105, 161, 0.18);
 }
 
 :root[data-theme='dark'] {
-  --sl-color-accent-low: #082f49;
+  --sl-color-accent-low: #0b2638;
   --sl-color-accent: #38bdf8;
-  --sl-color-accent-high: #bae6fd;
+  --sl-color-accent-high: #cdeafd;
+  /* cool off-black, never pure #000 */
+  --sl-color-bg: #0a0e16;
+  --sl-color-bg-nav: rgba(10, 14, 22, 0.66);
+  --sl-color-bg-sidebar: #0c111b;
+  --gk-grid: rgba(120, 180, 235, 0.06);
+  --gk-glow: rgba(56, 189, 248, 0.2);
+  --gk-card-bg: #11161f;
+  --gk-card-bg-2: #0d121b;
+  --gk-hairline: rgba(140, 175, 215, 0.12);
+  --gk-shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 18px 40px -20px rgba(0, 0, 0, 0.65);
 }
+
+html {
+  scroll-behavior: smooth;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+::selection {
+  background: var(--sl-color-accent);
+  color: #fff;
+}
+
+:focus-visible {
+  outline: 2px solid var(--sl-color-accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Slim, tinted scrollbar */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--sl-color-gray-5) transparent;
+}
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+*::-webkit-scrollbar-thumb {
+  background: var(--sl-color-gray-5);
+  border: 3px solid transparent;
+  background-clip: content-box;
+  border-radius: 999px;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--sl-color-gray-4);
+  background-clip: content-box;
+}
+
+/* ----- Header / site title ---------------------------------------------- */
+
+.site-title {
+  font-weight: 650;
+  letter-spacing: -0.02em;
+}
+
+header.header {
+  backdrop-filter: saturate(140%) blur(12px);
+  -webkit-backdrop-filter: saturate(140%) blur(12px);
+  border-bottom: 1px solid var(--gk-hairline);
+}
+
+/* ----- Headings: tighter, more presence --------------------------------- */
+
+.sl-markdown-content :is(h1, h2, h3, h4) {
+  letter-spacing: -0.02em;
+  font-weight: 640;
+}
+.sl-markdown-content h2 {
+  padding-top: 0.4em;
+  border-top: 1px solid var(--gk-hairline);
+  margin-top: 2.4rem;
+}
+
+/* Content links: animated underline that draws in on hover */
+.sl-markdown-content a:not(:where(.not-content *)) {
+  color: var(--sl-color-accent-high);
+  text-decoration: none;
+  background-image: linear-gradient(var(--sl-color-accent), var(--sl-color-accent));
+  background-position: 0 100%;
+  background-repeat: no-repeat;
+  background-size: 0% 1.5px;
+  transition: background-size 0.25s var(--gk-ease), color 0.2s;
+}
+.sl-markdown-content a:not(:where(.not-content *)):hover {
+  background-size: 100% 1.5px;
+  color: var(--sl-color-accent);
+}
+
+/* ----- Code: mono everywhere, calmer inline chips ----------------------- */
+
+.sl-markdown-content code {
+  font-family: var(--sl-font-system-mono);
+  font-size: 0.85em;
+}
+.sl-markdown-content :not(pre) > code {
+  background: var(--sl-color-bg-sidebar);
+  border: 1px solid var(--gk-hairline);
+  border-radius: 6px;
+  padding: 0.12em 0.4em;
+}
+.expressive-code .frame {
+  border-radius: var(--gk-radius) !important;
+}
+
+/* ========================================================================
+   SPLASH HERO
+   .hero > .stack > (.copy > h1 + .tagline) + .actions
+   ======================================================================== */
+
+.hero {
+  position: relative;
+  isolation: isolate;
+  padding-block: clamp(2rem, 6vw, 4.5rem);
+}
+
+/* ambient accent glow */
+.hero::before {
+  content: '';
+  position: absolute;
+  inset: -8rem -6rem auto;
+  height: 30rem;
+  z-index: -2;
+  background: radial-gradient(60% 100% at 50% 0%, var(--gk-glow), transparent 72%);
+  pointer-events: none;
+}
+
+/* faint technical grid, faded out toward the edges */
+.hero::after {
+  content: '';
+  position: absolute;
+  inset: -8rem -50vw;
+  z-index: -3;
+  background-image:
+    linear-gradient(var(--gk-grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--gk-grid) 1px, transparent 1px);
+  background-size: 46px 46px;
+  -webkit-mask: radial-gradient(ellipse 70% 60% at 50% 12%, #000 25%, transparent 78%);
+  mask: radial-gradient(ellipse 70% 60% at 50% 12%, #000 25%, transparent 78%);
+  pointer-events: none;
+}
+
+.hero h1 {
+  font-size: clamp(2.8rem, 7vw, 5rem);
+  font-weight: 680;
+  letter-spacing: -0.04em;
+  line-height: 1;
+  background: linear-gradient(170deg, var(--sl-color-white) 30%, var(--sl-color-accent));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: gk-rise 0.7s var(--gk-ease) both;
+}
+
+.hero .tagline {
+  font-size: clamp(1rem, 1.6vw, 1.2rem);
+  line-height: 1.6;
+  color: var(--sl-color-gray-2);
+  max-width: 46ch;
+  margin-inline: auto;
+  animation: gk-rise 0.7s var(--gk-ease) 0.08s both;
+}
+
+.hero .actions {
+  animation: gk-rise 0.7s var(--gk-ease) 0.16s both;
+}
+
+/* Buttons */
+.hero .actions .sl-link-button {
+  border-radius: 999px;
+  font-weight: 560;
+  letter-spacing: -0.01em;
+  padding-block: 0.7rem;
+  transition: transform 0.2s var(--gk-ease), box-shadow 0.25s var(--gk-ease),
+    background 0.2s, border-color 0.2s;
+}
+.hero .actions .sl-link-button.primary {
+  background: var(--sl-color-accent);
+  border: 1px solid var(--sl-color-accent);
+  color: #04121d;
+  box-shadow: 0 8px 24px -8px var(--gk-glow);
+}
+.hero .actions .sl-link-button.primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 14px 34px -8px var(--gk-glow);
+}
+.hero .actions .sl-link-button.primary:active {
+  transform: translateY(0);
+}
+.hero .actions .sl-link-button.secondary,
+.hero .actions .sl-link-button.minimal {
+  border: 1px solid var(--gk-hairline);
+  background: var(--gk-card-bg);
+}
+.hero .actions .sl-link-button.secondary:hover,
+.hero .actions .sl-link-button.minimal:hover {
+  transform: translateY(-2px);
+  border-color: var(--sl-color-accent);
+  color: var(--sl-color-accent);
+}
+
+@keyframes gk-rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ========================================================================
+   CARDS — one cohesive accent, lift on hover
+   ======================================================================== */
+
+.card-grid {
+  gap: 1.25rem;
+}
+
+.card {
+  position: relative;
+  border: 1px solid var(--gk-hairline) !important;
+  border-radius: var(--gk-radius) !important;
+  background: linear-gradient(160deg, var(--gk-card-bg), var(--gk-card-bg-2)) !important;
+  box-shadow: var(--gk-shadow);
+  transition: transform 0.25s var(--gk-ease), border-color 0.25s var(--gk-ease),
+    box-shadow 0.25s var(--gk-ease);
+  overflow: hidden;
+}
+.card::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--sl-color-accent), transparent);
+  opacity: 0;
+  transition: opacity 0.25s var(--gk-ease);
+}
+.card:hover {
+  transform: translateY(-4px);
+  border-color: color-mix(in srgb, var(--sl-color-accent) 45%, transparent) !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.18), 0 24px 48px -20px var(--gk-glow);
+}
+.card:hover::before {
+  opacity: 1;
+}
+
+/* Unify the rainbow icon accents to the single brand accent */
+.card .icon {
+  color: var(--sl-color-accent) !important;
+  border: 1px solid color-mix(in srgb, var(--sl-color-accent) 35%, transparent) !important;
+  background: var(--sl-color-accent-low) !important;
+  border-radius: var(--gk-radius-sm) !important;
+}
+.card .title {
+  letter-spacing: -0.015em;
+}
+
+/* ========================================================================
+   AUTO-GENERATED REFERENCE TABLES (routes / adapters / config)
+   ======================================================================== */
 
 .sl-markdown-content table {
   font-size: 0.875rem;
+  border-radius: var(--gk-radius-sm);
+  overflow: hidden;
+}
+.sl-markdown-content th {
+  letter-spacing: 0.01em;
 }
 
 .route-table td,
@@ -27,8 +314,8 @@
 
 .route-method {
   display: inline-block;
-  padding: 0.125rem 0.4rem;
-  border-radius: 0.25rem;
+  padding: 0.125rem 0.45rem;
+  border-radius: 0.3rem;
   font-weight: 600;
   text-transform: uppercase;
   font-size: 0.7rem;
@@ -69,4 +356,21 @@
 :root[data-theme='dark'] .route-method-delete {
   background: #7f1d1d;
   color: #fecaca;
+}
+
+/* ----- Respect reduced-motion ------------------------------------------- */
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  .hero h1,
+  .hero .tagline,
+  .hero .actions {
+    animation: none;
+  }
+  .card,
+  .hero .actions .sl-link-button {
+    transition: none;
+  }
 }

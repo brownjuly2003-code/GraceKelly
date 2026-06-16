@@ -65,7 +65,11 @@ export default defineConfig({
           ],
         },
       ],
-      customCss: ['./src/assets/custom.css'],
+      customCss: [
+        '@fontsource-variable/geist/index.css',
+        '@fontsource-variable/geist-mono/index.css',
+        './src/assets/custom.css',
+      ],
     }),
   ],
 });
