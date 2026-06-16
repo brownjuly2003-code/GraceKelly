@@ -25,6 +25,7 @@ export default defineConfig({
             { label: 'Overview', slug: 'architecture' },
             { label: 'Execution modes', slug: 'architecture/execution-modes' },
             { label: 'API reference', slug: 'architecture/api' },
+            { label: 'Error handling', slug: 'architecture/errors' },
             { label: 'Execution adapters', slug: 'architecture/adapters' },
             { label: 'Routes catalog', slug: 'architecture/routes' },
             { label: 'Configuration matrix', slug: 'architecture/config' },

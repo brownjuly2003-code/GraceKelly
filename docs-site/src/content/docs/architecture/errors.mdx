@@ -1,0 +1,68 @@
+---
+title: Error handling
+description: HTTP status codes, the validation-error envelope, and the failure-code taxonomy returned when an orchestrated task fails.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+Errors surface in two places: the **HTTP status** of the response, and —
+when a task runs but does not succeed — a structured `failure_code` on the
+task body. This page is the central reference; per-endpoint status codes
+are listed in the [API reference](/GraceKelly/architecture/api/).
+
+## HTTP status codes
+
+| Status | Meaning | Typical cause |
+| --- | --- | --- |
+| `200` | Request handled | The task ran; check `status` / `failure_code` in the body for the outcome |
+| `400` | Bad request | Unknown model, or no adapter available for the requested provider |
+| `422` | Validation error | Malformed body — empty prompt, prompt too long, conflicting options |
+| `501` | Not implemented | A requested capability is not wired up for the selected path |
+| `503` | Service unavailable | Storage is down, or the browser profile is not authenticated |
+| `504` | Gateway timeout | Execution exceeded `GRACEKELLY_ORCHESTRATE_TIMEOUT_SECONDS` |
+
+<Aside type="caution">
+  A `200` does not always mean success. Fan-out endpoints return `200` with
+  a terminal `status` of `failed` and a `failure_code` when execution ran
+  but produced no usable answer. Always check the body, not just the status.
+</Aside>
+
+## Validation errors (422)
+
+A `422` uses FastAPI's standard envelope: a `detail` array where each entry
+locates the offending field (`loc`), a human message (`msg`), and an error
+`type`.
+
+```json
+{
+  "detail": [
+    {
+      "loc": ["body", "prompt"],
+      "msg": "String should have at least 1 character",
+      "type": "string_too_short"
+    }
+  ]
+}
+```
+
+## Failure codes
+
+When a task's `status` is `failed`, `failure_code` carries one of the
+values below (from `FailureCode` in `src/gracekelly/core/contracts.py`).
+Recovery steps live in the
+[operator runbook](/GraceKelly/guides/operator-runbook/).
+
+| `failure_code` | What it means | Where to look |
+| --- | --- | --- |
+| `auth_failed` | The browser profile is not logged in to Perplexity, or an API key is rejected | Re-run the profile bootstrap — see [onboarding](/GraceKelly/guides/onboarding/) |
+| `model_mismatch` | The requested model is not available on the adapter that resolved it | Check the [model catalog](/GraceKelly/architecture/api/#models) and your `model` / `models` |
+| `provider_unavailable` | The adapter is unreachable or its circuit breaker is open | Browser triage and circuit-breaker recovery in the runbook |
+| `timeout` | Execution exceeded its budget (cold-start navigation or the orchestrate timeout) | Raise `GRACEKELLY_ORCHESTRATE_TIMEOUT_SECONDS` or retry once warm |
+| `rate_limited` | The rate limiter rejected the request | Back off, or review `GRACEKELLY_REDIS_URL` / token-bucket limits |
+| `storage_failed` | The task or run store returned an error | Storage validation section of the runbook |
+| `unknown_error` | An uncategorised failure | Inspect the task events via `GET /api/v1/tasks/{task_id}` |
+
+<Aside type="tip">
+  Failed and cancelled tasks can be replayed with
+  `POST /api/v1/tasks/{task_id}/retry` once the underlying cause is fixed.
+</Aside>
