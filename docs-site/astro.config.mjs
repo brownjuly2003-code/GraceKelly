@@ -33,6 +33,7 @@ export default defineConfig({
         {
           label: 'Operations',
           items: [
+            { label: 'Getting started', slug: 'getting-started' },
             { label: 'Quickstart (RU)', slug: 'guides/quickstart-ru' },
             { label: 'Operator runbook', slug: 'guides/operator-runbook' },
             { label: 'Onboarding', slug: 'guides/onboarding' },

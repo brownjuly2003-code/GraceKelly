@@ -1,0 +1,111 @@
+---
+title: Getting started
+description: Install GraceKelly, start the API, and make your first orchestrated call — including a dry-run that needs no browser login.
+---
+
+import { Steps, Aside, CardGrid, LinkCard } from '@astrojs/starlight/components';
+
+This walks you from a clean checkout to a working API call. The Russian
+[quickstart](/GraceKelly/guides/quickstart-ru/) covers the same ground;
+the [onboarding guide](/GraceKelly/guides/onboarding/) has the deeper
+browser-profile setup.
+
+## Prerequisites
+
+- Python 3.11+ and Google Chrome (or Chromium) installed.
+- A Perplexity Pro login for the browser adapter — not needed for the
+  dry-run call below.
+
+## Install and run
+
+<Steps>
+
+1. Install the package with the dev and browser extras:
+
+   ```bash
+   pip install -e ".[dev,browser]"
+   ```
+
+2. Create your environment file and point it at a dedicated Chrome
+   profile (see [onboarding](/GraceKelly/guides/onboarding/) for the
+   bootstrap script):
+
+   ```bash
+   cp .env.example .env
+   # GRACEKELLY_BROWSER_ENABLED=true
+   # GRACEKELLY_BROWSER_AUTOMATION_BACKEND=playwright
+   # GRACEKELLY_EXECUTION_PROFILE=hybrid
+   # GRACEKELLY_BROWSER_PROFILE_DIR=/path/to/dedicated/chrome-profile
+   ```
+
+3. Start the API:
+
+   ```bash
+   python -m uvicorn gracekelly.main:create_app --factory --host 127.0.0.1 --port 8011
+   ```
+
+</Steps>
+
+## Verify it is up
+
+```bash
+# liveness — process is running
+curl -s http://127.0.0.1:8011/healthz/live
+# {"status":"ok"}
+
+# readiness — execution profile is loaded
+curl -s http://127.0.0.1:8011/api/v1/readiness | grep execution_profile
+# "execution_profile": "hybrid"
+```
+
+If readiness reports `model_auth_required`, the browser profile is not
+logged in — see [onboarding troubleshooting](/GraceKelly/guides/onboarding/).
+
+## Your first call (dry run)
+
+Start with `dry_run: true`. It exercises the full orchestrate path —
+validation, planning, response shape — without driving a browser or
+calling a provider, so it works before any Perplexity login.
+
+```bash
+curl -s -X POST http://127.0.0.1:8011/api/v1/orchestrate \
+  -H "Content-Type: application/json" \
+  -d '{"prompt": "Say hello.", "dry_run": true}'
+```
+
+```json
+{
+  "task_id": "…",
+  "status": "succeeded",
+  "execution_mode": "dry_run",
+  "adapter_name": "dry_run",
+  "output_text": "…",
+  "was_decomposed": false
+}
+```
+
+<Aside type="tip">
+  The dry-run response is the same `OrchestrateResponse` shape every real
+  call returns — see the [API reference](/GraceKelly/architecture/api/#orchestration)
+  for every field.
+</Aside>
+
+## Your first real call
+
+With a logged-in profile, send a real prompt. `smart` picks the execution
+pattern for you (the first browser-backed call cold-starts in ~30s):
+
+```bash
+curl -s -X POST http://127.0.0.1:8011/api/v1/smart \
+  -H "Content-Type: application/json" \
+  -d '{"prompt": "What is 2 + 2?", "model": "claude-sonnet-4-6"}'
+```
+
+## Where to go next
+
+<CardGrid>
+  <LinkCard title="Execution modes" description="Which endpoint to use — smart, orchestrate, consensus, debate, compare." href="/GraceKelly/architecture/execution-modes/" />
+  <LinkCard title="API reference" description="Request and response schemas for every endpoint." href="/GraceKelly/architecture/api/" />
+  <LinkCard title="Operator runbook" description="Run, monitor, and recover the service day to day." href="/GraceKelly/guides/operator-runbook/" />
+  <LinkCard title="Architecture overview" description="How a request flows through the orchestrator and adapters." href="/GraceKelly/architecture/" />
+</CardGrid>
