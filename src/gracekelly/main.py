@@ -6,7 +6,7 @@ import logging
 import pathlib
 from collections.abc import AsyncGenerator, Callable
 from concurrent.futures import ThreadPoolExecutor
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, suppress
 from datetime import UTC, datetime, timedelta
 from typing import Any, cast
 
@@ -64,6 +64,7 @@ from gracekelly.core.models import (
 )
 from gracekelly.core.orchestrator import OrchestratorService
 from gracekelly.core.router import ExecutionRouter
+from gracekelly.logging_utils import log_message
 from gracekelly.middleware import (
     setup_api_key_auth,
     setup_correlation_id,
@@ -79,7 +80,7 @@ from gracekelly.storage.memory import InMemoryTaskRepository
 from gracekelly.telemetry import setup_telemetry
 
 logger = logging.getLogger(__name__)
-_MODEL_CATALOG_REFRESH_INTERVAL = timedelta(hours=24)
+_MODEL_CATALOG_REFRESH_INTERVAL_HOURS = 24.0
 
 
 def _get_version() -> str:
@@ -231,11 +232,48 @@ def _catalog_refresh_adapter(app: FastAPI) -> object | None:
     return None
 
 
+def _model_catalog_refresh_interval(active_settings: Settings | object | None) -> timedelta:
+    hours = getattr(active_settings, "model_catalog_refresh_interval_hours", _MODEL_CATALOG_REFRESH_INTERVAL_HOURS)
+    return timedelta(hours=float(hours))
+
+
+def _short_error_text(detail: object, *, limit: int = 240) -> str:
+    if isinstance(detail, dict):
+        for key in ("message", "detail", "error"):
+            candidate = detail.get(key)
+            if isinstance(candidate, str) and candidate.strip():
+                text = candidate
+                break
+        else:
+            text = str(detail)
+    else:
+        text = str(detail)
+    text = " ".join(text.split())
+    if len(text) > limit:
+        return text[: limit - 3].rstrip() + "..."
+    return text
+
+
+def _log_api_error(request: Request, status_code: int, detail: object) -> None:
+    level = logging.ERROR if status_code >= 500 else logging.WARNING
+    logger.log(
+        level,
+        log_message(
+            "api.error",
+            method=request.method,
+            path=request.url.path,
+            status=status_code,
+            message=_short_error_text(detail),
+        ),
+    )
+
+
 async def _initialize_model_catalog_async(app: FastAPI) -> None:
     repository = getattr(app.state, "task_repository", None)
     snapshot = _repository_model_catalog_snapshot(repository)
     now = datetime.now(UTC)
     active_settings = getattr(app.state, "settings", None)
+    refresh_interval = _model_catalog_refresh_interval(active_settings)
     dry_run_no_browser = (
         isinstance(active_settings, Settings)
         and active_settings.execution_profile == "dry-run"
@@ -259,7 +297,7 @@ async def _initialize_model_catalog_async(app: FastAPI) -> None:
     static_fallback_snapshot = snapshot is not None and snapshot.source == DRY_RUN_BROWSER_CATALOG_SOURCE
     should_refresh = (
         snapshot is None
-        or (now - snapshot.checked_at) > _MODEL_CATALOG_REFRESH_INTERVAL
+        or (now - snapshot.checked_at) > refresh_interval
         or (
             static_fallback_snapshot
             and isinstance(active_settings, Settings)
@@ -302,6 +340,21 @@ async def _initialize_model_catalog_async(app: FastAPI) -> None:
         logger.warning("model_catalog.unavailable error=%r", exc)
 
 
+async def _model_catalog_refresh_loop(app: FastAPI) -> None:
+    active_settings = getattr(app.state, "settings", None)
+    if not isinstance(active_settings, Settings) or not active_settings.browser_enabled:
+        return
+    refresh_interval = _model_catalog_refresh_interval(active_settings)
+    if refresh_interval.total_seconds() <= 0:
+        return
+    try:
+        while True:
+            await asyncio.sleep(refresh_interval.total_seconds())
+            await _initialize_model_catalog_async(app)
+    except asyncio.CancelledError:
+        return
+
+
 @asynccontextmanager
 async def app_lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     active_settings = getattr(app.state, "settings", None)
@@ -321,28 +374,37 @@ async def app_lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
                 f"('{profile_dir}'). Use a dedicated directory (see .env.example). "
                 "Example: `python scripts/bootstrap_chrome_profile.py`"
             )
+    refresh_task: asyncio.Task[None] | None = None
     await _initialize_model_catalog_async(app)
-    yield
-    logger.info("Shutting down — releasing resources")
-    browser_adapter = getattr(app.state, "browser_adapter", None)
-    if browser_adapter is not None:
-        close_method = getattr(browser_adapter, "close", None)
-        if callable(close_method):
-            result = close_method()
-            if inspect.isawaitable(result):
-                await result
-    execution_executor = getattr(app.state, "execution_executor", None)
-    if execution_executor is not None:
-        execution_executor.shutdown(wait=False)
-    browser_executor = getattr(app.state, "browser_executor", None)
-    if browser_executor is not None and browser_executor is not execution_executor:
-        browser_executor.shutdown(wait=False)
-    pool = getattr(app.state, "postgres_pool", None)
-    if pool is not None:
-        close_method = getattr(pool, "close", None)
-        if callable(close_method):
-            close_method()
-            logger.info("PostgreSQL connection pool closed")
+    if isinstance(active_settings, Settings) and active_settings.browser_enabled:
+        refresh_task = asyncio.create_task(_model_catalog_refresh_loop(app))
+    try:
+        yield
+    finally:
+        if refresh_task is not None:
+            refresh_task.cancel()
+            with suppress(asyncio.CancelledError):
+                await refresh_task
+        logger.info("Shutting down — releasing resources")
+        browser_adapter = getattr(app.state, "browser_adapter", None)
+        if browser_adapter is not None:
+            close_method = getattr(browser_adapter, "close", None)
+            if callable(close_method):
+                result = close_method()
+                if inspect.isawaitable(result):
+                    await result
+        execution_executor = getattr(app.state, "execution_executor", None)
+        if execution_executor is not None:
+            execution_executor.shutdown(wait=False)
+        browser_executor = getattr(app.state, "browser_executor", None)
+        if browser_executor is not None and browser_executor is not execution_executor:
+            browser_executor.shutdown(wait=False)
+        pool = getattr(app.state, "postgres_pool", None)
+        if pool is not None:
+            close_method = getattr(pool, "close", None)
+            if callable(close_method):
+                close_method()
+                logger.info("PostgreSQL connection pool closed")
 
 
 def create_app(app_settings: Settings | None = None) -> FastAPI:
@@ -365,6 +427,7 @@ def create_app(app_settings: Settings | None = None) -> FastAPI:
 
     @app.exception_handler(StarletteHTTPException)
     async def http_exception_handler(request: Request, exc: StarletteHTTPException) -> JSONResponse:
+        _log_api_error(request, exc.status_code, exc.detail)
         return JSONResponse(
             status_code=exc.status_code,
             content={
@@ -379,6 +442,7 @@ def create_app(app_settings: Settings | None = None) -> FastAPI:
     async def validation_exception_handler(request: Request, exc: RequestValidationError) -> JSONResponse:
         errors = exc.errors()
         detail = "; ".join(f"{'.'.join(str(loc) for loc in error['loc'])}: {error['msg']}" for error in errors)
+        _log_api_error(request, 422, detail)
         return JSONResponse(
             status_code=422,
             content={

@@ -60,6 +60,57 @@ class AppStartupTests(unittest.TestCase):
 
 @unittest.skipIf(create_app is None, "fastapi.testclient is not installed")
 class AppStartupAsyncTests(unittest.IsolatedAsyncioTestCase):
+    async def test_model_catalog_refresh_loop_waits_configured_interval_then_refreshes(self) -> None:
+        from gracekelly.core.models import clear_browser_catalog
+        from gracekelly.main import _model_catalog_refresh_loop
+        from gracekelly.storage.memory import InMemoryTaskRepository
+
+        class _LoopGuardBrowserAdapter:
+            name = "browser.perplexity"
+
+            def execute(self, request: object) -> object:
+                raise NotImplementedError
+
+            def refresh_model_catalog(self) -> tuple[str, ...]:
+                return ("Best", "Kimi K2")
+
+            def healthcheck(self) -> dict[str, object]:
+                return {
+                    "status": "ok",
+                    "adapter_name": self.name,
+                }
+
+        sleep_calls: list[float] = []
+
+        async def fake_sleep(delay: float) -> None:
+            sleep_calls.append(delay)
+            if len(sleep_calls) > 1:
+                raise asyncio.CancelledError
+            return None
+
+        clear_browser_catalog()
+        repository = InMemoryTaskRepository()
+
+        with patch("gracekelly.main.build_task_repository", return_value=repository), patch(
+            "gracekelly.main.build_browser_adapter",
+            return_value=_LoopGuardBrowserAdapter(),
+        ), patch("gracekelly.main.asyncio.sleep", side_effect=fake_sleep), patch(
+            "gracekelly.main._initialize_model_catalog_async",
+            AsyncMock(),
+        ) as refresh_catalog:
+            app = create_app(
+                Settings(
+                    storage_backend="memory",
+                    browser_enabled=True,
+                    browser_automation_backend="null",
+                    model_catalog_refresh_interval_hours=12.0,
+                )
+            )
+            await _model_catalog_refresh_loop(app)
+
+        self.assertEqual(sleep_calls, [43200.0, 43200.0])
+        self.assertEqual(refresh_catalog.await_count, 1)
+
     async def test_startup_refreshes_catalog_when_sync_refresh_requires_no_running_loop(self) -> None:
         from gracekelly.core.models import clear_browser_catalog
         from gracekelly.storage.memory import InMemoryTaskRepository

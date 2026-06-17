@@ -81,6 +81,16 @@ class SettingsTests(unittest.TestCase):
         self.assertEqual(settings.browser_circuit_breaker_failure_threshold, 5)
         self.assertEqual(settings.browser_circuit_breaker_cooldown_seconds, 120)
 
+    def test_from_env_reads_model_catalog_refresh_interval(self) -> None:
+        with patch.dict(
+            os.environ,
+            {"GRACEKELLY_MODEL_CATALOG_REFRESH_INTERVAL_HOURS": "6"},
+            clear=True,
+        ):
+            settings = Settings.from_env()
+
+        self.assertEqual(settings.model_catalog_refresh_interval_hours, 6.0)
+
     def test_invalid_browser_call_timeout_env_falls_back_to_default_and_logs_warning(self) -> None:
         with patch.dict(os.environ, {"GRACEKELLY_BROWSER_CALL_TIMEOUT_SECONDS": "abc"}, clear=True):
             with self.assertLogs("gracekelly.config", level="WARNING") as captured:

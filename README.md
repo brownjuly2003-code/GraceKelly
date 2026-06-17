@@ -1,5 +1,7 @@
 # GraceKelly
 
+![Python](https://img.shields.io/badge/python-3.11+-3776AB?logo=python&logoColor=white) ![Coverage](https://img.shields.io/badge/coverage-94%25+-brightgreen) ![License](https://img.shields.io/badge/license-MIT-blue) [![Docs](https://img.shields.io/badge/docs-astro--starlight-blue)](https://brownjuly2003-code.github.io/GraceKelly/)
+
 Multi-model LLM orchestrator powered by your Perplexity Pro subscription.
 Access GPT-5.4, Claude, Gemini, Kimi, and other models through Perplexity's
 browser interface - then compare, debate, and reach consensus across models,
@@ -50,11 +52,11 @@ GraceKelly is a personal-use tool. Three risks are inherent to the design — re
 ## Integration / Clients
 
 Known local integrators target the V2 API surface on `http://127.0.0.1:8011`:
-- **`RAG_Support_Assistant`** — provider-aware support bot. Smoke harness at `D:\RAG_Support_Assistant\scripts\gracekelly_smoke.py` (8 steps).
+- **`RAG_Support_Assistant`** — provider-aware support bot. Smoke harness: `scripts/gracekelly_smoke.py` in that repo (8 steps).
 - **`agent_toolkit`** — LangGraph agent building blocks. Migrated from V1 in 2026-04-25 (commits `09e2632…1276a06` in that repo). 66 unit + 10 integration tests.
-- **`juhub`** (in `D:\Perplexity_Orchestrator2\juhub\`) — AI Daily Debate scheduled at 08:30. Migrated from V1 in 2026-04-25 (commits in `D:\Perplexity_Orchestrator2` HEAD `8ff3886`). Requires V2 to be running before cron fires; no auto-start.
+- **`juhub`** — AI Daily Debate scheduled at 08:30. Migrated from the V1 orchestrator on 2026-04-25. Requires V2 to be running before cron fires; no auto-start.
 
-The legacy V1 orchestrator at `D:\Perplexity_Orchestrator2` (`:8001`, `/api/gk/*`) was deprecated 2026-04-25. See `D:\Perplexity_Orchestrator2\DEPRECATED.md`.
+The legacy V1 orchestrator (`:8001`, `/api/gk/*`) was deprecated 2026-04-25.
 
 ## Operations
 
@@ -83,6 +85,7 @@ Copy `.env.example` and configure:
 | `GRACEKELLY_BROWSER_PROFILE_DIR` | - | Path to Chrome profile with Perplexity login |
 | `GRACEKELLY_BROWSER_CALL_TIMEOUT_SECONDS` | `120` | Per-call budget for one Perplexity submit. Raise for very long prompts; lower for aggressive fail-fast. |
 | `GRACEKELLY_BROWSER_SCREENSHOTS_DIR` | - | Directory for per-step PNGs (session start, auth, model select, submit, response). Leave empty to disable. |
+| `GRACEKELLY_MODEL_CATALOG_REFRESH_INTERVAL_HOURS` | `24` | Periodic refresh interval for the browser-backed model catalog while browser execution is enabled. |
 
 ### Optional: API fallbacks
 
@@ -132,6 +135,8 @@ longer calls the removed `/api/analytics/*` routes.
 On a first dry-run/no-browser start, `/api/v1/models` serves a static
 `dry-run-static` browser catalog plus API models so the UI menu can populate
 before an authenticated Perplexity profile has refreshed the live catalog.
+When browser execution is enabled, the live browser catalog also refreshes on a
+scheduled loop using `GRACEKELLY_MODEL_CATALOG_REFRESH_INTERVAL_HOURS`.
 
 ## API
 

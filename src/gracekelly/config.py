@@ -104,6 +104,7 @@ class Settings:
     browser_scripted_model_label: str | None = None
     browser_scripted_output_text: str = "scripted browser result"
     browser_screenshots_dir: str | None = None
+    model_catalog_refresh_interval_hours: float = 24.0
     sentry_dsn: str | None = None
     sentry_environment: str = "production"
     otel_endpoint: str | None = None
@@ -129,6 +130,11 @@ class Settings:
         if self.orchestrate_timeout_seconds is not None and self.orchestrate_timeout_seconds <= 0.0:
             raise ValueError(
                 f"GRACEKELLY_ORCHESTRATE_TIMEOUT_SECONDS must be > 0.0, got {self.orchestrate_timeout_seconds}"
+            )
+        if self.model_catalog_refresh_interval_hours <= 0.0:
+            raise ValueError(
+                "GRACEKELLY_MODEL_CATALOG_REFRESH_INTERVAL_HOURS must be > 0.0, "
+                f"got {self.model_catalog_refresh_interval_hours}"
             )
         if not 1 <= self.context_window_turns <= 100:
             raise ValueError(
@@ -200,6 +206,10 @@ class Settings:
                 "scripted browser result",
             ),
             browser_screenshots_dir=os.getenv("GRACEKELLY_BROWSER_SCREENSHOTS_DIR") or None,
+            model_catalog_refresh_interval_hours=_env_float(
+                "GRACEKELLY_MODEL_CATALOG_REFRESH_INTERVAL_HOURS",
+                "24",
+            ),
             sentry_dsn=os.getenv("GRACEKELLY_SENTRY_DSN") or None,
             sentry_environment=os.getenv("GRACEKELLY_SENTRY_ENVIRONMENT", "production"),
             otel_endpoint=os.getenv("GRACEKELLY_OTEL_ENDPOINT") or None,

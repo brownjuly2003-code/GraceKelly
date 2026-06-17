@@ -38,6 +38,10 @@ class ErrorSchemaTests(unittest.TestCase):
         def bad_request() -> None:
             raise HTTPException(status_code=400, detail="Bad request")
 
+        @app.get("/server-error")
+        def server_error() -> None:
+            raise HTTPException(status_code=503, detail="model catalog unavailable")
+
         self.client = TestClient(app, raise_server_exceptions=False)
 
     def test_404_has_problem_details_type(self) -> None:
@@ -66,6 +70,25 @@ class ErrorSchemaTests(unittest.TestCase):
     def test_422_detail_mentions_field(self) -> None:
         resp = self.client.post("/api/v1/orchestrate", json={})
         self.assertIn("prompt", resp.json()["detail"])
+
+    def test_http_errors_are_logged_concisely(self) -> None:
+        with self.assertLogs("gracekelly", level="WARNING") as captured:
+            resp = self.client.get("/bad-request")
+
+        self.assertEqual(resp.status_code, 400)
+        self.assertTrue(any("api.error" in line for line in captured.output))
+        self.assertTrue(any("method=\"GET\"" in line for line in captured.output))
+        self.assertTrue(any("path=\"/bad-request\"" in line for line in captured.output))
+        self.assertTrue(any("message=\"Bad request\"" in line for line in captured.output))
+
+    def test_server_errors_are_logged_as_error_level(self) -> None:
+        with self.assertLogs("gracekelly", level="ERROR") as captured:
+            resp = self.client.get("/server-error")
+
+        self.assertEqual(resp.status_code, 503)
+        self.assertTrue(any("api.error" in line for line in captured.output))
+        self.assertTrue(any("status=503" in line for line in captured.output))
+        self.assertTrue(any("message=\"model catalog unavailable\"" in line for line in captured.output))
 
 
 if __name__ == "__main__":
