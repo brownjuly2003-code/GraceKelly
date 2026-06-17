@@ -20,9 +20,11 @@ REQUEST_TIMEOUT_SECONDS = 10.0
 SUBPROCESS_STDOUT_LINES = 30
 SUBPROCESS_TIMEOUT_SECONDS = 90.0
 
-RAG_SMOKE_PATH = Path("D:/RAG_Support_Assistant/scripts/gracekelly_smoke.py")
-AGENT_TOOLKIT_DIR = Path("D:/agent_toolkit")
-JUHUB_DIR = Path("D:/Perplexity_Orchestrator2")
+# Sibling-project locations default to the dev layout but are env-overridable so the
+# smoke can run on any machine (each step still skips gracefully if its path is absent).
+RAG_SMOKE_PATH = Path(os.getenv("GRACEKELLY_RAG_SMOKE_PATH", "D:/RAG_Support_Assistant/scripts/gracekelly_smoke.py"))
+AGENT_TOOLKIT_DIR = Path(os.getenv("GRACEKELLY_AGENT_TOOLKIT_DIR", "D:/agent_toolkit"))
+JUHUB_DIR = Path(os.getenv("GRACEKELLY_JUHUB_DIR", "D:/Perplexity_Orchestrator2"))
 JUHUB_SCHEDULER_PATH = JUHUB_DIR / "juhub" / "backend" / "scheduler.py"
 
 SMART_PAYLOAD: Mapping[str, object] = {"prompt": "2+2", "dry_run": True}

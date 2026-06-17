@@ -178,6 +178,11 @@ python -m ruff check src/ tests/
 python -m pytest -p no:schemathesis --cov=gracekelly --cov-report=term --cov-fail-under=94 -q
 ```
 
+CI runs this matrix on Python **3.11 and 3.12**. If your local interpreter is newer
+(e.g. 3.13), run mypy under 3.11 (a 3.11 virtualenv, or `py -3.11 -m mypy src/ tests/`)
+before pushing — version-sensitive `# type: ignore` placement can otherwise pass locally
+and fail in CI.
+
 Optional local security parity with CI:
 
 ```bash
