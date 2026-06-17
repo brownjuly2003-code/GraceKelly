@@ -15,7 +15,7 @@ if TestClient is not None:
 else:  # pragma: no cover
     Settings = None  # type: ignore[assignment,misc]
     create_app = None  # type: ignore[assignment]
-    psycopg = None
+    psycopg = None  # type: ignore[assignment, unused-ignore]
 
 
 POSTGRES_TEST_DSN = os.getenv("GRACEKELLY_POSTGRES_TEST_DSN")
