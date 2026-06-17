@@ -141,11 +141,6 @@ Single-day roadmap closure run. All phases now marked complete; gates PASS; defe
 - `batch-99`: Phase 13/14 trigger-reactive relabel (`f356bc6`)
 - `batch-100`: final docs polish (`a991b1d` — this batch)
 
-- Audit: [docs/audits/2026-04-23-post-phase-2-audit.md](docs/audits/2026-04-23-post-phase-2-audit.md)
-- Gate 2: [docs/gates/2026-04-23-gate-2-operational-review.md](docs/gates/2026-04-23-gate-2-operational-review.md)
-- Gate 3: [docs/gates/2026-04-23-gate-3-execution-policy-review.md](docs/gates/2026-04-23-gate-3-execution-policy-review.md)
-- Plan: [docs/plans/2026-04-23-final-closure.md](docs/plans/2026-04-23-final-closure.md)
-
 ## Phase 0: Clean foundation
 
 Status: complete

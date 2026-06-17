@@ -55,13 +55,6 @@ export default defineConfig({
           items: [
             { label: 'Phased roadmap', slug: 'guides/phased-roadmap' },
             { label: 'Architecture notes', slug: 'guides/architecture' },
-            { label: '2026-04-23 final closure', slug: 'guides/plans/2026-04-23-final-closure' },
-            { label: '2026-04-25 open-questions handoff', slug: 'guides/plans/2026-04-25-open-questions-handoff' },
-            { label: '2026-04-26 handoff', slug: 'guides/plans/2026-04-26-handoff' },
-            { label: 'Post phase-2 audit (2026-04-23)', slug: 'guides/audits/2026-04-23-post-phase-2-audit' },
-            { label: 'Dry-run gate audit (2026-04-25)', slug: 'guides/audits/2026-04-25-dry-run-gate-audit' },
-            { label: 'Gate-2 operational review (2026-04-23)', slug: 'guides/gates/2026-04-23-gate-2-operational-review' },
-            { label: 'Gate-3 execution-policy review (2026-04-23)', slug: 'guides/gates/2026-04-23-gate-3-execution-policy-review' },
           ],
         },
       ],

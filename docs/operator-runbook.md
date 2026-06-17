@@ -442,7 +442,7 @@ Dry-run first start:
 
 `timeout` or `unknown_error`:
 - live UI or automation state unstable
-- If an external integrator receives `failure_code: "unknown_error"` with a Playwright traceback while the backend is running with `GRACEKELLY_EXECUTION_PROFILE=dry-run`, treat it as the known dry-run profile-gate regression covered by [docs/audits/2026-04-25-dry-run-gate-audit.md](audits/2026-04-25-dry-run-gate-audit.md).
+- If an external integrator receives `failure_code: "unknown_error"` with a Playwright traceback while the backend is running with `GRACEKELLY_EXECUTION_PROFILE=dry-run`, treat it as the known dry-run profile-gate regression (the dry-run profile must not execute real adapters).
 - Recovery:
   - inspect `browser.perplexity` health details and breaker counters
   - capture fresh DOM recon

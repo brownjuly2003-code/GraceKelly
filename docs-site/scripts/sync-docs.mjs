@@ -16,11 +16,6 @@ const ROOT_FILES = [
   { src: 'README.md', dest: 'overview.md', title: 'Project overview' },
   { src: 'AGENTS.md', dest: 'agents.md', title: 'Agents protocol' },
   { src: 'CLAUDE.md', dest: 'claude.md', title: 'Claude protocol' },
-  { src: 'audit_codex_2026-04-26.md', dest: 'audits/audit-codex-2026-04-26.md', title: 'Codex audit (2026-04-26)' },
-  { src: 'audit_opus_2026-04-26.md', dest: 'audits/audit-opus-2026-04-26.md', title: 'Opus audit (2026-04-26)' },
-  { src: 'audit_opus_27_04_delta.md', dest: 'audits/audit-opus-2026-04-27-delta.md', title: 'Opus audit delta (2026-04-27)' },
-  { src: 'codex_review_2026-04-27.md', dest: 'audits/codex-review-2026-04-27.md', title: 'Codex review (2026-04-27)' },
-  { src: 'opt.md', dest: 'optimization-notes.md', title: 'Optimization notes' },
 ];
 
 async function walkMarkdown(dir, prefix = '') {
