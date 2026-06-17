@@ -2,7 +2,7 @@
 
 ## Prerequisites
 
-- Run `uv sync --extra dev --extra browser` in `D:/GraceKelly`.
+- Run `uv sync --extra dev --extra browser` in `<repo>`.
 - Install Google Chrome or Chromium.
 - Keep your normal Chrome profile closed while bootstrapping the GraceKelly profile.
 
@@ -13,7 +13,7 @@
 3. Run `python scripts/bootstrap_chrome_profile.py`.
 4. In the opened browser window, sign in to Perplexity Pro.
 5. Return to the terminal and press Enter so the script can terminate the launched Chrome tree and clear lock files.
-6. Set `GRACEKELLY_BROWSER_PROFILE_DIR` in `.env` to the printed path, for example `D:/GraceKelly/chrome-profile`.
+6. Set `GRACEKELLY_BROWSER_PROFILE_DIR` in `.env` to the printed path, for example `<repo>/chrome-profile`.
 
 ## Daily use
 

@@ -21,7 +21,7 @@ It is intentionally limited to the current in-process deployment model.
    set GRACEKELLY_BROWSER_ENABLED=true
    set GRACEKELLY_BROWSER_AUTOMATION_BACKEND=playwright
    set GRACEKELLY_EXECUTION_PROFILE=hybrid
-   set GRACEKELLY_BROWSER_PROFILE_DIR=D:\GraceKelly\tmp\browser-recon\perplexity-profile
+   set GRACEKELLY_BROWSER_PROFILE_DIR=<repo>\tmp\browser-recon\perplexity-profile
    python -m uvicorn gracekelly.main:create_app --factory --host 127.0.0.1 --port 8011
    ```
    Keep that process running, then open `http://127.0.0.1:8011/`.
@@ -61,8 +61,8 @@ and all three known clients (`RAG_Support_Assistant`, `agent_toolkit`, `juhub`).
 
 Step order: pre-flight `:8011/healthz/ready` → V2 direct (`/smart` + `/orchestrate`)
 → RAG smoke (if `:8000` reachable) → agent_toolkit `pytest tests/integration/`
-(if `D:\agent_toolkit` exists) → juhub `--dry-run` debate (if
-`D:\Perplexity_Orchestrator2\juhub` exists). Missing components are reported as
+(if `agent_toolkit` exists) → juhub `--dry-run` debate (if
+`Perplexity_Orchestrator2\juhub` exists). Missing components are reported as
 SKIP, not FAIL. Exit code 0 if every step is PASS or SKIP, 1 on the first FAIL.
 
 Useful flags:
@@ -83,7 +83,7 @@ on V2 being already up.
 Install once, as Administrator:
 
 ```cmd
-cd D:\GraceKelly\scripts\win-autostart
+cd <repo>\scripts\win-autostart
 install_autostart.bat
 ```
 
@@ -168,7 +168,7 @@ uses the same `GRACEKELLY_BROWSER_PROFILE_DIR` as `Settings.from_env()` unless
 
 ### Install
 
-Right-click `D:\GraceKelly\scripts\win-autostart\install_recon_cron.bat` →
+Right-click `<repo>\scripts\win-autostart\install_recon_cron.bat` →
 `Run as administrator`. The installer renders `recon-task.xml` with the current
 `%USERDOMAIN%\%USERNAME%` substituted in and converts the file to UTF-16 LE
 before calling `schtasks /Create /XML`.
@@ -205,9 +205,9 @@ When the flag is present:
 4. To accept the new state as the baseline:
 
    ```cmd
-   copy /Y "D:\GraceKelly\.workflow\state\perplexity-selectors-latest.json" ^
-       "D:\GraceKelly\.workflow\state\perplexity-selectors-baseline.json"
-   del "D:\GraceKelly\.workflow\state\perplexity-selectors-drift.flag"
+   copy /Y "<repo>\.workflow\state\perplexity-selectors-latest.json" ^
+       "<repo>\.workflow\state\perplexity-selectors-baseline.json"
+   del "<repo>\.workflow\state\perplexity-selectors-drift.flag"
    ```
 
 The next run will exit 0 again until the next drift.
@@ -409,7 +409,7 @@ Common task-level failure codes:
   - create or refresh a dedicated profile:
     - `gracekelly-create-perplexity-profile`
   - point runtime to that directory:
-    - `set GRACEKELLY_BROWSER_PROFILE_DIR=D:\GraceKelly\tmp\browser-recon\perplexity-profile`
+    - `set GRACEKELLY_BROWSER_PROFILE_DIR=<repo>\tmp\browser-recon\perplexity-profile`
   - rerun the live smoke
 - Diagnostics:
   - the adapter logs a structured `browser_auth_unknown` warning with
@@ -535,7 +535,7 @@ If the export path ends with `.gz`, the snapshot is written as gzip-compressed J
 Inspect a snapshot artifact offline before restore:
 
 ```bash
-gracekelly-inspect-snapshot --input D:\GraceKelly\tmp\postgres-export\selected.json
+gracekelly-inspect-snapshot --input <repo>\tmp\postgres-export\selected.json
 ```
 
 That command verifies `snapshot_sha256` when present and reports manifest details such as `manifest_status`, `snapshot_status_consistency_status`, `selection_status`, `missing_task_ids_status`, field-level manifest verification statuses, `selection`, `task_count`, `step_count`, `event_count`, `exported_task_ids`, `missing_task_ids`, `input_size_bytes`, and `import_ready` without requiring database connectivity. If the file cannot be parsed, the error payload still includes `compressed_input` and `input_size_bytes`.
@@ -544,7 +544,7 @@ Restore a snapshot back into PostgreSQL:
 
 ```bash
 set GRACEKELLY_POSTGRES_DSN=postgresql://postgres:postgres@localhost:5432/gracekelly
-gracekelly-import-postgres --input D:\GraceKelly\tmp\postgres-export\selected.json
+gracekelly-import-postgres --input <repo>\tmp\postgres-export\selected.json
 ```
 
 Restore semantics:
@@ -557,7 +557,7 @@ Restore semantics:
 Restore only selected task bundles from a larger snapshot:
 
 ```bash
-gracekelly-import-postgres --input D:\GraceKelly\tmp\postgres-export\selected.json --task-id task-1 --task-id task-2
+gracekelly-import-postgres --input <repo>\tmp\postgres-export\selected.json --task-id task-1 --task-id task-2
 ```
 
 If one or more requested `task_id` values are absent, the command still restores the bundles that exist and returns `status=partial` plus `missing_task_ids` in the JSON summary.
@@ -567,7 +567,7 @@ Use `--allow-degraded-schema` only for deliberate manual recovery when the guard
 Validate restore inputs without writing:
 
 ```bash
-gracekelly-import-postgres --input D:\GraceKelly\tmp\postgres-export\selected.json --dry-run
+gracekelly-import-postgres --input <repo>\tmp\postgres-export\selected.json --dry-run
 ```
 
 That success payload includes `repository_health` and `repository_schema`, so operators can confirm the target backend state in the same preflight call.
@@ -581,7 +581,7 @@ Compressed `.json.gz` snapshot input is supported directly.
 
 ### Preconditions
 
-1. Chrome profile is already authenticated to Perplexity Pro, for example `D:/GraceKelly/chrome-profile/`.
+1. Chrome profile is already authenticated to Perplexity Pro, for example `<repo>/chrome-profile/`.
 2. Uvicorn is running on `http://127.0.0.1:8011/` with at least:
    ```powershell
    $env:GRACEKELLY_BROWSER_ENABLED="true"
@@ -590,7 +590,7 @@ Compressed `.json.gz` snapshot input is supported directly.
 3. No other `chrome.exe` process is using that profile:
    ```powershell
    Get-CimInstance Win32_Process -Filter "name = 'chrome.exe'" |
-     Where-Object { $_.CommandLine -like '*D:\\GraceKelly\\chrome-profile*' } |
+     Where-Object { $_.CommandLine -like '*<repo>\\chrome-profile*' } |
      Select-Object ProcessId, CommandLine
    ```
    The command should return no rows before you launch the smoke.
@@ -655,7 +655,7 @@ Authentication is persisted through the dedicated Chrome profile directory (defa
 `chrome-profile/`, configurable via `GRACEKELLY_BROWSER_PROFILE_DIR`). There is no separate session
 token file to rotate or copy.
 
-Current local operation is single-account: `GRACEKELLY_BROWSER_PROFILE_DIR=D:/GraceKelly/chrome-profile`
+Current local operation is single-account: `GRACEKELLY_BROWSER_PROFILE_DIR=<repo>/chrome-profile`
 and no `GRACEKELLY_ACCOUNTS` pool. Keep that profile signed in with the intended Gmail-backed
 Perplexity account; do not add alternate browser profiles or API fallback keys unless the operating
 mode changes deliberately.
@@ -734,14 +734,14 @@ Tuning guidance:
 
 V2 is the only active orchestrator. All three known clients run on `http://127.0.0.1:8011`:
 
-- **`RAG_Support_Assistant`** (`D:\RAG_Support_Assistant`, port 8000)
-  - Smoke: `python D:\RAG_Support_Assistant\scripts\gracekelly_smoke.py`
+- **`RAG_Support_Assistant`** (`RAG_Support_Assistant`, port 8000)
+  - Smoke: `python RAG_Support_Assistant\scripts\gracekelly_smoke.py`
   - Failover provider: ollama (when V2 returns 5xx).
-- **`agent_toolkit`** (`D:\agent_toolkit`)
+- **`agent_toolkit`** (`agent_toolkit`)
   - LangGraph wrapper (`OrchestratorChatModel`) → V2 endpoints by `GKPattern`.
-  - Test: `cd D:\agent_toolkit && uv run pytest tests/integration/`
-- **`juhub`** (`D:\Perplexity_Orchestrator2\juhub`, scheduled 08:30 daily)
+  - Test: `cd agent_toolkit && uv run pytest tests/integration/`
+- **`juhub`** (`Perplexity_Orchestrator2\juhub`, scheduled 08:30 daily)
   - `backend/scheduler.py` does pre-flight `:8011/healthz/ready`; if V2 is down, the run is skipped with an error log (no auto-start).
-  - Manual dry-run: `cd D:\Perplexity_Orchestrator2 && set GK_DRY_RUN=1 && python -m juhub.backend.scheduler --now`
+  - Manual dry-run: `cd Perplexity_Orchestrator2 && set GK_DRY_RUN=1 && python -m juhub.backend.scheduler --now`
 
-Legacy V1 orchestrator at `D:\Perplexity_Orchestrator2` (`:8001`, `/api/gk/*`) is deprecated 2026-04-25 and not used by any client. See `D:\Perplexity_Orchestrator2\DEPRECATED.md`.
+Legacy V1 orchestrator at `Perplexity_Orchestrator2` (`:8001`, `/api/gk/*`) is deprecated 2026-04-25 and not used by any client. See `Perplexity_Orchestrator2\DEPRECATED.md`.

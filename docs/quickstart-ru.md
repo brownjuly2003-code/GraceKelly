@@ -15,7 +15,7 @@
 
 1. Установи зависимости:
    ```bash
-   cd D:\GraceKelly
+   cd <repo>
    python -m venv .venv
    .venv\Scripts\pip install -e ".[dev,browser]"
    .venv\Scripts\python -m playwright install chromium
@@ -30,7 +30,7 @@
    ```
    GRACEKELLY_BROWSER_ENABLED=true
    GRACEKELLY_BROWSER_AUTOMATION_BACKEND=playwright
-   GRACEKELLY_BROWSER_PROFILE_DIR=D:\GraceKelly\chrome-profile
+   GRACEKELLY_BROWSER_PROFILE_DIR=<repo>\chrome-profile
    GRACEKELLY_EXECUTION_PROFILE=hybrid
    ```
 

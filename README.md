@@ -9,13 +9,7 @@ all within a single subscription.
 
 The current operating target is a single-user local deployment: browser execution
 via Perplexity is primary, and direct provider APIs remain optional fallbacks.
-
-For a fast orientation, start with [docs/architecture.md](docs/architecture.md),
-then [docs/operator-runbook.md](docs/operator-runbook.md), and finish with
-[docs/phased-roadmap.md](docs/phased-roadmap.md).
-
-Краткая памятка по развёртыванию и эксплуатации на русском:
-[docs/quickstart-ru.md](docs/quickstart-ru.md).
+New here? Jump to [Documentation](#documentation) for setup and design docs.
 
 ## Quick Start
 
@@ -47,7 +41,7 @@ GraceKelly is a personal-use tool. Three risks are inherent to the design — re
 
 **Chrome profile lock.** `GRACEKELLY_BROWSER_PROFILE_DIR` must point to a dedicated profile that is not in use by any other Chrome instance. Opening Perplexity manually in a Chrome window using the same profile causes `BrowserProfileBusyError` and cascades into the circuit breaker. The recommended setup is a profile created by `scripts/bootstrap_chrome_profile.py`, opened only by GraceKelly.
 
-**Perplexity UI drift.** The browser adapter relies on CSS selectors for the model picker, response area, and authentication overlays. UI redesigns by Perplexity (typically every 2–3 months) require re-running `tools/capture_perplexity_recon.py` and updating selector constants. Symptoms of drift: model selection silently picks the wrong model, response polling returns empty, or auth banner is not dismissed. See `docs/perplexity-dom-recon.md`.
+**Perplexity UI drift.** The browser adapter relies on CSS selectors for the model picker, response area, and authentication overlays. UI redesigns by Perplexity (typically every 2–3 months) require re-running the `gracekelly-capture-perplexity-recon` tool and updating selector constants. Symptoms of drift: model selection silently picks the wrong model, response polling returns empty, or auth banner is not dismissed. See `docs/perplexity-dom-recon.md`.
 
 ## Integration / Clients
 
@@ -212,7 +206,19 @@ or streaming-chrome markers; 1 otherwise.
 
 ## Architecture
 
-Routes -> Orchestrator -> Router -> Adapters (API / Browser) -> Storage (Memory / PostgreSQL).
-See [docs/architecture.md](docs/architecture.md),
-[docs/operator-runbook.md](docs/operator-runbook.md), and
-[docs/phased-roadmap.md](docs/phased-roadmap.md).
+```
+Routes → Orchestrator → Router → Adapters (API / Browser) → Storage (Memory / PostgreSQL)
+```
+
+See [docs/architecture.md](docs/architecture.md) for the component breakdown, typed
+task/step/event contracts, and execution flow.
+
+## Documentation
+
+- [Architecture](docs/architecture.md) — components, contracts, and execution flow
+- [Onboarding](docs/onboarding.md) — first-time Chrome-profile setup and daily use
+- [Operator runbook](docs/operator-runbook.md) — running, monitoring, and recovery
+- [Perplexity DOM recon](docs/perplexity-dom-recon.md) — refreshing selectors after UI drift
+- [Phased roadmap](docs/phased-roadmap.md) — what shipped and what is next
+- [Быстрый старт (RU)](docs/quickstart-ru.md) — краткая памятка на русском
+- [Full documentation site](https://brownjuly2003-code.github.io/GraceKelly/) — Astro Starlight reference

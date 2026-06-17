@@ -112,21 +112,21 @@ Excluded by design:
 External clients integrate through the local V2 HTTP API on `http://127.0.0.1:8011`.
 Verified clients (all migrated from V1 by 2026-04-25):
 
-- **`RAG_Support_Assistant`** (`D:\RAG_Support_Assistant`) — provider-aware support bot with
+- **`RAG_Support_Assistant`** — provider-aware support bot with
   GraceKelly as a fallback LLM provider. Smoke harness `scripts/gracekelly_smoke.py`
   walks 8 steps (healthz, profile, simple ask, tool loop, schema dispatch, streaming,
   metrics, failover).
-- **`agent_toolkit`** (`D:\agent_toolkit`) — LangGraph agent building blocks. The
+- **`agent_toolkit`** — LangGraph agent building blocks. The
   `OrchestratorChatModel` LangChain adapter dispatches one of six `GKPattern`s
   (SINGLE / SONAR / DUAL / FIVE_MODELS / CONSENSUS / MAXIMUM) to the matching V2
   route (`/orchestrate`, `/compare`, `/consensus`, `/smart` with `reliability_level=high`).
-- **`juhub`** (`D:\Perplexity_Orchestrator2\juhub`) — daily AI debate scheduled at 08:30
+- **`juhub`** (`Perplexity_Orchestrator2\juhub`) — daily AI debate scheduled at 08:30
   via Windows Task Scheduler. `backend/scheduler.py` performs a pre-flight `:8011/healthz/ready`
   check and gracefully skips the run if V2 is not reachable; it does not auto-spawn V2
   on its own.
 
-The legacy V1 orchestrator at `D:\Perplexity_Orchestrator2` (port 8001, endpoints `/api/gk/*`)
-is deprecated as of 2026-04-25. See `D:\Perplexity_Orchestrator2\DEPRECATED.md`.
+The legacy V1 orchestrator at `Perplexity_Orchestrator2` (port 8001, endpoints `/api/gk/*`)
+is deprecated as of 2026-04-25. See `Perplexity_Orchestrator2\DEPRECATED.md`.
 
 The dry-run profile gate covers all eight sync routes used by external clients
 (`/api/v1/smart`, `/smart/v2`, `/orchestrate`, `/consensus`, `/debate`, `/compare`,
