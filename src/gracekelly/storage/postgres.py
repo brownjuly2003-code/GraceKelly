@@ -491,7 +491,7 @@ class PostgresTaskRepository(TaskRepository):
         limit: int | None = None,
         offset: int = 0,
     ) -> tuple[list[TaskEventRecord], int]:
-        count_query = "SELECT COUNT(*) FROM gk_task_events WHERE task_id = %s"
+        count_query = "SELECT COUNT(*) AS total FROM gk_task_events WHERE task_id = %s"
         if limit is None:
             data_query = """
             SELECT event_id, task_id, sequence_no, event_type, created_at, payload
@@ -510,7 +510,7 @@ class PostgresTaskRepository(TaskRepository):
         with self._connect(row_factory=dict_row) as conn:
             with conn.cursor() as cursor:
                 cursor.execute(count_query, (task_id,))
-                total = cursor.fetchone()[0]
+                total = cursor.fetchone()["total"]
                 cursor.execute(data_query, data_params)
                 rows = cursor.fetchall()
         return [self._event_from_row(row) for row in rows], total
