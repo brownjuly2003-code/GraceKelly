@@ -1,21 +1,9 @@
 from __future__ import annotations
 
 import importlib.util
-import sys
-import types
 from pathlib import Path
 
 import pytest
-
-try:
-    import playwright.sync_api  # noqa: F401
-except ModuleNotFoundError:
-    playwright_module = types.ModuleType("playwright")
-    sync_api_module = types.ModuleType("playwright.sync_api")
-    sync_api_module.sync_playwright = None  # type: ignore[attr-defined]
-    playwright_module.sync_api = sync_api_module  # type: ignore[attr-defined]
-    sys.modules["playwright"] = playwright_module
-    sys.modules["playwright.sync_api"] = sync_api_module
 
 module_path = Path(__file__).resolve().parents[1] / "scripts" / "live_smart_smoke.py"
 spec = importlib.util.spec_from_file_location("live_smart_smoke", module_path)

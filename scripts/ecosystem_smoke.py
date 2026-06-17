@@ -22,7 +22,6 @@ SUBPROCESS_TIMEOUT_SECONDS = 90.0
 
 RAG_SMOKE_PATH = Path("D:/RAG_Support_Assistant/scripts/gracekelly_smoke.py")
 AGENT_TOOLKIT_DIR = Path("D:/agent_toolkit")
-AGENT_TOOLKIT_INTEGRATION_DIR = AGENT_TOOLKIT_DIR / "tests" / "integration"
 JUHUB_DIR = Path("D:/Perplexity_Orchestrator2")
 JUHUB_SCHEDULER_PATH = JUHUB_DIR / "juhub" / "backend" / "scheduler.py"
 
@@ -155,7 +154,8 @@ def run_agent_toolkit_smoke(config: CliConfig) -> StepResult:
         return StepResult("3", "agent_toolkit", "SKIP", "disabled by --skip-agent-toolkit")
     if not AGENT_TOOLKIT_DIR.exists():
         return StepResult("3", "agent_toolkit", "SKIP", "agent_toolkit not found")
-    if not AGENT_TOOLKIT_INTEGRATION_DIR.exists():
+    integration_dir = AGENT_TOOLKIT_DIR / "tests" / "integration"
+    if not integration_dir.exists():
         return StepResult("3", "agent_toolkit", "SKIP", "integration tests not found")
     if shutil.which("uv") is None:
         return StepResult("3", "agent_toolkit", "SKIP", "uv not found")

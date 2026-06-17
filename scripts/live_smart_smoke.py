@@ -37,7 +37,6 @@ from pathlib import Path
 from typing import Any
 
 import httpx
-from playwright.sync_api import sync_playwright
 
 DEFAULT_PROMPT = (
     "Сравни рынки EV в Европе, США и Китае по ключевым метрикам: "
@@ -330,6 +329,10 @@ def main() -> int:
     started = time.monotonic()
     response_payload: dict[str, Any] | None = None
     submission_notes: list[str] = []
+
+    # Imported lazily so this module is importable (e.g. for unit tests of evaluate())
+    # without the optional `browser` extra installed.
+    from playwright.sync_api import sync_playwright
 
     with sync_playwright() as playwright:
         # Separate bundled chromium drives only the local SPA. The real Perplexity

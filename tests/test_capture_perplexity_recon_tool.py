@@ -326,7 +326,7 @@ class CapturePerplexityReconToolTests(unittest.TestCase):
 
         with patch.dict("os.environ", {}, clear=True):
             resolved = capture_perplexity_recon.resolve_output_dir(None, today=date(2026, 3, 18))
-        self.assertTrue(resolved.endswith("tmp\\browser-recon\\2026-03-18"))
+        self.assertTrue(resolved.endswith(str(Path("tmp", "browser-recon", "2026-03-18"))))
 
     def test_capture_recon_collects_home_more_and_model_menu_artifacts(self) -> None:
         context = _FakeContext()
