@@ -68,4 +68,5 @@ jobs:
         run: python -m pytest tests/test_postgres_live.py -v
 
       - name: Import check
-        run: python -c "from gracekelly.main import create_app; app = create_app(); print(f'OK: {len(app.routes)} routes')"
+        run: |
+          python -c "from gracekelly.main import create_app; app = create_app(); print(f'OK: {len(app.routes)} routes')"
